@@ -14,6 +14,7 @@ import {
   Keyboard,
   StatusBar,
   TextInputProps,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../supabaseClient";
@@ -25,6 +26,7 @@ import {
   FontAwesome5,
 } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { Session } from "@supabase/supabase-js";
 
 const { width, height } = Dimensions.get("window");
 
@@ -56,11 +58,20 @@ const AuthScreen: React.FC = () => {
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] =
     useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   // Animation values
   const fadeAnim = useState<Animated.Value>(new Animated.Value(0))[0];
   const slideAnim = useState<Animated.Value>(new Animated.Value(50))[0];
   const logoSize = useState<Animated.Value>(new Animated.Value(0.8))[0];
+
+  // Navigate to home if user is logged in
+  const navigateToHome = () => {
+    if (!isLoggedIn) {
+      setIsLoggedIn(true);
+      router.replace("/(tabs)/home");
+    }
+  };
 
   // Check for session on mount and subscribe to auth state changes
   useEffect(() => {
@@ -84,22 +95,39 @@ const AuthScreen: React.FC = () => {
     ]).start();
 
     // Check if a session already exists
+    // Modify checkSession function
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        setIsLoggedIn(true);
-        router.replace("/(tabs)/home");
+      try {
+        const { data } = await supabase.auth.getSession();
+        console.log(
+          "Session check:",
+          data?.session ? "Found session" : "No session"
+        );
+
+        if (data?.session) {
+          // Add delay to navigation
+          setTimeout(() => router.replace("/(tabs)/home"), 100);
+        }
+      } catch (err) {
+        console.error("Session check error:", err);
       }
     };
 
     checkSession();
 
-    // Subscribe to auth state changes (e.g. sign in)
+    // Subscribe to auth state changes (e.g. sign in, sign out)
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session) {
-          setIsLoggedIn(true);
-          router.replace("/(tabs)/home");
+      (event, currentSession) => {
+        console.log("Auth state changed:", event);
+        setSession(currentSession);
+
+        if (
+          currentSession &&
+          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
+        ) {
+          navigateToHome();
+        } else if (event === "SIGNED_OUT") {
+          setIsLoggedIn(false);
         }
       }
     );
@@ -135,18 +163,25 @@ const AuthScreen: React.FC = () => {
         setError("Please fill out all fields.");
         return;
       }
-      setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      setLoading(false);
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage("Logged in successfully!");
-        setIsLoggedIn(true);
-        router.replace("/(tabs)/home");
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          setError(error.message);
+        } else if (data?.session) {
+          setSession(data.session);
+          setMessage("Logged in successfully!");
+          navigateToHome();
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        setError("An unexpected error occurred. Please try again.");
+      } finally {
+        setLoading(false);
       }
     } else if (authMode === "signup") {
       if (!email || !password || !firstName || !lastName || !confirmPassword) {
@@ -157,15 +192,60 @@ const AuthScreen: React.FC = () => {
         setError("Passwords do not match.");
         return;
       }
-      setLoading(true);
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      setLoading(false);
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage("Sign up successful!");
-        setIsLoggedIn(true);
-        router.replace("/(tabs)/home");
+
+      try {
+        setLoading(true);
+
+        // Sign up with user metadata
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+            },
+          },
+        });
+
+        if (error) {
+          setError(error.message);
+        } else if (data?.user) {
+          if (data.session) {
+            setSession(data.session);
+            setMessage("Sign up successful!");
+            navigateToHome();
+          } else {
+            // Handle email confirmation if required
+            setMessage("Please check your email for confirmation link.");
+          }
+
+          // Create user profile in profiles table if needed
+          // This depends on your database structure
+          try {
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .insert([
+                {
+                  id: data.user.id,
+                  first_name: firstName,
+                  last_name: lastName,
+                  email: email,
+                },
+              ]);
+
+            if (profileError) {
+              console.error("Error creating profile:", profileError);
+            }
+          } catch (profileErr) {
+            console.error("Failed to create profile:", profileErr);
+          }
+        }
+      } catch (err) {
+        console.error("Signup error:", err);
+        setError("An unexpected error occurred. Please try again.");
+      } finally {
+        setLoading(false);
       }
     }
   };
