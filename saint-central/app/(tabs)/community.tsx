@@ -13,7 +13,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { Link, router } from "expo-router";
 
 // Interface definitions
 interface UserData {
@@ -63,17 +63,7 @@ interface Friend {
   created_at: string;
 }
 
-type RootStackParamList = {
-  Home: undefined;
-  Community: undefined;
-  Lent2025: undefined;
-};
-
-type CommunityScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList, "Community">;
-};
-
-const CommunityScreen: React.FC<CommunityScreenProps> = ({ navigation }) => {
+export default function CommunityScreen() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [users, setUsers] = useState<UserData[]>([]);
   const [intentions, setIntentions] = useState<Intention[]>([]);
@@ -984,13 +974,12 @@ const CommunityScreen: React.FC<CommunityScreenProps> = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.lentButton}
-            onPress={() => navigation.navigate("Lent2025")}
-          >
-            <Feather name="book-open" size={16} color="#FFFFFF" />
-            <Text style={styles.lentButtonText}>Lent 2025</Text>
-          </TouchableOpacity>
+          <Link href="/Lent2025" asChild>
+            <TouchableOpacity style={styles.lentButton}>
+              <Feather name="book-open" size={16} color="#FFFFFF" />
+              <Text style={styles.lentButtonText}>Lent 2025</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
       )}
 
@@ -1431,7 +1420,7 @@ const CommunityScreen: React.FC<CommunityScreenProps> = ({ navigation }) => {
       )}
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -1903,5 +1892,3 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
 });
-
-export default CommunityScreen;
