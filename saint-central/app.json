@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "saint-central",
+    "name": "Saint Central",
     "slug": "saint-central",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,6 +13,7 @@
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6YnBzcW10dmtpbXdxbWFrdXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyMjMxMDQsImV4cCI6MjA1MTc5OTEwNH0.BPMjXAHWqCBVsyklRG3OToXLGAMy346xMIkCR4Sc-YY"
     },
     "ios": {
+      "bundleIdentifier": "com.saintcentral.app",
       "supportsTablet": true
     },
     "android": {

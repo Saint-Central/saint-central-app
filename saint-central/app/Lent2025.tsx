@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -9,13 +15,17 @@ import {
   Alert,
   StyleSheet,
   Platform,
-  Dimensions,
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import { router } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import { supabase } from "../supabaseClient";
 import { Feather } from "@expo/vector-icons";
 
@@ -59,7 +69,7 @@ const lentGuideEvents: LentEvent[] = [
     description:
       "Attend an Ash Wednesday service to receive ashes on your forehead, symbolizing repentance and mortality. Reflect on areas in your life needing growth and set a personal intention for Lent.",
   },
-  // ... other lent guide events (keeping same data)
+  // ... other lent guide events
   {
     date: "April 12",
     title: "Preparation for Holy Week",
@@ -75,7 +85,7 @@ const getDaysInMonth = (month: number, year: number) => {
   const date = new Date(year, month, 1);
   const days = [];
   while (date.getMonth() === month) {
-    days.push(new Date(date)); // clone the date
+    days.push(new Date(date));
     date.setDate(date.getDate() + 1);
   }
   return days;
@@ -106,7 +116,6 @@ const formatDateUTC = (dateStr: string): string => {
   return `${month}/${day}/${year}`;
 };
 
-// Format date to ISO format with UTC timezone
 const formatDateToUTC = (date: Date): string => {
   return date.toISOString().split("T")[0] + "T00:00:00Z";
 };
@@ -115,6 +124,15 @@ const formatDateToUTC = (date: Date): string => {
 // Lent2025 Screen Component
 // --------------------
 const Lent2025Screen: React.FC = () => {
+  const { width } = useWindowDimensions();
+  // For responsiveness, cap the calendar width at 500 minus padding.
+  const calendarWidth = Math.min(width, 500) - 32;
+  // Adjust threshold to consider all phones as "small devices"
+  const isSmallDevice = width < 600;
+  // Set number of columns: 2 for phones, 7 for larger screens.
+  const columns = isSmallDevice ? 2 : 7;
+  const cellSize = calendarWidth / columns;
+
   // --------------------
   // State Management
   // --------------------
@@ -126,6 +144,8 @@ const Lent2025Screen: React.FC = () => {
     date: new Date().toISOString().split("T")[0],
   });
   const [showTaskModal, setShowTaskModal] = useState(false);
+  // For inline date picker in Add Task (iOS)
+  const [showInlineDatePicker, setShowInlineDatePicker] = useState(false);
   const [editingTask, setEditingTask] = useState<LentTask | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
@@ -138,21 +158,25 @@ const Lent2025Screen: React.FC = () => {
   );
   const [selectedGuideEvent, setSelectedGuideEvent] =
     useState<LentEvent | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [refreshKey, setRefreshKey] = useState(0); // Added for forcing re-renders when needed
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // Reference for ScrollView to enable scrolling to current day
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // --------------------
   // FRIEND COLORS SETUP (Memoized)
   // --------------------
-  const friendTasks = useMemo(() => {
-    return lentTasks.filter((task) => task.user_id !== currentUserId);
-  }, [lentTasks, currentUserId]);
-
-  const uniqueFriendEmails = useMemo(() => {
-    return Array.from(new Set(friendTasks.map((task) => task.user.email)));
-  }, [friendTasks]);
-
+  const friendTasks = useMemo(
+    () => lentTasks.filter((task) => task.user_id !== currentUserId),
+    [lentTasks, currentUserId]
+  );
+  const uniqueFriendEmails = useMemo(
+    () => Array.from(new Set(friendTasks.map((task) => task.user.email))),
+    [friendTasks]
+  );
   const palette = [
     "#F87171",
     "#60A5FA",
@@ -162,7 +186,6 @@ const Lent2025Screen: React.FC = () => {
     "#F472B6",
     "#38BDF8",
   ];
-
   const friendColors = useMemo(() => {
     const colors: { [email: string]: string } = {};
     uniqueFriendEmails.forEach((email, index) => {
@@ -170,6 +193,29 @@ const Lent2025Screen: React.FC = () => {
     });
     return colors;
   }, [uniqueFriendEmails]);
+
+  // --------------------
+  // Keyboard event listeners
+  // --------------------
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      () => {
+        setKeyboardVisible(true);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => {
+        setKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   // --------------------
   // FETCHING FUNCTIONS
@@ -180,49 +226,34 @@ const Lent2025Screen: React.FC = () => {
         data: { user },
         error,
       } = await supabase.auth.getUser();
-
-      if (error) {
-        throw error;
-      } else if (user) {
-        setCurrentUserId(user.id);
-      }
+      if (error) throw error;
+      if (user) setCurrentUserId(user.id);
     } catch (error) {
       console.error("Error fetching current user:", error);
-      showNotification(`Authentication error. Please log in again.`, "error");
+      showNotification("Authentication error. Please log in again.", "error");
     }
   }, []);
 
   const fetchTasks = useCallback(async () => {
     if (!currentUserId) return;
-
     try {
       setIsLoading(true);
-
-      // 1) Get friend relationships for the current user
       const { data: friendData, error: friendError } = await supabase
         .from("friends")
         .select("user_id_1, user_id_2, status")
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
         .eq("status", "accepted");
-
       if (friendError) throw friendError;
-
-      // 2) Build an array of friend IDs
       const friendIds =
         friendData?.map((f) =>
           f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1
         ) || [];
-
-      // Remove duplicates
       const uniqueFriendIds = Array.from(new Set(friendIds));
-
-      // 3) Fetch tasks for current user and friends
       const { data, error } = await supabase
         .from("lent_tasks")
         .select("*, user:users (first_name, last_name, email)")
         .in("user_id", [currentUserId, ...uniqueFriendIds])
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       setLentTasks(data || []);
     } catch (error: unknown) {
@@ -235,10 +266,8 @@ const Lent2025Screen: React.FC = () => {
     }
   }, [currentUserId]);
 
-  // Helper function to show notifications
   const showNotification = (message: string, type: "error" | "success") => {
     setNotification({ message, type });
-    // Auto-dismiss notification after 3 seconds
     setTimeout(() => setNotification(null), 3000);
   };
 
@@ -247,20 +276,75 @@ const Lent2025Screen: React.FC = () => {
   }, [fetchCurrentUser]);
 
   useEffect(() => {
-    if (currentUserId) {
-      fetchTasks();
-    }
+    if (currentUserId) fetchTasks();
   }, [currentUserId, fetchTasks]);
 
-  // Clean up notification timer
   useEffect(() => {
     return () => {
-      // This ensures any active timeout is cleared when component unmounts
-      if (notification) {
-        setNotification(null);
-      }
+      if (notification) setNotification(null);
     };
   }, []);
+
+  // Calculate calendar data - moving these calculations up to solve reference issues
+  const daysInMonth = useMemo(
+    () => getDaysInMonth(currentMonth, currentYear),
+    [currentMonth, currentYear]
+  );
+  // Build full grid (with offset for first day)
+  const offset = daysInMonth.length > 0 ? daysInMonth[0].getUTCDay() : 0;
+
+  // For 2-column layout, we don't need offset days
+  const fullGrid = isSmallDevice
+    ? daysInMonth
+    : [...Array(offset).fill(null), ...daysInMonth];
+
+  // On small devices, use a vertical scrolling list of days
+  const gridCells = fullGrid;
+
+  // Function to scroll to the current day when page loads
+  const scrollToCurrentDay = useCallback(() => {
+    if (!scrollViewRef.current || view !== "calendar") return;
+
+    // Find the current date
+    const today = new Date();
+
+    // If we're not in the current month/year, don't scroll
+    if (
+      today.getMonth() !== currentMonth ||
+      today.getFullYear() !== currentYear
+    )
+      return;
+
+    // Find the index of today in the grid
+    const todayIndex = fullGrid.findIndex(
+      (day) =>
+        day &&
+        day.getDate() === today.getDate() &&
+        day.getMonth() === today.getMonth() &&
+        day.getFullYear() === today.getFullYear()
+    );
+
+    if (todayIndex === -1) return;
+
+    // Calculate approximate position
+    const rowIndex = isSmallDevice
+      ? Math.floor(todayIndex / 2)
+      : Math.floor(todayIndex / 7);
+    const yPosition = rowIndex * (cellSize * 1.5 + 8); // cellHeight + margins
+
+    // Scroll to that position
+    scrollViewRef.current.scrollTo({ y: yPosition, animated: true });
+  }, [currentMonth, currentYear, fullGrid, isSmallDevice, cellSize, view]);
+
+  // Scroll to current day when component mounts or month/year changes
+  useEffect(() => {
+    // Small delay to ensure layout is complete
+    const timer = setTimeout(() => {
+      scrollToCurrentDay();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [scrollToCurrentDay, currentMonth, currentYear, refreshKey, view]);
 
   // --------------------
   // TASK CRUD FUNCTIONS
@@ -274,15 +358,12 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Please fill in all fields.", "error");
       return;
     }
-
     try {
       const formattedDate = formatDateToUTC(new Date(newTask.date));
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
       if (!user) throw new Error("Not authenticated");
-
       const { error } = await supabase.from("lent_tasks").insert([
         {
           user_id: user.id,
@@ -291,9 +372,7 @@ const Lent2025Screen: React.FC = () => {
           date: formattedDate,
         },
       ]);
-
       if (error) throw error;
-
       showNotification("Task created successfully!", "success");
       setShowTaskModal(false);
       setNewTask({
@@ -301,8 +380,7 @@ const Lent2025Screen: React.FC = () => {
         description: "",
         date: new Date().toISOString().split("T")[0],
       });
-
-      // Refresh tasks
+      setShowInlineDatePicker(false);
       fetchTasks();
     } catch (error: unknown) {
       console.error("Error creating task:", error);
@@ -313,18 +391,13 @@ const Lent2025Screen: React.FC = () => {
   };
 
   const handleEditTask = (task: LentTask) => {
-    // Format the date for the date input
-    const editTask = {
-      ...task,
-      date: task.date.split("T")[0],
-    };
+    const editTask = { ...task, date: task.date.split("T")[0] };
     setEditingTask(editTask);
   };
 
   const handleUpdateTask = async () => {
-    if (!editingTask) return;
-
     if (
+      !editingTask ||
       !editingTask.event.trim() ||
       !editingTask.description.trim() ||
       !editingTask.date.trim()
@@ -332,10 +405,8 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Please fill in all fields.", "error");
       return;
     }
-
     try {
       const formattedDate = formatDateToUTC(new Date(editingTask.date));
-
       const { error } = await supabase
         .from("lent_tasks")
         .update({
@@ -344,13 +415,9 @@ const Lent2025Screen: React.FC = () => {
           date: formattedDate,
         })
         .eq("id", editingTask.id);
-
       if (error) throw error;
-
       showNotification("Task updated successfully!", "success");
       setEditingTask(null);
-
-      // Refresh tasks
       fetchTasks();
     } catch (error: unknown) {
       console.error("Error updating task:", error);
@@ -366,12 +433,8 @@ const Lent2025Screen: React.FC = () => {
         .from("lent_tasks")
         .delete()
         .eq("id", taskId);
-
       if (error) throw error;
-
       showNotification("Task deleted successfully!", "success");
-
-      // Refresh tasks
       fetchTasks();
     } catch (error: unknown) {
       console.error("Error deleting task:", error);
@@ -384,9 +447,6 @@ const Lent2025Screen: React.FC = () => {
   // --------------------
   // CALENDAR FUNCTIONS
   // --------------------
-  const daysInMonth = useMemo(() => {
-    return getDaysInMonth(currentMonth, currentYear);
-  }, [currentMonth, currentYear]);
 
   const prevMonth = () => {
     if (currentMonth === 0) {
@@ -421,36 +481,29 @@ const Lent2025Screen: React.FC = () => {
   );
 
   const handleDayClick = (date: Date) => {
-    setSelectedDate(date);
-    const isoDate = date.toISOString().split("T")[0];
+    // Use local date getters instead of UTC methods
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    // Create ISO date string and a Date object based on local values
+    const isoDate = `${year}-${month}-${day}`;
+    const exactDate = new Date(year, date.getMonth(), date.getDate());
+
+    setSelectedDate(exactDate);
     setNewTask({ ...newTask, date: isoDate });
     setShowTaskModal(true);
   };
 
+  // Hide weekday header on small devices
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      const isoDate = selectedDate.toISOString().split("T")[0];
-      if (editingTask) {
-        setEditingTask({ ...editingTask, date: isoDate } as LentTask);
-      } else {
-        setNewTask({ ...newTask, date: isoDate });
-      }
-      setSelectedDate(selectedDate);
-    }
-  };
 
   const showConfirmDelete = (taskId: string) => {
     Alert.alert(
       "Confirm Delete",
       "Are you sure you want to delete this task?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           onPress: () => handleDeleteTask(taskId),
@@ -460,29 +513,12 @@ const Lent2025Screen: React.FC = () => {
     );
   };
 
-  // Force refresh after orientation change or other layout changes
-  useEffect(() => {
-    const handleOrientationChange = () => {
-      setRefreshKey((prev) => prev + 1);
-    };
-
-    // This would normally hook into an event listener for orientation changes
-    // For example: Dimensions.addEventListener('change', handleOrientationChange);
-
-    return () => {
-      // Clean up would go here
-      // Dimensions.removeEventListener('change', handleOrientationChange);
-    };
-  }, []);
-
   // --------------------
   // RENDER
   // --------------------
   return (
     <SafeAreaView style={styles.container} key={refreshKey}>
       <StatusBar barStyle="light-content" />
-
-      {/* Notification */}
       {notification && (
         <View
           style={[
@@ -495,7 +531,6 @@ const Lent2025Screen: React.FC = () => {
           <Text style={styles.notificationText}>{notification.message}</Text>
         </View>
       )}
-
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Lent 2025 – Task Tracker</Text>
         <View style={styles.headerButtons}>
@@ -515,8 +550,6 @@ const Lent2025Screen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* View Switcher */}
       <View style={styles.viewSwitcher}>
         <TouchableOpacity
           style={[
@@ -552,11 +585,55 @@ const Lent2025Screen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      {view === "calendar" && (
+        <>
+          {/* Sticky Month Header */}
+          <View style={styles.stickyMonthHeader}>
+            <TouchableOpacity
+              onPress={prevMonth}
+              accessibilityLabel="Previous month"
+            >
+              <Feather name="chevron-left" size={24} color="#FEFCE8" />
+            </TouchableOpacity>
+            <Text style={styles.monthTitle}>
+              {getMonthName(currentMonth)} {currentYear}
+            </Text>
+            <TouchableOpacity
+              onPress={nextMonth}
+              accessibilityLabel="Next month"
+            >
+              <Feather name="chevron-right" size={24} color="#FEFCE8" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Sticky Legend */}
+          {uniqueFriendEmails.length > 0 && (
+            <View style={styles.stickyLegendContainer}>
+              <Text style={styles.legendTitle}>Friend tasks:</Text>
+              <View style={styles.legendItems}>
+                {uniqueFriendEmails.map((email, index) => (
+                  <View key={email} style={styles.legendItem}>
+                    <View
+                      style={[
+                        styles.colorDot,
+                        { backgroundColor: friendColors[email] },
+                      ]}
+                    />
+                    <Text style={styles.legendText}>
+                      {friendTasks.find((t) => t.user.email === email)?.user
+                        .first_name || email}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </>
+      )}
+
+      <ScrollView ref={scrollViewRef} style={styles.content}>
         {view === "list" ? (
-          // LIST VIEW
           <View style={styles.listContainer}>
-            {/* My Tasks */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>My Tasks</Text>
               {lentTasks.filter((task) => task.user_id === currentUserId)
@@ -596,8 +673,6 @@ const Lent2025Screen: React.FC = () => {
                   ))
               )}
             </View>
-
-            {/* Friends' Tasks */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Friends' Tasks</Text>
               {friendTasks.length === 0 ? (
@@ -619,74 +694,45 @@ const Lent2025Screen: React.FC = () => {
             </View>
           </View>
         ) : (
-          // CALENDAR VIEW
           <View style={styles.calendarContainer}>
-            <View style={styles.monthHeader}>
-              <TouchableOpacity
-                onPress={prevMonth}
-                accessibilityLabel="Previous month"
-              >
-                <Feather name="chevron-left" size={24} color="#FEFCE8" />
-              </TouchableOpacity>
-              <Text style={styles.monthTitle}>
-                {getMonthName(currentMonth)} {currentYear}
-              </Text>
-              <TouchableOpacity
-                onPress={nextMonth}
-                accessibilityLabel="Next month"
-              >
-                <Feather name="chevron-right" size={24} color="#FEFCE8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Weekday Headers */}
-            <View style={styles.weekdayHeader}>
-              {weekDays.map((day, index) => (
-                <Text key={index} style={styles.weekdayText}>
-                  {day}
-                </Text>
-              ))}
-            </View>
-
-            {/* Friend Legend */}
-            {uniqueFriendEmails.length > 0 && (
-              <View style={styles.legendContainer}>
-                <Text style={styles.legendTitle}>Friend Key:</Text>
-                <View style={styles.legendItems}>
-                  {uniqueFriendEmails.map((email) => {
-                    const friend = friendTasks.find(
-                      (task) => task.user.email === email
-                    )?.user;
-                    return friend ? (
-                      <View key={email} style={styles.legendItem}>
-                        <View
-                          style={[
-                            styles.colorDot,
-                            { backgroundColor: friendColors[email] },
-                          ]}
-                        />
-                        <Text style={styles.legendText}>
-                          {friend.first_name} {friend.last_name}
-                        </Text>
-                      </View>
-                    ) : null;
-                  })}
-                </View>
+            {!isSmallDevice && (
+              <View style={styles.weekdayHeader}>
+                {weekDays.map((day, index) => (
+                  <Text
+                    key={index}
+                    style={[styles.weekdayText, { width: cellSize }]}
+                  >
+                    {day}
+                  </Text>
+                ))}
               </View>
             )}
-
-            {/* Calendar Grid */}
-            <View style={styles.calendarGrid}>
-              {/* Empty cells for first week */}
-              {(() => {
-                const firstDay = daysInMonth[0].getUTCDay();
-                return Array.from({ length: firstDay }).map((_, i) => (
-                  <View key={`empty-${i}`} style={styles.emptyCell} />
-                ));
-              })()}
-
-              {/* Day cells */}
-              {daysInMonth.map((day, index) => {
+            <View
+              style={[
+                styles.calendarGrid,
+                {
+                  width: calendarWidth,
+                  alignSelf: "center",
+                },
+              ]}
+            >
+              {gridCells.map((day, index) => {
+                if (!day) {
+                  return (
+                    <View
+                      key={`empty-${index}`}
+                      style={[
+                        styles.emptyCell,
+                        {
+                          width: isSmallDevice
+                            ? calendarWidth / 2 - 8
+                            : cellSize,
+                          height: cellSize * 1.5,
+                        },
+                      ]}
+                    />
+                  );
+                }
                 const today = new Date();
                 const isToday =
                   day.getDate() === today.getDate() &&
@@ -694,11 +740,17 @@ const Lent2025Screen: React.FC = () => {
                   day.getFullYear() === today.getFullYear();
                 const dayTasks = getTasksForDay(day);
                 const guideEvents = getGuideEventsForDate(day);
-
                 return (
                   <TouchableOpacity
                     key={`day-${index}`}
-                    style={[styles.dayCell, isToday && styles.todayCell]}
+                    style={[
+                      styles.dayCell,
+                      {
+                        width: isSmallDevice ? calendarWidth / 2 - 8 : cellSize,
+                        height: cellSize * 1.5,
+                      },
+                      isToday && styles.todayCell,
+                    ]}
                     onPress={() => handleDayClick(day)}
                     accessibilityLabel={`${day.getUTCDate()} ${getMonthName(
                       day.getMonth()
@@ -706,9 +758,16 @@ const Lent2025Screen: React.FC = () => {
                       guideEvents.length
                     } events`}
                   >
-                    <Text style={styles.dayNumber}>{day.getUTCDate()}</Text>
+                    <View style={styles.dayCellHeader}>
+                      <Text style={styles.dayNumber}>{day.getUTCDate()}</Text>
+                      {isSmallDevice && (
+                        <Text style={styles.dayName}>
+                          {weekDays[day.getDay()]}
+                        </Text>
+                      )}
+                    </View>
                     <View style={styles.dayContent}>
-                      {dayTasks.slice(0, 2).map((task) =>
+                      {dayTasks.slice(0, isSmallDevice ? 4 : 2).map((task) =>
                         task.user_id === currentUserId ? (
                           <Text
                             key={task.id}
@@ -743,9 +802,9 @@ const Lent2025Screen: React.FC = () => {
                           </View>
                         )
                       )}
-                      {dayTasks.length > 2 && (
+                      {dayTasks.length > (isSmallDevice ? 4 : 2) && (
                         <Text style={styles.moreTasks}>
-                          +{dayTasks.length - 2} more
+                          +{dayTasks.length - (isSmallDevice ? 4 : 2)} more
                         </Text>
                       )}
                     </View>
@@ -770,83 +829,124 @@ const Lent2025Screen: React.FC = () => {
           </View>
         )}
       </ScrollView>
-
-      {/* Loading Indicator */}
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#EAB308" />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       )}
-
-      {/* Add Task Modal */}
+      {/* Add Task Modal with Inline Date Picker for iOS */}
       <Modal
         visible={showTaskModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowTaskModal(false)}
+        onRequestClose={() => {
+          setShowTaskModal(false);
+          setShowInlineDatePicker(false);
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Task</Text>
-
-            <Text style={styles.inputLabel}>Event</Text>
-            <TextInput
-              style={styles.textInput}
-              value={newTask.event}
-              onChangeText={(text) => setNewTask({ ...newTask, event: text })}
-              placeholder="Enter event..."
-              placeholderTextColor="#9CA3AF"
-              accessibilityLabel="Event name"
-            />
-
-            <Text style={styles.inputLabel}>Date</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-              accessibilityLabel={`Select date, current date: ${new Date(
-                newTask.date
-              ).toLocaleDateString()}`}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View
+              style={[
+                styles.modalContent,
+                keyboardVisible && styles.modalContentKeyboardVisible,
+              ]}
             >
-              <Text style={styles.dateButtonText}>
-                {new Date(newTask.date).toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={styles.inputLabel}>Description</Text>
-            <TextInput
-              style={[styles.textInput, styles.textAreaInput]}
-              value={newTask.description}
-              onChangeText={(text) =>
-                setNewTask({ ...newTask, description: text })
-              }
-              placeholder="Enter description..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={4}
-              accessibilityLabel="Event description"
-            />
-
-            <View style={styles.modalButtons}>
+              <Text style={styles.modalTitle}>Add New Task</Text>
+              <Text style={styles.inputLabel}>Event</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newTask.event}
+                onChangeText={(text) => setNewTask({ ...newTask, event: text })}
+                placeholder="Enter event..."
+                placeholderTextColor="#9CA3AF"
+                accessibilityLabel="Event name"
+              />
+              <Text style={styles.inputLabel}>Date</Text>
               <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowTaskModal(false)}
-                accessibilityLabel="Cancel"
+                style={styles.dateButton}
+                onPress={() => {
+                  if (Platform.OS === "android") {
+                    DateTimePickerAndroid.open({
+                      value: new Date(newTask.date),
+                      onChange: (event, date) => {
+                        if (date) {
+                          setNewTask({
+                            ...newTask,
+                            date: date.toISOString().split("T")[0],
+                          });
+                        }
+                      },
+                      mode: "date",
+                    });
+                  } else {
+                    setShowInlineDatePicker((prev) => !prev);
+                  }
+                }}
+                accessibilityLabel={`Select date, current date: ${new Date(
+                  newTask.date
+                ).toLocaleDateString()}`}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.dateButtonText}>
+                  {new Date(newTask.date).toLocaleDateString()}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleCreateTask}
-                accessibilityLabel="Add task"
-              >
-                <Text style={styles.addButtonText}>Add</Text>
-              </TouchableOpacity>
+              {Platform.OS !== "android" && showInlineDatePicker && (
+                <DateTimePicker
+                  value={new Date(newTask.date)}
+                  mode="date"
+                  display="spinner"
+                  onChange={(event, date) => {
+                    if (date) {
+                      setNewTask({
+                        ...newTask,
+                        date: date.toISOString().split("T")[0],
+                      });
+                    }
+                  }}
+                  style={{ backgroundColor: "#292524" }}
+                />
+              )}
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.textInput, styles.textAreaInput]}
+                value={newTask.description}
+                onChangeText={(text) =>
+                  setNewTask({ ...newTask, description: text })
+                }
+                placeholder="Enter description..."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={4}
+                accessibilityLabel="Event description"
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setShowTaskModal(false);
+                    setShowInlineDatePicker(false);
+                  }}
+                  accessibilityLabel="Cancel"
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={handleCreateTask}
+                  accessibilityLabel="Add task"
+                >
+                  <Text style={styles.addButtonText}>Add</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
-
       {/* Edit Task Modal */}
       <Modal
         visible={!!editingTask}
@@ -855,103 +955,114 @@ const Lent2025Screen: React.FC = () => {
         onRequestClose={() => setEditingTask(null)}
       >
         {editingTask && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Task</Text>
-
-              <Text style={styles.inputLabel}>Event</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editingTask.event}
-                onChangeText={(text) =>
-                  setEditingTask({ ...editingTask, event: text } as LentTask)
-                }
-                placeholder="Enter event..."
-                placeholderTextColor="#9CA3AF"
-                accessibilityLabel="Event name"
-              />
-
-              <Text style={styles.inputLabel}>Date</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowDatePicker(true)}
-                accessibilityLabel={`Select date, current date: ${new Date(
-                  editingTask.date
-                ).toLocaleDateString()}`}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalOverlay}
+          >
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+              <View
+                style={[
+                  styles.modalContent,
+                  keyboardVisible && styles.modalContentKeyboardVisible,
+                ]}
               >
-                <Text style={styles.dateButtonText}>
-                  {new Date(editingTask.date).toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.textAreaInput]}
-                value={editingTask.description}
-                onChangeText={(text) =>
-                  setEditingTask({
-                    ...editingTask,
-                    description: text,
-                  } as LentTask)
-                }
-                placeholder="Enter description..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                numberOfLines={4}
-                accessibilityLabel="Event description"
-              />
-
-              <View style={styles.modalButtons}>
+                <Text style={styles.modalTitle}>Edit Task</Text>
+                <Text style={styles.inputLabel}>Event</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editingTask.event}
+                  onChangeText={(text) =>
+                    setEditingTask({ ...editingTask, event: text } as LentTask)
+                  }
+                  placeholder="Enter event..."
+                  placeholderTextColor="#9CA3AF"
+                  accessibilityLabel="Event name"
+                />
+                <Text style={styles.inputLabel}>Date</Text>
                 <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setEditingTask(null)}
-                  accessibilityLabel="Cancel"
+                  style={styles.dateButton}
+                  onPress={() => {
+                    if (Platform.OS === "android") {
+                      DateTimePickerAndroid.open({
+                        value: new Date(editingTask.date),
+                        onChange: (event, date) => {
+                          if (date) {
+                            setEditingTask({
+                              ...editingTask,
+                              date: date.toISOString().split("T")[0],
+                            } as LentTask);
+                          }
+                        },
+                        mode: "date",
+                      });
+                    } else {
+                      setShowEditDatePicker((prev) => !prev);
+                    }
+                  }}
+                  accessibilityLabel={`Select date, current date: ${new Date(
+                    editingTask.date
+                  ).toLocaleDateString()}`}
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={styles.dateButtonText}>
+                    {new Date(editingTask.date).toLocaleDateString()}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={handleUpdateTask}
-                  accessibilityLabel="Save changes"
-                >
-                  <Text style={styles.addButtonText}>Save</Text>
-                </TouchableOpacity>
+                {Platform.OS !== "android" && showEditDatePicker && (
+                  <DateTimePicker
+                    value={new Date(editingTask.date)}
+                    mode="date"
+                    display="spinner"
+                    onChange={(event, date) => {
+                      if (date) {
+                        setEditingTask({
+                          ...editingTask,
+                          date: date.toISOString().split("T")[0],
+                        } as LentTask);
+                      }
+                    }}
+                    style={{ backgroundColor: "#292524" }}
+                  />
+                )}
+                <Text style={styles.inputLabel}>Description</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textAreaInput]}
+                  value={editingTask.description}
+                  onChangeText={(text) =>
+                    setEditingTask({
+                      ...editingTask,
+                      description: text,
+                    } as LentTask)
+                  }
+                  placeholder="Enter description..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={4}
+                  accessibilityLabel="Event description"
+                />
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setEditingTask(null);
+                      setShowEditDatePicker(false);
+                    }}
+                    accessibilityLabel="Cancel"
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleUpdateTask}
+                    accessibilityLabel="Save changes"
+                  >
+                    <Text style={styles.addButtonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         )}
       </Modal>
-
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <Modal
-          transparent={true}
-          animationType="slide"
-          visible={showDatePicker}
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <View style={styles.datePickerContainer}>
-            <View style={styles.datePickerContent}>
-              <Text style={styles.datePickerTitle}>Select Date</Text>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display="spinner"
-                onChange={onDateChange}
-                style={styles.datePicker}
-              />
-              <TouchableOpacity
-                style={styles.datePickerCloseButton}
-                onPress={() => setShowDatePicker(false)}
-                accessibilityLabel="Close date picker"
-              >
-                <Text style={styles.datePickerCloseText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
       {/* Guide Event Modal */}
       <Modal
         visible={!!selectedGuideEvent}
@@ -991,9 +1102,6 @@ const Lent2025Screen: React.FC = () => {
   );
 };
 
-const { width } = Dimensions.get("window");
-const cellSize = width / 7 - 8; // 7 days per week with some padding
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1009,20 +1117,10 @@ const styles = StyleSheet.create({
     zIndex: 100,
     alignItems: "center",
   },
-  errorNotification: {
-    backgroundColor: "#DC2626",
-  },
-  successNotification: {
-    backgroundColor: "#16A34A",
-  },
-  notificationText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  header: {
-    padding: 16,
-    paddingTop: 8,
-  },
+  errorNotification: { backgroundColor: "#DC2626" },
+  successNotification: { backgroundColor: "#16A34A" },
+  notificationText: { color: "white", fontWeight: "600" },
+  header: { padding: 16, paddingTop: 8 },
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
@@ -1030,10 +1128,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: "center",
   },
-  headerButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  headerButtons: { flexDirection: "row", justifyContent: "space-between" },
   headerButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1044,11 +1139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(234, 179, 8, 0.3)",
   },
-  headerButtonText: {
-    color: "#FEFCE8",
-    marginLeft: 8,
-    fontWeight: "500",
-  },
+  headerButtonText: { color: "#FEFCE8", marginLeft: 8, fontWeight: "500" },
   viewSwitcher: {
     flexDirection: "row",
     justifyContent: "center",
@@ -1062,28 +1153,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#292524",
   },
-  activeViewButton: {
-    backgroundColor: "#EAB308",
-  },
-  viewButtonText: {
-    color: "#FEFCE8",
-    fontWeight: "500",
-  },
-  activeViewText: {
-    color: "#1C1917",
-    fontWeight: "600",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  // List View Styles
-  listContainer: {
-    paddingBottom: 20,
-  },
-  sectionContainer: {
-    marginBottom: 24,
-  },
+  activeViewButton: { backgroundColor: "#EAB308" },
+  viewButtonText: { color: "#FEFCE8", fontWeight: "500" },
+  activeViewText: { color: "#1C1917", fontWeight: "600" },
+  content: { flex: 1, paddingHorizontal: 16 },
+  listContainer: { paddingBottom: 20 },
+  sectionContainer: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
@@ -1093,10 +1168,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EAB308",
     paddingBottom: 8,
   },
-  emptyText: {
-    color: "rgba(254, 252, 232, 0.7)",
-    fontStyle: "italic",
-  },
+  emptyText: { color: "rgba(254, 252, 232, 0.7)", fontStyle: "italic" },
   taskCard: {
     backgroundColor: "rgba(41, 37, 36, 0.5)",
     borderRadius: 12,
@@ -1111,102 +1183,71 @@ const styles = StyleSheet.create({
     color: "#FEFCE8",
     marginBottom: 4,
   },
-  taskDate: {
-    fontSize: 14,
-    color: "#EAB308",
-    marginBottom: 8,
-  },
-  taskDescription: {
-    color: "rgba(254, 252, 232, 0.8)",
-    marginBottom: 12,
-  },
-  taskActions: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-  },
-  taskAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  editActionText: {
-    color: "#FEF08A",
-    marginLeft: 4,
-  },
-  deleteActionText: {
-    color: "#FCA5A5",
-    marginLeft: 4,
-  },
-  // Calendar View Styles
-  calendarContainer: {
-    paddingBottom: 20,
-  },
+  taskDate: { fontSize: 14, color: "#EAB308", marginBottom: 8 },
+  taskDescription: { color: "rgba(254, 252, 232, 0.8)", marginBottom: 12 },
+  taskActions: { flexDirection: "row", justifyContent: "flex-start" },
+  taskAction: { flexDirection: "row", alignItems: "center", marginRight: 16 },
+  editActionText: { color: "#FEF08A", marginLeft: 4 },
+  deleteActionText: { color: "#FCA5A5", marginLeft: 4 },
+  calendarContainer: { paddingBottom: 20 },
   monthHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
   },
-  monthTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FEFCE8",
+  // New sticky month header
+  stickyMonthHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#1C1917",
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(234, 179, 8, 0.2)",
   },
+  monthTitle: { fontSize: 20, fontWeight: "600", color: "#FEFCE8" },
   weekdayHeader: {
     flexDirection: "row",
     justifyContent: "space-around",
     marginBottom: 8,
   },
-  weekdayText: {
-    color: "#EAB308",
-    fontWeight: "600",
-    width: cellSize,
-    textAlign: "center",
-  },
+  weekdayText: { color: "#EAB308", fontWeight: "600", textAlign: "center" },
   legendContainer: {
     backgroundColor: "#292524",
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
   },
-  legendTitle: {
-    color: "#FEFCE8",
-    fontWeight: "600",
-    marginBottom: 8,
+  // New sticky legend
+  stickyLegendContainer: {
+    backgroundColor: "#292524",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8, // Added padding above the friend key
+    marginBottom: 16,
+    marginHorizontal: 16,
+    zIndex: 9,
   },
-  legendItems: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
+  legendTitle: { color: "#FEFCE8", fontWeight: "600", marginBottom: 8 },
+  legendItems: { flexDirection: "row", flexWrap: "wrap" },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
     marginRight: 12,
     marginBottom: 4,
   },
-  colorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  legendText: {
-    color: "#FEFCE8",
-    fontSize: 12,
-  },
+  colorDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
+  legendText: { color: "#FEFCE8", fontSize: 12 },
   calendarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
-  emptyCell: {
-    width: cellSize,
-    height: cellSize * 1.5,
-    margin: 4,
-  },
+  emptyCell: { margin: 4 },
   dayCell: {
-    width: cellSize,
-    height: cellSize * 1.5,
     borderWidth: 1,
     borderColor: "#44403C",
     borderRadius: 8,
@@ -1214,57 +1255,49 @@ const styles = StyleSheet.create({
     margin: 4,
     backgroundColor: "rgba(41, 37, 36, 0.3)",
   },
+  dayCellHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dayName: {
+    color: "#EAB308",
+    fontSize: 12,
+    fontWeight: "500",
+  },
   todayCell: {
     backgroundColor: "rgba(234, 179, 8, 0.2)",
     borderColor: "rgba(234, 179, 8, 0.5)",
   },
-  dayNumber: {
-    color: "#FEFCE8",
-    fontWeight: "500",
-    fontSize: 12,
-  },
-  dayContent: {
-    flex: 1,
-    marginTop: 2,
-  },
-  dayTaskText: {
-    color: "#FEFCE8",
-    fontSize: 10,
-  },
-  friendTaskContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  friendTaskDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 2,
-  },
-  friendTaskText: {
-    fontSize: 10,
-  },
-  moreTasks: {
-    fontSize: 10,
-    color: "#EAB308",
-    marginTop: 2,
-  },
+  dayNumber: { color: "#FEFCE8", fontWeight: "500", fontSize: 12 },
+  dayContent: { flex: 1, marginTop: 2 },
+  dayTaskText: { color: "#FEFCE8", fontSize: 10 },
+  friendTaskContainer: { flexDirection: "row", alignItems: "center" },
+  friendTaskDot: { width: 6, height: 6, borderRadius: 3, marginRight: 2 },
+  friendTaskText: { fontSize: 10 },
+  moreTasks: { fontSize: 10, color: "#EAB308", marginTop: 2 },
+  // Updated guide event button - made larger
   guideEventButton: {
     backgroundColor: "#EAB308",
     borderRadius: 4,
-    padding: 2,
-    marginTop: 2,
+    padding: 4, // Increased padding
+    marginTop: 4, // Increased margin
+    minHeight: 24, // Added minimum height
   },
   guideEventText: {
     color: "#1C1917",
-    fontSize: 9,
-    fontWeight: "500",
+    fontSize: 10, // Increased font size
+    fontWeight: "600", // Made font weight bolder
     textAlign: "center",
+    padding: 2, // Added padding
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+  },
+  modalScrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
@@ -1277,6 +1310,9 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     borderWidth: 1,
     borderColor: "rgba(234, 179, 8, 0.2)",
+  },
+  modalContentKeyboardVisible: {
+    marginBottom: 150, // Add extra bottom margin when keyboard is visible
   },
   modalTitle: {
     fontSize: 20,
@@ -1299,10 +1335,7 @@ const styles = StyleSheet.create({
     color: "#FEFCE8",
     marginBottom: 16,
   },
-  textAreaInput: {
-    height: 100,
-    textAlignVertical: "top",
-  },
+  textAreaInput: { height: 100, textAlignVertical: "top" },
   dateButton: {
     backgroundColor: "#1C1917",
     borderWidth: 1,
@@ -1311,22 +1344,14 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
   },
-  dateButtonText: {
-    color: "#FEFCE8",
-  },
+  dateButtonText: { color: "#FEFCE8" },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
     marginTop: 8,
   },
-  cancelButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 8,
-  },
-  cancelButtonText: {
-    color: "rgba(254, 252, 232, 0.7)",
-  },
+  cancelButton: { paddingVertical: 8, paddingHorizontal: 16, marginRight: 8 },
+  cancelButtonText: { color: "rgba(254, 252, 232, 0.7)" },
   addButton: {
     backgroundColor: "rgba(234, 179, 8, 0.1)",
     paddingVertical: 8,
@@ -1335,11 +1360,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(234, 179, 8, 0.3)",
   },
-  addButtonText: {
-    color: "#FEFCE8",
-    fontWeight: "500",
-  },
-  // Date Picker Styles
+  addButtonText: { color: "#FEFCE8", fontWeight: "500" },
   datePickerContainer: {
     flex: 1,
     justifyContent: "flex-end",
@@ -1358,9 +1379,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
   },
-  datePicker: {
-    backgroundColor: "#292524",
-  },
+  datePicker: { backgroundColor: "#292524" },
   datePickerCloseButton: {
     alignSelf: "center",
     paddingVertical: 12,
@@ -1371,11 +1390,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(234, 179, 8, 0.3)",
     marginTop: 16,
   },
-  datePickerCloseText: {
-    color: "#FEFCE8",
-    fontWeight: "500",
-  },
-  // Guide Event Modal
+  datePickerCloseText: { color: "#FEFCE8", fontWeight: "500" },
   guideEventModal: {
     backgroundColor: "#292524",
     borderRadius: 12,
@@ -1384,6 +1399,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     borderWidth: 1,
     borderColor: "rgba(234, 179, 8, 0.3)",
+    alignSelf: "center",
   },
   guideEventModalTitle: {
     fontSize: 18,
@@ -1391,10 +1407,7 @@ const styles = StyleSheet.create({
     color: "#FEFCE8",
     marginBottom: 8,
   },
-  guideEventModalDesc: {
-    color: "#FEFCE8",
-    marginBottom: 16,
-  },
+  guideEventModalDesc: { color: "#FEFCE8", marginBottom: 16 },
   guideEventCloseButton: {
     alignSelf: "flex-end",
     backgroundColor: "rgba(234, 179, 8, 0.1)",
@@ -1404,11 +1417,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(234, 179, 8, 0.3)",
   },
-  guideEventCloseText: {
-    color: "#FEFCE8",
-    fontWeight: "500",
-  },
-  // Loading Overlay
+  guideEventCloseText: { color: "#FEFCE8", fontWeight: "500" },
   loadingOverlay: {
     position: "absolute",
     top: 0,
@@ -1419,11 +1428,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: {
-    color: "#FEFCE8",
-    fontSize: 18,
-    marginTop: 12,
-  },
+  loadingText: { color: "#FEFCE8", fontSize: 18, marginTop: 12 },
 });
 
 export default Lent2025Screen;
