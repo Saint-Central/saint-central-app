@@ -349,6 +349,20 @@ const Lent2025Screen: React.FC = () => {
   // --------------------
   // TASK CRUD FUNCTIONS
   // --------------------
+
+  interface AdjustDateAndFormatToUTC {
+    (date: string): string;
+  }
+
+  const adjustDateAndFormatToUTC: AdjustDateAndFormatToUTC = (date) => {
+    // Create a new date object
+    const adjustedDate = new Date(date);
+    // Subtract one day
+    adjustedDate.setDate(adjustedDate.getDate() - 1);
+    // Format to UTC string
+    return adjustedDate.toISOString().split("T")[0] + "T00:00:00Z";
+  };
+
   const handleCreateTask = async () => {
     if (
       !newTask.event.trim() ||
@@ -359,7 +373,8 @@ const Lent2025Screen: React.FC = () => {
       return;
     }
     try {
-      const formattedDate = formatDateToUTC(new Date(newTask.date));
+      // Use the adjusted date function
+      const formattedDate = adjustDateAndFormatToUTC(newTask.date);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -382,7 +397,7 @@ const Lent2025Screen: React.FC = () => {
       });
       setShowInlineDatePicker(false);
       fetchTasks();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error creating task:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -406,7 +421,8 @@ const Lent2025Screen: React.FC = () => {
       return;
     }
     try {
-      const formattedDate = formatDateToUTC(new Date(editingTask.date));
+      // Use the adjusted date function
+      const formattedDate = adjustDateAndFormatToUTC(editingTask.date);
       const { error } = await supabase
         .from("lent_tasks")
         .update({
@@ -419,7 +435,7 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Task updated successfully!", "success");
       setEditingTask(null);
       fetchTasks();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error updating task:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -481,14 +497,26 @@ const Lent2025Screen: React.FC = () => {
   );
 
   const handleDayClick = (date: Date) => {
-    // Use local date getters instead of UTC methods
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    // Make a copy of the date
+    const adjustedDate = new Date(date);
 
-    // Create ISO date string and a Date object based on local values
+    // Add 1 day
+    adjustedDate.setDate(adjustedDate.getDate() + 1);
+
+    // Extract components from the adjusted date
+    const year = adjustedDate.getFullYear();
+    const month = String(adjustedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(adjustedDate.getDate()).padStart(2, "0");
+
+    // Create ISO date string from adjusted date
     const isoDate = `${year}-${month}-${day}`;
-    const exactDate = new Date(year, date.getMonth(), date.getDate());
+
+    // Create exact date object from adjusted components
+    const exactDate = new Date(
+      year,
+      adjustedDate.getMonth(),
+      adjustedDate.getDate()
+    );
 
     setSelectedDate(exactDate);
     setNewTask({ ...newTask, date: isoDate });
