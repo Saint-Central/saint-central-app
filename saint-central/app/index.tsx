@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -14,7 +14,7 @@ import {
   Keyboard,
   StatusBar,
   TextInputProps,
-  Alert,
+  Easing,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../supabaseClient";
@@ -24,11 +24,455 @@ import {
   Feather,
   Ionicons,
   FontAwesome5,
+  AntDesign,
 } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { Session } from "@supabase/supabase-js";
+import Svg, {
+  Path,
+  Rect,
+  Circle,
+  Defs,
+  RadialGradient,
+  Stop,
+  G,
+} from "react-native-svg";
 
 const { width, height } = Dimensions.get("window");
+
+// Interface for cross animation data
+interface CrossAnimation {
+  rotate: Animated.Value;
+  float: Animated.Value;
+  opacity: Animated.Value;
+  rotationDuration: number;
+  direction: number;
+  floatDistance: number;
+  floatDuration: number;
+  position: {
+    top: number;
+    left: number;
+    size: number;
+    zIndex: number;
+  };
+}
+
+// Interface for particle animation data
+interface ParticleAnimation {
+  pos: Animated.Value;
+  opacity: Animated.Value;
+  duration: number;
+  delay: number;
+  path: number[];
+  size: number;
+}
+
+// Pre-generate random positions and animations for crosses
+const generateCrossAnimations = (count: number): CrossAnimation[] => {
+  return Array.from({ length: count }).map(() => ({
+    rotate: new Animated.Value(0),
+    float: new Animated.Value(0),
+    opacity: new Animated.Value(0.05 + Math.random() * 0.2),
+    rotationDuration: 15000 + Math.random() * 25000,
+    direction: Math.random() > 0.5 ? 1 : -1,
+    floatDistance: 30 + Math.random() * 50,
+    floatDuration: 5000 + Math.random() * 3000,
+    position: {
+      top: Math.random() * height,
+      left: Math.random() * width,
+      size: 20 + Math.random() * 60,
+      zIndex: Math.floor(Math.random() * 5) + 1,
+    },
+  }));
+};
+
+// Pre-generate random positions and animations for particles
+const generateParticleAnimations = (count: number): ParticleAnimation[] => {
+  return Array.from({ length: count }).map(() => {
+    const size = Math.random() * 4 + 1;
+    const initialLeft = Math.random() * width;
+
+    return {
+      pos: new Animated.Value(0),
+      opacity: new Animated.Value(Math.random() * 0.5),
+      duration: 20000 + Math.random() * 30000,
+      delay: Math.random() * 10000,
+      path: [
+        initialLeft,
+        initialLeft + Math.random() * 50 - 25,
+        initialLeft + Math.random() * 100 - 50,
+        initialLeft + Math.random() * 50 - 25,
+        initialLeft + Math.random() * 100 - 50,
+        initialLeft + Math.random() * 50 - 25,
+      ],
+      size,
+    };
+  });
+};
+
+// Animated Light Rays Component with memoized animations
+const LightRaysBackground = () => {
+  // Create rays of light that slowly rotate
+  const rayAnim1 = useRef(new Animated.Value(0)).current;
+  const rayAnim2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Start rotation animations immediately and loop them continuously
+    Animated.loop(
+      Animated.timing(rayAnim1, {
+        toValue: 1,
+        duration: 120000, // Very slow rotation (2 minutes)
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    Animated.loop(
+      Animated.timing(rayAnim2, {
+        toValue: 1,
+        duration: 180000, // Even slower rotation (3 minutes)
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []); // Empty dependency array ensures this only runs once
+
+  const rotate1 = rayAnim1.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const rotate2 = rayAnim2.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "-360deg"],
+  });
+
+  return (
+    <View style={styles.raysContainer}>
+      <Animated.View
+        style={[styles.rayLayer, { transform: [{ rotate: rotate1 }] }]}
+      >
+        <Svg height="900" width="900" viewBox="0 0 900 900">
+          <Defs>
+            <RadialGradient
+              id="grad"
+              cx="50%"
+              cy="50%"
+              r="50%"
+              fx="50%"
+              fy="50%"
+            >
+              <Stop offset="0%" stopColor="#fcd34d" stopOpacity="0.1" />
+              <Stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Rect
+              key={i}
+              x="440"
+              y="30"
+              width="20"
+              height="400"
+              fill="url(#grad)"
+              opacity={0.4}
+              transform={`rotate(${i * 30} 450 450)`}
+            />
+          ))}
+        </Svg>
+      </Animated.View>
+
+      <Animated.View
+        style={[styles.rayLayer, { transform: [{ rotate: rotate2 }] }]}
+      >
+        <Svg height="800" width="800" viewBox="0 0 800 800">
+          <Defs>
+            <RadialGradient
+              id="grad2"
+              cx="50%"
+              cy="50%"
+              r="50%"
+              fx="50%"
+              fy="50%"
+            >
+              <Stop offset="0%" stopColor="#fcd34d" stopOpacity="0.07" />
+              <Stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Rect
+              key={i}
+              x="390"
+              y="20"
+              width="20"
+              height="350"
+              fill="url(#grad2)"
+              opacity={0.3}
+              transform={`rotate(${i * 45} 400 400)`}
+            />
+          ))}
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+};
+
+// Animated Cross Component with pre-generated positions
+const AnimatedCrosses = () => {
+  // Create memoized cross animations
+  const crossAnimations = useMemo(() => generateCrossAnimations(12), []);
+
+  useEffect(() => {
+    // Start all animations just once
+    crossAnimations.forEach((crossAnim) => {
+      // Rotation animation
+      Animated.loop(
+        Animated.timing(crossAnim.rotate, {
+          toValue: crossAnim.direction * 360,
+          duration: crossAnim.rotationDuration,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Floating animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(crossAnim.float, {
+            toValue: crossAnim.floatDistance,
+            duration: crossAnim.floatDuration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(crossAnim.float, {
+            toValue: 0,
+            duration: crossAnim.floatDuration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Opacity pulsing
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(crossAnim.opacity, {
+            toValue: 0.15 + Math.random() * 0.2,
+            duration: 3000 + Math.random() * 2000,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(crossAnim.opacity, {
+            toValue: 0.05 + Math.random() * 0.1,
+            duration: 3000 + Math.random() * 2000,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
+  }, [crossAnimations]);
+
+  return (
+    <View style={styles.crossesContainer}>
+      {crossAnimations.map((crossAnim, index) => {
+        // Convert rotation animation to interpolated string
+        const spin = crossAnim.rotate.interpolate({
+          inputRange: [0, 360],
+          outputRange: ["0deg", "360deg"],
+        });
+
+        const { top, left, size, zIndex } = crossAnim.position;
+
+        return (
+          <Animated.View
+            key={index}
+            style={[
+              styles.crossContainer,
+              {
+                top,
+                left,
+                width: size,
+                height: size,
+                zIndex,
+                opacity: crossAnim.opacity,
+                transform: [{ translateY: crossAnim.float }, { rotate: spin }],
+              },
+            ]}
+          >
+            <Svg width="100%" height="100%" viewBox="0 0 24 24">
+              <Defs>
+                <RadialGradient
+                  id={`crossGrad${index}`}
+                  cx="50%"
+                  cy="50%"
+                  r="50%"
+                  fx="50%"
+                  fy="50%"
+                >
+                  <Stop offset="0%" stopColor="#fcd34d" stopOpacity="1" />
+                  <Stop offset="100%" stopColor="#fcd34d" stopOpacity="0.8" />
+                </RadialGradient>
+              </Defs>
+              <Rect
+                x="10.5"
+                y="4"
+                width="3"
+                height="16"
+                fill={`url(#crossGrad${index})`}
+                rx="1"
+              />
+              <Rect
+                x="4"
+                y="10.5"
+                width="16"
+                height="3"
+                fill={`url(#crossGrad${index})`}
+                rx="1"
+              />
+            </Svg>
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+};
+
+// Particles Animation Component with pre-generated positions
+const ParticlesAnimation = () => {
+  // Create memoized particle animations
+  const particleAnimations = useMemo(() => generateParticleAnimations(40), []);
+
+  useEffect(() => {
+    // Start all animations just once
+    particleAnimations.forEach((particleAnim, index) => {
+      const startAnimation = () => {
+        // Move from bottom to top
+        Animated.loop(
+          Animated.timing(particleAnim.pos, {
+            toValue: 1,
+            duration: particleAnim.duration,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          })
+        ).start();
+
+        // Opacity animation
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(particleAnim.opacity, {
+              toValue: 0.6,
+              duration: 2000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(particleAnim.opacity, {
+              toValue: 0.1,
+              duration: 2000,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      };
+
+      // Start with initial delay
+      setTimeout(startAnimation, particleAnim.delay);
+    });
+  }, [particleAnimations]);
+
+  return (
+    <View style={styles.particlesContainer}>
+      {particleAnimations.map((particleAnim, index) => {
+        // Calculate the path with some drift
+        const translateY = particleAnim.pos.interpolate({
+          inputRange: [0, 1],
+          outputRange: [height + particleAnim.size, -particleAnim.size * 2],
+        });
+
+        const translateX = particleAnim.pos.interpolate({
+          inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
+          outputRange: particleAnim.path,
+        });
+
+        return (
+          <Animated.View
+            key={index}
+            style={[
+              styles.particle,
+              {
+                width: particleAnim.size,
+                height: particleAnim.size,
+                borderRadius: particleAnim.size / 2,
+                opacity: particleAnim.opacity,
+                transform: [{ translateY }, { translateX }],
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+};
+
+// Pulsing Logo Component
+const PulsingLogo = () => {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.15,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.5],
+  });
+
+  return (
+    <View style={styles.logoContainer}>
+      <Animated.View
+        style={[
+          styles.logoGlow,
+          {
+            opacity: glowOpacity,
+          },
+        ]}
+      />
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <MaterialCommunityIcons name="church" size={50} color="#fcd34d" />
+      </Animated.View>
+    </View>
+  );
+};
 
 interface CustomInputProps {
   placeholder: string;
@@ -38,6 +482,7 @@ interface CustomInputProps {
   icon: React.ReactNode;
   secureEntry?: boolean;
   toggleSecure?: () => void;
+  style?: any;
 }
 
 const AuthScreen: React.FC = () => {
@@ -59,11 +504,12 @@ const AuthScreen: React.FC = () => {
     useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isFocused, setIsFocused] = useState<string | null>(null);
 
-  // Animation values
-  const fadeAnim = useState<Animated.Value>(new Animated.Value(0))[0];
-  const slideAnim = useState<Animated.Value>(new Animated.Value(50))[0];
-  const logoSize = useState<Animated.Value>(new Animated.Value(0.8))[0];
+  // Animation values for form
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   // Navigate to home if user is logged in
   const navigateToHome = () => {
@@ -79,23 +525,17 @@ const AuthScreen: React.FC = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 1200,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(logoSize, {
-        toValue: 1,
-        friction: 4,
+        duration: 1000,
         useNativeDriver: true,
       }),
     ]).start();
 
     // Check if a session already exists
-    // Modify checkSession function
     const checkSession = async () => {
       try {
         const { data } = await supabase.auth.getSession();
@@ -220,25 +660,22 @@ const AuthScreen: React.FC = () => {
             setMessage("Please check your email for confirmation link.");
           }
 
-          // Create user profile in profiles table if needed
-          // This depends on your database structure
+          // Create user entry in users table
           try {
-            const { error: profileError } = await supabase
-              .from("profiles")
-              .insert([
-                {
-                  id: data.user.id,
-                  first_name: firstName,
-                  last_name: lastName,
-                  email: email,
-                },
-              ]);
+            const { error: userError } = await supabase.from("users").insert([
+              {
+                id: data.user.id,
+                email: email,
+                first_name: firstName,
+                last_name: lastName,
+              },
+            ]);
 
-            if (profileError) {
-              console.error("Error creating profile:", profileError);
+            if (userError) {
+              console.error("Error creating user:", userError);
             }
-          } catch (profileErr) {
-            console.error("Failed to create profile:", profileErr);
+          } catch (userErr) {
+            console.error("Failed to create user:", userErr);
           }
         }
       } catch (err) {
@@ -271,19 +708,31 @@ const AuthScreen: React.FC = () => {
     icon,
     secureEntry = false,
     toggleSecure = undefined,
+    style = {},
   }: CustomInputProps): React.ReactNode => {
+    const inputId = placeholder.toLowerCase().replace(/\s/g, "");
+    const isInputFocused = isFocused === inputId;
+
     return (
-      <View style={styles.inputContainer}>
+      <View
+        style={[
+          styles.inputContainer,
+          isInputFocused && styles.inputContainerFocused,
+          style,
+        ]}
+      >
         <View style={styles.iconContainer}>{icon}</View>
         <TextInput
           style={styles.input}
           placeholder={placeholder}
-          placeholderTextColor="rgba(255, 255, 255, 0.5)"
+          placeholderTextColor="rgba(255, 255, 255, 0.4)"
           autoCapitalize="none"
           keyboardType={keyboardType}
           value={value}
           onChangeText={setValue}
           secureTextEntry={secureEntry}
+          onFocus={() => setIsFocused(inputId)}
+          onBlur={() => setIsFocused(null)}
         />
         {toggleSecure && (
           <TouchableOpacity style={styles.secureButton} onPress={toggleSecure}>
@@ -298,26 +747,20 @@ const AuthScreen: React.FC = () => {
     );
   };
 
-  // Stars background animation component
-  const TwinklingStars = () => {
-    return (
-      <View style={styles.starsContainer}>
-        {Array.from({ length: 50 }).map((_, i) => (
-          <Animated.View
-            key={i}
-            style={[
-              styles.star,
-              {
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                opacity: new Animated.Value(Math.random()),
-                transform: [{ scale: Math.random() * 0.5 + 0.5 }],
-              },
-            ]}
-          />
-        ))}
-      </View>
-    );
+  const handlePressIn = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      friction: 4,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
   };
 
   return (
@@ -326,13 +769,242 @@ const AuthScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <StatusBar barStyle="light-content" />
+        <StatusBar
+          barStyle="light-content"
+          translucent
+          backgroundColor="transparent"
+        />
         <LinearGradient
-          colors={["#1c1917", "#292524", "#44403c"]}
+          colors={["#0a090a", "#1a1917", "#262524", "#39383c"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradientContainer}
         >
+          {/* Light Rays Background */}
+          <LightRaysBackground />
+
+          {/* Floating Particles */}
+          <ParticlesAnimation />
+
+          {/* Animated Crosses Background */}
+          <AnimatedCrosses />
+
+          {/* Radial glow */}
+          <View style={styles.radialGlow} />
+
+          {/* Decorative circle */}
+          <View style={styles.decorativeCircle} />
+
+          {/* Central glow */}
+          <View style={styles.centralGlow} />
+
+          {/* Centered Logo */}
+          <View style={styles.centerLogoWrapper}>
+            <PulsingLogo />
+          </View>
+
+          {/* Form content - with no box background */}
+          <Animated.View
+            style={[
+              styles.formContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            {/* Form title with glow effect */}
+            <View style={styles.titleContainer}>
+              <Text style={styles.formTitle}>Saint Central</Text>
+              <Text style={styles.formSubtitle}>
+                {authMode === "login"
+                  ? "Sign in to your account"
+                  : "Create a new account"}
+              </Text>
+            </View>
+
+            {/* Error and success messages */}
+            {(error || message) && (
+              <View style={styles.messageContainer}>
+                {error ? (
+                  <>
+                    <Feather name="alert-circle" size={18} color="#ef4444" />
+                    <Text style={styles.error}>{error}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Feather name="check-circle" size={18} color="#10b981" />
+                    <Text style={styles.message}>{message}</Text>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* Form inputs */}
+            <View style={styles.inputsContainer}>
+              {renderInput({
+                placeholder: "Email",
+                value: email,
+                setValue: setEmail,
+                keyboardType: "email-address",
+                icon: <Feather name="mail" size={20} color="#fcd34d" />,
+                style: { marginBottom: 16 },
+              })}
+
+              {authMode === "signup" && (
+                <View style={styles.nameInputsRow}>
+                  {renderInput({
+                    placeholder: "First Name",
+                    value: firstName,
+                    setValue: setFirstName,
+                    icon: <Feather name="user" size={20} color="#fcd34d" />,
+                    style: { width: "48%" },
+                  })}
+                  {renderInput({
+                    placeholder: "Last Name",
+                    value: lastName,
+                    setValue: setLastName,
+                    icon: <Ionicons name="person" size={20} color="#fcd34d" />,
+                    style: { width: "48%" },
+                  })}
+                </View>
+              )}
+
+              {renderInput({
+                placeholder: "Password",
+                value: password,
+                setValue: setPassword,
+                icon: <Feather name="lock" size={20} color="#fcd34d" />,
+                secureEntry: secureTextEntry,
+                toggleSecure: () => setSecureTextEntry(!secureTextEntry),
+                style: {
+                  marginBottom: 16,
+                  marginTop: authMode === "signup" ? 16 : 0,
+                },
+              })}
+
+              {authMode === "signup" &&
+                renderInput({
+                  placeholder: "Confirm Password",
+                  value: confirmPassword,
+                  setValue: setConfirmPassword,
+                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
+                  secureEntry: secureConfirmTextEntry,
+                  toggleSecure: () =>
+                    setSecureConfirmTextEntry(!secureConfirmTextEntry),
+                  style: { marginBottom: 16 },
+                })}
+            </View>
+
+            {/* Forgot password link (for login mode) */}
+            {authMode === "login" && (
+              <TouchableOpacity style={styles.forgotPassword}>
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Submit button */}
+            <Animated.View
+              style={[
+                styles.buttonContainer,
+                {
+                  transform: [{ scale: buttonScale }],
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleSubmit}
+                disabled={loading}
+                activeOpacity={0.9}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+              >
+                <LinearGradient
+                  colors={["#eab308", "#facc15", "#fbbf24"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.buttonGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#1c1917" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>
+                        {authMode === "login" ? "Sign In" : "Sign Up"}
+                      </Text>
+                      <AntDesign name="arrowright" size={20} color="#1c1917" />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Toggle between login and signup */}
+            <TouchableOpacity
+              style={styles.toggleContainer}
+              onPress={toggleAuthMode}
+            >
+              <Text style={styles.toggleText}>
+                {authMode === "login"
+                  ? "Don't have an account? "
+                  : "Already have an account? "}
+              </Text>
+              <Text style={styles.toggleTextBold}>
+                {authMode === "login" ? "Sign Up" : "Sign In"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Social login options */}
+            {authMode === "login" && (
+              <>
+                <View style={styles.orContainer}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>OR CONTINUE WITH</Text>
+                  <View style={styles.orLine} />
+                </View>
+                <View style={styles.socialContainer}>
+                  {[
+                    <FontAwesome5
+                      key="google"
+                      name="google"
+                      size={20}
+                      color="#fcd34d"
+                    />,
+                    <FontAwesome5
+                      key="facebook"
+                      name="facebook-f"
+                      size={20}
+                      color="#fcd34d"
+                    />,
+                    <FontAwesome5
+                      key="apple"
+                      name="apple"
+                      size={20}
+                      color="#fcd34d"
+                    />,
+                  ].map((icon, index) => (
+                    <View key={index}>
+                      <TouchableOpacity style={styles.socialButton}>
+                        {icon}
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Footer with cross */}
+            <View style={styles.footer}>
+              <MaterialCommunityIcons
+                name="cross"
+                size={18}
+                color="rgba(255, 255, 255, 0.3)"
+              />
+              <Text style={styles.footerText}>Powered by faith</Text>
+            </View>
+          </Animated.View>
+
           {/* Bottom Navigation - Only shown when logged in */}
           {isLoggedIn && (
             <View style={styles.bottomNav}>
@@ -362,187 +1034,6 @@ const AuthScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
-          <TwinklingStars />
-
-          {/* Decorative circle */}
-          <Animated.View
-            style={[
-              styles.decorativeCircle,
-              { transform: [{ scale: logoSize }], opacity: 0.05 },
-            ]}
-          />
-
-          {/* Header with logo */}
-          <Animated.View
-            style={[
-              styles.header,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-            ]}
-          >
-            <View style={styles.logoWrap}>
-              <MaterialCommunityIcons name="church" size={32} color="#fcd34d" />
-            </View>
-            <Text style={styles.headerText}>Saint Central</Text>
-          </Animated.View>
-
-          {/* Main content */}
-          <Animated.View
-            style={[
-              styles.formContainer,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-            ]}
-          >
-            <BlurView intensity={20} tint="dark" style={styles.blurContainer}>
-              {/* Error and success messages */}
-              {error ? (
-                <View style={styles.messageContainer}>
-                  <Feather name="alert-circle" size={18} color="#ef4444" />
-                  <Text style={styles.error}>{error}</Text>
-                </View>
-              ) : null}
-              {message ? (
-                <View style={styles.messageContainer}>
-                  <Feather name="check-circle" size={18} color="#10b981" />
-                  <Text style={styles.message}>{message}</Text>
-                </View>
-              ) : null}
-
-              {/* Form inputs */}
-              <View style={styles.inputsContainer}>
-                {renderInput({
-                  placeholder: "Email",
-                  value: email,
-                  setValue: setEmail,
-                  keyboardType: "email-address",
-                  icon: <Feather name="mail" size={20} color="#fcd34d" />,
-                })}
-
-                {authMode === "signup" && (
-                  <>
-                    {renderInput({
-                      placeholder: "First Name",
-                      value: firstName,
-                      setValue: setFirstName,
-                      icon: <Feather name="user" size={20} color="#fcd34d" />,
-                    })}
-                    {renderInput({
-                      placeholder: "Last Name",
-                      value: lastName,
-                      setValue: setLastName,
-                      icon: (
-                        <Ionicons name="person" size={20} color="#fcd34d" />
-                      ),
-                    })}
-                  </>
-                )}
-
-                {renderInput({
-                  placeholder: "Password",
-                  value: password,
-                  setValue: setPassword,
-                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
-                  secureEntry: secureTextEntry,
-                  toggleSecure: () => setSecureTextEntry(!secureTextEntry),
-                })}
-
-                {authMode === "signup" &&
-                  renderInput({
-                    placeholder: "Confirm Password",
-                    value: confirmPassword,
-                    setValue: setConfirmPassword,
-                    icon: <Feather name="lock" size={20} color="#fcd34d" />,
-                    secureEntry: secureConfirmTextEntry,
-                    toggleSecure: () =>
-                      setSecureConfirmTextEntry(!secureConfirmTextEntry),
-                  })}
-              </View>
-
-              {/* Forgot password link (for login mode) */}
-              {authMode === "login" && (
-                <TouchableOpacity style={styles.forgotPassword}>
-                  <Text style={styles.forgotPasswordText}>
-                    Forgot Password?
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Submit button */}
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleSubmit}
-                disabled={loading}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={["#eab308", "#facc15"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.buttonGradient}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#1c1917" size="small" />
-                  ) : (
-                    <>
-                      <Text style={styles.buttonText}>
-                        {authMode === "login" ? "Sign In" : "Sign Up"}
-                      </Text>
-                      <Feather name="arrow-right" size={20} color="#1c1917" />
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Toggle between login and signup */}
-              <TouchableOpacity
-                style={styles.toggleContainer}
-                onPress={toggleAuthMode}
-              >
-                <Text style={styles.toggleText}>
-                  {authMode === "login"
-                    ? "Don't have an account? "
-                    : "Already have an account? "}
-                </Text>
-                <Text style={styles.toggleTextBold}>
-                  {authMode === "login" ? "Sign Up" : "Sign In"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Social login options */}
-              {authMode === "login" && (
-                <>
-                  <View style={styles.orContainer}>
-                    <View style={styles.orLine} />
-                    <Text style={styles.orText}>OR</Text>
-                    <View style={styles.orLine} />
-                  </View>
-                  <View style={styles.socialContainer}>
-                    <TouchableOpacity style={styles.socialButton}>
-                      <FontAwesome5 name="google" size={20} color="#fcd34d" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.socialButton}>
-                      <FontAwesome5
-                        name="facebook-f"
-                        size={20}
-                        color="#fcd34d"
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.socialButton}>
-                      <FontAwesome5 name="apple" size={20} color="#fcd34d" />
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-
-              {/* Footer with cross */}
-              <View style={styles.footer}>
-                <MaterialCommunityIcons
-                  name="cross"
-                  size={14}
-                  color="rgba(255, 255, 255, 0.2)"
-                />
-              </View>
-            </BlurView>
-          </Animated.View>
         </LinearGradient>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -555,19 +1046,57 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  starsContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  raysContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1,
   },
-  star: {
+  rayLayer: {
     position: "absolute",
-    width: 2,
-    height: 2,
-    borderRadius: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  crossesContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+  },
+  crossContainer: {
+    position: "absolute",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  particlesContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+  particle: {
+    position: "absolute",
     backgroundColor: "#fcd34d",
+  },
+  radialGlow: {
+    position: "absolute",
+    width: width * 1.5,
+    height: width * 1.5,
+    borderRadius: width * 0.75,
+    backgroundColor: "transparent",
+    shadowColor: "#fcd34d",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 150,
+    zIndex: 3,
+  },
+  centralGlow: {
+    position: "absolute",
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "transparent",
+    shadowColor: "#fcd34d",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 100,
+    zIndex: 3,
   },
   decorativeCircle: {
     position: "absolute",
@@ -575,92 +1104,132 @@ const styles = StyleSheet.create({
     height: height * 0.4,
     borderRadius: height * 0.2,
     backgroundColor: "#fcd34d",
-    top: -height * 0.1,
-    right: -width * 0.1,
+    top: -height * 0.15,
+    right: -width * 0.15,
+    zIndex: 3,
+    opacity: 0.05,
   },
-  header: {
+  centerLogoWrapper: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 60 : 40,
+    top: height * 0.1,
     left: 0,
     right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 10,
-    marginBottom: 20,
+    zIndex: 10,
   },
-  logoWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  logoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#44403c",
+    backgroundColor: "rgba(20, 20, 20, 0.5)",
     borderWidth: 1,
     borderColor: "rgba(252, 211, 77, 0.3)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
-  headerText: {
-    fontSize: 30,
-    fontWeight: "600",
-    color: "#fcd34d",
-    marginLeft: 12,
-    fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
-    letterSpacing: 0.5,
+  logoGlow: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "transparent",
+    shadowColor: "#fcd34d",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 20,
   },
   formContainer: {
     width: width * 0.9,
-    maxWidth: 400,
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 20,
+    maxWidth: 420,
+    alignItems: "center",
     maxHeight: height * 0.8,
+    paddingTop: 0,
+    marginTop: height * 0.05,
+    zIndex: 10,
   },
-  blurContainer: {
-    padding: 24,
+  nameInputsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 0,
+  },
+  titleContainer: {
+    alignItems: "center",
+    marginBottom: 30,
     paddingTop: 20,
-    borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.2)",
-    backgroundColor: "rgba(41, 37, 36, 0.7)",
+  },
+  formTitle: {
+    fontSize: 36,
+    fontWeight: "600",
+    color: "#fcd34d",
+    textAlign: "center",
+    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(252, 211, 77, 0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  formSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.7)",
+    textAlign: "center",
+    marginTop: 8,
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   messageContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    width: "100%",
   },
   error: {
     color: "#ef4444",
     marginLeft: 8,
     fontSize: 14,
+    fontWeight: "500",
   },
   message: {
     color: "#10b981",
     marginLeft: 8,
     fontSize: 14,
+    fontWeight: "500",
   },
   inputsContainer: {
-    marginBottom: 16,
+    width: "100%",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(41, 37, 36, 0.8)",
-    borderRadius: 8,
-    marginBottom: 12,
-    height: 54,
+    backgroundColor: "rgba(15, 15, 15, 0.5)",
+    borderRadius: 16,
+    height: 60,
     borderWidth: 1,
     borderColor: "rgba(252, 211, 77, 0.15)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+    overflow: "hidden",
+  },
+  inputContainerFocused: {
+    borderColor: "rgba(252, 211, 77, 0.5)",
+    backgroundColor: "rgba(20, 20, 20, 0.7)",
+    shadowColor: "#fcd34d",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   iconContainer: {
-    width: 50,
+    width: 60,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -669,7 +1238,7 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 16,
     height: "100%",
-    fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   secureButton: {
     width: 50,
@@ -679,24 +1248,27 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: "flex-end",
-    marginBottom: 16,
+    marginBottom: 24,
   },
   forgotPasswordText: {
     color: "#fcd34d",
     fontSize: 14,
     fontWeight: "500",
   },
+  buttonContainer: {
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+  },
   button: {
     width: "100%",
-    height: 54,
-    borderRadius: 8,
+    height: 60,
+    borderRadius: 16,
     overflow: "hidden",
-    marginTop: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    marginTop: 8,
   },
   buttonGradient: {
     width: "100%",
@@ -709,71 +1281,92 @@ const styles = StyleSheet.create({
     color: "#1c1917",
     fontSize: 18,
     fontWeight: "700",
-    marginRight: 8,
+    marginRight: 10,
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
+    letterSpacing: 0.5,
   },
   toggleContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 24,
+    marginTop: 28,
   },
   toggleText: {
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 16,
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   toggleTextBold: {
     color: "#fcd34d",
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   orContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 24,
-    marginBottom: 20,
+    marginTop: 30,
+    marginBottom: 22,
+    width: "100%",
   },
   orLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(252, 211, 77, 0.15)",
+    backgroundColor: "rgba(252, 211, 77, 0.2)",
   },
   orText: {
     color: "rgba(252, 211, 77, 0.5)",
-    marginHorizontal: 12,
-    fontSize: 14,
-    fontWeight: "500",
+    marginHorizontal: 14,
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1,
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   socialContainer: {
     flexDirection: "row",
     justifyContent: "center",
   },
   socialButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(15, 15, 15, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     borderWidth: 1,
     borderColor: "rgba(252, 211, 77, 0.15)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
   footer: {
-    marginTop: 20,
+    marginTop: 30,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  footerText: {
+    color: "rgba(255, 255, 255, 0.3)",
+    fontSize: 13,
+    marginLeft: 8,
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   bottomNav: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(28, 25, 23, 0.9)",
+    backgroundColor: "rgba(10, 10, 10, 0.9)",
     borderTopWidth: 1,
     borderTopColor: "rgba(252, 211, 77, 0.2)",
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingVertical: 8,
-    paddingBottom: Platform.OS === "ios" ? 24 : 8,
+    paddingVertical: 10,
+    paddingBottom: Platform.OS === "ios" ? 30 : 10,
+    zIndex: 100,
   },
   navItem: {
     alignItems: "center",
@@ -783,6 +1376,7 @@ const styles = StyleSheet.create({
     color: "#fcd34d",
     fontSize: 12,
     marginTop: 4,
+    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
 });
 
