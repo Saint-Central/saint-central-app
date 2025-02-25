@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   SafeAreaView,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather, FontAwesome } from "@expo/vector-icons";
@@ -1169,95 +1171,101 @@ export default function CommunityScreen() {
         animationType="fade"
         onRequestClose={() => setShowIntentionModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create New Intention</Text>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Create New Intention</Text>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Type</Text>
-              <View style={styles.pickerContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.typeOption,
-                    newIntention.type === "prayer" && styles.selectedTypeOption,
-                  ]}
-                  onPress={() =>
-                    setNewIntention({ ...newIntention, type: "prayer" })
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Type</Text>
+                <View style={styles.pickerContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeOption,
+                      newIntention.type === "prayer" &&
+                        styles.selectedTypeOption,
+                    ]}
+                    onPress={() =>
+                      setNewIntention({ ...newIntention, type: "prayer" })
+                    }
+                  >
+                    <Text style={styles.typeOptionText}>Prayer</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeOption,
+                      newIntention.type === "resolution" &&
+                        styles.selectedTypeOption,
+                    ]}
+                    onPress={() =>
+                      setNewIntention({ ...newIntention, type: "resolution" })
+                    }
+                  >
+                    <Text style={styles.typeOptionText}>Resolution</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeOption,
+                      newIntention.type === "goal" && styles.selectedTypeOption,
+                    ]}
+                    onPress={() =>
+                      setNewIntention({ ...newIntention, type: "goal" })
+                    }
+                  >
+                    <Text style={styles.typeOptionText}>Goal</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Title</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={newIntention.title}
+                  onChangeText={(text) =>
+                    setNewIntention({ ...newIntention, title: text })
                   }
+                  placeholder="Enter title..."
+                  placeholderTextColor="rgba(255, 215, 0, 0.5)"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description</Text>
+                <TextInput
+                  style={styles.formTextarea}
+                  value={newIntention.description}
+                  onChangeText={(text) =>
+                    setNewIntention({ ...newIntention, description: text })
+                  }
+                  placeholder="Enter description..."
+                  placeholderTextColor="rgba(255, 215, 0, 0.5)"
+                  multiline={true}
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowIntentionModal(false)}
                 >
-                  <Text style={styles.typeOptionText}>Prayer</Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.typeOption,
-                    newIntention.type === "resolution" &&
-                      styles.selectedTypeOption,
-                  ]}
-                  onPress={() =>
-                    setNewIntention({ ...newIntention, type: "resolution" })
-                  }
+                  style={styles.createButton}
+                  onPress={handleCreateIntention}
                 >
-                  <Text style={styles.typeOptionText}>Resolution</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeOption,
-                    newIntention.type === "goal" && styles.selectedTypeOption,
-                  ]}
-                  onPress={() =>
-                    setNewIntention({ ...newIntention, type: "goal" })
-                  }
-                >
-                  <Text style={styles.typeOptionText}>Goal</Text>
+                  <Text style={styles.createButtonText}>Create</Text>
                 </TouchableOpacity>
               </View>
             </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Title</Text>
-              <TextInput
-                style={styles.formInput}
-                value={newIntention.title}
-                onChangeText={(text) =>
-                  setNewIntention({ ...newIntention, title: text })
-                }
-                placeholder="Enter title..."
-                placeholderTextColor="rgba(255, 215, 0, 0.5)"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Description</Text>
-              <TextInput
-                style={styles.formTextarea}
-                value={newIntention.description}
-                onChangeText={(text) =>
-                  setNewIntention({ ...newIntention, description: text })
-                }
-                placeholder="Enter description..."
-                placeholderTextColor="rgba(255, 215, 0, 0.5)"
-                multiline={true}
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowIntentionModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreateIntention}
-              >
-                <Text style={styles.createButtonText}>Create</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Intention Modal */}
@@ -1271,109 +1279,117 @@ export default function CommunityScreen() {
         }}
       >
         {editingIntention && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Intention</Text>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Edit Intention</Text>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Type</Text>
-                <View style={styles.pickerContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      editingIntention.type === "prayer" &&
-                        styles.selectedTypeOption,
-                    ]}
-                    onPress={() =>
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Type</Text>
+                  <View style={styles.pickerContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeOption,
+                        editingIntention.type === "prayer" &&
+                          styles.selectedTypeOption,
+                      ]}
+                      onPress={() =>
+                        setEditingIntention({
+                          ...editingIntention,
+                          type: "prayer",
+                        })
+                      }
+                    >
+                      <Text style={styles.typeOptionText}>Prayer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeOption,
+                        editingIntention.type === "resolution" &&
+                          styles.selectedTypeOption,
+                      ]}
+                      onPress={() =>
+                        setEditingIntention({
+                          ...editingIntention,
+                          type: "resolution",
+                        })
+                      }
+                    >
+                      <Text style={styles.typeOptionText}>Resolution</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeOption,
+                        editingIntention.type === "goal" &&
+                          styles.selectedTypeOption,
+                      ]}
+                      onPress={() =>
+                        setEditingIntention({
+                          ...editingIntention,
+                          type: "goal",
+                        })
+                      }
+                    >
+                      <Text style={styles.typeOptionText}>Goal</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Title</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    value={editingIntention.title}
+                    onChangeText={(text) =>
+                      setEditingIntention({ ...editingIntention, title: text })
+                    }
+                    placeholder="Enter title..."
+                    placeholderTextColor="rgba(255, 215, 0, 0.5)"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Description</Text>
+                  <TextInput
+                    style={styles.formTextarea}
+                    value={editingIntention.description}
+                    onChangeText={(text) =>
                       setEditingIntention({
                         ...editingIntention,
-                        type: "prayer",
+                        description: text,
                       })
                     }
+                    placeholder="Enter description..."
+                    placeholderTextColor="rgba(255, 215, 0, 0.5)"
+                    multiline={true}
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setShowEditModal(false);
+                      setEditingIntention(null);
+                    }}
                   >
-                    <Text style={styles.typeOptionText}>Prayer</Text>
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      editingIntention.type === "resolution" &&
-                        styles.selectedTypeOption,
-                    ]}
-                    onPress={() =>
-                      setEditingIntention({
-                        ...editingIntention,
-                        type: "resolution",
-                      })
-                    }
+                    style={styles.createButton}
+                    onPress={handleUpdateIntention}
                   >
-                    <Text style={styles.typeOptionText}>Resolution</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      editingIntention.type === "goal" &&
-                        styles.selectedTypeOption,
-                    ]}
-                    onPress={() =>
-                      setEditingIntention({ ...editingIntention, type: "goal" })
-                    }
-                  >
-                    <Text style={styles.typeOptionText}>Goal</Text>
+                    <Text style={styles.createButtonText}>Save Changes</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Title</Text>
-                <TextInput
-                  style={styles.formInput}
-                  value={editingIntention.title}
-                  onChangeText={(text) =>
-                    setEditingIntention({ ...editingIntention, title: text })
-                  }
-                  placeholder="Enter title..."
-                  placeholderTextColor="rgba(255, 215, 0, 0.5)"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Description</Text>
-                <TextInput
-                  style={styles.formTextarea}
-                  value={editingIntention.description}
-                  onChangeText={(text) =>
-                    setEditingIntention({
-                      ...editingIntention,
-                      description: text,
-                    })
-                  }
-                  placeholder="Enter description..."
-                  placeholderTextColor="rgba(255, 215, 0, 0.5)"
-                  multiline={true}
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setShowEditModal(false);
-                    setEditingIntention(null);
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.createButton}
-                  onPress={handleUpdateIntention}
-                >
-                  <Text style={styles.createButtonText}>Save Changes</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         )}
       </Modal>
 
