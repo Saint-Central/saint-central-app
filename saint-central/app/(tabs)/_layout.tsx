@@ -151,6 +151,22 @@ export default function TabLayout() {
           tabBarItemStyle: { display: "none" },
         }}
       />
+      <Tabs.Screen
+        name="womens-ministry/[id]"
+        options={{
+          // This hides the tab bar button for the lent2025 screen.
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="womens-ministry/index"
+        options={{
+          // This hides the tab bar button for the lent2025 screen.
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }
