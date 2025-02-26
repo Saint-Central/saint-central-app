@@ -4,7 +4,6 @@ import { Platform } from "react-native";
 import { BlurView } from "expo-blur";
 
 import { HapticTab } from "@/components/HapticTab";
-import { IconSymbol } from "@/components/ui/IconSymbol";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 
 // Custom TabBar background component matching the Saint Central theme
@@ -24,22 +23,20 @@ const CustomTabBarBackground = () => {
       }}
     />
   ) : (
-    <React.Fragment>
-      <BlurView
-        tint="dark"
-        intensity={0}
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 85,
-          backgroundColor: "#1F1F1F",
-          borderTopWidth: 1,
-          borderTopColor: "rgba(253, 224, 71, 0.2)",
-        }}
-      />
-    </React.Fragment>
+    <BlurView
+      tint="dark"
+      intensity={0}
+      style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 85,
+        backgroundColor: "#1F1F1F",
+        borderTopWidth: 1,
+        borderTopColor: "rgba(253, 224, 71, 0.2)",
+      }}
+    />
   );
 };
 
@@ -128,6 +125,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="person" size={24} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="Lent2025"
+        options={{
+          // This hides the tab bar button for the lent2025 screen.
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: "none" },
         }}
       />
     </Tabs>

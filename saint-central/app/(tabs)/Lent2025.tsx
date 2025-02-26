@@ -23,10 +23,11 @@ import {
   Keyboard,
 } from "react-native";
 import { router } from "expo-router";
+
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
-import { supabase } from "../supabaseClient";
+import { supabase } from "../../supabaseClient";
 import { Feather } from "@expo/vector-icons";
 
 // --------------------
