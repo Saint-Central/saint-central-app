@@ -183,6 +183,14 @@ export default function TabLayout() {
           tabBarItemStyle: { display: "none" },
         }}
       />
+      <Tabs.Screen
+        name="news/index"
+        options={{
+          // This hides the tab bar button for the lent2025 screen.
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }
