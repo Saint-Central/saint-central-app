@@ -21,6 +21,9 @@ import {
   useWindowDimensions,
   KeyboardAvoidingView,
   Keyboard,
+  FlatList,
+  Animated,
+  Vibration,
 } from "react-native";
 import { router } from "expo-router";
 
@@ -45,6 +48,33 @@ interface LentTask {
     last_name: string;
     email: string;
   };
+  likes_count?: number;
+  comments_count?: number;
+  liked_by_current_user?: boolean;
+}
+
+interface Comment {
+  id: string;
+  user_id: string;
+  commentable_id: string;
+  commentable_type: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+}
+
+interface Like {
+  id: string;
+  user_id: string;
+  likeable_id: string;
+  likeable_type: string;
+  updated_at: string;
+  created_at: string;
 }
 
 interface Notification {
@@ -365,6 +395,29 @@ const formatDateToUTC = (date: Date): string => {
   return date.toISOString().split("T")[0] + "T00:00:00Z";
 };
 
+// Format date for display in comments
+const formatCommentDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    const hours = Math.floor(diffTime / (1000 * 60 * 60));
+    if (hours === 0) {
+      const minutes = Math.floor(diffTime / (1000 * 60));
+      return minutes <= 1 ? "just now" : `${minutes} minutes ago`;
+    }
+    return `${hours} hours ago`;
+  } else if (diffDays === 1) {
+    return "yesterday";
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
+};
+
 // --------------------
 // Lent2025 Screen Component
 // --------------------
@@ -407,6 +460,22 @@ const Lent2025Screen: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showEditDatePicker, setShowEditDatePicker] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // New state for comments and likes
+  const [taskComments, setTaskComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [selectedTaskForComments, setSelectedTaskForComments] =
+    useState<LentTask | null>(null);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentLoading, setCommentLoading] = useState(false);
+
+  // Animation values for like button
+  const [likeAnimations, setLikeAnimations] = useState<{
+    [taskId: string]: Animated.Value;
+  }>({});
+  const [heartAnimations, setHeartAnimations] = useState<{
+    [taskId: string]: Animated.Value;
+  }>({});
 
   // Reference for ScrollView to enable scrolling to current day
   const scrollViewRef = useRef<ScrollView>(null);
@@ -494,13 +563,60 @@ const Lent2025Screen: React.FC = () => {
           f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1
         ) || [];
       const uniqueFriendIds = Array.from(new Set(friendIds));
+
+      // Fetch tasks with likes and comments counts
       const { data, error } = await supabase
         .from("lent_tasks")
         .select("*, user:users (first_name, last_name, email)")
         .in("user_id", [currentUserId, ...uniqueFriendIds])
         .order("created_at", { ascending: false });
+
       if (error) throw error;
-      setLentTasks(data || []);
+
+      // Fetch likes for each task to determine if current user liked it
+      const tasksWithLikes = await Promise.all(
+        (data || []).map(async (task) => {
+          // Get likes count
+          const { count: likesCount, error: likesError } = await supabase
+            .from("likes")
+            .select("*", { count: "exact", head: false })
+            .eq("likeable_id", task.id)
+            .eq("likeable_type", "lent_tasks");
+
+          // Check if current user liked this task
+          const { data: userLike, error: userLikeError } = await supabase
+            .from("likes")
+            .select("*")
+            .eq("likeable_id", task.id)
+            .eq("likeable_type", "lent_tasks")
+            .eq("user_id", currentUserId)
+            .maybeSingle();
+
+          // Get comments count
+          const { count: commentsCount, error: commentsError } = await supabase
+            .from("comments")
+            .select("*", { count: "exact", head: false })
+            .eq("commentable_id", task.id)
+            .eq("commentable_type", "lent_tasks");
+
+          if (likesError || userLikeError || commentsError) {
+            console.error("Error fetching task metadata:", {
+              likesError,
+              userLikeError,
+              commentsError,
+            });
+          }
+
+          return {
+            ...task,
+            likes_count: likesCount || 0,
+            comments_count: commentsCount || 0,
+            liked_by_current_user: !!userLike,
+          };
+        })
+      );
+
+      setLentTasks(tasksWithLikes || []);
     } catch (error: unknown) {
       console.error("Error fetching tasks:", error);
       const errorMessage =
@@ -510,6 +626,32 @@ const Lent2025Screen: React.FC = () => {
       setIsLoading(false);
     }
   }, [currentUserId]);
+
+  // Function to fetch comments for a specific task
+  const fetchComments = async (taskId: string) => {
+    try {
+      setCommentLoading(true);
+      const { data, error } = await supabase
+        .from("comments")
+        .select("*, user:users (first_name, last_name, email)")
+        .eq("commentable_id", taskId)
+        .eq("commentable_type", "lent_tasks")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      console.log("Fetched comments for task", taskId, ":", data);
+      setTaskComments(data || []);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showNotification("Error fetching comments: " + errorMessage, "error");
+      setTaskComments([]);
+    } finally {
+      setCommentLoading(false);
+    }
+  };
 
   const showNotification = (message: string, type: "error" | "success") => {
     setNotification({ message, type });
@@ -706,6 +848,233 @@ const Lent2025Screen: React.FC = () => {
   };
 
   // --------------------
+  // LIKE FUNCTIONS
+  // --------------------
+
+  const animateLikeButton = (taskId: string, liked: boolean) => {
+    // Initialize animation values if they don't exist for this task
+    if (!likeAnimations[taskId]) {
+      const scaleAnim = new Animated.Value(1);
+      setLikeAnimations((prev) => ({ ...prev, [taskId]: scaleAnim }));
+    }
+
+    if (!heartAnimations[taskId]) {
+      const heartAnim = new Animated.Value(liked ? 1 : 0);
+      setHeartAnimations((prev) => ({ ...prev, [taskId]: heartAnim }));
+    }
+
+    // Get animation references
+    const scaleAnim = likeAnimations[taskId] || new Animated.Value(1);
+    const heartAnim =
+      heartAnimations[taskId] || new Animated.Value(liked ? 1 : 0);
+
+    // Trigger vibration feedback
+    if (Platform.OS !== "web") {
+      Vibration.vibrate(liked ? [0, 30, 10, 20] : 20); // Pattern for like, simple for unlike
+    }
+
+    // Create a particle-like animation for likes
+    if (liked) {
+      // Run scale animation with bounce effect
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.6,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 3, // Less friction = more bounciness
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Simple scale down for unlike
+      Animated.timing(scaleAnim, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+
+    // Run heart color animation with easing - SEPARATE FROM SCALE ANIMATION
+    // This animation needs to use useNativeDriver: false because it animates non-transform/opacity properties
+    Animated.timing(heartAnim, {
+      toValue: liked ? 1 : 0,
+      duration: liked ? 400 : 300,
+      useNativeDriver: false,
+    }).start();
+
+    // Update state with animation values
+    setLikeAnimations((prev) => ({ ...prev, [taskId]: scaleAnim }));
+    setHeartAnimations((prev) => ({ ...prev, [taskId]: heartAnim }));
+  };
+
+  const handleLikeToggle = async (task: LentTask) => {
+    try {
+      // Optimistic update for immediate feedback
+      const willBeLiked = !task.liked_by_current_user;
+
+      // Update the UI first (optimistically)
+      setLentTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          if (t.id === task.id) {
+            return {
+              ...t,
+              likes_count: willBeLiked
+                ? (t.likes_count || 0) + 1
+                : Math.max(0, (t.likes_count || 0) - 1),
+              liked_by_current_user: willBeLiked,
+            };
+          }
+          return t;
+        })
+      );
+
+      // Trigger animation and haptic feedback
+      animateLikeButton(task.id, willBeLiked);
+
+      if (willBeLiked) {
+        // Like: Create a new like
+        const { error } = await supabase.from("likes").insert([
+          {
+            user_id: currentUserId,
+            likeable_id: task.id,
+            likeable_type: "lent_tasks",
+          },
+        ]);
+
+        if (error) throw error;
+      } else {
+        // Unlike: Delete the like
+        const { error } = await supabase
+          .from("likes")
+          .delete()
+          .eq("likeable_id", task.id)
+          .eq("likeable_type", "lent_tasks")
+          .eq("user_id", currentUserId);
+
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showNotification(`Error: ${errorMessage}`, "error");
+
+      // Revert the optimistic update in case of error
+      fetchTasks();
+    }
+  };
+
+  // --------------------
+  // COMMENT FUNCTIONS
+  // --------------------
+
+  const handleOpenComments = (task: LentTask) => {
+    setSelectedTaskForComments(task);
+    setTaskComments([]);
+    setCommentLoading(true);
+    fetchComments(task.id);
+    setShowCommentModal(true);
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedTaskForComments || !newComment.trim()) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("comments")
+        .insert([
+          {
+            user_id: currentUserId,
+            commentable_id: selectedTaskForComments.id,
+            commentable_type: "lent_tasks",
+            content: newComment.trim(),
+          },
+        ])
+        .select("*, user:users(first_name, last_name, email)");
+
+      if (error) throw error;
+
+      console.log("New comment added:", data);
+
+      // Update local comments state
+      if (data && data.length > 0) {
+        setTaskComments((prev) => [...prev, data[0]]);
+      }
+
+      // Update task comment count
+      setLentTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          if (t.id === selectedTaskForComments.id) {
+            return {
+              ...t,
+              comments_count: (t.comments_count || 0) + 1,
+            };
+          }
+          return t;
+        })
+      );
+
+      // Clear input
+      setNewComment("");
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showNotification(`Error adding comment: ${errorMessage}`, "error");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!selectedTaskForComments) return;
+
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .delete()
+        .eq("id", commentId);
+
+      if (error) throw error;
+
+      // Update comments state
+      setTaskComments((prev) =>
+        prev.filter((comment) => comment.id !== commentId)
+      );
+
+      // Update task comment count
+      setLentTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          if (t.id === selectedTaskForComments.id) {
+            return {
+              ...t,
+              comments_count: Math.max(0, (t.comments_count || 0) - 1),
+            };
+          }
+          return t;
+        })
+      );
+
+      showNotification("Comment deleted", "success");
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showNotification(`Error: ${errorMessage}`, "error");
+    }
+  };
+
+  // --------------------
   // CALENDAR FUNCTIONS
   // --------------------
 
@@ -783,6 +1152,142 @@ const Lent2025Screen: React.FC = () => {
           style: "destructive",
         },
       ]
+    );
+  };
+
+  const showConfirmDeleteComment = (commentId: string) => {
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this comment?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          onPress: () => handleDeleteComment(commentId),
+          style: "destructive",
+        },
+      ]
+    );
+  };
+
+  // --------------------
+  // RENDER FUNCTIONS
+  // --------------------
+
+  // Render a task card with likes and comments functionality
+  const renderTaskCard = (task: LentTask, isUserTask: boolean) => {
+    // Get or create animation values for this task
+    if (!likeAnimations[task.id]) {
+      const scaleAnim = new Animated.Value(1);
+      setLikeAnimations((prev) => ({ ...prev, [task.id]: scaleAnim }));
+    }
+
+    if (!heartAnimations[task.id]) {
+      const heartAnim = new Animated.Value(task.liked_by_current_user ? 1 : 0);
+      setHeartAnimations((prev) => ({ ...prev, [task.id]: heartAnim }));
+    }
+
+    const scaleAnim = likeAnimations[task.id] || new Animated.Value(1);
+    const heartAnim =
+      heartAnimations[task.id] ||
+      new Animated.Value(task.liked_by_current_user ? 1 : 0);
+
+    // Interpolate heart color from animation value
+    const heartColor = heartAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: ["#9CA3AF", "#FDA4AF", "#F87171"],
+    });
+
+    return (
+      <View key={task.id} style={styles.taskCard}>
+        <Text style={styles.taskTitle}>{task.event}</Text>
+        <Text style={styles.taskDate}>
+          {!isUserTask && (
+            <>
+              By {task.user.first_name} {task.user.last_name}{" "}
+            </>
+          )}
+          on {formatDateUTC(task.date)}
+        </Text>
+        <Text style={styles.taskDescription}>{task.description}</Text>
+
+        <View style={styles.taskInteractionBar}>
+          <TouchableOpacity
+            style={[
+              styles.likeButton,
+              task.liked_by_current_user && styles.likedButton,
+            ]}
+            onPress={() => handleLikeToggle(task)}
+            activeOpacity={0.7}
+          >
+            <Animated.View
+              style={[
+                styles.heartIconContainer,
+                {
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+            >
+              <Feather
+                name="heart"
+                size={task.liked_by_current_user ? 18 : 16}
+                color={task.liked_by_current_user ? "#F87171" : "#9CA3AF"}
+                style={styles.heartIconBase}
+              />
+              <Animated.View
+                style={[
+                  styles.heartAnimation,
+                  {
+                    opacity: heartAnim,
+                  },
+                ]}
+              >
+                <Feather name="heart" size={18} color="#F87171" />
+              </Animated.View>
+            </Animated.View>
+            <Animated.Text
+              style={[
+                styles.likeButtonText,
+                {
+                  color: heartColor,
+                  fontWeight: task.liked_by_current_user ? "600" : "400",
+                },
+              ]}
+            >
+              {task.likes_count || 0}
+            </Animated.Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.commentButton}
+            onPress={() => handleOpenComments(task)}
+          >
+            <Feather name="message-square" size={16} color="#9CA3AF" />
+            <Text style={styles.commentButtonText}>
+              {task.comments_count || 0}
+            </Text>
+          </TouchableOpacity>
+
+          {isUserTask && (
+            <View style={styles.taskActions}>
+              <TouchableOpacity
+                style={styles.taskAction}
+                onPress={() => handleEditTask(task)}
+              >
+                <Feather name="edit" size={16} color="#FEF08A" />
+                <Text style={styles.editActionText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.taskAction}
+                onPress={() => showConfirmDelete(task.id)}
+              >
+                <Feather name="trash-2" size={16} color="#FCA5A5" />
+                <Text style={styles.deleteActionText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
     );
   };
 
@@ -921,33 +1426,7 @@ const Lent2025Screen: React.FC = () => {
               ) : (
                 lentTasks
                   .filter((task) => task.user_id === currentUserId)
-                  .map((task) => (
-                    <View key={task.id} style={styles.taskCard}>
-                      <Text style={styles.taskTitle}>{task.event}</Text>
-                      <Text style={styles.taskDate}>
-                        On {formatDateUTC(task.date)}
-                      </Text>
-                      <Text style={styles.taskDescription}>
-                        {task.description}
-                      </Text>
-                      <View style={styles.taskActions}>
-                        <TouchableOpacity
-                          style={styles.taskAction}
-                          onPress={() => handleEditTask(task)}
-                        >
-                          <Feather name="edit" size={16} color="#FEF08A" />
-                          <Text style={styles.editActionText}>Edit</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.taskAction}
-                          onPress={() => showConfirmDelete(task.id)}
-                        >
-                          <Feather name="trash-2" size={16} color="#FCA5A5" />
-                          <Text style={styles.deleteActionText}>Delete</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))
+                  .map((task) => renderTaskCard(task, true))
               )}
             </View>
             <View style={styles.sectionContainer}>
@@ -955,18 +1434,7 @@ const Lent2025Screen: React.FC = () => {
               {friendTasks.length === 0 ? (
                 <Text style={styles.emptyText}>No tasks from friends yet.</Text>
               ) : (
-                friendTasks.map((task) => (
-                  <View key={task.id} style={styles.taskCard}>
-                    <Text style={styles.taskTitle}>{task.event}</Text>
-                    <Text style={styles.taskDate}>
-                      By {task.user.first_name} {task.user.last_name} on{" "}
-                      {formatDateUTC(task.date)}
-                    </Text>
-                    <Text style={styles.taskDescription}>
-                      {task.description}
-                    </Text>
-                  </View>
-                ))
+                friendTasks.map((task) => renderTaskCard(task, false))
               )}
             </View>
           </View>
@@ -1112,6 +1580,7 @@ const Lent2025Screen: React.FC = () => {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       )}
+
       {/* Add Task Modal with Inline Date Picker for iOS */}
       <Modal
         visible={showTaskModal}
@@ -1224,6 +1693,7 @@ const Lent2025Screen: React.FC = () => {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
       {/* Edit Task Modal */}
       <Modal
         visible={!!editingTask}
@@ -1340,6 +1810,135 @@ const Lent2025Screen: React.FC = () => {
           </KeyboardAvoidingView>
         )}
       </Modal>
+
+      {/* Comments Modal - SIMPLIFIED TO FIX DISPLAY ISSUES */}
+      <Modal
+        visible={showCommentModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowCommentModal(false);
+          setSelectedTaskForComments(null);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.commentModalContent}>
+            {selectedTaskForComments && (
+              <>
+                <View style={styles.commentModalHeader}>
+                  <Text style={styles.commentModalTitle}>
+                    Comments on "{selectedTaskForComments.event}"
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => {
+                      setShowCommentModal(false);
+                      setSelectedTaskForComments(null);
+                    }}
+                  >
+                    <Feather name="x" size={20} color="#FEFCE8" />
+                  </TouchableOpacity>
+                </View>
+
+                {commentLoading ? (
+                  <View style={styles.commentLoadingContainer}>
+                    <ActivityIndicator size="large" color="#EAB308" />
+                    <Text style={styles.commentLoadingText}>
+                      Loading comments...
+                    </Text>
+                  </View>
+                ) : taskComments.length > 0 ? (
+                  <FlatList
+                    data={taskComments}
+                    keyExtractor={(item) => item.id}
+                    style={styles.commentsList}
+                    contentContainerStyle={styles.commentsListContent}
+                    ItemSeparatorComponent={() => (
+                      <View style={styles.commentSeparator} />
+                    )}
+                    renderItem={({ item }) => (
+                      <View style={styles.commentItem}>
+                        <View style={styles.commentHeader}>
+                          <View style={styles.commentUserInfo}>
+                            <View style={styles.commentAvatar}>
+                              <Text style={styles.commentAvatarText}>
+                                {item.user?.first_name?.charAt(0) || ""}
+                                {item.user?.last_name?.charAt(0) || ""}
+                              </Text>
+                            </View>
+                            <View>
+                              <Text style={styles.commentAuthor}>
+                                {item.user?.first_name || "User"}{" "}
+                                {item.user?.last_name || ""}
+                              </Text>
+                              <Text style={styles.commentTime}>
+                                {formatCommentDate(item.created_at)}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {item.user_id === currentUserId && (
+                            <TouchableOpacity
+                              style={styles.deleteCommentButton}
+                              onPress={() => showConfirmDeleteComment(item.id)}
+                            >
+                              <Feather
+                                name="trash-2"
+                                size={14}
+                                color="#FCA5A5"
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+
+                        <Text style={styles.commentContent}>
+                          {item.content}
+                        </Text>
+                      </View>
+                    )}
+                  />
+                ) : (
+                  <View style={styles.emptyCommentsContainer}>
+                    <Feather
+                      name="message-circle"
+                      size={48}
+                      color="rgba(234, 179, 8, 0.2)"
+                    />
+                    <Text style={styles.emptyCommentsText}>
+                      No comments yet. Be the first to add one!
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.addCommentContainer}>
+                  <TextInput
+                    style={styles.commentInput}
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    placeholder="Add a comment..."
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.sendCommentButton,
+                      !newComment.trim() && styles.disabledSendButton,
+                    ]}
+                    onPress={handleAddComment}
+                    disabled={!newComment.trim()}
+                  >
+                    <Feather name="send" size={16} color="#FEFCE8" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Guide Event Modal */}
       <Modal
         visible={!!selectedGuideEvent}
@@ -1493,15 +2092,64 @@ const styles = StyleSheet.create({
   },
   taskDate: { fontSize: 14, color: "#EAB308", marginBottom: 8 },
   taskDescription: { color: "rgba(254, 252, 232, 0.8)", marginBottom: 12 },
+  taskInteractionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(234, 179, 8, 0.1)",
+  },
+  likeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+  },
+  likedButton: {
+    backgroundColor: "rgba(248, 113, 113, 0.1)",
+  },
+  heartIconContainer: {
+    width: 30,
+    height: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 4,
+  },
+  heartIconBase: {
+    position: "absolute",
+  },
+  heartAnimation: {
+    position: "absolute",
+  },
+  likeButtonText: {
+    color: "#9CA3AF",
+    fontSize: 14,
+    fontWeight: "400",
+  },
+  commentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  commentButtonText: {
+    color: "#9CA3AF",
+    marginLeft: 4,
+    fontSize: 14,
+  },
   taskActions: {
     flexDirection: "row",
-    justifyContent: "flex-start",
-    marginTop: 4,
+    justifyContent: "flex-end",
+    marginLeft: "auto",
   },
   taskAction: {
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 16,
+    marginLeft: 16,
     padding: 4,
   },
   editActionText: { color: "#FEF08A", marginLeft: 4 },
@@ -1857,6 +2505,182 @@ const styles = StyleSheet.create({
     color: "#FEFCE8",
     fontSize: 18,
     marginTop: 12,
+  },
+
+  // Comments modal
+  commentModalContent: {
+    backgroundColor: "#292524",
+    borderRadius: 16,
+    margin: 16,
+    height: "80%",
+    width: "90%",
+    maxWidth: 540,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "rgba(234, 179, 8, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 10,
+    overflow: "hidden",
+    flexDirection: "column",
+  },
+  commentModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(234, 179, 8, 0.15)",
+    backgroundColor: "rgba(28, 25, 23, 0.6)",
+  },
+  commentModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FEFCE8",
+    flex: 1,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(41, 37, 36, 0.6)",
+  },
+  commentsList: {
+    flex: 1,
+    width: "100%",
+  },
+  commentsListContent: {
+    padding: 16,
+    paddingBottom: 24,
+    width: "100%",
+    flexGrow: 1,
+  },
+  commentSeparator: {
+    height: 12,
+  },
+  commentLoadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 30,
+  },
+  commentLoadingText: {
+    color: "#FEFCE8",
+    marginTop: 12,
+    fontSize: 16,
+  },
+  emptyCommentsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 30,
+  },
+  emptyCommentsText: {
+    color: "rgba(254, 252, 232, 0.7)",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 12,
+    fontSize: 16,
+  },
+  commentItem: {
+    backgroundColor: "rgba(41, 37, 36, 0.65)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(234, 179, 8, 0.12)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    marginBottom: 12,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  commentUserInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  commentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(234, 179, 8, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  commentAvatarText: {
+    color: "#EAB308",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  commentAuthor: {
+    color: "#FEFCE8",
+    fontWeight: "600",
+  },
+  commentTime: {
+    color: "rgba(254, 252, 232, 0.5)",
+    fontSize: 12,
+  },
+  commentContent: {
+    color: "rgba(254, 252, 232, 0.9)",
+    lineHeight: 22,
+    fontSize: 15,
+    paddingHorizontal: 2,
+  },
+  addCommentContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(234, 179, 8, 0.15)",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(28, 25, 23, 0.6)",
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: "#1C1917",
+    borderWidth: 1,
+    borderColor: "rgba(234, 179, 8, 0.25)",
+    borderRadius: 24,
+    padding: 12,
+    paddingHorizontal: 16,
+    color: "#FEFCE8",
+    marginRight: 10,
+    maxHeight: 120,
+    fontSize: 15,
+  },
+  sendCommentButton: {
+    backgroundColor: "#EAB308",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  disabledSendButton: {
+    backgroundColor: "rgba(234, 179, 8, 0.3)",
+  },
+  deleteCommentButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(28, 25, 23, 0.6)",
+  },
+  deleteCommentText: {
+    color: "#FCA5A5",
+    fontSize: 12,
+    marginLeft: 4,
   },
 });
 
