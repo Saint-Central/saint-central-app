@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "../../../supabaseClient";
 import { router } from "expo-router";
 
 const { width } = Dimensions.get("window");
@@ -236,9 +236,10 @@ const FaithPage: React.FC = () => {
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, "-")
               .replace(/(^-|-$)/g, "");
-            router.push(
-              `/faith?id=${item.id}&title=${encodeURIComponent(slug)}`
-            );
+            router.push({
+              pathname: "/faith/[id]",
+              params: { id: item.id.toString() },
+            });
           }}
           style={styles.touchablePost}
         >

@@ -136,7 +136,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="faith"
+        name="faith/index"
+        options={{
+          // This hides the tab bar button for the lent2025 screen.
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="faith/[id]"
         options={{
           // This hides the tab bar button for the lent2025 screen.
           tabBarButton: () => null,
