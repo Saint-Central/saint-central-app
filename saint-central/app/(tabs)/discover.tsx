@@ -8,9 +8,11 @@ import {
   ScrollView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 export default function DiscoverScreen() {
   type FeatherIconName = "heart" | "users" | "book-open" | "globe";
+  const router = useRouter();
 
   const categories: {
     id: number;
@@ -75,7 +77,11 @@ export default function DiscoverScreen() {
             <TouchableOpacity
               key={category.id}
               style={styles.card}
-              onPress={() => console.log(`Navigating to ${category.title}`)}
+              onPress={() =>
+                router.push(
+                  `/${category.title.replace(/\s+/g, "-").toLowerCase()}` as any
+                )
+              }
             >
               <View style={styles.cardHeader}>
                 <View style={styles.iconContainer}>
