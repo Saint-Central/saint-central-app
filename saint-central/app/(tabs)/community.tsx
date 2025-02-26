@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Vibration,
+  Animated,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather, FontAwesome } from "@expo/vector-icons";
@@ -33,6 +35,9 @@ interface Intention {
   type: IntentionType;
   created_at: string;
   user: UserData;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  is_liked?: boolean;
 }
 
 type IntentionType = "resolution" | "prayer" | "goal";
@@ -63,6 +68,25 @@ interface Friend {
   id: string;
   friend: UserData;
   created_at: string;
+}
+
+interface Like {
+  id: string;
+  user_id: string;
+  likeable_id: string;
+  likeable_type: string;
+  created_at: string;
+}
+
+interface Comment {
+  id: string;
+  user_id: string;
+  commentable_id: string;
+  commentable_type: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  user: UserData;
 }
 
 export default function CommunityScreen() {
@@ -127,6 +151,14 @@ export default function CommunityScreen() {
   // New state: number of pending incoming friend requests for notification badge
   const [friendRequestCount, setFriendRequestCount] = useState<number>(0);
 
+  // New state for comments and likes
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [showCommentsModal, setShowCommentsModal] = useState<boolean>(false);
+  const [selectedIntention, setSelectedIntention] = useState<Intention | null>(
+    null
+  );
+  const [newComment, setNewComment] = useState<string>("");
+
   // Fetch intentions when intentionsFilter or activeTab changes
   useEffect(() => {
     fetchIntentions();
@@ -155,6 +187,13 @@ export default function CommunityScreen() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  // Fetch comments when an intention is selected
+  useEffect(() => {
+    if (selectedIntention) {
+      fetchComments(selectedIntention.id);
+    }
+  }, [selectedIntention]);
 
   const fetchIntentions = async (type?: IntentionType): Promise<void> => {
     try {
@@ -217,7 +256,49 @@ export default function CommunityScreen() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setIntentions(data || []);
+
+      // Get intentions with like and comment counts
+      const intentionsWithCounts = await Promise.all(
+        (data || []).map(async (intention: Intention) => {
+          // Get like count
+          const { count: likesCount, error: likesError } = await supabase
+            .from("likes")
+            .select("*", { count: "exact", head: false })
+            .eq("likeable_id", intention.id)
+            .eq("likeable_type", "intentions");
+
+          if (likesError) throw likesError;
+
+          // Get comments count
+          const { count: commentsCount, error: commentsError } = await supabase
+            .from("comments")
+            .select("*", { count: "exact", head: false })
+            .eq("commentable_id", intention.id)
+            .eq("commentable_type", "intentions");
+
+          if (commentsError) throw commentsError;
+
+          // Check if current user has liked this intention
+          const { data: userLike, error: userLikeError } = await supabase
+            .from("likes")
+            .select("id")
+            .eq("likeable_id", intention.id)
+            .eq("likeable_type", "intentions")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (userLikeError) throw userLikeError;
+
+          return {
+            ...intention,
+            likes_count: likesCount,
+            comments_count: commentsCount,
+            is_liked: !!userLike,
+          };
+        })
+      );
+
+      setIntentions(intentionsWithCounts || []);
     } catch (error: any) {
       console.error("Error fetching intentions:", error);
       setIntentions([]);
@@ -230,6 +311,258 @@ export default function CommunityScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchComments = async (intentionId: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("comments")
+        .select(`*, user:users(*)`)
+        .eq("commentable_id", intentionId)
+        .eq("commentable_type", "intentions")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setComments(data || []);
+    } catch (error: any) {
+      console.error("Error fetching comments:", error);
+      setComments([]);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      setNotification({
+        message: "Error fetching comments: " + errorMessage,
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Create maps to store animation values for each intention
+  const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
+  const likeOpacityAnimations = useRef<Map<string, Animated.Value>>(new Map());
+
+  // Function to get or create scale animation value for an intention
+  const getLikeScaleAnimation = (intentionId: string): Animated.Value => {
+    if (!likeScaleAnimations.current.has(intentionId)) {
+      likeScaleAnimations.current.set(intentionId, new Animated.Value(1));
+    }
+    return likeScaleAnimations.current.get(intentionId) as Animated.Value;
+  };
+
+  // Function to get or create opacity animation value for an intention
+  const getLikeOpacityAnimation = (intentionId: string): Animated.Value => {
+    if (!likeOpacityAnimations.current.has(intentionId)) {
+      likeOpacityAnimations.current.set(intentionId, new Animated.Value(0));
+    }
+    return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
+  };
+
+  const handleLikeIntention = async (
+    intentionId: string,
+    isLiked: boolean
+  ): Promise<void> => {
+    try {
+      // Trigger haptic feedback
+      Vibration.vibrate(50);
+
+      // Get animation values
+      const scaleAnim = getLikeScaleAnimation(intentionId);
+      const opacityAnim = getLikeOpacityAnimation(intentionId);
+
+      if (!isLiked) {
+        // Animate the like button when liking (more dramatic)
+        Animated.parallel([
+          // Scale animation
+          Animated.sequence([
+            Animated.timing(scaleAnim, {
+              toValue: 0.8,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+              toValue: 1.5,
+              friction: 3,
+              tension: 40,
+              useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+              toValue: 1,
+              friction: 3,
+              useNativeDriver: true,
+            }),
+          ]),
+          // Ripple effect animation
+          Animated.sequence([
+            Animated.timing(opacityAnim, {
+              toValue: 0.6,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
+      } else {
+        // Simpler animation for unliking
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 0.8,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
+
+      if (isLiked) {
+        // Unlike the intention
+        const { data, error } = await supabase
+          .from("likes")
+          .delete()
+          .eq("likeable_id", intentionId)
+          .eq("likeable_type", "intentions")
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+      } else {
+        try {
+          // First check if this intention exists in the intentions table
+          const { data: intentionData, error: intentionError } = await supabase
+            .from("intentions")
+            .select("id")
+            .eq("id", intentionId)
+            .single();
+
+          if (intentionError) throw intentionError;
+          if (!intentionData) throw new Error("Intention not found");
+
+          // Like the intention
+          const { data, error } = await supabase.from("likes").insert({
+            user_id: user.id,
+            likeable_id: intentionId,
+            likeable_type: "intentions",
+          });
+
+          if (error) {
+            console.error("Like insertion error details:", error);
+            throw error;
+          }
+        } catch (innerError) {
+          console.error("Detailed error in like process:", innerError);
+          throw innerError;
+        }
+      }
+
+      // Update the intentions list to reflect the change
+      setIntentions(
+        intentions.map((intention) => {
+          if (intention.id === intentionId) {
+            return {
+              ...intention,
+              is_liked: !isLiked,
+              likes_count: isLiked
+                ? (intention.likes_count || 1) - 1
+                : (intention.likes_count || 0) + 1,
+            };
+          }
+          return intention;
+        })
+      );
+    } catch (error: any) {
+      console.error("Error toggling like:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      setNotification({
+        message: `Error ${
+          isLiked ? "unliking" : "liking"
+        } intention: ${errorMessage}`,
+        type: "error",
+      });
+    }
+  };
+
+  const handleAddComment = async (): Promise<void> => {
+    if (!selectedIntention) return;
+    if (!newComment.trim()) {
+      setNotification({
+        message: "Please enter a comment",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("comments")
+        .insert({
+          user_id: user.id,
+          commentable_id: selectedIntention.id,
+          commentable_type: "intentions",
+          content: newComment,
+        })
+        .select(`*, user:users(*)`);
+
+      if (error) throw error;
+
+      // Add the new comment to the list
+      if (data && data.length > 0) {
+        setComments([...comments, data[0]]);
+      }
+
+      // Update the comment count in the intentions list
+      setIntentions(
+        intentions.map((intention) => {
+          if (intention.id === selectedIntention.id) {
+            return {
+              ...intention,
+              comments_count: (intention.comments_count || 0) + 1,
+            };
+          }
+          return intention;
+        })
+      );
+
+      // Clear the comment input
+      setNewComment("");
+    } catch (error: any) {
+      console.error("Error adding comment:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      setNotification({
+        message: `Error adding comment: ${errorMessage}`,
+        type: "error",
+      });
+    }
+  };
+
+  const handleOpenComments = (intention: Intention): void => {
+    setSelectedIntention(intention);
+    setShowCommentsModal(true);
   };
 
   const fetchFriendRequests = async (): Promise<void> => {
@@ -721,14 +1054,68 @@ export default function CommunityScreen() {
         </View>
         <Text style={styles.intentionDescription}>{item.description}</Text>
         <View style={styles.intentionActions}>
-          <TouchableOpacity style={styles.intentionAction}>
-            <Feather name="heart" size={16} color="#FFD700" />
-            <Text style={styles.actionText}>Support</Text>
+          <TouchableOpacity
+            style={[
+              styles.intentionAction,
+              item.is_liked && styles.intentionActionActive,
+            ]}
+            onPress={() => handleLikeIntention(item.id, !!item.is_liked)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.likeButtonContainer}>
+              {/* Ripple effect */}
+              <Animated.View
+                style={[
+                  styles.likeRipple,
+                  {
+                    opacity: getLikeOpacityAnimation(item.id),
+                    transform: [
+                      {
+                        scale: Animated.multiply(
+                          getLikeScaleAnimation(item.id),
+                          2
+                        ),
+                      },
+                    ],
+                  },
+                ]}
+              />
+
+              {/* Heart icon */}
+              <Animated.View
+                style={{
+                  transform: [{ scale: getLikeScaleAnimation(item.id) }],
+                }}
+              >
+                <FontAwesome
+                  name={item.is_liked ? "heart" : "heart-o"}
+                  size={16}
+                  color={item.is_liked ? "#FF6B6B" : "#FFD700"}
+                />
+              </Animated.View>
+            </View>
+
+            <Text
+              style={[
+                styles.actionText,
+                item.is_liked && styles.actionTextActive,
+              ]}
+            >
+              {item.is_liked ? "Liked" : "Support"}{" "}
+              {item.likes_count ? `(${item.likes_count})` : ""}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.intentionAction}>
+
+          <TouchableOpacity
+            style={styles.intentionAction}
+            onPress={() => handleOpenComments(item)}
+          >
             <Feather name="message-circle" size={16} color="#FFD700" />
-            <Text style={styles.actionText}>Comment</Text>
+            <Text style={styles.actionText}>
+              Comment {item.comments_count ? `(${item.comments_count})` : ""}
+            </Text>
           </TouchableOpacity>
+
           {intentionsFilter === "mine" && (
             <>
               <TouchableOpacity
@@ -748,6 +1135,27 @@ export default function CommunityScreen() {
             </>
           )}
         </View>
+      </View>
+    );
+  };
+
+  const renderCommentItem = ({ item }: { item: Comment }): JSX.Element => {
+    return (
+      <View style={styles.commentItem}>
+        <View style={styles.commentHeader}>
+          <View style={styles.commentAvatar}>
+            <Feather name="user" size={16} color="#FFD700" />
+          </View>
+          <View style={styles.commentUser}>
+            <Text style={styles.commentUserName}>
+              {item.user.first_name} {item.user.last_name}
+            </Text>
+            <Text style={styles.commentTime}>
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.commentContent}>{item.content}</Text>
       </View>
     );
   };
@@ -1393,6 +1801,78 @@ export default function CommunityScreen() {
         )}
       </Modal>
 
+      {/* Comments Modal */}
+      <Modal
+        visible={showCommentsModal && selectedIntention !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowCommentsModal(false);
+          setSelectedIntention(null);
+          setComments([]);
+        }}
+      >
+        {selectedIntention && (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, styles.commentsModalContent]}>
+                <View style={styles.commentsHeader}>
+                  <Text style={styles.modalTitle}>Comments</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowCommentsModal(false);
+                      setSelectedIntention(null);
+                      setComments([]);
+                    }}
+                  >
+                    <Feather name="x" size={24} color="#FFD700" />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.intentionTitle}>
+                  {selectedIntention.title}
+                </Text>
+
+                <FlatList
+                  data={comments}
+                  renderItem={renderCommentItem}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.commentsList}
+                  ListEmptyComponent={
+                    <View style={styles.emptyComments}>
+                      <Text style={styles.emptyCommentsText}>
+                        No comments yet. Be the first to comment!
+                      </Text>
+                    </View>
+                  }
+                  style={styles.commentsListContainer}
+                />
+
+                <View style={styles.addCommentContainer}>
+                  <TextInput
+                    style={styles.commentInput}
+                    placeholder="Write a comment..."
+                    placeholderTextColor="rgba(255, 215, 0, 0.5)"
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    multiline={true}
+                  />
+                  <TouchableOpacity
+                    style={styles.sendButton}
+                    onPress={handleAddComment}
+                  >
+                    <Feather name="send" size={20} color="#FFD700" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        )}
+      </Modal>
+
       {/* Delete Confirmation Modal */}
       <Modal
         visible={deleteModal.isOpen}
@@ -1439,6 +1919,20 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
+  likeButtonContainer: {
+    position: "relative",
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  likeRipple: {
+    position: "absolute",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FF6B6B",
+  },
   container: {
     flex: 1,
     backgroundColor: "#1C1917",
@@ -1592,10 +2086,103 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  intentionActionActive: {
+    opacity: 1,
+  },
   actionText: {
     color: "rgba(255, 249, 196, 0.7)",
     marginLeft: 4,
     fontSize: 12,
+  },
+  actionTextActive: {
+    color: "#FF6B6B",
+  },
+  // Comment sections styles
+  commentsModalContent: {
+    maxHeight: "80%",
+    width: "90%",
+  },
+  commentsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  commentsListContainer: {
+    maxHeight: 300,
+    marginVertical: 12,
+  },
+  commentsList: {
+    paddingVertical: 8,
+  },
+  commentItem: {
+    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  commentAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  commentUser: {
+    flexDirection: "column",
+  },
+  commentUserName: {
+    color: "#FFF9C4",
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  commentTime: {
+    color: "rgba(255, 215, 0, 0.5)",
+    fontSize: 10,
+  },
+  commentContent: {
+    color: "#FFF9C4",
+    fontSize: 14,
+  },
+  emptyComments: {
+    padding: 16,
+    alignItems: "center",
+  },
+  emptyCommentsText: {
+    color: "rgba(255, 249, 196, 0.5)",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  addCommentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 215, 0, 0.2)",
+    paddingTop: 12,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    color: "#FFF9C4",
+    marginRight: 8,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyState: {
     alignItems: "center",
