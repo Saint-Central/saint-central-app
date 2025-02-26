@@ -4,42 +4,53 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Slot, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { supabase } from "../supabaseClient";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      // Check auth and redirect
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          router.replace("/(tabs)/home");
+        } else {
+          router.replace("/");
+        }
+        // Hide splash screen after routing decision
+        SplashScreen.hideAsync();
+      });
+
+      // Set up auth listener
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_, session) => {
+        if (session) router.replace("/(tabs)/home");
+        else router.replace("/");
+      });
+
+      return () => subscription.unsubscribe();
     }
-  }, [loaded]);
+  }, [loaded, router]);
 
-  if (!loaded) {
-    return null;
-  }
-
+  // Always render a Slot even while loading
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      {/* 
-        Instead of manually specifying a screen (like "(tabs)"),
-        we let the Expo Router file system handle routing.
-        The <Stack /> component here will automatically render your index page (app/index.tsx)
-        along with any other routes defined by your file structure.
-      */}
-      <Stack screenOptions={{ headerShown: false }} />
+      <Slot />
       <StatusBar style="auto" />
     </ThemeProvider>
   );

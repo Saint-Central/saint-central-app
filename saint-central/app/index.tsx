@@ -535,26 +535,6 @@ const AuthScreen: React.FC = () => {
       }),
     ]).start();
 
-    // Check if a session already exists
-    const checkSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        console.log(
-          "Session check:",
-          data?.session ? "Found session" : "No session"
-        );
-
-        if (data?.session) {
-          // Add delay to navigation
-          setTimeout(() => router.replace("/(tabs)/home"), 100);
-        }
-      } catch (err) {
-        console.error("Session check error:", err);
-      }
-    };
-
-    checkSession();
-
     // Subscribe to auth state changes (e.g. sign in, sign out)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
