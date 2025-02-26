@@ -34,7 +34,7 @@ interface Post {
   category?: string;
 }
 
-interface WomensPostRow {
+interface CulturePostRow {
   post_id: number;
   title: string;
   excerpt: string;
@@ -77,7 +77,7 @@ const stripHtmlAndTruncate = (content: string, maxLength = 150): string => {
   }
 };
 
-const WomensPage: React.FC = () => {
+const CulturePage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -102,7 +102,7 @@ const WomensPage: React.FC = () => {
         const start = (currentPage - 1) * pageSize;
         const end = currentPage * pageSize - 1;
         const { data, error, count } = await supabase
-          .from("womens_ministry_posts")
+          .from("culture_posts")
           .select(
             `
             post_id,
@@ -129,7 +129,7 @@ const WomensPage: React.FC = () => {
           setTotalPosts(count);
         }
 
-        const postsTransformed: Post[] = (data as WomensPostRow[]).map(
+        const postsTransformed: Post[] = (data as CulturePostRow[]).map(
           (row) => {
             return {
               id: row.post_id,
@@ -183,12 +183,11 @@ const WomensPage: React.FC = () => {
   // Categories for filter buttons
   const categories = [
     "all",
-    "Prayer",
-    "Scripture",
-    "Saints",
-    "Virtues",
-    "Fellowship",
-    "Other",
+    "College Ministries",
+    "Tech & Business",
+    "Charity",
+    "Christ in Work",
+    "Apologetics",
   ];
 
   // Progress bar interpolation
@@ -240,7 +239,7 @@ const WomensPage: React.FC = () => {
               .replace(/[^a-z0-9]+/g, "-")
               .replace(/(^-|-$)/g, "");
             router.push({
-              pathname: "/womens-ministry/[id]",
+              pathname: "/culture-and-testimonies/[id]",
               params: { id: item.id.toString() },
             });
           }}
@@ -253,7 +252,7 @@ const WomensPage: React.FC = () => {
               resizeMode="cover"
             />
             <LinearGradient
-              colors={["transparent", "rgba(44, 75, 155, 0.7)"]}
+              colors={["transparent", "rgba(0,0,0,0.6)"]}
               style={styles.imageGradient}
             />
             {item.category && (
@@ -274,7 +273,7 @@ const WomensPage: React.FC = () => {
                 <Text style={styles.authorName}>{item.author}</Text>
               </View>
               <View style={styles.dateContainer}>
-                <Feather name="calendar" size={16} color="#6D7A9F" />
+                <Feather name="calendar" size={16} color="#B4B0C5" />
                 <Text style={styles.dateText}>{item.date}</Text>
               </View>
             </View>
@@ -291,13 +290,13 @@ const WomensPage: React.FC = () => {
   const renderHeader = () => (
     <>
       <View style={styles.header}>
-        <Text style={styles.title}>Womens Ministry</Text>
+        <Text style={styles.title}>Culture and Testimonies</Text>
         <Text style={styles.subtitle}>
           Explore spiritual journeys, reflections, and insights from our
           community
         </Text>
         <View style={styles.scrollIndicator}>
-          <Feather name="chevron-down" size={24} color="#6D7A9F" />
+          <Feather name="chevron-down" size={24} color="#B4B0C5" />
         </View>
       </View>
       <FlatList
@@ -336,7 +335,7 @@ const WomensPage: React.FC = () => {
 
   const renderLoading = () => (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#C8B568" />
+      <ActivityIndicator size="large" color="#18C5B6" />
     </View>
   );
 
@@ -428,14 +427,14 @@ const WomensPage: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F2E6C2" />
+      <StatusBar barStyle="light-content" backgroundColor="#2D1B69" />
       <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
       <View style={styles.headerNav}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.push("/home")}
         >
-          <Feather name="chevron-left" size={16} color="#2C4B9B" />
+          <Feather name="chevron-left" size={16} color="#FFFFFF" />
           <Text style={styles.backButtonText}>Return Home</Text>
         </TouchableOpacity>
         <View
@@ -450,7 +449,7 @@ const WomensPage: React.FC = () => {
             onChangeText={setSearchTerm}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
-            placeholderTextColor="#6D7A9F"
+            placeholderTextColor="#B4B0C5"
             style={styles.searchInput}
           />
           {searchTerm ? (
@@ -458,7 +457,7 @@ const WomensPage: React.FC = () => {
               onPress={() => setSearchTerm("")}
               style={styles.clearButton}
             >
-              <Feather name="x" size={16} color="#6D7A9F" />
+              <Feather name="x" size={16} color="#B4B0C5" />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -483,7 +482,7 @@ const WomensPage: React.FC = () => {
         />
       )}
       <View style={styles.particlesContainer}>
-        {[...Array(20)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <View
             key={i}
             style={[
@@ -491,8 +490,6 @@ const WomensPage: React.FC = () => {
               {
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                width: Math.random() * 3 + 1,
-                height: Math.random() * 3 + 1,
               },
             ]}
           />
@@ -505,14 +502,14 @@ const WomensPage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2E6C2", // Light cream/ivory background
+    backgroundColor: "#2D1B69",
   },
   progressBar: {
     position: "absolute",
     top: 0,
     left: 0,
     height: 3,
-    backgroundColor: "#C8B568", // Gold accent
+    backgroundColor: "#18C5B6",
     zIndex: 10,
   },
   headerNav: {
@@ -521,42 +518,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "rgba(242, 230, 194, 0.9)", // Translucent cream
+    backgroundColor: "rgba(45, 27, 105, 0.8)",
     zIndex: 5,
   },
   backButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E6D9B8",
+    backgroundColor: "#231456",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
   },
   backButtonText: {
-    color: "#2C4B9B", // Marian blue
+    color: "#FFFFFF",
     marginLeft: 4,
     fontSize: 14,
-    fontWeight: "500",
   },
   searchContainer: {
     flex: 1,
     marginLeft: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 20,
     paddingHorizontal: 12,
     height: 36,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E6D9B8",
+    borderColor: "transparent",
   },
   searchContainerFocused: {
-    borderColor: "#2C4B9B", // Marian blue
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderColor: "#18C5B6",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   searchInput: {
     flex: 1,
-    color: "#2C4B9B", // Marian blue
+    color: "#FFFFFF",
     fontSize: 14,
     paddingVertical: 6,
   },
@@ -572,16 +568,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 48,
     fontWeight: "bold",
-    color: "#2C4B9B", // Marian blue
+    color: "#FFFFFF",
     marginBottom: 12,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
   subtitle: {
     fontSize: 16,
-    color: "#504738", // Warm brown
+    color: "#D9D5EC",
     textAlign: "center",
     marginBottom: 24,
-    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
   scrollIndicator: {
     marginTop: 16,
@@ -594,17 +589,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    backgroundColor: "rgba(35, 20, 86, 0.8)",
     marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: "#E6D9B8",
   },
   activeFilterButton: {
-    backgroundColor: "#2C4B9B", // Marian blue
-    borderColor: "#2C4B9B",
+    backgroundColor: "#18C5B6",
   },
   filterButtonText: {
-    color: "#2C4B9B", // Marian blue
+    color: "#D9D5EC",
     fontSize: 14,
   },
   activeFilterButtonText: {
@@ -623,19 +615,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "rgba(35, 20, 86, 0.8)",
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E6D9B8",
     ...Platform.select({
       ios: {
-        shadowColor: "#2C4B9B",
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.2,
         shadowRadius: 4,
       },
       android: {
-        elevation: 3,
+        elevation: 5,
       },
     }),
   },
@@ -663,7 +653,7 @@ const styles = StyleSheet.create({
   postTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#2C4B9B", // Marian blue
+    color: "#FFFFFF",
     marginBottom: 8,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
@@ -676,7 +666,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(44, 75, 155, 0.2)", // Light Marian blue
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
   authorContainer: {
     flexDirection: "row",
@@ -686,11 +676,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#C8B568", // Gold
+    backgroundColor: "#18C5B6",
     marginRight: 6,
   },
   authorName: {
-    color: "#2C4B9B", // Marian blue
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "500",
   },
@@ -699,7 +689,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dateText: {
-    color: "#6D7A9F", // Muted blue
+    color: "#B4B0C5",
     fontSize: 12,
     marginLeft: 4,
   },
@@ -707,7 +697,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 12,
-    backgroundColor: "rgba(44, 75, 155, 0.8)", // Semi-transparent Marian blue
+    backgroundColor: "rgba(45, 27, 105, 0.8)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -722,7 +712,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: {
-    color: "#6D7A9F", // Muted blue
+    color: "#D9D5EC",
     fontSize: 16,
     textAlign: "center",
   },
@@ -733,15 +723,16 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: "absolute",
+    width: 4,
+    height: 4,
     borderRadius: 2,
-    backgroundColor: "#C8B568", // Gold stars
-    opacity: 0.3,
+    backgroundColor: "#18C5B6",
+    opacity: 0.2,
   },
   postExcerpt: {
     fontSize: 14,
-    color: "#504738", // Warm brown
+    color: "#D9D5EC",
     lineHeight: 20,
-    fontFamily: Platform.OS === "ios" ? "Avenir" : "sans-serif",
   },
   paginationContainer: {
     paddingBottom: 50, // extra bottom padding for the Expo footer nav bar
@@ -758,27 +749,24 @@ const styles = StyleSheet.create({
     padding: 8,
     marginHorizontal: 4,
     borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderWidth: 1,
-    borderColor: "#E6D9B8",
+    backgroundColor: "rgba(35, 20, 86, 0.8)",
   },
   activePageNumberButton: {
-    backgroundColor: "#2C4B9B", // Marian blue
-    borderColor: "#2C4B9B",
+    backgroundColor: "#18C5B6",
   },
   pageNumberText: {
-    color: "#2C4B9B", // Marian blue
+    color: "#D9D5EC",
     fontSize: 14,
   },
   activePageNumberText: {
-    color: "#FFFFFF",
+    color: "#231456",
     fontWeight: "600",
   },
   pageNumberEllipsis: {
     padding: 8,
     marginHorizontal: 4,
     fontSize: 14,
-    color: "#6D7A9F", // Muted blue
+    color: "#D9D5EC",
   },
   paginationButtonsContainer: {
     flexDirection: "row",
@@ -788,13 +776,13 @@ const styles = StyleSheet.create({
   paginationButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "#2C4B9B", // Marian blue
+    backgroundColor: "#18C5B6",
     borderRadius: 20,
   },
   paginationButtonText: {
-    color: "#FFFFFF",
+    color: "#231456",
     fontWeight: "600",
   },
 });
 
-export default WomensPage;
+export default CulturePage;
