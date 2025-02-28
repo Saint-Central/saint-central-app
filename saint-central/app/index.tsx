@@ -409,20 +409,17 @@ const AuthScreen: React.FC = () => {
     lastName?: string
   ) => {
     try {
-      const { error } = await supabase.from("users").upsert(
-        [
-          {
-            id: userId,
-            email: userEmail,
-            first_name: firstName || "",
-            last_name: lastName || "",
-          },
-        ],
-        { onConflict: "id" }
-      );
+      const { error } = await supabase.from("users").insert([
+        {
+          id: userId,
+          email: userEmail,
+          first_name: firstName || "",
+          last_name: lastName || "",
+        },
+      ]);
       if (error) throw error;
     } catch (err) {
-      console.error("Error upserting user:", err);
+      console.error("Error inserting user:", err);
     }
   };
 
@@ -450,15 +447,29 @@ const AuthScreen: React.FC = () => {
 
       if (error) throw new Error("Apple Sign In failed. Please try again.");
       if (data?.session) {
-        const firstNameFromApple = credential.fullName?.givenName ?? "";
-        const lastNameFromApple = credential.fullName?.familyName ?? "";
+        // Check if this is the user's first sign-in with Apple
+        const { data: existingUser, error: fetchError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id", data.session.user.id)
+          .single();
 
-        await createUserInDatabase(
-          data.session.user.id,
-          data.session.user.email || "",
-          firstNameFromApple,
-          lastNameFromApple
-        );
+        if (fetchError && fetchError.code !== "PGRST116") {
+          // PGRST116 means no rows found
+          throw fetchError;
+        }
+
+        if (!existingUser) {
+          // User doesn't exist, create them
+          const firstNameFromApple = credential.fullName?.givenName ?? "";
+          const lastNameFromApple = credential.fullName?.familyName ?? "";
+          await createUserInDatabase(
+            data.session.user.id,
+            data.session.user.email || "",
+            firstNameFromApple,
+            lastNameFromApple
+          );
+        }
         navigateToHome();
       }
     } catch (e: any) {
@@ -491,12 +502,7 @@ const AuthScreen: React.FC = () => {
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
         ) {
-          await createUserInDatabase(
-            currentSession.user.id,
-            currentSession.user.email || "",
-            currentSession.user.user_metadata?.first_name,
-            currentSession.user.user_metadata?.last_name
-          );
+          // Navigate to home without creating user here
           navigateToHome();
         }
       }

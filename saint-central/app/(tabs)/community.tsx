@@ -19,7 +19,7 @@ import { Feather, FontAwesome } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
 import { Link, router } from "expo-router";
 
-// Interface definitions
+// Interface definitions remain unchanged
 interface UserData {
   id: string;
   first_name: string;
@@ -95,37 +95,23 @@ export default function CommunityScreen() {
   const [intentions, setIntentions] = useState<Intention[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeTab] = useState<TabType>("all");
-
-  // Control whether to view my intentions or friends' intentions
   const [intentionsFilter, setIntentionsFilter] = useState<"mine" | "friends">(
     "mine"
   );
-
-  // "Create" modal state
   const [showIntentionModal, setShowIntentionModal] = useState<boolean>(false);
-
-  // "Edit" modal state
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editingIntention, setEditingIntention] = useState<Intention | null>(
     null
   );
-
-  // Friends section state (used for friend search/requests)
   const [showFriendsSearch, setShowFriendsSearch] = useState<boolean>(false);
-  // friendTab controls sub-tabs in Friends section: "search" | "requests" | "list"
   const [friendTab, setFriendTab] = useState<"search" | "requests" | "list">(
     "search"
   );
-
-  // Friend requests
   const [sentRequests, setSentRequests] = useState<FriendRequestSent[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<
     FriendRequestIncoming[]
   >([]);
-  // Accepted friends
   const [friends, setFriends] = useState<Friend[]>([]);
-
-  // For creating new intentions
   const [newIntention, setNewIntention] = useState<{
     title: string;
     description: string;
@@ -135,11 +121,7 @@ export default function CommunityScreen() {
     description: "",
     type: "prayer",
   });
-
-  // Notification for error/success messages
   const [notification, setNotification] = useState<Notification | null>(null);
-
-  // "Delete confirmation" modal state
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     intentionId: string | null;
@@ -147,11 +129,7 @@ export default function CommunityScreen() {
     isOpen: false,
     intentionId: null,
   });
-
-  // New state: number of pending incoming friend requests for notification badge
   const [friendRequestCount, setFriendRequestCount] = useState<number>(0);
-
-  // New state for comments and likes
   const [comments, setComments] = useState<Comment[]>([]);
   const [showCommentsModal, setShowCommentsModal] = useState<boolean>(false);
   const [selectedIntention, setSelectedIntention] = useState<Intention | null>(
@@ -159,13 +137,14 @@ export default function CommunityScreen() {
   );
   const [newComment, setNewComment] = useState<string>("");
 
-  // Fetch intentions when intentionsFilter or activeTab changes
+  // All useEffect hooks and functions remain unchanged
   useEffect(() => {
     fetchIntentions();
   }, [intentionsFilter, activeTab]);
 
-  // Fetch friend requests when Friends section is open and friendTab changes
   useEffect(() => {
+    // Clear any previous notifications when switching to the friends view.
+    setNotification(null);
     if (showFriendsSearch) {
       if (friendTab === "requests") {
         fetchFriendRequests();
@@ -175,12 +154,10 @@ export default function CommunityScreen() {
     }
   }, [showFriendsSearch, friendTab]);
 
-  // Also, fetch incoming friend request count on mount and after friend-request actions
   useEffect(() => {
     fetchIncomingRequestsCount();
   }, []);
 
-  // Auto-hide notifications after a few seconds
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 3000);
@@ -188,7 +165,6 @@ export default function CommunityScreen() {
     }
   }, [notification]);
 
-  // Fetch comments when an intention is selected
   useEffect(() => {
     if (selectedIntention) {
       fetchComments(selectedIntention.id);
@@ -202,7 +178,6 @@ export default function CommunityScreen() {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
@@ -214,71 +189,55 @@ export default function CommunityScreen() {
       if (intentionsFilter === "mine") {
         query = query.eq("user_id", user.id);
       } else if (intentionsFilter === "friends") {
-        // Get friend IDs from accepted friend relationships
         const { data: sent, error: sentError } = await supabase
           .from("friends")
           .select("user_id_2")
           .eq("user_id_1", user.id)
           .eq("status", "accepted");
-
         if (sentError) throw sentError;
-
         const { data: incoming, error: incomingError } = await supabase
           .from("friends")
           .select("user_id_1")
           .eq("user_id_2", user.id)
           .eq("status", "accepted");
-
         if (incomingError) throw incomingError;
 
         let friendIds: string[] = [];
-
         if (sent)
           friendIds = friendIds.concat(
             sent.map((row: { user_id_2: string }) => row.user_id_2)
           );
-
         if (incoming)
           friendIds = friendIds.concat(
             incoming.map((row: { user_id_1: string }) => row.user_id_1)
           );
-
-        if (friendIds.length > 0) {
-          query = query.in("user_id", friendIds);
-        } else {
-          query = query.eq("user_id", "");
+        if (friendIds.length === 0) {
+          setIntentions([]);
+          setIsLoading(false);
+          return;
         }
+        query = query.in("user_id", friendIds);
       }
 
-      if (type) {
-        query = query.eq("type", type);
-      }
+      if (type) query = query.eq("type", type);
 
       const { data, error } = await query;
       if (error) throw error;
 
-      // Get intentions with like and comment counts
       const intentionsWithCounts = await Promise.all(
         (data || []).map(async (intention: Intention) => {
-          // Get like count
           const { count: likesCount, error: likesError } = await supabase
             .from("likes")
             .select("*", { count: "exact", head: false })
             .eq("likeable_id", intention.id)
             .eq("likeable_type", "intentions");
-
           if (likesError) throw likesError;
-
-          // Get comments count
           const { count: commentsCount, error: commentsError } = await supabase
             .from("comments")
             .select("*", { count: "exact", head: false })
             .eq("commentable_id", intention.id)
             .eq("commentable_type", "intentions");
-
           if (commentsError) throw commentsError;
-
-          // Check if current user has liked this intention
           const { data: userLike, error: userLikeError } = await supabase
             .from("likes")
             .select("id")
@@ -286,7 +245,6 @@ export default function CommunityScreen() {
             .eq("likeable_type", "intentions")
             .eq("user_id", user.id)
             .maybeSingle();
-
           if (userLikeError) throw userLikeError;
 
           return {
@@ -302,10 +260,10 @@ export default function CommunityScreen() {
     } catch (error: any) {
       console.error("Error fetching intentions:", error);
       setIntentions([]);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: "Error fetching intentions: " + errorMessage,
+        message:
+          "Error fetching intentions: " +
+          (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -322,16 +280,15 @@ export default function CommunityScreen() {
         .eq("commentable_id", intentionId)
         .eq("commentable_type", "intentions")
         .order("created_at", { ascending: true });
-
       if (error) throw error;
       setComments(data || []);
     } catch (error: any) {
       console.error("Error fetching comments:", error);
       setComments([]);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: "Error fetching comments: " + errorMessage,
+        message:
+          "Error fetching comments: " +
+          (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -339,23 +296,18 @@ export default function CommunityScreen() {
     }
   };
 
-  // Create maps to store animation values for each intention
   const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
   const likeOpacityAnimations = useRef<Map<string, Animated.Value>>(new Map());
 
-  // Function to get or create scale animation value for an intention
   const getLikeScaleAnimation = (intentionId: string): Animated.Value => {
-    if (!likeScaleAnimations.current.has(intentionId)) {
+    if (!likeScaleAnimations.current.has(intentionId))
       likeScaleAnimations.current.set(intentionId, new Animated.Value(1));
-    }
     return likeScaleAnimations.current.get(intentionId) as Animated.Value;
   };
 
-  // Function to get or create opacity animation value for an intention
   const getLikeOpacityAnimation = (intentionId: string): Animated.Value => {
-    if (!likeOpacityAnimations.current.has(intentionId)) {
+    if (!likeOpacityAnimations.current.has(intentionId))
       likeOpacityAnimations.current.set(intentionId, new Animated.Value(0));
-    }
     return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
   };
 
@@ -364,17 +316,12 @@ export default function CommunityScreen() {
     isLiked: boolean
   ): Promise<void> => {
     try {
-      // Trigger haptic feedback
       Vibration.vibrate(50);
-
-      // Get animation values
       const scaleAnim = getLikeScaleAnimation(intentionId);
       const opacityAnim = getLikeOpacityAnimation(intentionId);
 
       if (!isLiked) {
-        // Animate the like button when liking (more dramatic)
         Animated.parallel([
-          // Scale animation
           Animated.sequence([
             Animated.timing(scaleAnim, {
               toValue: 0.8,
@@ -393,7 +340,6 @@ export default function CommunityScreen() {
               useNativeDriver: true,
             }),
           ]),
-          // Ripple effect animation
           Animated.sequence([
             Animated.timing(opacityAnim, {
               toValue: 0.6,
@@ -408,7 +354,6 @@ export default function CommunityScreen() {
           ]),
         ]).start();
       } else {
-        // Simpler animation for unliking
         Animated.sequence([
           Animated.timing(scaleAnim, {
             toValue: 0.8,
@@ -427,93 +372,67 @@ export default function CommunityScreen() {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
       if (isLiked) {
-        // Unlike the intention
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("likes")
           .delete()
           .eq("likeable_id", intentionId)
           .eq("likeable_type", "intentions")
           .eq("user_id", user.id);
-
         if (error) throw error;
       } else {
-        try {
-          // First check if this intention exists in the intentions table
-          const { data: intentionData, error: intentionError } = await supabase
-            .from("intentions")
-            .select("id")
-            .eq("id", intentionId)
-            .single();
-
-          if (intentionError) throw intentionError;
-          if (!intentionData) throw new Error("Intention not found");
-
-          // Like the intention
-          const { data, error } = await supabase.from("likes").insert({
-            user_id: user.id,
-            likeable_id: intentionId,
-            likeable_type: "intentions",
-          });
-
-          if (error) {
-            console.error("Like insertion error details:", error);
-            throw error;
-          }
-        } catch (innerError) {
-          console.error("Detailed error in like process:", innerError);
-          throw innerError;
-        }
+        const { data: intentionData, error: intentionError } = await supabase
+          .from("intentions")
+          .select("id")
+          .eq("id", intentionId)
+          .single();
+        if (intentionError) throw intentionError;
+        if (!intentionData) throw new Error("Intention not found");
+        const { error } = await supabase.from("likes").insert({
+          user_id: user.id,
+          likeable_id: intentionId,
+          likeable_type: "intentions",
+        });
+        if (error) throw error;
       }
 
-      // Update the intentions list to reflect the change
       setIntentions(
-        intentions.map((intention) => {
-          if (intention.id === intentionId) {
-            return {
-              ...intention,
-              is_liked: !isLiked,
-              likes_count: isLiked
-                ? (intention.likes_count || 1) - 1
-                : (intention.likes_count || 0) + 1,
-            };
-          }
-          return intention;
-        })
+        intentions.map((intention) =>
+          intention.id === intentionId
+            ? {
+                ...intention,
+                is_liked: !isLiked,
+                likes_count: isLiked
+                  ? (intention.likes_count || 1) - 1
+                  : (intention.likes_count || 0) + 1,
+              }
+            : intention
+        )
       );
     } catch (error: any) {
       console.error("Error toggling like:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error ${
-          isLiked ? "unliking" : "liking"
-        } intention: ${errorMessage}`,
+        message: `Error ${isLiked ? "unliking" : "liking"} intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
   };
 
   const handleAddComment = async (): Promise<void> => {
-    if (!selectedIntention) return;
-    if (!newComment.trim()) {
-      setNotification({
-        message: "Please enter a comment",
-        type: "error",
-      });
+    if (!selectedIntention || !newComment.trim()) {
+      setNotification({ message: "Please enter a comment", type: "error" });
       return;
     }
-
     try {
       const {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
@@ -526,35 +445,26 @@ export default function CommunityScreen() {
           content: newComment,
         })
         .select(`*, user:users(*)`);
-
       if (error) throw error;
 
-      // Add the new comment to the list
-      if (data && data.length > 0) {
-        setComments([...comments, data[0]]);
-      }
-
-      // Update the comment count in the intentions list
+      if (data && data.length > 0) setComments([...comments, data[0]]);
       setIntentions(
-        intentions.map((intention) => {
-          if (intention.id === selectedIntention.id) {
-            return {
-              ...intention,
-              comments_count: (intention.comments_count || 0) + 1,
-            };
-          }
-          return intention;
-        })
+        intentions.map((intention) =>
+          intention.id === selectedIntention.id
+            ? {
+                ...intention,
+                comments_count: (intention.comments_count || 0) + 1,
+              }
+            : intention
+        )
       );
-
-      // Clear the comment input
       setNewComment("");
     } catch (error: any) {
       console.error("Error adding comment:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error adding comment: ${errorMessage}`,
+        message: `Error adding comment: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -572,11 +482,9 @@ export default function CommunityScreen() {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
-      // Sent requests
       const { data: sent, error: sentError } = await supabase
         .from("friends")
         .select(
@@ -584,7 +492,6 @@ export default function CommunityScreen() {
         )
         .eq("user_id_1", user.id)
         .eq("status", "pending");
-
       if (sentError) throw sentError;
 
       interface SentRow {
@@ -594,7 +501,6 @@ export default function CommunityScreen() {
         created_at: string;
         user_2: UserData | UserData[];
       }
-
       const formattedSent: FriendRequestSent[] = (
         (sent as SentRow[]) || []
       ).map((row) => ({
@@ -602,7 +508,6 @@ export default function CommunityScreen() {
         user_2: Array.isArray(row.user_2) ? row.user_2[0] : row.user_2,
       }));
 
-      // Incoming requests
       const { data: incoming, error: incomingError } = await supabase
         .from("friends")
         .select(
@@ -610,7 +515,6 @@ export default function CommunityScreen() {
         )
         .eq("user_id_2", user.id)
         .eq("status", "pending");
-
       if (incomingError) throw incomingError;
 
       interface IncomingRow {
@@ -620,7 +524,6 @@ export default function CommunityScreen() {
         created_at: string;
         user_1: UserData | UserData[];
       }
-
       const formattedIncoming: FriendRequestIncoming[] = (
         (incoming as IncomingRow[]) || []
       ).map((row) => ({
@@ -630,14 +533,13 @@ export default function CommunityScreen() {
 
       setSentRequests(formattedSent);
       setIncomingRequests(formattedIncoming);
-      // Update notification badge count
       setFriendRequestCount(formattedIncoming.length);
     } catch (error: any) {
       console.error("Error fetching friend requests:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : JSON.stringify(error);
       setNotification({
-        message: "Error fetching friend requests: " + errorMessage,
+        message:
+          "Error fetching friend requests: " +
+          (error instanceof Error ? error.message : JSON.stringify(error)),
         type: "error",
       });
     } finally {
@@ -651,7 +553,6 @@ export default function CommunityScreen() {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) return;
 
@@ -660,7 +561,6 @@ export default function CommunityScreen() {
         .select("id")
         .eq("user_id_2", user.id)
         .eq("status", "pending");
-
       if (error) throw error;
       setFriendRequestCount(data ? data.length : 0);
     } catch (error: any) {
@@ -675,7 +575,6 @@ export default function CommunityScreen() {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
@@ -686,7 +585,6 @@ export default function CommunityScreen() {
         created_at: string;
         user_2: UserData | UserData[];
       }
-
       const { data: sent, error: sentError } = await supabase
         .from("friends")
         .select(
@@ -694,9 +592,7 @@ export default function CommunityScreen() {
         )
         .eq("user_id_1", user.id)
         .eq("status", "accepted");
-
       if (sentError) throw sentError;
-
       const formattedSent: Friend[] = ((sent as SentFullRow[]) || []).map(
         (row) => ({
           id: row.id,
@@ -712,7 +608,6 @@ export default function CommunityScreen() {
         created_at: string;
         user_1: UserData | UserData[];
       }
-
       const { data: incoming, error: incomingError } = await supabase
         .from("friends")
         .select(
@@ -720,9 +615,7 @@ export default function CommunityScreen() {
         )
         .eq("user_id_2", user.id)
         .eq("status", "accepted");
-
       if (incomingError) throw incomingError;
-
       const formattedIncoming: Friend[] = (
         (incoming as IncomingFullRow[]) || []
       ).map((row) => ({
@@ -734,10 +627,10 @@ export default function CommunityScreen() {
       setFriends([...formattedSent, ...formattedIncoming]);
     } catch (error: any) {
       console.error("Error fetching friends:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : JSON.stringify(error);
       setNotification({
-        message: "Error fetching friends: " + errorMessage,
+        message:
+          "Error fetching friends: " +
+          (error instanceof Error ? error.message : JSON.stringify(error)),
         type: "error",
       });
     } finally {
@@ -757,7 +650,6 @@ export default function CommunityScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
       if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase.from("intentions").insert([
@@ -768,7 +660,6 @@ export default function CommunityScreen() {
           type: newIntention.type,
         },
       ]);
-
       if (error) throw error;
 
       setShowIntentionModal(false);
@@ -780,10 +671,10 @@ export default function CommunityScreen() {
       fetchIntentions();
     } catch (error: any) {
       console.error("Error creating intention:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error creating intention: ${errorMessage}`,
+        message: `Error creating intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -795,9 +686,8 @@ export default function CommunityScreen() {
   };
 
   const handleUpdateIntention = async (): Promise<void> => {
-    if (!editingIntention) return;
-
     if (
+      !editingIntention ||
       !editingIntention.title.trim() ||
       !editingIntention.description.trim()
     ) {
@@ -807,7 +697,6 @@ export default function CommunityScreen() {
       });
       return;
     }
-
     try {
       const { error } = await supabase
         .from("intentions")
@@ -817,7 +706,6 @@ export default function CommunityScreen() {
           type: editingIntention.type,
         })
         .eq("id", editingIntention.id);
-
       if (error) throw error;
 
       setShowEditModal(false);
@@ -829,10 +717,10 @@ export default function CommunityScreen() {
       fetchIntentions();
     } catch (error: any) {
       console.error("Error updating intention:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error updating intention: ${errorMessage}`,
+        message: `Error updating intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -848,13 +736,11 @@ export default function CommunityScreen() {
       setDeleteModal({ isOpen: false, intentionId: null });
       return;
     }
-
     try {
       const { error } = await supabase
         .from("intentions")
         .delete()
         .eq("id", intentionId);
-
       if (error) throw error;
 
       setNotification({
@@ -865,10 +751,10 @@ export default function CommunityScreen() {
       fetchIntentions();
     } catch (error: any) {
       console.error("Error deleting intention:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error deleting intention: ${errorMessage}`,
+        message: `Error deleting intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -876,7 +762,6 @@ export default function CommunityScreen() {
 
   const handleSearch = async (): Promise<void> => {
     if (!searchQuery.trim()) return;
-
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -887,16 +772,15 @@ export default function CommunityScreen() {
         )
         .order("first_name", { ascending: true })
         .limit(20);
-
       if (error) throw error;
       setUsers(data || []);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       setUsers([]);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: "Error fetching users: " + errorMessage,
+        message:
+          "Error fetching users: " +
+          (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -910,26 +794,22 @@ export default function CommunityScreen() {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("friends").insert({
-        user_id_1: user.id,
-        user_id_2: friendId,
-        status: "pending",
-      });
-
+      const { error } = await supabase
+        .from("friends")
+        .insert({ user_id_1: user.id, user_id_2: friendId, status: "pending" });
       if (error) throw error;
 
       setNotification({ message: "Friend request sent!", type: "success" });
       fetchIncomingRequestsCount();
     } catch (error: any) {
       console.error("Error adding friend:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error adding friend: ${errorMessage}`,
+        message: `Error adding friend: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -941,7 +821,6 @@ export default function CommunityScreen() {
         .from("friends")
         .update({ status: "accepted" })
         .eq("id", requestId);
-
       if (error) throw error;
 
       setNotification({ message: "Friend request accepted!", type: "success" });
@@ -949,10 +828,10 @@ export default function CommunityScreen() {
       fetchIncomingRequestsCount();
     } catch (error: any) {
       console.error("Error accepting friend request:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error accepting request: ${errorMessage}`,
+        message: `Error accepting request: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -964,7 +843,6 @@ export default function CommunityScreen() {
         .from("friends")
         .update({ status: "declined" })
         .eq("id", requestId);
-
       if (error) throw error;
 
       setNotification({ message: "Friend request declined.", type: "success" });
@@ -972,10 +850,10 @@ export default function CommunityScreen() {
       fetchIncomingRequestsCount();
     } catch (error: any) {
       console.error("Error declining friend request:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error declining request: ${errorMessage}`,
+        message: `Error declining request: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -987,7 +865,6 @@ export default function CommunityScreen() {
         .from("friends")
         .delete()
         .eq("id", requestId);
-
       if (error) throw error;
 
       setNotification({ message: "Friend request canceled.", type: "success" });
@@ -995,10 +872,10 @@ export default function CommunityScreen() {
       fetchIncomingRequestsCount();
     } catch (error: any) {
       console.error("Error canceling friend request:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error canceling request: ${errorMessage}`,
+        message: `Error canceling request: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
@@ -1012,7 +889,6 @@ export default function CommunityScreen() {
         .from("friends")
         .delete()
         .eq("id", friendRelationshipId);
-
       if (error) throw error;
 
       setNotification({
@@ -1022,274 +898,253 @@ export default function CommunityScreen() {
       fetchFriends();
     } catch (error: any) {
       console.error("Error removing friend:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       setNotification({
-        message: `Error removing friend: ${errorMessage}`,
+        message: `Error removing friend: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         type: "error",
       });
     }
   };
 
-  const renderIntentionCard = ({ item }: { item: Intention }): JSX.Element => {
-    return (
-      <View style={styles.intentionCard}>
-        <View style={styles.intentionHeader}>
-          <View style={styles.intentionTypeIcon}>
-            {item.type === "prayer" ? (
-              <FontAwesome name="hand-peace-o" size={18} color="#FFD700" />
-            ) : item.type === "resolution" ? (
-              <Feather name="book-open" size={18} color="#FFD700" />
-            ) : (
-              <Feather name="target" size={18} color="#FFD700" />
-            )}
-          </View>
-          <View style={styles.intentionHeaderText}>
-            <Text style={styles.intentionTitle}>{item.title}</Text>
-            <Text style={styles.intentionSubtitle}>
-              {item.user.first_name} {item.user.last_name} •{" "}
-              {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.intentionDescription}>{item.description}</Text>
-        <View style={styles.intentionActions}>
-          <TouchableOpacity
-            style={[
-              styles.intentionAction,
-              item.is_liked && styles.intentionActionActive,
-            ]}
-            onPress={() => handleLikeIntention(item.id, !!item.is_liked)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.likeButtonContainer}>
-              {/* Ripple effect */}
-              <Animated.View
-                style={[
-                  styles.likeRipple,
-                  {
-                    opacity: getLikeOpacityAnimation(item.id),
-                    transform: [
-                      {
-                        scale: Animated.multiply(
-                          getLikeScaleAnimation(item.id),
-                          2
-                        ),
-                      },
-                    ],
-                  },
-                ]}
-              />
-
-              {/* Heart icon */}
-              <Animated.View
-                style={{
-                  transform: [{ scale: getLikeScaleAnimation(item.id) }],
-                }}
-              >
-                <FontAwesome
-                  name={item.is_liked ? "heart" : "heart-o"}
-                  size={16}
-                  color={item.is_liked ? "#FF6B6B" : "#FFD700"}
-                />
-              </Animated.View>
-            </View>
-
-            <Text
-              style={[
-                styles.actionText,
-                item.is_liked && styles.actionTextActive,
-              ]}
-            >
-              {item.is_liked ? "Liked" : "Support"}{" "}
-              {item.likes_count ? `(${item.likes_count})` : ""}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.intentionAction}
-            onPress={() => handleOpenComments(item)}
-          >
-            <Feather name="message-circle" size={16} color="#FFD700" />
-            <Text style={styles.actionText}>
-              Comment {item.comments_count ? `(${item.comments_count})` : ""}
-            </Text>
-          </TouchableOpacity>
-
-          {intentionsFilter === "mine" && (
-            <>
-              <TouchableOpacity
-                style={styles.intentionAction}
-                onPress={() => handleEditIntention(item)}
-              >
-                <Feather name="edit" size={16} color="#FFD700" />
-                <Text style={styles.actionText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.intentionAction}
-                onPress={() => handleDeleteClick(item.id)}
-              >
-                <Feather name="trash-2" size={16} color="#FFD700" />
-                <Text style={styles.actionText}>Delete</Text>
-              </TouchableOpacity>
-            </>
+  const renderIntentionCard = ({ item }: { item: Intention }): JSX.Element => (
+    <View style={styles.intentionCard}>
+      <View style={styles.intentionHeader}>
+        <View style={styles.intentionTypeIcon}>
+          {item.type === "prayer" ? (
+            <FontAwesome name="hand-peace-o" size={20} color="#FFD700" />
+          ) : item.type === "resolution" ? (
+            <Feather name="book-open" size={20} color="#FFD700" />
+          ) : (
+            <Feather name="target" size={20} color="#FFD700" />
           )}
         </View>
-      </View>
-    );
-  };
-
-  const renderCommentItem = ({ item }: { item: Comment }): JSX.Element => {
-    return (
-      <View style={styles.commentItem}>
-        <View style={styles.commentHeader}>
-          <View style={styles.commentAvatar}>
-            <Feather name="user" size={16} color="#FFD700" />
-          </View>
-          <View style={styles.commentUser}>
-            <Text style={styles.commentUserName}>
-              {item.user.first_name} {item.user.last_name}
-            </Text>
-            <Text style={styles.commentTime}>
-              {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
+        <View style={styles.intentionHeaderText}>
+          <Text style={styles.intentionTitle}>{item.title}</Text>
+          <Text style={styles.intentionSubtitle}>
+            {item.user.first_name} {item.user.last_name} •{" "}
+            {new Date(item.created_at).toLocaleDateString()}
+          </Text>
         </View>
-        <Text style={styles.commentContent}>{item.content}</Text>
       </View>
-    );
-  };
-
-  const renderUserCard = ({ item }: { item: UserData }): JSX.Element => {
-    return (
-      <View style={styles.userCard}>
-        <View style={styles.userHeader}>
-          <View style={styles.userAvatar}>
-            <Feather name="user" size={24} color="#FFD700" />
+      <Text style={styles.intentionDescription}>{item.description}</Text>
+      <View style={styles.intentionActions}>
+        <TouchableOpacity
+          style={[
+            styles.intentionAction,
+            item.is_liked && styles.intentionActionActive,
+          ]}
+          onPress={() => handleLikeIntention(item.id, !!item.is_liked)}
+        >
+          <View style={styles.likeButtonContainer}>
+            <Animated.View
+              style={[
+                styles.likeRipple,
+                {
+                  opacity: getLikeOpacityAnimation(item.id),
+                  transform: [
+                    {
+                      scale: Animated.multiply(
+                        getLikeScaleAnimation(item.id),
+                        2
+                      ),
+                    },
+                  ],
+                },
+              ]}
+            />
+            <Animated.View
+              style={{ transform: [{ scale: getLikeScaleAnimation(item.id) }] }}
+            >
+              <FontAwesome
+                name={item.is_liked ? "heart" : "heart-o"}
+                size={18}
+                color={item.is_liked ? "#FF6B6B" : "#FFD700"}
+              />
+            </Animated.View>
           </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {item.first_name} {item.last_name}
-            </Text>
-            <Text style={styles.userSubtitle}>
-              Member since {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.userActions}>
-          <TouchableOpacity style={styles.userAction}>
-            <Feather name="message-circle" size={16} color="#FFD700" />
-            <Text style={styles.actionText}>Message</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.userAction}
-            onPress={() => handleAddFriend(item.id)}
+          <Text
+            style={[
+              styles.actionText,
+              item.is_liked && styles.actionTextActive,
+            ]}
           >
-            <Feather name="heart" size={16} color="#FFD700" />
-            <Text style={styles.actionText}>Add Friend</Text>
-          </TouchableOpacity>
+            {item.is_liked ? "Liked" : "Support"}{" "}
+            {item.likes_count ? `(${item.likes_count})` : ""}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.intentionAction}
+          onPress={() => handleOpenComments(item)}
+        >
+          <Feather name="message-circle" size={18} color="#FFD700" />
+          <Text style={styles.actionText}>
+            Comment {item.comments_count ? `(${item.comments_count})` : ""}
+          </Text>
+        </TouchableOpacity>
+        {intentionsFilter === "mine" && (
+          <>
+            <TouchableOpacity
+              style={styles.intentionAction}
+              onPress={() => handleEditIntention(item)}
+            >
+              <Feather name="edit" size={18} color="#FFD700" />
+              <Text style={styles.actionText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.intentionAction}
+              onPress={() => handleDeleteClick(item.id)}
+            >
+              <Feather name="trash-2" size={18} color="#FFD700" />
+              <Text style={styles.actionText}>Delete</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderCommentItem = ({ item }: { item: Comment }): JSX.Element => (
+    <View style={styles.commentItem}>
+      <View style={styles.commentHeader}>
+        <View style={styles.commentAvatar}>
+          <Feather name="user" size={18} color="#FFD700" />
+        </View>
+        <View style={styles.commentUser}>
+          <Text style={styles.commentUserName}>
+            {item.user.first_name} {item.user.last_name}
+          </Text>
+          <Text style={styles.commentTime}>
+            {new Date(item.created_at).toLocaleDateString()}
+          </Text>
         </View>
       </View>
-    );
-  };
+      <Text style={styles.commentContent}>{item.content}</Text>
+    </View>
+  );
+
+  const renderUserCard = ({ item }: { item: UserData }): JSX.Element => (
+    <View style={styles.userCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FFD700" />
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.first_name} {item.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Member since {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.userActions}>
+        <TouchableOpacity style={styles.userAction}>
+          <Feather name="message-circle" size={18} color="#FFD700" />
+          <Text style={styles.actionText}>Message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.userAction}
+          onPress={() => handleAddFriend(item.id)}
+        >
+          <Feather name="heart" size={18} color="#FFD700" />
+          <Text style={styles.actionText}>Add Friend</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const renderSentRequestCard = ({
     item,
   }: {
     item: FriendRequestSent;
-  }): JSX.Element => {
-    return (
-      <View style={styles.friendCard}>
-        <View style={styles.userHeader}>
-          <View style={styles.userAvatar}>
-            <Feather name="user" size={24} color="#FFD700" />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {item.user_2.first_name} {item.user_2.last_name}
-            </Text>
-            <Text style={styles.userSubtitle}>
-              Requested on {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
+  }): JSX.Element => (
+    <View style={styles.friendCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FFD700" />
         </View>
-        <View style={styles.friendActions}>
-          <Text style={styles.statusText}>Status: {item.status}</Text>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => handleCancelRequest(item.id)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel Request</Text>
-          </TouchableOpacity>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.user_2.first_name} {item.user_2.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Requested on {new Date(item.created_at).toLocaleDateString()}
+          </Text>
         </View>
       </View>
-    );
-  };
+      <View style={styles.friendActions}>
+        <Text style={styles.statusText}>Status: {item.status}</Text>
+        <TouchableOpacity
+          style={styles.requestCancelButton}
+          onPress={() => handleCancelRequest(item.id)}
+        >
+          <Text style={styles.requestCancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const renderIncomingRequestCard = ({
     item,
   }: {
     item: FriendRequestIncoming;
-  }): JSX.Element => {
-    return (
-      <View style={styles.friendCard}>
-        <View style={styles.userHeader}>
-          <View style={styles.userAvatar}>
-            <Feather name="user" size={24} color="#FFD700" />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {item.user_1.first_name} {item.user_1.last_name}
-            </Text>
-            <Text style={styles.userSubtitle}>
-              Requested on {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
+  }): JSX.Element => (
+    <View style={styles.friendCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FFD700" />
         </View>
-        <View style={styles.friendRequestActions}>
-          <TouchableOpacity
-            style={styles.acceptButton}
-            onPress={() => handleAcceptRequest(item.id)}
-          >
-            <Text style={styles.acceptButtonText}>Accept</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.declineButton}
-            onPress={() => handleDeclineRequest(item.id)}
-          >
-            <Text style={styles.declineButtonText}>Decline</Text>
-          </TouchableOpacity>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.user_1.first_name} {item.user_1.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Requested on {new Date(item.created_at).toLocaleDateString()}
+          </Text>
         </View>
       </View>
-    );
-  };
-
-  const renderFriendCard = ({ item }: { item: Friend }): JSX.Element => {
-    return (
-      <View style={styles.friendCard}>
-        <View style={styles.userHeader}>
-          <View style={styles.userAvatar}>
-            <Feather name="user" size={24} color="#FFD700" />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {item.friend.first_name} {item.friend.last_name}
-            </Text>
-            <Text style={styles.userSubtitle}>
-              Friends since {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
+      <View style={styles.friendRequestActions}>
         <TouchableOpacity
-          style={styles.removeButton}
-          onPress={() => handleRemoveFriend(item.id)}
+          style={styles.acceptButton}
+          onPress={() => handleAcceptRequest(item.id)}
         >
-          <Feather name="trash-2" size={16} color="#FF6B6B" />
-          <Text style={styles.removeButtonText}>Remove</Text>
+          <Text style={styles.acceptButtonText}>Accept</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.declineButton}
+          onPress={() => handleDeclineRequest(item.id)}
+        >
+          <Text style={styles.declineButtonText}>Decline</Text>
         </TouchableOpacity>
       </View>
-    );
-  };
+    </View>
+  );
+
+  const renderFriendCard = ({ item }: { item: Friend }): JSX.Element => (
+    <View style={styles.friendCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FFD700" />
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.friend.first_name} {item.friend.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Friends since {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => handleRemoveFriend(item.id)}
+      >
+        <Feather name="trash-2" size={18} color="#FF6B6B" />
+        <Text style={styles.removeButtonText}>Remove</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1317,14 +1172,13 @@ export default function CommunityScreen() {
             style={styles.headerButton}
             onPress={() => setShowIntentionModal(true)}
           >
-            <Feather name="plus-circle" size={20} color="#FFD700" />
-            <Text style={styles.headerButtonText}>Intention</Text>
+            <Feather name="plus-circle" size={22} color="#FFD700" />
+            <Text style={styles.headerButtonText}>New</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              setShowFriendsSearch((prev) => !prev);
+              setShowFriendsSearch(!showFriendsSearch);
               setSearchQuery("");
               setUsers([]);
               setFriendTab("search");
@@ -1332,9 +1186,9 @@ export default function CommunityScreen() {
           >
             <View style={styles.badgeContainer}>
               {showFriendsSearch ? (
-                <Feather name="list" size={20} color="#FFD700" />
+                <Feather name="list" size={22} color="#FFD700" />
               ) : (
-                <Feather name="user" size={20} color="#FFD700" />
+                <Feather name="users" size={22} color="#FFD700" />
               )}
               {!showFriendsSearch && friendRequestCount > 0 && (
                 <View style={styles.badge} />
@@ -1366,7 +1220,6 @@ export default function CommunityScreen() {
               My Intentions
             </Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={[
               styles.filterTab,
@@ -1380,13 +1233,12 @@ export default function CommunityScreen() {
                 intentionsFilter === "friends" && styles.activeFilterTabText,
               ]}
             >
-              Friends' Intentions
+              Friends
             </Text>
           </TouchableOpacity>
-
           <Link href="/Lent2025" asChild>
             <TouchableOpacity style={styles.lentButton}>
-              <Feather name="book-open" size={16} color="#FFFFFF" />
+              <Feather name="book-open" size={18} color="#FFFFFF" />
               <Text style={styles.lentButtonText}>Lent 2025</Text>
             </TouchableOpacity>
           </Link>
@@ -1405,8 +1257,8 @@ export default function CommunityScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
                 {intentionsFilter === "mine"
-                  ? "You haven't created any intentions yet."
-                  : "No friend intentions to display."}
+                  ? "No intentions yet."
+                  : "No friend intentions."}
               </Text>
             </View>
           }
@@ -1433,7 +1285,6 @@ export default function CommunityScreen() {
                 Search
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[
                 styles.friendTab,
@@ -1450,7 +1301,6 @@ export default function CommunityScreen() {
                 Requests
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[
                 styles.friendTab,
@@ -1464,34 +1314,29 @@ export default function CommunityScreen() {
                   friendTab === "list" && styles.activeFriendTabText,
                 ]}
               >
-                My Friends
+                Friends
               </Text>
             </TouchableOpacity>
           </View>
 
           {friendTab === "search" && (
             <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Search for Friends</Text>
-              </View>
-
               <View style={styles.searchContainer}>
                 <Feather
                   name="search"
-                  size={20}
+                  size={22}
                   color="#FFD700"
                   style={styles.searchIcon}
                 />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search by name..."
+                  placeholder="Search friends..."
                   placeholderTextColor="rgba(255, 215, 0, 0.5)"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   onSubmitEditing={handleSearch}
                 />
               </View>
-
               <FlatList
                 data={users}
                 renderItem={renderUserCard}
@@ -1501,7 +1346,7 @@ export default function CommunityScreen() {
                 ListEmptyComponent={
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyStateText}>
-                      Search for friends by name
+                      Search for friends
                     </Text>
                   </View>
                 }
@@ -1511,53 +1356,45 @@ export default function CommunityScreen() {
 
           {friendTab === "requests" && (
             <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Friend Requests</Text>
-              </View>
-
-              <Text style={styles.requestSubtitle}>Sent Requests</Text>
-              {sentRequests.length === 0 ? (
-                <Text style={styles.noResultsText}>
-                  No pending sent requests.
-                </Text>
+              {sentRequests.length === 0 && incomingRequests.length === 0 ? (
+                <Text style={styles.noResultsText}>No friend requests.</Text>
               ) : (
-                <FlatList
-                  data={sentRequests}
-                  renderItem={renderSentRequestCard}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.requestList}
-                  horizontal={false}
-                  showsVerticalScrollIndicator={false}
-                />
-              )}
-
-              <Text style={styles.requestSubtitle}>Incoming Requests</Text>
-              {incomingRequests.length === 0 ? (
-                <Text style={styles.noResultsText}>
-                  No pending incoming requests.
-                </Text>
-              ) : (
-                <FlatList
-                  data={incomingRequests}
-                  renderItem={renderIncomingRequestCard}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.requestList}
-                  showsVerticalScrollIndicator={false}
-                />
+                <>
+                  {sentRequests.length > 0 && (
+                    <>
+                      <Text style={styles.requestSubtitle}>Sent Requests</Text>
+                      <FlatList
+                        data={sentRequests}
+                        renderItem={renderSentRequestCard}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.requestList}
+                        showsVerticalScrollIndicator={false}
+                      />
+                    </>
+                  )}
+                  {incomingRequests.length > 0 && (
+                    <>
+                      <Text style={styles.requestSubtitle}>
+                        Incoming Requests
+                      </Text>
+                      <FlatList
+                        data={incomingRequests}
+                        renderItem={renderIncomingRequestCard}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.requestList}
+                        showsVerticalScrollIndicator={false}
+                      />
+                    </>
+                  )}
+                </>
               )}
             </>
           )}
 
           {friendTab === "list" && (
             <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>My Friends</Text>
-              </View>
-
               {friends.length === 0 ? (
-                <Text style={styles.noResultsText}>
-                  You have no friends yet.
-                </Text>
+                <Text style={styles.noResultsText}>No friends yet.</Text>
               ) : (
                 <FlatList
                   data={friends}
@@ -1576,7 +1413,7 @@ export default function CommunityScreen() {
       <Modal
         visible={showIntentionModal}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowIntentionModal(false)}
       >
         <KeyboardAvoidingView
@@ -1585,49 +1422,31 @@ export default function CommunityScreen() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Create New Intention</Text>
-
+              <Text style={styles.modalTitle}>New Intention</Text>
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Type</Text>
                 <View style={styles.pickerContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      newIntention.type === "prayer" &&
-                        styles.selectedTypeOption,
-                    ]}
-                    onPress={() =>
-                      setNewIntention({ ...newIntention, type: "prayer" })
-                    }
-                  >
-                    <Text style={styles.typeOptionText}>Prayer</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      newIntention.type === "resolution" &&
-                        styles.selectedTypeOption,
-                    ]}
-                    onPress={() =>
-                      setNewIntention({ ...newIntention, type: "resolution" })
-                    }
-                  >
-                    <Text style={styles.typeOptionText}>Resolution</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      newIntention.type === "goal" && styles.selectedTypeOption,
-                    ]}
-                    onPress={() =>
-                      setNewIntention({ ...newIntention, type: "goal" })
-                    }
-                  >
-                    <Text style={styles.typeOptionText}>Goal</Text>
-                  </TouchableOpacity>
+                  {["prayer", "resolution", "goal"].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.typeOption,
+                        newIntention.type === type && styles.selectedTypeOption,
+                      ]}
+                      onPress={() =>
+                        setNewIntention({
+                          ...newIntention,
+                          type: type as IntentionType,
+                        })
+                      }
+                    >
+                      <Text style={styles.typeOptionText}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
-
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Title</Text>
                 <TextInput
@@ -1640,7 +1459,6 @@ export default function CommunityScreen() {
                   placeholderTextColor="rgba(255, 215, 0, 0.5)"
                 />
               </View>
-
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Description</Text>
                 <TextInput
@@ -1656,7 +1474,6 @@ export default function CommunityScreen() {
                   textAlignVertical="top"
                 />
               </View>
-
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.cancelButton}
@@ -1680,7 +1497,7 @@ export default function CommunityScreen() {
       <Modal
         visible={showEditModal && editingIntention !== null}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => {
           setShowEditModal(false);
           setEditingIntention(null);
@@ -1694,58 +1511,31 @@ export default function CommunityScreen() {
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Edit Intention</Text>
-
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Type</Text>
                   <View style={styles.pickerContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.typeOption,
-                        editingIntention.type === "prayer" &&
-                          styles.selectedTypeOption,
-                      ]}
-                      onPress={() =>
-                        setEditingIntention({
-                          ...editingIntention,
-                          type: "prayer",
-                        })
-                      }
-                    >
-                      <Text style={styles.typeOptionText}>Prayer</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.typeOption,
-                        editingIntention.type === "resolution" &&
-                          styles.selectedTypeOption,
-                      ]}
-                      onPress={() =>
-                        setEditingIntention({
-                          ...editingIntention,
-                          type: "resolution",
-                        })
-                      }
-                    >
-                      <Text style={styles.typeOptionText}>Resolution</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.typeOption,
-                        editingIntention.type === "goal" &&
-                          styles.selectedTypeOption,
-                      ]}
-                      onPress={() =>
-                        setEditingIntention({
-                          ...editingIntention,
-                          type: "goal",
-                        })
-                      }
-                    >
-                      <Text style={styles.typeOptionText}>Goal</Text>
-                    </TouchableOpacity>
+                    {["prayer", "resolution", "goal"].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[
+                          styles.typeOption,
+                          editingIntention.type === type &&
+                            styles.selectedTypeOption,
+                        ]}
+                        onPress={() =>
+                          setEditingIntention({
+                            ...editingIntention,
+                            type: type as IntentionType,
+                          })
+                        }
+                      >
+                        <Text style={styles.typeOptionText}>
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </View>
-
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Title</Text>
                   <TextInput
@@ -1758,7 +1548,6 @@ export default function CommunityScreen() {
                     placeholderTextColor="rgba(255, 215, 0, 0.5)"
                   />
                 </View>
-
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Description</Text>
                   <TextInput
@@ -1777,7 +1566,6 @@ export default function CommunityScreen() {
                     textAlignVertical="top"
                   />
                 </View>
-
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={styles.cancelButton}
@@ -1792,7 +1580,7 @@ export default function CommunityScreen() {
                     style={styles.createButton}
                     onPress={handleUpdateIntention}
                   >
-                    <Text style={styles.createButtonText}>Save Changes</Text>
+                    <Text style={styles.createButtonText}>Save</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1805,7 +1593,7 @@ export default function CommunityScreen() {
       <Modal
         visible={showCommentsModal && selectedIntention !== null}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => {
           setShowCommentsModal(false);
           setSelectedIntention(null);
@@ -1820,7 +1608,9 @@ export default function CommunityScreen() {
             <View style={styles.modalOverlay}>
               <View style={[styles.modalContent, styles.commentsModalContent]}>
                 <View style={styles.commentsHeader}>
-                  <Text style={styles.modalTitle}>Comments</Text>
+                  <Text style={styles.modalTitle}>
+                    {selectedIntention.title}
+                  </Text>
                   <TouchableOpacity
                     onPress={() => {
                       setShowCommentsModal(false);
@@ -1828,14 +1618,9 @@ export default function CommunityScreen() {
                       setComments([]);
                     }}
                   >
-                    <Feather name="x" size={24} color="#FFD700" />
+                    <Feather name="x" size={26} color="#FFD700" />
                   </TouchableOpacity>
                 </View>
-
-                <Text style={styles.intentionTitle}>
-                  {selectedIntention.title}
-                </Text>
-
                 <FlatList
                   data={comments}
                   renderItem={renderCommentItem}
@@ -1844,17 +1629,16 @@ export default function CommunityScreen() {
                   ListEmptyComponent={
                     <View style={styles.emptyComments}>
                       <Text style={styles.emptyCommentsText}>
-                        No comments yet. Be the first to comment!
+                        No comments yet.
                       </Text>
                     </View>
                   }
                   style={styles.commentsListContainer}
                 />
-
                 <View style={styles.addCommentContainer}>
                   <TextInput
                     style={styles.commentInput}
-                    placeholder="Write a comment..."
+                    placeholder="Add a comment..."
                     placeholderTextColor="rgba(255, 215, 0, 0.5)"
                     value={newComment}
                     onChangeText={setNewComment}
@@ -1864,7 +1648,7 @@ export default function CommunityScreen() {
                     style={styles.sendButton}
                     onPress={handleAddComment}
                   >
-                    <Feather name="send" size={20} color="#FFD700" />
+                    <Feather name="send" size={22} color="#FFD700" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1901,14 +1685,13 @@ export default function CommunityScreen() {
                 style={styles.deleteButton}
                 onPress={handleDeleteIntention}
               >
-                <Text style={styles.deleteButtonText}>Yes, Delete</Text>
+                <Text style={styles.deleteButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Loading Indicator */}
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#FFD700" />
@@ -1919,55 +1702,43 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  likeButtonContainer: {
-    position: "relative",
-    width: 24,
-    height: 24,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  likeRipple: {
-    position: "absolute",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#FF6B6B",
-  },
   container: {
     flex: 1,
     backgroundColor: "#1C1917",
+    paddingTop: Platform.OS === "android" ? 20 : 0,
   },
   notification: {
     position: "absolute",
-    top: 40,
-    left: 20,
-    right: 20,
-    padding: 10,
-    borderRadius: 5,
-    zIndex: 50,
-    alignItems: "center",
+    top: 50,
+    left: 15,
+    right: 15,
+    padding: 12,
+    borderRadius: 8,
+    zIndex: 100,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
-  errorNotification: {
-    backgroundColor: "#DC2626",
-  },
-  successNotification: {
-    backgroundColor: "#10B981",
-  },
+  errorNotification: { backgroundColor: "#DC2626" },
+  successNotification: { backgroundColor: "#10B981" },
   notificationText: {
     color: "#FFFFFF",
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
   },
   header: {
-    flexDirection: "column",
-    padding: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 215, 0, 0.1)",
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "700",
     color: "#FFF9C4",
-    marginBottom: 16,
+    marginBottom: 10,
   },
   headerButtons: {
     flexDirection: "row",
@@ -1977,513 +1748,461 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderColor: "rgba(255, 215, 0, 0.3)",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
+    borderColor: "rgba(255, 215, 0, 0.2)",
   },
-  badgeContainer: {
-    position: "relative",
-  },
+  badgeContainer: { position: "relative" },
   badge: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -4,
+    right: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: "#DC2626",
   },
   headerButtonText: {
     color: "#FFF9C4",
+    fontSize: 14,
+    fontWeight: "600",
     marginLeft: 6,
   },
   filterTabs: {
     flexDirection: "row",
-    padding: 8,
-    paddingBottom: 0,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(41, 37, 36, 0.3)",
   },
   filterTab: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 15,
     borderRadius: 20,
-    marginRight: 8,
+    marginRight: 10,
   },
   activeFilterTab: {
     backgroundColor: "rgba(255, 215, 0, 0.2)",
-    borderColor: "rgba(255, 215, 0, 0.3)",
     borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.4)",
   },
   filterTabText: {
-    color: "rgba(255, 249, 196, 0.7)",
-    fontSize: 12,
-  },
-  activeFilterTabText: {
-    color: "#FFD700",
+    color: "rgba(255, 249, 196, 0.8)",
+    fontSize: 14,
     fontWeight: "500",
   },
+  activeFilterTabText: { color: "#FFD700", fontWeight: "600" },
   lentButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(147, 51, 234, 0.8)",
+    backgroundColor: "rgba(147, 51, 234, 0.9)",
     borderRadius: 20,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 15,
+    marginLeft: "auto",
   },
   lentButtonText: {
     color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
     marginLeft: 6,
-    fontSize: 12,
-    fontWeight: "500",
   },
-  intentionList: {
-    padding: 16,
-    paddingBottom: 80,
-  },
+  intentionList: { padding: 15, paddingBottom: 100 },
   intentionCard: {
-    backgroundColor: "rgba(41, 37, 36, 0.5)",
-    borderColor: "rgba(255, 215, 0, 0.2)",
+    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderColor: "rgba(255, 215, 0, 0.1)",
   },
   intentionHeader: {
     flexDirection: "row",
-    marginBottom: 12,
+    alignItems: "center",
+    marginBottom: 10,
   },
   intentionTypeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "rgba(255, 215, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
-  intentionHeaderText: {
-    flex: 1,
-  },
-  intentionTitle: {
-    color: "#FFF9C4",
-    fontSize: 16,
-    fontWeight: "500",
-  },
+  intentionHeaderText: { flex: 1 },
+  intentionTitle: { color: "#FFF9C4", fontSize: 18, fontWeight: "600" },
   intentionSubtitle: {
     color: "rgba(255, 215, 0, 0.7)",
     fontSize: 12,
+    marginTop: 2,
   },
   intentionDescription: {
-    color: "rgba(255, 249, 196, 0.8)",
-    marginBottom: 12,
+    color: "rgba(255, 249, 196, 0.9)",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 10,
   },
   intentionActions: {
     flexDirection: "row",
-    justifyContent: "space-between",
     flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 5,
   },
   intentionAction: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 5,
   },
-  intentionActionActive: {
-    opacity: 1,
+  intentionActionActive: { opacity: 1 },
+  likeButtonContainer: {
+    position: "relative",
+    width: 26,
+    height: 26,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  likeRipple: {
+    position: "absolute",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255, 107, 107, 0.3)",
   },
   actionText: {
-    color: "rgba(255, 249, 196, 0.7)",
-    marginLeft: 4,
+    color: "rgba(255, 249, 196, 0.8)",
     fontSize: 12,
+    marginLeft: 6,
+    fontWeight: "500",
   },
-  actionTextActive: {
-    color: "#FF6B6B",
-  },
-  // Comment sections styles
-  commentsModalContent: {
-    maxHeight: "80%",
-    width: "90%",
-  },
+  actionTextActive: { color: "#FF6B6B" },
+  commentsModalContent: { maxHeight: "85%", width: "90%", paddingBottom: 20 },
   commentsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 15,
   },
-  commentsListContainer: {
-    maxHeight: 300,
-    marginVertical: 12,
-  },
-  commentsList: {
-    paddingVertical: 8,
-  },
+  commentsListContainer: { maxHeight: 350 },
+  commentsList: { paddingVertical: 10 },
   commentItem: {
-    backgroundColor: "rgba(41, 37, 36, 0.7)",
-    borderRadius: 8,
+    backgroundColor: "rgba(41, 37, 36, 0.8)",
+    borderRadius: 10,
     padding: 12,
-    marginBottom: 8,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   commentHeader: {
     flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   commentAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "rgba(255, 215, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginRight: 10,
   },
-  commentUser: {
-    flexDirection: "column",
-  },
-  commentUserName: {
-    color: "#FFF9C4",
-    fontWeight: "500",
-    fontSize: 14,
-  },
-  commentTime: {
-    color: "rgba(255, 215, 0, 0.5)",
-    fontSize: 10,
-  },
-  commentContent: {
-    color: "#FFF9C4",
-    fontSize: 14,
-  },
-  emptyComments: {
-    padding: 16,
-    alignItems: "center",
-  },
-  emptyCommentsText: {
-    color: "rgba(255, 249, 196, 0.5)",
-    fontSize: 14,
-    textAlign: "center",
-  },
+  commentUser: { flex: 1 },
+  commentUserName: { color: "#FFF9C4", fontSize: 14, fontWeight: "600" },
+  commentTime: { color: "rgba(255, 215, 0, 0.6)", fontSize: 11 },
+  commentContent: { color: "#FFF9C4", fontSize: 14, lineHeight: 20 },
+  emptyComments: { padding: 20, alignItems: "center" },
+  emptyCommentsText: { color: "rgba(255, 249, 196, 0.6)", fontSize: 14 },
   addCommentContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 215, 0, 0.2)",
-    paddingTop: 12,
+    borderTopColor: "rgba(255, 215, 0, 0.1)",
+    paddingTop: 15,
+    marginTop: 10,
   },
   commentInput: {
     flex: 1,
-    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    backgroundColor: "rgba(41, 37, 36, 0.8)",
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     color: "#FFF9C4",
-    marginRight: 8,
-    maxHeight: 100,
+    marginRight: 10,
+    maxHeight: 80,
+    fontSize: 14,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "rgba(255, 215, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    height: 100,
-  },
+  emptyState: { alignItems: "center", justifyContent: "center", padding: 20 },
   emptyStateText: {
-    color: "rgba(255, 249, 196, 0.5)",
-    fontSize: 14,
+    color: "rgba(255, 249, 196, 0.6)",
+    fontSize: 16,
+    textAlign: "center",
   },
-  friendsSection: {
-    flex: 1,
-  },
+  friendsSection: { flex: 1, paddingHorizontal: 15 },
   friendsTabs: {
     flexDirection: "row",
-    padding: 8,
-    paddingBottom: 0,
+    paddingVertical: 10,
+    backgroundColor: "rgba(41, 37, 36, 0.3)",
+    borderRadius: 12,
+    marginTop: 10,
   },
   friendTab: {
+    flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    alignItems: "center",
     borderRadius: 20,
-    marginRight: 8,
+    marginHorizontal: 5,
   },
   activeFriendTab: {
     backgroundColor: "rgba(255, 215, 0, 0.2)",
-    borderColor: "rgba(255, 215, 0, 0.3)",
     borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.4)",
   },
   friendTabText: {
-    color: "rgba(255, 249, 196, 0.7)",
-    fontSize: 12,
-  },
-  activeFriendTabText: {
-    color: "#FFD700",
-    fontWeight: "500",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
-  sectionTitle: {
-    color: "#FFF9C4",
-    fontSize: 18,
-    fontWeight: "500",
-  },
-  backLink: {
-    color: "#FFF9C4",
+    color: "rgba(255, 249, 196, 0.8)",
     fontSize: 14,
+    fontWeight: "500",
   },
+  activeFriendTabText: { color: "#FFD700", fontWeight: "600" },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(41, 37, 36, 0.5)",
-    borderColor: "rgba(255, 215, 0, 0.2)",
-    borderWidth: 1,
+    backgroundColor: "rgba(41, 37, 36, 0.7)",
     borderRadius: 12,
-    margin: 16,
-    marginTop: 0,
-    paddingHorizontal: 12,
+    marginVertical: 15,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
+  searchIcon: { marginRight: 10 },
   searchInput: {
     flex: 1,
-    height: 40,
+    height: 44,
     color: "#FFF9C4",
+    fontSize: 16,
   },
-  userList: {
-    padding: 16,
-    paddingTop: 0,
-  },
+  userList: { paddingBottom: 100 },
   userCard: {
-    backgroundColor: "rgba(41, 37, 36, 0.5)",
-    borderColor: "rgba(255, 215, 0, 0.2)",
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
-  userHeader: {
-    flexDirection: "row",
-    marginBottom: 12,
-  },
+  userHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "rgba(255, 215, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
-  userInfo: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  userName: {
-    color: "#FFF9C4",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  userSubtitle: {
-    color: "rgba(255, 215, 0, 0.7)",
-    fontSize: 12,
-  },
-  userActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  userInfo: { flex: 1 },
+  userName: { color: "#FFF9C4", fontSize: 18, fontWeight: "600" },
+  userSubtitle: { color: "rgba(255, 215, 0, 0.7)", fontSize: 12, marginTop: 2 },
+  userActions: { flexDirection: "row", justifyContent: "space-between" },
   userAction: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 5,
   },
   requestSubtitle: {
     color: "#FFF9C4",
+    fontSize: 16,
     fontWeight: "600",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+    marginVertical: 10,
   },
   noResultsText: {
     color: "rgba(255, 249, 196, 0.7)",
-    marginHorizontal: 16,
-    marginBottom: 16,
+    fontSize: 14,
+    paddingVertical: 10,
+    textAlign: "center",
   },
-  requestList: {
-    padding: 16,
-    paddingTop: 0,
-  },
+  requestList: { paddingBottom: 100 },
   friendCard: {
-    backgroundColor: "rgba(41, 37, 36, 0.5)",
-    borderColor: "rgba(255, 215, 0, 0.2)",
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   friendActions: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 10,
   },
-  statusText: {
-    color: "rgba(255, 249, 196, 0.7)",
-    fontSize: 12,
-  },
-  cancelButton: {
+  statusText: { color: "rgba(255, 249, 196, 0.8)", fontSize: 12 },
+  requestCancelButton: {
     backgroundColor: "rgba(220, 38, 38, 0.2)",
     paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
   },
-  cancelButtonText: {
+  requestCancelButtonText: {
     color: "#FFCCCC",
     fontSize: 12,
+    fontWeight: "600",
   },
-  friendRequestActions: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    gap: 8,
-    marginTop: 8,
-  },
+  friendRequestActions: { flexDirection: "row", gap: 10, marginTop: 10 },
   acceptButton: {
     backgroundColor: "rgba(16, 185, 129, 0.2)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
   },
-  acceptButtonText: {
-    color: "#CCFFCC",
-    fontSize: 12,
-  },
+  acceptButtonText: { color: "#CCFFCC", fontSize: 14, fontWeight: "600" },
   declineButton: {
     backgroundColor: "rgba(220, 38, 38, 0.2)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
   },
-  declineButtonText: {
-    color: "#FFCCCC",
-    fontSize: 12,
-  },
-  friendsList: {
-    padding: 16,
-  },
-  removeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    marginTop: 8,
-  },
+  declineButtonText: { color: "#FFCCCC", fontSize: 14, fontWeight: "600" },
+  friendsList: { paddingBottom: 100 },
+  removeButton: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   removeButtonText: {
     color: "#FF6B6B",
-    marginLeft: 4,
-    fontSize: 12,
+    fontSize: 14,
+    marginLeft: 6,
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    paddingHorizontal: 15,
   },
   modalContent: {
     backgroundColor: "#292524",
-    borderRadius: 12,
-    borderColor: "rgba(255, 215, 0, 0.2)",
-    borderWidth: 1,
+    borderRadius: 20,
     padding: 20,
     width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
   modalTitle: {
     color: "#FFF9C4",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 15,
   },
   modalText: {
-    color: "rgba(255, 249, 196, 0.8)",
-    marginBottom: 16,
+    color: "rgba(255, 249, 196, 0.9)",
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
   },
-  formGroup: {
-    marginBottom: 16,
-  },
+  formGroup: { marginBottom: 15 },
   formLabel: {
     color: "#FFF9C4",
-    marginBottom: 8,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    marginBottom: 8,
   },
   pickerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    gap: 10,
   },
   typeOption: {
     flex: 1,
-    padding: 8,
-    borderRadius: 4,
-    borderColor: "rgba(255, 215, 0, 0.2)",
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
-    marginHorizontal: 4,
+    borderColor: "rgba(255, 215, 0, 0.2)",
     alignItems: "center",
+    backgroundColor: "rgba(41, 37, 36, 0.5)",
   },
   selectedTypeOption: {
     backgroundColor: "rgba(255, 215, 0, 0.2)",
-    borderColor: "rgba(255, 215, 0, 0.4)",
+    borderColor: "rgba(255, 215, 0, 0.5)",
   },
-  typeOptionText: {
-    color: "#FFF9C4",
-    fontSize: 12,
-  },
+  typeOptionText: { color: "#FFF9C4", fontSize: 14, fontWeight: "500" },
   formInput: {
     backgroundColor: "#1C1917",
-    borderColor: "rgba(255, 215, 0, 0.2)",
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 8,
+    borderColor: "rgba(255, 215, 0, 0.2)",
     color: "#FFF9C4",
-    padding: 8,
+    padding: 12,
+    fontSize: 16,
   },
   formTextarea: {
     backgroundColor: "#1C1917",
-    borderColor: "rgba(255, 215, 0, 0.2)",
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 8,
+    borderColor: "rgba(255, 215, 0, 0.2)",
     color: "#FFF9C4",
-    padding: 8,
-    height: 100,
+    padding: 12,
+    height: 120,
+    fontSize: 16,
   },
   modalActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 16,
+    marginTop: 20,
+    gap: 10,
   },
-  createButton: {
+  cancelButton: {
     backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderColor: "rgba(255, 215, 0, 0.3)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginLeft: 8,
+    borderColor: "rgba(255, 215, 0, 0.2)",
   },
-  createButtonText: {
-    color: "#FFF9C4",
+  cancelButtonText: { color: "#FFF9C4", fontSize: 14, fontWeight: "600" },
+  createButton: {
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.4)",
   },
+  createButtonText: { color: "#FFF9C4", fontSize: 14, fontWeight: "600" },
   deleteButton: {
     backgroundColor: "rgba(220, 38, 38, 0.2)",
-    borderColor: "rgba(220, 38, 38, 0.4)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginLeft: 8,
+    borderColor: "rgba(220, 38, 38, 0.4)",
   },
-  deleteButtonText: {
-    color: "#FFCCCC",
-  },
+  deleteButtonText: { color: "#FFCCCC", fontSize: 14, fontWeight: "600" },
   loadingOverlay: {
     position: "absolute",
     left: 0,
@@ -2492,6 +2211,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
 });
