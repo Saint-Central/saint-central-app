@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Modal,
 } from "react-native";
 import { supabase } from "../../supabaseClient";
 import { Session } from "@supabase/supabase-js";
@@ -25,7 +26,6 @@ interface UserProfile {
   last_name?: string;
   created_at?: string;
   updated_at?: string;
-  theme_preference?: string;
 }
 
 export default function MeScreen() {
@@ -37,8 +37,8 @@ export default function MeScreen() {
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
-    theme_preference: "auto",
   });
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -92,7 +92,6 @@ export default function MeScreen() {
         setEditForm({
           first_name: data.first_name || "",
           last_name: data.last_name || "",
-          theme_preference: data.theme_preference || "auto",
         });
       }
     } catch (err: unknown) {
@@ -117,7 +116,6 @@ export default function MeScreen() {
         .update({
           first_name: editForm.first_name,
           last_name: editForm.last_name,
-          theme_preference: editForm.theme_preference,
           updated_at: new Date().toISOString(),
         })
         .eq("id", session.user.id)
@@ -130,7 +128,6 @@ export default function MeScreen() {
         setEditForm({
           first_name: data[0].first_name || "",
           last_name: data[0].last_name || "",
-          theme_preference: data[0].theme_preference || "auto",
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -144,6 +141,114 @@ export default function MeScreen() {
         Alert.alert("Error", err.message || "Failed to update profile");
       } else {
         Alert.alert("Error", "Failed to update profile");
+      }
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleteModalVisible(false);
+      setLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      if (!session?.user) return;
+
+      const userId = session.user.id;
+
+      // Delete data from all tables that might contain user data
+      // Using a common pattern where user_id links to the user
+      const tables = [
+        "comments",
+        "culture_posts",
+        "faith_posts",
+        "friends",
+        "intentions",
+        "lent_tasks",
+        "likes",
+        "news_posts",
+        "pending_posts",
+        "womens_ministry_posts",
+        "admin",
+      ];
+
+      // Process all deletions
+      for (const table of tables) {
+        let error;
+
+        // Special case for friends table which has user_id_1 and user_id_2
+        if (table === "friends") {
+          // Delete records where user is either user_id_1 or user_id_2
+          const { error: error1 } = await supabase
+            .from(table)
+            .delete()
+            .eq("user_id_1", userId);
+
+          const { error: error2 } = await supabase
+            .from(table)
+            .delete()
+            .eq("user_id_2", userId);
+
+          error = error1 || error2;
+        } else {
+          // For other tables, assume user_id is the standard column
+          const { error: deleteError } = await supabase
+            .from(table)
+            .delete()
+            .eq("user_id", userId);
+
+          error = deleteError;
+        }
+
+        // Log errors but continue with other tables
+        if (error) {
+          console.error(`Error deleting from ${table}: ${error.message}`);
+        }
+      }
+
+      // Delete the user record last
+      const { error: deleteUserError } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", userId);
+
+      if (deleteUserError) {
+        console.error(`Error deleting user: ${deleteUserError.message}`);
+      }
+
+      // Call the Edge Function to delete the authentication record
+      try {
+        const { error: edgeFunctionError } = await supabase.functions.invoke(
+          "delete-user",
+          {
+            body: { userId },
+          }
+        );
+
+        if (edgeFunctionError) {
+          console.error(
+            `Error calling delete-user function: ${edgeFunctionError.message}`
+          );
+          // Continue with logout even if auth deletion fails
+        }
+      } catch (edgeError) {
+        console.error("Edge function error:", edgeError);
+        // Continue with logout even if auth deletion fails
+      }
+
+      // If we made it here, successfully deleted account data
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Sign out and redirect to home page
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (err: unknown) {
+      setLoading(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      if (err instanceof Error) {
+        Alert.alert("Error", err.message || "Failed to delete account");
+      } else {
+        Alert.alert("Error", "Failed to delete account");
       }
     }
   };
@@ -280,50 +385,7 @@ export default function MeScreen() {
                   placeholderTextColor="rgba(255,215,0,0.5)"
                 />
               </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Theme Preference</Text>
-                <View style={styles.themeSelector}>
-                  {["dark", "light", "auto"].map((theme) => (
-                    <TouchableOpacity
-                      key={theme}
-                      style={[
-                        styles.themeOption,
-                        editForm.theme_preference === theme &&
-                          styles.themeOptionSelected,
-                      ]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setEditForm({ ...editForm, theme_preference: theme });
-                      }}
-                    >
-                      <MaterialCommunityIcons
-                        name={
-                          theme === "dark"
-                            ? "weather-night"
-                            : theme === "light"
-                            ? "weather-sunny"
-                            : "theme-light-dark"
-                        }
-                        size={18}
-                        color={
-                          editForm.theme_preference === theme
-                            ? "#FFF9C4"
-                            : "rgba(255,215,0,0.7)"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.themeText,
-                          editForm.theme_preference === theme &&
-                            styles.themeTextSelected,
-                        ]}
-                      >
-                        {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+
               <TouchableOpacity
                 style={styles.saveButton}
                 onPress={handleSubmit}
@@ -334,6 +396,21 @@ export default function MeScreen() {
                   color="#FFF9C4"
                 />
                 <Text style={styles.saveButtonText}>Save Changes</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setDeleteModalVisible(true);
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="delete-outline"
+                  size={22}
+                  color="#FFCCCC"
+                />
+                <Text style={styles.deleteButtonText}>Delete Account</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -361,15 +438,6 @@ export default function MeScreen() {
                     Last Name:{" "}
                     <Text style={styles.detailValue}>
                       {userProfile.last_name || "Not set"}
-                    </Text>
-                  </Text>
-                  <Text style={styles.detailLabel}>
-                    Theme:{" "}
-                    <Text style={styles.detailValue}>
-                      {userProfile.theme_preference
-                        ? userProfile.theme_preference.charAt(0).toUpperCase() +
-                          userProfile.theme_preference.slice(1)
-                        : "Auto"}
                     </Text>
                   </Text>
                 </View>
@@ -447,6 +515,41 @@ export default function MeScreen() {
           <Text style={styles.logoutButtonText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteModalVisible}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete your account? This action cannot
+              be undone and all your data will be permanently removed.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setDeleteModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={handleDeleteAccount}
+              >
+                <Text style={styles.modalConfirmButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -580,34 +683,6 @@ const styles = StyleSheet.create({
     color: "#FFF9C4",
     fontSize: 16,
   },
-  themeSelector: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  themeOption: {
-    flex: 1,
-    backgroundColor: "rgba(255,215,0,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.3)",
-    borderRadius: 8,
-    padding: 8,
-    marginHorizontal: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  themeOptionSelected: {
-    backgroundColor: "rgba(255,215,0,0.2)",
-    borderColor: "rgba(255,215,0,0.4)",
-  },
-  themeText: {
-    color: "#FFF9C4",
-    marginLeft: 6,
-  },
-  themeTextSelected: {
-    color: "#FFF9C4",
-    fontWeight: "500",
-  },
   saveButton: {
     backgroundColor: "rgba(255,215,0,0.1)",
     borderWidth: 1,
@@ -622,6 +697,24 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: "#FFF9C4",
+    fontWeight: "500",
+    marginLeft: 8,
+    fontSize: 16,
+  },
+  deleteButton: {
+    backgroundColor: "rgba(220,38,38,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(220,38,38,0.3)",
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  deleteButtonText: {
+    color: "#FFCCCC",
     fontWeight: "500",
     marginLeft: 8,
     fontSize: 16,
@@ -675,6 +768,73 @@ const styles = StyleSheet.create({
     color: "#FFF9C4",
     fontWeight: "500",
     marginLeft: 8,
+    fontSize: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#292524",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "rgba(220,38,38,0.3)",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#FFCCCC",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "#FFF9C4",
+    marginBottom: 24,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: "rgba(255,215,0,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,215,0,0.3)",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 8,
+    alignItems: "center",
+  },
+  modalCancelButtonText: {
+    color: "#FFF9C4",
+    fontWeight: "500",
+    fontSize: 16,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    backgroundColor: "rgba(220,38,38,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(220,38,38,0.4)",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginLeft: 8,
+    alignItems: "center",
+  },
+  modalConfirmButtonText: {
+    color: "#FFCCCC",
+    fontWeight: "500",
     fontSize: 16,
   },
 });
