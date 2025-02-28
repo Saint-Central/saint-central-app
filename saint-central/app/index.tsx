@@ -21,20 +21,23 @@ import { useRouter } from "expo-router";
 import { supabase } from "../supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
-
-import {
-  MaterialCommunityIcons,
-  Feather,
-  Ionicons,
-  FontAwesome5,
-  AntDesign,
-} from "@expo/vector-icons";
+import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { Session } from "@supabase/supabase-js";
 import Svg, { Rect, Defs, RadialGradient, Stop } from "react-native-svg";
 
 const { width, height } = Dimensions.get("window");
 
-// --- Interfaces & Animation Generators ---
+// --- Interfaces ---
+interface CustomInputProps {
+  placeholder: string;
+  value: string;
+  setValue: (text: string) => void;
+  keyboardType?: TextInputProps["keyboardType"];
+  icon: React.ReactNode;
+  secureEntry?: boolean;
+  toggleSecure?: () => void;
+}
+
 interface CrossAnimation {
   rotate: Animated.Value;
   float: Animated.Value;
@@ -43,12 +46,7 @@ interface CrossAnimation {
   direction: number;
   floatDistance: number;
   floatDuration: number;
-  position: {
-    top: number;
-    left: number;
-    size: number;
-    zIndex: number;
-  };
+  position: { top: number; left: number; size: number; zIndex: number };
 }
 
 interface ParticleAnimation {
@@ -60,6 +58,7 @@ interface ParticleAnimation {
   size: number;
 }
 
+// --- Animation Generators ---
 const generateCrossAnimations = (count: number): CrossAnimation[] => {
   return Array.from({ length: count }).map(() => ({
     rotate: new Animated.Value(0),
@@ -100,7 +99,7 @@ const generateParticleAnimations = (count: number): ParticleAnimation[] => {
   });
 };
 
-// --- Visual Components ---
+// --- Background Components ---
 const LightRaysBackground = () => {
   const rayAnim1 = useRef(new Animated.Value(0)).current;
   const rayAnim2 = useRef(new Animated.Value(0)).current;
@@ -375,72 +374,7 @@ const ParticlesAnimation = () => {
   );
 };
 
-const PulsingLogo = () => {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 2000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.2, 0.5],
-  });
-
-  return (
-    <View style={styles.logoContainer}>
-      <Animated.View style={[styles.logoGlow, { opacity: glowOpacity }]} />
-      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <MaterialCommunityIcons name="church" size={50} color="#fcd34d" />
-      </Animated.View>
-    </View>
-  );
-};
-
-// --- Auth Screen Component ---
-interface CustomInputProps {
-  placeholder: string;
-  value: string;
-  setValue: (text: string) => void;
-  keyboardType?: TextInputProps["keyboardType"];
-  icon: React.ReactNode;
-  secureEntry?: boolean;
-  toggleSecure?: () => void;
-  style?: any;
-}
-
+// --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
   const [authMode, setAuthMode] = useState<
@@ -459,12 +393,8 @@ const AuthScreen: React.FC = () => {
     useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [isFocused, setIsFocused] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const buttonScale = useRef(new Animated.Value(1)).current;
 
-  // Navigate to home if user is logged in
   const navigateToHome = () => {
     if (!isLoggedIn) {
       setIsLoggedIn(true);
@@ -472,7 +402,6 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Function to create user in "users" table if not already present
   const createUserInDatabase = async (
     userId: string,
     userEmail: string,
@@ -491,13 +420,9 @@ const AuthScreen: React.FC = () => {
         ],
         { onConflict: "id" }
       );
-      if (error) {
-        console.error("Error upserting user into users table:", error);
-      } else {
-        console.log("User successfully upserted into users table.");
-      }
+      if (error) throw error;
     } catch (err) {
-      console.error("Failed to create/update user in database:", err);
+      console.error("Error upserting user:", err);
     }
   };
 
@@ -508,262 +433,164 @@ const AuthScreen: React.FC = () => {
     }
     try {
       setLoading(true);
-      setError("");
-      setMessage("");
-
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      console.log("Apple credential:", credential); // For debugging
 
-      if (!credential.identityToken) {
-        throw new Error("No identity token returned from Apple");
-      }
-      const firstNameFromApple = credential.fullName?.givenName || "";
-      const lastNameFromApple = credential.fullName?.familyName || "";
+      if (!credential.identityToken)
+        throw new Error("Unable to authenticate with Apple");
 
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: "apple",
         token: credential.identityToken,
       });
-      if (error) {
-        console.error("Supabase sign in error:", error);
-        setError(error.message);
-      } else if (data?.session) {
+
+      if (error) throw new Error("Apple Sign In failed. Please try again.");
+      if (data?.session) {
+        const firstNameFromApple = credential.fullName?.givenName ?? "";
+        const lastNameFromApple = credential.fullName?.familyName ?? "";
+
         await createUserInDatabase(
           data.session.user.id,
           data.session.user.email || "",
           firstNameFromApple,
           lastNameFromApple
         );
-        console.log("User session:", data.session);
         navigateToHome();
       }
     } catch (e: any) {
-      console.error("Apple Sign In error:", e);
-      setError("An error occurred during Apple Sign In.");
+      setError(
+        e.message ||
+          "Something went wrong with Apple Sign In. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle forgot password and back to login
-  const handleForgotPassword = () => {
-    setAuthMode("forgotPassword");
-    setError("");
-    setMessage("");
-  };
-  const backToLogin = () => {
-    setAuthMode("login");
-    setError("");
-    setMessage("");
-  };
-
-  // URL redirect handler for OAuth callbacks
-  const handleURLRedirect = async (event: { url: string }) => {
-    if (event.url.startsWith("myapp://auth/callback")) {
-      try {
-        const urlObj = new URL(event.url);
-        const code = urlObj.searchParams.get("code");
-        if (!code) {
-          throw new Error("No code found in URL");
-        }
-        const { data: authData } = await supabase.auth.exchangeCodeForSession(
-          code
-        );
-        if (authData?.session) {
-          setSession(authData.session);
-          if (authData.user) {
-            await createUserInDatabase(
-              authData.user.id,
-              authData.user.email || "",
-              authData.user.user_metadata?.first_name,
-              authData.user.user_metadata?.last_name
-            );
-          }
-          navigateToHome();
-        }
-      } catch (err) {
-        console.error("Error handling auth callback:", err);
-        setError("Authentication failed. Please try again.");
-      }
-    }
-  };
-
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
 
-    const subscription = Linking.addEventListener("url", handleURLRedirect);
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      if (url.startsWith("myapp://auth/callback")) {
+        // Handle OAuth callback
+      }
+    });
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        console.log("Auth state changed:", event);
         setSession(currentSession);
         if (
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
         ) {
-          if (currentSession.user) {
-            await createUserInDatabase(
-              currentSession.user.id,
-              currentSession.user.email || "",
-              currentSession.user.user_metadata?.first_name,
-              currentSession.user.user_metadata?.last_name
-            );
-          }
+          await createUserInDatabase(
+            currentSession.user.id,
+            currentSession.user.email || "",
+            currentSession.user.user_metadata?.first_name,
+            currentSession.user.user_metadata?.last_name
+          );
           navigateToHome();
-        } else if (event === "SIGNED_OUT") {
-          setIsLoggedIn(false);
         }
       }
     );
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleURLRedirect({ url });
-      }
-    });
+
     return () => {
       subscription.remove();
       authListener?.subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0.3,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [authMode]);
-
-  const handleSubmit = async (): Promise<void> => {
+  const handleSubmit = async () => {
     Keyboard.dismiss();
     setError("");
     setMessage("");
 
-    if (authMode === "login") {
-      if (!email || !password) {
-        setError("Please fill out all fields.");
-        return;
-      }
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
+      if (authMode === "login") {
+        if (!email || !password) {
+          throw new Error("Please enter both email and password.");
+        }
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) {
-          setError(error.message);
-        } else if (data?.session) {
-          setSession(data.session);
-          setMessage("Logged in successfully!");
-          navigateToHome();
+          if (error.message.includes("Invalid login credentials")) {
+            throw new Error("Incorrect email or password. Please try again.");
+          }
+          throw new Error(
+            "Unable to sign in. Please check your connection and try again."
+          );
         }
-      } catch (err) {
-        console.error("Login error:", err);
-        setError("An unexpected error occurred. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    } else if (authMode === "signup") {
-      if (!email || !password || !firstName || !lastName || !confirmPassword) {
-        setError("Please fill out all fields.");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        return;
-      }
-      try {
-        setLoading(true);
+        if (data?.session) navigateToHome();
+      } else if (authMode === "signup") {
+        if (
+          !email ||
+          !password ||
+          !firstName ||
+          !lastName ||
+          !confirmPassword
+        ) {
+          throw new Error("Please fill in all fields to sign up.");
+        }
+        if (password !== confirmPassword)
+          throw new Error("Passwords don't match. Please check and try again.");
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              first_name: firstName,
-              last_name: lastName,
-            },
-          },
+          options: { data: { first_name: firstName, last_name: lastName } },
         });
         if (error) {
-          setError(error.message);
-        } else if (data?.user) {
-          if (data.session) {
-            setSession(data.session);
-            setMessage("Sign up successful!");
-            await createUserInDatabase(
-              data.user.id,
-              email,
-              firstName,
-              lastName
+          if (error.message.includes("User already registered")) {
+            throw new Error(
+              "This email is already registered. Try signing in instead."
             );
-            navigateToHome();
-          } else {
-            setMessage("Please check your email for confirmation link.");
           }
+          throw new Error(
+            "Unable to create your account. Please try again later."
+          );
         }
-      } catch (err) {
-        console.error("Signup error:", err);
-        setError("An unexpected error occurred. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    } else if (authMode === "forgotPassword") {
-      if (!email) {
-        setError("Please enter your email to reset your password.");
-        return;
-      }
-      try {
-        setLoading(true);
-        const { data, error } = await supabase.auth.resetPasswordForEmail(
-          email,
-          {
-            redirectTo: "https://www.saint-central.com/update-password",
-          }
-        );
+        if (data?.user) {
+          await createUserInDatabase(data.user.id, email, firstName, lastName);
+          setMessage(
+            data.session
+              ? "Welcome! You've signed up successfully."
+              : "Check your email to confirm your account."
+          );
+          if (data.session) navigateToHome();
+        }
+      } else {
+        if (!email) {
+          throw new Error("Please enter your email to reset your password.");
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: "https://www.saint-central.com/update-password",
+        });
         if (error) {
-          setError(error.message);
-        } else {
-          setMessage("Password reset email sent. Please check your inbox.");
+          if (error.message.includes("rate limit")) {
+            throw new Error(
+              "Too many reset requests. Please wait and try again later."
+            );
+          }
+          throw new Error(
+            "Unable to send reset email. Please check your email and try again."
+          );
         }
-      } catch (err) {
-        console.error("Forgot Password error:", err);
-        setError("An error occurred during password reset. Please try again.");
-      } finally {
-        setLoading(false);
+        setMessage("We've sent a password reset link to your email.");
       }
-    }
-  };
-
-  const toggleAuthMode = (): void => {
-    setAuthMode(authMode === "login" ? "signup" : "login");
-    setError("");
-    setMessage("");
-    if (authMode === "signup") {
-      setFirstName("");
-      setLastName("");
-      setConfirmPassword("");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -773,105 +600,65 @@ const AuthScreen: React.FC = () => {
     setValue,
     keyboardType = "default",
     icon,
-    secureEntry = false,
-    toggleSecure = undefined,
-    style = {},
-  }: CustomInputProps): React.ReactNode => {
-    const inputId = placeholder.toLowerCase().replace(/\s/g, "");
-    const isInputFocused = isFocused === inputId;
-    return (
-      <View
-        style={[
-          styles.inputContainer,
-          isInputFocused && styles.inputContainerFocused,
-          style,
-        ]}
-      >
-        <View style={styles.iconContainer}>{icon}</View>
-        <TextInput
-          style={styles.input}
-          placeholder={placeholder}
-          placeholderTextColor="rgba(255, 255, 255, 0.4)"
-          autoCapitalize="none"
-          keyboardType={keyboardType}
-          value={value}
-          onChangeText={setValue}
-          secureTextEntry={secureEntry}
-          onFocus={() => setIsFocused(inputId)}
-          onBlur={() => setIsFocused(null)}
-        />
-        {toggleSecure && (
-          <TouchableOpacity style={styles.secureButton} onPress={toggleSecure}>
-            <Feather
-              name={secureEntry ? "eye-off" : "eye"}
-              size={20}
-              color="rgba(255, 255, 255, 0.7)"
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
-  const handlePressIn = () => {
-    Animated.spring(buttonScale, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(buttonScale, {
-      toValue: 1,
-      friction: 4,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const renderFormTitle = () => {
-    if (authMode === "login") return "Sign in to your account";
-    if (authMode === "signup") return "Create a new account";
-    if (authMode === "forgotPassword") return "Reset your password";
-    return "";
-  };
+    secureEntry,
+    toggleSecure,
+  }: CustomInputProps) => (
+    <View
+      style={[
+        styles.inputContainer,
+        authMode === "signup" && placeholder.includes("Name")
+          ? styles.nameInput
+          : null,
+      ]}
+    >
+      {icon}
+      <TextInput
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor="rgba(252, 211, 77, 0.5)"
+        value={value}
+        onChangeText={setValue}
+        keyboardType={keyboardType}
+        secureTextEntry={secureEntry}
+        autoCapitalize="none"
+      />
+      {toggleSecure && (
+        <TouchableOpacity onPress={toggleSecure} style={styles.eyeIcon}>
+          <Feather
+            name={secureEntry ? "eye-off" : "eye"}
+            size={20}
+            color="#fcd34d"
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        style={styles.container}
       >
         <StatusBar
           barStyle="light-content"
-          translucent
           backgroundColor="transparent"
+          translucent
         />
-        <LinearGradient
-          colors={["#0a090a", "#1a1917", "#262524", "#39383c"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientContainer}
-        >
+        <LinearGradient colors={["#0a090a", "#1a1917"]} style={styles.gradient}>
           <LightRaysBackground />
           <ParticlesAnimation />
           <AnimatedCrosses />
-          <View style={styles.radialGlow} />
-          <View style={styles.decorativeCircle} />
-          <View style={styles.centralGlow} />
-          <View style={styles.centerLogoWrapper}>
-            <PulsingLogo />
-          </View>
-          <Animated.View
-            style={[
-              styles.formContainer,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-            ]}
-          >
-            <View style={styles.titleContainer}>
-              <Text style={styles.formTitle}>Saint Central</Text>
-              <Text style={styles.formSubtitle}>{renderFormTitle()}</Text>
-            </View>
+          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+            <Text style={styles.title}>Saint Central</Text>
+            <Text style={styles.subtitle}>
+              {authMode === "login"
+                ? "Welcome Back"
+                : authMode === "signup"
+                ? "Join Us"
+                : "Reset Password"}
+            </Text>
+
             {(error || message) && (
               <View style={styles.messageContainer}>
                 {error ? (
@@ -887,181 +674,119 @@ const AuthScreen: React.FC = () => {
                 )}
               </View>
             )}
-            <View style={styles.inputsContainer}>
+
+            <View style={styles.form}>
               {renderInput({
                 placeholder: "Email",
                 value: email,
                 setValue: setEmail,
                 keyboardType: "email-address",
                 icon: <Feather name="mail" size={20} color="#fcd34d" />,
-                style: { marginBottom: 16 },
               })}
+
               {authMode === "signup" && (
-                <View style={styles.nameInputsRow}>
+                <View style={styles.nameRow}>
                   {renderInput({
                     placeholder: "First Name",
                     value: firstName,
                     setValue: setFirstName,
                     icon: <Feather name="user" size={20} color="#fcd34d" />,
-                    style: { width: "48%" },
                   })}
                   {renderInput({
                     placeholder: "Last Name",
                     value: lastName,
                     setValue: setLastName,
                     icon: <Ionicons name="person" size={20} color="#fcd34d" />,
-                    style: { width: "48%" },
                   })}
                 </View>
               )}
+
               {(authMode === "login" || authMode === "signup") &&
                 renderInput({
                   placeholder: "Password",
                   value: password,
                   setValue: setPassword,
-                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
                   secureEntry: secureTextEntry,
                   toggleSecure: () => setSecureTextEntry(!secureTextEntry),
-                  style: {
-                    marginBottom: 16,
-                    marginTop: authMode === "signup" ? 16 : 0,
-                  },
+                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
                 })}
+
               {authMode === "signup" &&
                 renderInput({
                   placeholder: "Confirm Password",
                   value: confirmPassword,
                   setValue: setConfirmPassword,
-                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
                   secureEntry: secureConfirmTextEntry,
                   toggleSecure: () =>
                     setSecureConfirmTextEntry(!secureConfirmTextEntry),
-                  style: { marginBottom: 16 },
+                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
                 })}
-            </View>
-            {authMode === "login" && (
-              <TouchableOpacity
-                style={styles.forgotPassword}
-                onPress={handleForgotPassword}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
-            )}
-            <Animated.View
-              style={[
-                styles.buttonContainer,
-                { transform: [{ scale: buttonScale }] },
-              ]}
-            >
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleSubmit}
-                disabled={loading}
-                activeOpacity={0.9}
-                onPressIn={handlePressIn}
-                onPressOut={handlePressOut}
-              >
-                <LinearGradient
-                  colors={["#eab308", "#facc15", "#fbbf24"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.buttonGradient}
+
+              {authMode === "login" && (
+                <TouchableOpacity
+                  style={styles.forgotLink}
+                  onPress={() => setAuthMode("forgotPassword")}
                 >
-                  {loading ? (
-                    <ActivityIndicator color="#1c1917" size="small" />
-                  ) : (
-                    <>
-                      <Text style={styles.buttonText}>
-                        {authMode === "login"
-                          ? "Sign In"
-                          : authMode === "signup"
-                          ? "Sign Up"
-                          : "Reset Password"}
-                      </Text>
-                      <AntDesign name="arrowright" size={20} color="#1c1917" />
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animated.View>
-            {authMode === "forgotPassword" ? (
-              <TouchableOpacity
-                style={styles.toggleContainer}
-                onPress={backToLogin}
+                  <Text style={styles.forgotText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <LinearGradient
+                colors={["#eab308", "#fbbf24"]}
+                style={styles.buttonGradient}
               >
-                <Text style={styles.toggleText}>Remember your password?</Text>
-                <Text style={styles.toggleTextBold}> Back to Sign In</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.toggleContainer}
-                onPress={toggleAuthMode}
-              >
-                <Text style={styles.toggleText}>
-                  {authMode === "login"
-                    ? "Don't have an account? "
-                    : "Already have an account? "}
-                </Text>
-                <Text style={styles.toggleTextBold}>
-                  {authMode === "login" ? "Sign Up" : "Sign In"}
-                </Text>
-              </TouchableOpacity>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {authMode === "login"
+                      ? "Sign In"
+                      : authMode === "signup"
+                      ? "Sign Up"
+                      : "Reset"}
+                  </Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {authMode !== "forgotPassword" && (
+              <View style={styles.socialSection}>
+                <Text style={styles.orText}>Or continue with</Text>
+                <TouchableOpacity
+                  style={styles.socialButton}
+                  onPress={handleAppleSignIn}
+                  disabled={loading}
+                >
+                  <FontAwesome5 name="apple" size={24} color="#fcd34d" />
+                  <Text style={styles.socialButtonText}>
+                    Sign in with Apple
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
-            {authMode === "login" && (
-              <>
-                <View style={styles.orContainer}>
-                  <View style={styles.orLine} />
-                  <Text style={styles.orText}>OR CONTINUE WITH</Text>
-                  <View style={styles.orLine} />
-                </View>
-                <View style={styles.socialContainer}>
-                  <TouchableOpacity
-                    style={styles.socialButton}
-                    onPress={handleAppleSignIn}
-                    disabled={loading}
-                  >
-                    <FontAwesome5 name="apple" size={20} color="#fcd34d" />
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+
+            <TouchableOpacity
+              onPress={() =>
+                setAuthMode(authMode === "login" ? "signup" : "login")
+              }
+            >
+              <Text style={styles.switchText}>
+                {authMode === "login"
+                  ? "Need an account? Sign Up"
+                  : "Already have an account? Sign In"}
+              </Text>
+            </TouchableOpacity>
+
             <View style={styles.footer}>
-              <MaterialCommunityIcons
-                name="cross"
-                size={18}
-                color="rgba(255, 255, 255, 0.3)"
-              />
               <Text style={styles.footerText}>Powered by faith</Text>
             </View>
           </Animated.View>
-          {isLoggedIn && (
-            <View style={styles.bottomNav}>
-              <TouchableOpacity style={styles.navItem}>
-                <MaterialCommunityIcons
-                  name="compass"
-                  size={24}
-                  color="#fcd34d"
-                />
-                <Text style={styles.navText}>Discover</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.navItem}>
-                <MaterialCommunityIcons
-                  name="account-group"
-                  size={24}
-                  color="#fcd34d"
-                />
-                <Text style={styles.navText}>Community</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.navItem}>
-                <MaterialCommunityIcons
-                  name="account"
-                  size={24}
-                  color="#fcd34d"
-                />
-                <Text style={styles.navText}>Me</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </LinearGradient>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -1069,10 +794,14 @@ const AuthScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  gradientContainer: {
+  container: {
+    flex: 1,
+  },
+  gradient: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
   raysContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -1102,108 +831,25 @@ const styles = StyleSheet.create({
     position: "absolute",
     backgroundColor: "#fcd34d",
   },
-  radialGlow: {
-    position: "absolute",
-    width: width * 1.5,
-    height: width * 1.5,
-    borderRadius: width * 0.75,
-    backgroundColor: "transparent",
-    shadowColor: "#fcd34d",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 150,
-    zIndex: 3,
-  },
-  centralGlow: {
-    position: "absolute",
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "transparent",
-    shadowColor: "#fcd34d",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 100,
-    zIndex: 3,
-  },
-  decorativeCircle: {
-    position: "absolute",
-    width: height * 0.4,
-    height: height * 0.4,
-    borderRadius: height * 0.2,
-    backgroundColor: "#fcd34d",
-    top: -height * 0.15,
-    right: -width * 0.15,
-    zIndex: 3,
-    opacity: 0.05,
-  },
-  centerLogoWrapper: {
-    position: "absolute",
-    top: height * 0.1,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 10,
-  },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(20, 20, 20, 0.5)",
-    borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.3)",
-  },
-  logoGlow: {
-    position: "absolute",
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "transparent",
-    shadowColor: "#fcd34d",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-    elevation: 20,
-  },
-  formContainer: {
-    width: width * 0.9,
-    maxWidth: 420,
-    alignItems: "center",
-    maxHeight: height * 0.8,
-    paddingTop: 0,
-    marginTop: height * 0.05,
-    zIndex: 10,
-  },
-  nameInputsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  content: {
     width: "100%",
-    marginBottom: 0,
-  },
-  titleContainer: {
+    maxWidth: 400,
     alignItems: "center",
-    marginBottom: 30,
-    paddingTop: 20,
+    paddingVertical: 24,
+    zIndex: 10,
   },
-  formTitle: {
-    fontSize: 36,
-    fontWeight: "600",
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
     color: "#fcd34d",
-    textAlign: "center",
+    letterSpacing: 1,
+    marginBottom: 8,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    textShadowColor: "rgba(252, 211, 77, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
-  formSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "center",
-    marginTop: 8,
+  subtitle: {
+    fontSize: 18,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 24,
     fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
   messageContainer: {
@@ -1230,181 +876,106 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  inputsContainer: {
+  form: {
     width: "100%",
+    gap: 16,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(15, 15, 15, 0.5)",
-    borderRadius: 16,
-    height: 60,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 52,
     borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.15)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
-    overflow: "hidden",
+    borderColor: "rgba(252, 211, 77, 0.2)",
+    width: "100%",
   },
-  inputContainerFocused: {
-    borderColor: "rgba(252, 211, 77, 0.5)",
-    backgroundColor: "rgba(20, 20, 20, 0.7)",
-    shadowColor: "#fcd34d",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  iconContainer: {
-    width: 60,
-    alignItems: "center",
-    justifyContent: "center",
+  nameInput: {
+    flex: 1,
+    width: undefined,
   },
   input: {
     flex: 1,
-    color: "#FFF",
+    color: "#fff",
     fontSize: 16,
+    marginLeft: 12,
     height: "100%",
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
-  secureButton: {
-    width: 50,
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
+  eyeIcon: {
+    padding: 8,
   },
-  forgotPassword: {
+  nameRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    width: "100%",
+  },
+  forgotLink: {
     alignSelf: "flex-end",
-    marginBottom: 24,
+    marginTop: 8,
+    marginBottom: 0,
   },
-  forgotPasswordText: {
+  forgotText: {
     color: "#fcd34d",
     fontSize: 14,
-    fontWeight: "500",
-  },
-  buttonContainer: {
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
   },
   button: {
     width: "100%",
-    height: 60,
-    borderRadius: 16,
+    height: 52,
+    borderRadius: 12,
     overflow: "hidden",
-    marginTop: 8,
+    marginTop: 24,
   },
   buttonGradient: {
-    width: "100%",
-    height: "100%",
-    flexDirection: "row",
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   buttonText: {
-    color: "#1c1917",
-    fontSize: 18,
-    fontWeight: "700",
-    marginRight: 10,
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
-    letterSpacing: 0.5,
-  },
-  toggleContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 28,
-  },
-  toggleText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 16,
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
-  },
-  toggleTextBold: {
-    color: "#fcd34d",
+    color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
-  orContainer: {
-    flexDirection: "row",
+  socialSection: {
+    marginTop: 24,
     alignItems: "center",
-    marginTop: 30,
-    marginBottom: 22,
+    gap: 16,
     width: "100%",
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(252, 211, 77, 0.2)",
   },
   orText: {
     color: "rgba(252, 211, 77, 0.5)",
-    marginHorizontal: 14,
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1,
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
-  },
-  socialContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+    fontSize: 14,
   },
   socialButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(15, 15, 15, 0.5)",
+    width: "100%",
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 14,
     borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.15)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
+    borderColor: "rgba(252, 211, 77, 0.2)",
+    gap: 8,
+  },
+  socialButtonText: {
+    color: "#fcd34d",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  switchText: {
+    color: "#fcd34d",
+    fontSize: 14,
+    marginTop: 24,
   },
   footer: {
-    marginTop: 30,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
+    marginTop: 32,
+    marginBottom: 24,
   },
   footerText: {
-    color: "rgba(255, 255, 255, 0.3)",
-    fontSize: 13,
-    marginLeft: 8,
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
-  },
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(10, 10, 10, 0.9)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(252, 211, 77, 0.2)",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === "ios" ? 30 : 10,
-    zIndex: 100,
-  },
-  navItem: {
-    alignItems: "center",
-    padding: 8,
-  },
-  navText: {
-    color: "#fcd34d",
+    color: "rgba(252, 211, 77, 0.5)",
     fontSize: 12,
-    marginTop: 4,
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
   },
 });
 
