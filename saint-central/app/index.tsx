@@ -16,6 +16,7 @@ import {
   TextInputProps,
   Easing,
 } from "react-native";
+import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
@@ -505,7 +506,6 @@ const AuthScreen: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isFocused, setIsFocused] = useState<string | null>(null);
-
   // Animation values for form
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -516,6 +516,45 @@ const AuthScreen: React.FC = () => {
     if (!isLoggedIn) {
       setIsLoggedIn(true);
       router.replace("/(tabs)/home");
+    }
+  };
+
+  // Function to create user in database
+  const createUserInDatabase = async (
+    userId: string,
+    userEmail: string,
+    firstName?: string,
+    lastName?: string
+  ) => {
+    try {
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", userId)
+        .single();
+
+      if (existingUser) {
+        console.log("User already exists in database");
+        return;
+      }
+
+      const { error: userError } = await supabase.from("users").insert([
+        {
+          id: userId,
+          email: userEmail,
+          first_name: firstName || "",
+          last_name: lastName || "",
+        },
+      ]);
+
+      if (userError) {
+        console.error("Error creating user in database:", userError);
+      } else {
+        console.log("Successfully created user in database");
+      }
+    } catch (userErr) {
+      console.error("Failed to create user in database:", userErr);
     }
   };
 
@@ -535,9 +574,49 @@ const AuthScreen: React.FC = () => {
       }),
     ]).start();
 
+    // Set up URL event listener for auth callbacks
+    const handleURLRedirect = async (event: { url: string }) => {
+      if (event.url.startsWith("myapp://auth/callback")) {
+        try {
+          // Extract the code from the URL
+          const url = new URL(event.url);
+          const code = url.searchParams.get("code");
+
+          if (!code) {
+            throw new Error("No code found in URL");
+          }
+
+          // Handle the authentication redirect using the newer API
+          const { data: authData } = await supabase.auth.exchangeCodeForSession(
+            code
+          );
+
+          if (authData?.session) {
+            setSession(authData.session);
+            // Create user in database if needed
+            if (authData.user) {
+              await createUserInDatabase(
+                authData.user.id,
+                authData.user.email || "",
+                authData.user.user_metadata?.first_name,
+                authData.user.user_metadata?.last_name
+              );
+            }
+            navigateToHome();
+          }
+        } catch (err) {
+          console.error("Error handling auth callback:", err);
+          setError("Authentication failed. Please try again.");
+        }
+      }
+    };
+
+    // Add event listener for URL events
+    const subscription = Linking.addEventListener("url", handleURLRedirect);
+
     // Subscribe to auth state changes (e.g. sign in, sign out)
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event);
         setSession(currentSession);
 
@@ -545,6 +624,18 @@ const AuthScreen: React.FC = () => {
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
         ) {
+          // Create user in database if it was an Apple Sign In
+          if (
+            event === "SIGNED_IN" &&
+            currentSession.user?.app_metadata?.provider === "apple"
+          ) {
+            await createUserInDatabase(
+              currentSession.user.id,
+              currentSession.user.email || "",
+              currentSession.user.user_metadata?.first_name,
+              currentSession.user.user_metadata?.last_name
+            );
+          }
           navigateToHome();
         } else if (event === "SIGNED_OUT") {
           setIsLoggedIn(false);
@@ -552,7 +643,15 @@ const AuthScreen: React.FC = () => {
       }
     );
 
+    // Check for initial URL on mount
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleURLRedirect({ url });
+      }
+    });
+
     return () => {
+      subscription.remove();
       authListener?.subscription.unsubscribe();
     };
   }, [router]);
@@ -634,28 +733,19 @@ const AuthScreen: React.FC = () => {
           if (data.session) {
             setSession(data.session);
             setMessage("Sign up successful!");
+
+            // Create user entry in users table
+            await createUserInDatabase(
+              data.user.id,
+              email,
+              firstName,
+              lastName
+            );
+
             navigateToHome();
           } else {
             // Handle email confirmation if required
             setMessage("Please check your email for confirmation link.");
-          }
-
-          // Create user entry in users table
-          try {
-            const { error: userError } = await supabase.from("users").insert([
-              {
-                id: data.user.id,
-                email: email,
-                first_name: firstName,
-                last_name: lastName,
-              },
-            ]);
-
-            if (userError) {
-              console.error("Error creating user:", userError);
-            }
-          } catch (userErr) {
-            console.error("Failed to create user:", userErr);
           }
         }
       } catch (err) {
@@ -664,6 +754,38 @@ const AuthScreen: React.FC = () => {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  // Handle Apple Sign In
+  const handleAppleSignIn = async () => {
+    try {
+      console.log("Apple sign in button pressed");
+      setLoading(true);
+      setError("");
+      setMessage("");
+
+      // Use Supabase OAuth flow with Apple
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: "myapp://auth/callback",
+          scopes: "email name",
+        },
+      });
+
+      if (error) {
+        console.error("Supabase OAuth error:", error);
+        setError(error.message);
+      } else if (data?.url) {
+        console.log("Opening auth URL:", data.url);
+        await Linking.openURL(data.url);
+      }
+    } catch (err) {
+      console.error("Apple Sign In error:", err);
+      setError("An error occurred during Apple Sign In.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -935,7 +1057,7 @@ const AuthScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
 
-            {/* Social login options */}
+            {/* Apple Sign In Option */}
             {authMode === "login" && (
               <>
                 <View style={styles.orContainer}>
@@ -943,33 +1065,15 @@ const AuthScreen: React.FC = () => {
                   <Text style={styles.orText}>OR CONTINUE WITH</Text>
                   <View style={styles.orLine} />
                 </View>
+
                 <View style={styles.socialContainer}>
-                  {[
-                    <FontAwesome5
-                      key="google"
-                      name="google"
-                      size={20}
-                      color="#fcd34d"
-                    />,
-                    <FontAwesome5
-                      key="facebook"
-                      name="facebook-f"
-                      size={20}
-                      color="#fcd34d"
-                    />,
-                    <FontAwesome5
-                      key="apple"
-                      name="apple"
-                      size={20}
-                      color="#fcd34d"
-                    />,
-                  ].map((icon, index) => (
-                    <View key={index}>
-                      <TouchableOpacity style={styles.socialButton}>
-                        {icon}
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+                  <TouchableOpacity
+                    style={styles.socialButton}
+                    onPress={handleAppleSignIn}
+                    disabled={loading}
+                  >
+                    <FontAwesome5 name="apple" size={20} color="#fcd34d" />
+                  </TouchableOpacity>
                 </View>
               </>
             )}
