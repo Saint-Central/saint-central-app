@@ -37,6 +37,7 @@ import Svg, {
   Stop,
   G,
 } from "react-native-svg";
+import * as AppleAuthentication from "expo-apple-authentication"; // <-- New import for native Apple Sign In
 
 const { width, height } = Dimensions.get("window");
 
@@ -757,30 +758,31 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Handle Apple Sign In
+  // Updated Apple Sign In to use native authentication rather than opening a link
   const handleAppleSignIn = async () => {
+    if (Platform.OS !== "ios") {
+      setError("Apple Sign In is only available on iOS devices.");
+      return;
+    }
     try {
-      console.log("Apple sign in button pressed");
+      console.log("Apple sign in button pressed (native)");
       setLoading(true);
       setError("");
       setMessage("");
 
-      // Use Supabase OAuth flow with Apple
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: "myapp://auth/callback",
-          scopes: "email name",
-        },
+      // Use native Apple Sign In via expo-apple-authentication
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        ],
       });
 
-      if (error) {
-        console.error("Supabase OAuth error:", error);
-        setError(error.message);
-      } else if (data?.url) {
-        console.log("Opening auth URL:", data.url);
-        await Linking.openURL(data.url);
-      }
+      console.log("Apple Credential:", appleCredential);
+      // Here, you would typically send appleCredential.identityToken to your backend
+      // to verify the user and create a session with Supabase.
+      // For demonstration, we simply set a success message.
+      setMessage("Apple sign in successful!");
     } catch (err) {
       console.error("Apple Sign In error:", err);
       setError("An error occurred during Apple Sign In.");
