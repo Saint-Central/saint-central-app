@@ -20,6 +20,8 @@ import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
+import * as AppleAuthentication from "expo-apple-authentication";
+
 import {
   MaterialCommunityIcons,
   Feather,
@@ -28,19 +30,11 @@ import {
   AntDesign,
 } from "@expo/vector-icons";
 import { Session } from "@supabase/supabase-js";
-import Svg, {
-  Path,
-  Rect,
-  Circle,
-  Defs,
-  RadialGradient,
-  Stop,
-  G,
-} from "react-native-svg";
+import Svg, { Rect, Defs, RadialGradient, Stop } from "react-native-svg";
 
 const { width, height } = Dimensions.get("window");
 
-// Interface for cross animation data
+// --- Interfaces & Animation Generators ---
 interface CrossAnimation {
   rotate: Animated.Value;
   float: Animated.Value;
@@ -57,7 +51,6 @@ interface CrossAnimation {
   };
 }
 
-// Interface for particle animation data
 interface ParticleAnimation {
   pos: Animated.Value;
   opacity: Animated.Value;
@@ -67,7 +60,6 @@ interface ParticleAnimation {
   size: number;
 }
 
-// Pre-generate random positions and animations for crosses
 const generateCrossAnimations = (count: number): CrossAnimation[] => {
   return Array.from({ length: count }).map(() => ({
     rotate: new Animated.Value(0),
@@ -86,7 +78,6 @@ const generateCrossAnimations = (count: number): CrossAnimation[] => {
   }));
 };
 
-// Pre-generate random positions and animations for particles
 const generateParticleAnimations = (count: number): ParticleAnimation[] => {
   return Array.from({ length: count }).map(() => {
     const size = Math.random() * 4 + 1;
@@ -109,7 +100,7 @@ const generateParticleAnimations = (count: number): ParticleAnimation[] => {
   });
 };
 
-// Animated Light Rays Component with memoized animations
+// --- Visual Components ---
 const LightRaysBackground = () => {
   const rayAnim1 = useRef(new Animated.Value(0)).current;
   const rayAnim2 = useRef(new Animated.Value(0)).current;
@@ -123,7 +114,6 @@ const LightRaysBackground = () => {
         useNativeDriver: true,
       })
     ).start();
-
     Animated.loop(
       Animated.timing(rayAnim2, {
         toValue: 1,
@@ -138,7 +128,6 @@ const LightRaysBackground = () => {
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
-
   const rotate2 = rayAnim2.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "-360deg"],
@@ -177,7 +166,6 @@ const LightRaysBackground = () => {
           ))}
         </Svg>
       </Animated.View>
-
       <Animated.View
         style={[styles.rayLayer, { transform: [{ rotate: rotate2 }] }]}
       >
@@ -213,7 +201,6 @@ const LightRaysBackground = () => {
   );
 };
 
-// Animated Cross Component with pre-generated positions
 const AnimatedCrosses = () => {
   const crossAnimations = useMemo(() => generateCrossAnimations(12), []);
 
@@ -227,7 +214,6 @@ const AnimatedCrosses = () => {
           useNativeDriver: true,
         })
       ).start();
-
       Animated.loop(
         Animated.sequence([
           Animated.timing(crossAnim.float, {
@@ -244,7 +230,6 @@ const AnimatedCrosses = () => {
           }),
         ])
       ).start();
-
       Animated.loop(
         Animated.sequence([
           Animated.timing(crossAnim.opacity, {
@@ -271,9 +256,7 @@ const AnimatedCrosses = () => {
           inputRange: [0, 360],
           outputRange: ["0deg", "360deg"],
         });
-
         const { top, left, size, zIndex } = crossAnim.position;
-
         return (
           <Animated.View
             key={index}
@@ -328,7 +311,6 @@ const AnimatedCrosses = () => {
   );
 };
 
-// Particles Animation Component with pre-generated positions
 const ParticlesAnimation = () => {
   const particleAnimations = useMemo(() => generateParticleAnimations(40), []);
 
@@ -343,7 +325,6 @@ const ParticlesAnimation = () => {
             useNativeDriver: true,
           })
         ).start();
-
         Animated.loop(
           Animated.sequence([
             Animated.timing(particleAnim.opacity, {
@@ -359,7 +340,6 @@ const ParticlesAnimation = () => {
           ])
         ).start();
       };
-
       setTimeout(startAnimation, particleAnim.delay);
     });
   }, [particleAnimations]);
@@ -371,12 +351,10 @@ const ParticlesAnimation = () => {
           inputRange: [0, 1],
           outputRange: [height + particleAnim.size, -particleAnim.size * 2],
         });
-
         const translateX = particleAnim.pos.interpolate({
           inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
           outputRange: particleAnim.path,
         });
-
         return (
           <Animated.View
             key={index}
@@ -397,7 +375,6 @@ const ParticlesAnimation = () => {
   );
 };
 
-// Pulsing Logo Component
 const PulsingLogo = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -419,7 +396,6 @@ const PulsingLogo = () => {
         }),
       ])
     ).start();
-
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
@@ -453,6 +429,7 @@ const PulsingLogo = () => {
   );
 };
 
+// --- Auth Screen Component ---
 interface CustomInputProps {
   placeholder: string;
   value: string;
@@ -495,7 +472,7 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Function to create user in database
+  // Function to create user in "users" table if not already present
   const createUserInDatabase = async (
     userId: string,
     userEmail: string,
@@ -503,65 +480,107 @@ const AuthScreen: React.FC = () => {
     lastName?: string
   ) => {
     try {
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from("users")
         .select("id")
         .eq("id", userId)
-        .single();
-
-      if (existingUser) {
-        console.log("User already exists in database");
+        .maybeSingle();
+      if (checkError) {
+        console.error("Error checking user existence:", checkError);
         return;
       }
-
-      const { error: userError } = await supabase.from("users").insert([
-        {
-          id: userId,
-          email: userEmail,
-          first_name: firstName || "",
-          last_name: lastName || "",
-        },
-      ]);
-
-      if (userError) {
-        console.error("Error creating user in database:", userError);
-      } else {
-        console.log("Successfully created user in database");
+      if (!existingUser) {
+        const { error: insertError } = await supabase.from("users").insert([
+          {
+            id: userId,
+            email: userEmail,
+            first_name: firstName || "",
+            last_name: lastName || "",
+          },
+        ]);
+        if (insertError) {
+          console.error("Error inserting user into users table:", insertError);
+        } else {
+          console.log("User successfully inserted into users table.");
+        }
       }
-    } catch (userErr) {
-      console.error("Failed to create user in database:", userErr);
+    } catch (err) {
+      console.error("Failed to create user in database:", err);
     }
   };
 
-  // Handle forgot password using Supabase
+  // Native Apple Sign In and user insertion
+  const handleAppleSignIn = async () => {
+    if (Platform.OS !== "ios") {
+      setError("Apple Sign In is only available on iOS devices.");
+      return;
+    }
+    try {
+      setLoading(true);
+      setError("");
+      setMessage("");
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        throw new Error("No identity token returned from Apple");
+      }
+      const firstNameFromApple = credential.fullName?.givenName || "";
+      const lastNameFromApple = credential.fullName?.familyName || "";
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "apple",
+        token: credential.identityToken,
+      });
+      if (error) {
+        console.error("Supabase sign in error:", error);
+        setError(error.message);
+      } else if (data?.session) {
+        await createUserInDatabase(
+          data.session.user.id,
+          data.session.user.email || "",
+          firstNameFromApple,
+          lastNameFromApple
+        );
+        console.log("User session:", data.session);
+        navigateToHome();
+      }
+    } catch (e: any) {
+      console.error("Apple Sign In error:", e);
+      setError("An error occurred during Apple Sign In.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle forgot password and back to login
   const handleForgotPassword = () => {
     setAuthMode("forgotPassword");
     setError("");
     setMessage("");
   };
-
-  // Handle back to login
   const backToLogin = () => {
     setAuthMode("login");
     setError("");
     setMessage("");
   };
 
-  // URL redirect handler for OAuth callback
+  // URL redirect handler for OAuth callbacks
   const handleURLRedirect = async (event: { url: string }) => {
     if (event.url.startsWith("myapp://auth/callback")) {
       try {
         const urlObj = new URL(event.url);
         const code = urlObj.searchParams.get("code");
-
         if (!code) {
           throw new Error("No code found in URL");
         }
-
         const { data: authData } = await supabase.auth.exchangeCodeForSession(
           code
         );
-
         if (authData?.session) {
           setSession(authData.session);
           if (authData.user) {
@@ -596,12 +615,10 @@ const AuthScreen: React.FC = () => {
     ]).start();
 
     const subscription = Linking.addEventListener("url", handleURLRedirect);
-
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("Auth state changed:", event);
         setSession(currentSession);
-
         if (
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
@@ -620,13 +637,11 @@ const AuthScreen: React.FC = () => {
         }
       }
     );
-
     Linking.getInitialURL().then((url) => {
       if (url) {
         handleURLRedirect({ url });
       }
     });
-
     return () => {
       subscription.remove();
       authListener?.subscription.unsubscribe();
@@ -664,7 +679,6 @@ const AuthScreen: React.FC = () => {
           email,
           password,
         });
-
         if (error) {
           setError(error.message);
         } else if (data?.session) {
@@ -687,10 +701,8 @@ const AuthScreen: React.FC = () => {
         setError("Passwords do not match.");
         return;
       }
-
       try {
         setLoading(true);
-
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -701,7 +713,6 @@ const AuthScreen: React.FC = () => {
             },
           },
         });
-
         if (error) {
           setError(error.message);
         } else if (data?.user) {
@@ -752,39 +763,6 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Updated Apple Sign In using Supabase OAuth flow.
-  // After a successful Apple sign in, the onAuthStateChange listener will create the user and navigate home.
-  const handleAppleSignIn = async () => {
-    if (Platform.OS !== "ios") {
-      setError("Apple Sign In is only available on iOS devices.");
-      return;
-    }
-    try {
-      setLoading(true);
-      setError("");
-      setMessage("");
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: "myapp://auth/callback",
-        },
-      });
-
-      if (error) {
-        console.error("Apple Sign In error:", error);
-        setError(error.message);
-      } else {
-        setMessage("Redirecting to Apple Sign In...");
-      }
-    } catch (err) {
-      console.error("Apple Sign In error:", err);
-      setError("An error occurred during Apple Sign In.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const toggleAuthMode = (): void => {
     setAuthMode(authMode === "login" ? "signup" : "login");
     setError("");
@@ -808,7 +786,6 @@ const AuthScreen: React.FC = () => {
   }: CustomInputProps): React.ReactNode => {
     const inputId = placeholder.toLowerCase().replace(/\s/g, "");
     const isInputFocused = isFocused === inputId;
-
     return (
       <View
         style={[
