@@ -480,36 +480,27 @@ const AuthScreen: React.FC = () => {
     lastName?: string
   ) => {
     try {
-      const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle();
-      if (checkError) {
-        console.error("Error checking user existence:", checkError);
-        return;
-      }
-      if (!existingUser) {
-        const { error: insertError } = await supabase.from("users").insert([
+      const { error } = await supabase.from("users").upsert(
+        [
           {
             id: userId,
             email: userEmail,
             first_name: firstName || "",
             last_name: lastName || "",
           },
-        ]);
-        if (insertError) {
-          console.error("Error inserting user into users table:", insertError);
-        } else {
-          console.log("User successfully inserted into users table.");
-        }
+        ],
+        { onConflict: "id" }
+      );
+      if (error) {
+        console.error("Error upserting user into users table:", error);
+      } else {
+        console.log("User successfully upserted into users table.");
       }
     } catch (err) {
-      console.error("Failed to create user in database:", err);
+      console.error("Failed to create/update user in database:", err);
     }
   };
 
-  // Native Apple Sign In and user insertion
   const handleAppleSignIn = async () => {
     if (Platform.OS !== "ios") {
       setError("Apple Sign In is only available on iOS devices.");
@@ -526,6 +517,8 @@ const AuthScreen: React.FC = () => {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
+      console.log("Apple credential:", credential); // For debugging
+
       if (!credential.identityToken) {
         throw new Error("No identity token returned from Apple");
       }
