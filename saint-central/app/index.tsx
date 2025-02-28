@@ -37,7 +37,7 @@ import Svg, {
   Stop,
   G,
 } from "react-native-svg";
-import * as AppleAuthentication from "expo-apple-authentication"; // <-- New import for native Apple Sign In
+import * as AppleAuthentication from "expo-apple-authentication"; // For native Apple Sign In
 
 const { width, height } = Dimensions.get("window");
 
@@ -113,16 +113,14 @@ const generateParticleAnimations = (count: number): ParticleAnimation[] => {
 
 // Animated Light Rays Component with memoized animations
 const LightRaysBackground = () => {
-  // Create rays of light that slowly rotate
   const rayAnim1 = useRef(new Animated.Value(0)).current;
   const rayAnim2 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Start rotation animations immediately and loop them continuously
     Animated.loop(
       Animated.timing(rayAnim1, {
         toValue: 1,
-        duration: 120000, // Very slow rotation (2 minutes)
+        duration: 120000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
@@ -131,12 +129,12 @@ const LightRaysBackground = () => {
     Animated.loop(
       Animated.timing(rayAnim2, {
         toValue: 1,
-        duration: 180000, // Even slower rotation (3 minutes)
+        duration: 180000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
     ).start();
-  }, []); // Empty dependency array ensures this only runs once
+  }, []);
 
   const rotate1 = rayAnim1.interpolate({
     inputRange: [0, 1],
@@ -219,13 +217,10 @@ const LightRaysBackground = () => {
 
 // Animated Cross Component with pre-generated positions
 const AnimatedCrosses = () => {
-  // Create memoized cross animations
   const crossAnimations = useMemo(() => generateCrossAnimations(12), []);
 
   useEffect(() => {
-    // Start all animations just once
     crossAnimations.forEach((crossAnim) => {
-      // Rotation animation
       Animated.loop(
         Animated.timing(crossAnim.rotate, {
           toValue: crossAnim.direction * 360,
@@ -235,7 +230,6 @@ const AnimatedCrosses = () => {
         })
       ).start();
 
-      // Floating animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(crossAnim.float, {
@@ -253,7 +247,6 @@ const AnimatedCrosses = () => {
         ])
       ).start();
 
-      // Opacity pulsing
       Animated.loop(
         Animated.sequence([
           Animated.timing(crossAnim.opacity, {
@@ -276,7 +269,6 @@ const AnimatedCrosses = () => {
   return (
     <View style={styles.crossesContainer}>
       {crossAnimations.map((crossAnim, index) => {
-        // Convert rotation animation to interpolated string
         const spin = crossAnim.rotate.interpolate({
           inputRange: [0, 360],
           outputRange: ["0deg", "360deg"],
@@ -340,14 +332,11 @@ const AnimatedCrosses = () => {
 
 // Particles Animation Component with pre-generated positions
 const ParticlesAnimation = () => {
-  // Create memoized particle animations
   const particleAnimations = useMemo(() => generateParticleAnimations(40), []);
 
   useEffect(() => {
-    // Start all animations just once
-    particleAnimations.forEach((particleAnim, index) => {
+    particleAnimations.forEach((particleAnim) => {
       const startAnimation = () => {
-        // Move from bottom to top
         Animated.loop(
           Animated.timing(particleAnim.pos, {
             toValue: 1,
@@ -357,7 +346,6 @@ const ParticlesAnimation = () => {
           })
         ).start();
 
-        // Opacity animation
         Animated.loop(
           Animated.sequence([
             Animated.timing(particleAnim.opacity, {
@@ -374,7 +362,6 @@ const ParticlesAnimation = () => {
         ).start();
       };
 
-      // Start with initial delay
       setTimeout(startAnimation, particleAnim.delay);
     });
   }, [particleAnimations]);
@@ -382,7 +369,6 @@ const ParticlesAnimation = () => {
   return (
     <View style={styles.particlesContainer}>
       {particleAnimations.map((particleAnim, index) => {
-        // Calculate the path with some drift
         const translateY = particleAnim.pos.interpolate({
           inputRange: [0, 1],
           outputRange: [height + particleAnim.size, -particleAnim.size * 2],
@@ -461,14 +447,7 @@ const PulsingLogo = () => {
 
   return (
     <View style={styles.logoContainer}>
-      <Animated.View
-        style={[
-          styles.logoGlow,
-          {
-            opacity: glowOpacity,
-          },
-        ]}
-      />
+      <Animated.View style={[styles.logoGlow, { opacity: glowOpacity }]} />
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <MaterialCommunityIcons name="church" size={50} color="#fcd34d" />
       </Animated.View>
@@ -488,11 +467,10 @@ interface CustomInputProps {
 }
 
 const AuthScreen: React.FC = () => {
-  // Initialize router from expo-router
   const router = useRouter();
-
-  // State variables
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authMode, setAuthMode] = useState<
+    "login" | "signup" | "forgotPassword"
+  >("login");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [firstName, setFirstName] = useState<string>("");
@@ -507,7 +485,6 @@ const AuthScreen: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isFocused, setIsFocused] = useState<string | null>(null);
-  // Animation values for form
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
@@ -528,7 +505,6 @@ const AuthScreen: React.FC = () => {
     lastName?: string
   ) => {
     try {
-      // Check if user already exists
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -559,9 +535,21 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Check for session on mount and subscribe to auth state changes
+  // Handle forgot password using Supabase
+  const handleForgotPassword = () => {
+    setAuthMode("forgotPassword");
+    setError("");
+    setMessage("");
+  };
+
+  // Handle back to login
+  const backToLogin = () => {
+    setAuthMode("login");
+    setError("");
+    setMessage("");
+  };
+
   useEffect(() => {
-    // Run the animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -575,11 +563,9 @@ const AuthScreen: React.FC = () => {
       }),
     ]).start();
 
-    // Set up URL event listener for auth callbacks
     const handleURLRedirect = async (event: { url: string }) => {
       if (event.url.startsWith("myapp://auth/callback")) {
         try {
-          // Extract the code from the URL
           const url = new URL(event.url);
           const code = url.searchParams.get("code");
 
@@ -587,14 +573,12 @@ const AuthScreen: React.FC = () => {
             throw new Error("No code found in URL");
           }
 
-          // Handle the authentication redirect using the newer API
           const { data: authData } = await supabase.auth.exchangeCodeForSession(
             code
           );
 
           if (authData?.session) {
             setSession(authData.session);
-            // Create user in database if needed
             if (authData.user) {
               await createUserInDatabase(
                 authData.user.id,
@@ -612,10 +596,8 @@ const AuthScreen: React.FC = () => {
       }
     };
 
-    // Add event listener for URL events
     const subscription = Linking.addEventListener("url", handleURLRedirect);
 
-    // Subscribe to auth state changes (e.g. sign in, sign out)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("Auth state changed:", event);
@@ -625,7 +607,6 @@ const AuthScreen: React.FC = () => {
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
         ) {
-          // Create user in database if it was an Apple Sign In
           if (
             event === "SIGNED_IN" &&
             currentSession.user?.app_metadata?.provider === "apple"
@@ -644,7 +625,6 @@ const AuthScreen: React.FC = () => {
       }
     );
 
-    // Check for initial URL on mount
     Linking.getInitialURL().then((url) => {
       if (url) {
         handleURLRedirect({ url });
@@ -657,7 +637,6 @@ const AuthScreen: React.FC = () => {
     };
   }, [router]);
 
-  // Animation for switching between login and signup
   useEffect(() => {
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -716,7 +695,6 @@ const AuthScreen: React.FC = () => {
       try {
         setLoading(true);
 
-        // Sign up with user metadata
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -735,7 +713,6 @@ const AuthScreen: React.FC = () => {
             setSession(data.session);
             setMessage("Sign up successful!");
 
-            // Create user entry in users table
             await createUserInDatabase(
               data.user.id,
               email,
@@ -745,7 +722,6 @@ const AuthScreen: React.FC = () => {
 
             navigateToHome();
           } else {
-            // Handle email confirmation if required
             setMessage("Please check your email for confirmation link.");
           }
         }
@@ -755,10 +731,38 @@ const AuthScreen: React.FC = () => {
       } finally {
         setLoading(false);
       }
+    } else if (authMode === "forgotPassword") {
+      if (!email) {
+        setError("Please enter your email to reset your password.");
+        return;
+      }
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.auth.resetPasswordForEmail(
+          email,
+          {
+            redirectTo: "https://www.saint-central.com/update-password", // Adjust this URL as needed
+          }
+        );
+        if (error) {
+          setError(error.message);
+        } else {
+          setMessage("Password reset email sent. Please check your inbox.");
+          // Option to automatically return to login screen after success
+          // setTimeout(() => {
+          //   setAuthMode("login");
+          // }, 3000);
+        }
+      } catch (err) {
+        console.error("Forgot Password error:", err);
+        setError("An error occurred during password reset. Please try again.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  // Updated Apple Sign In to use native authentication rather than opening a link
+  // Updated Apple Sign In using native authentication
   const handleAppleSignIn = async () => {
     if (Platform.OS !== "ios") {
       setError("Apple Sign In is only available on iOS devices.");
@@ -770,7 +774,6 @@ const AuthScreen: React.FC = () => {
       setError("");
       setMessage("");
 
-      // Use native Apple Sign In via expo-apple-authentication
       const appleCredential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
@@ -779,9 +782,6 @@ const AuthScreen: React.FC = () => {
       });
 
       console.log("Apple Credential:", appleCredential);
-      // Here, you would typically send appleCredential.identityToken to your backend
-      // to verify the user and create a session with Supabase.
-      // For demonstration, we simply set a success message.
       setMessage("Apple sign in successful!");
     } catch (err) {
       console.error("Apple Sign In error:", err);
@@ -795,7 +795,6 @@ const AuthScreen: React.FC = () => {
     setAuthMode(authMode === "login" ? "signup" : "login");
     setError("");
     setMessage("");
-    // Reset fields when toggling
     if (authMode === "signup") {
       setFirstName("");
       setLastName("");
@@ -803,7 +802,6 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Render input with icon
   const renderInput = ({
     placeholder,
     value,
@@ -867,6 +865,14 @@ const AuthScreen: React.FC = () => {
     }).start();
   };
 
+  // Helper function to render the correct title based on auth mode
+  const renderFormTitle = () => {
+    if (authMode === "login") return "Sign in to your account";
+    if (authMode === "signup") return "Create a new account";
+    if (authMode === "forgotPassword") return "Reset your password";
+    return "";
+  };
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
@@ -884,50 +890,25 @@ const AuthScreen: React.FC = () => {
           end={{ x: 1, y: 1 }}
           style={styles.gradientContainer}
         >
-          {/* Light Rays Background */}
           <LightRaysBackground />
-
-          {/* Floating Particles */}
           <ParticlesAnimation />
-
-          {/* Animated Crosses Background */}
           <AnimatedCrosses />
-
-          {/* Radial glow */}
           <View style={styles.radialGlow} />
-
-          {/* Decorative circle */}
           <View style={styles.decorativeCircle} />
-
-          {/* Central glow */}
           <View style={styles.centralGlow} />
-
-          {/* Centered Logo */}
           <View style={styles.centerLogoWrapper}>
             <PulsingLogo />
           </View>
-
-          {/* Form content - with no box background */}
           <Animated.View
             style={[
               styles.formContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
             ]}
           >
-            {/* Form title with glow effect */}
             <View style={styles.titleContainer}>
               <Text style={styles.formTitle}>Saint Central</Text>
-              <Text style={styles.formSubtitle}>
-                {authMode === "login"
-                  ? "Sign in to your account"
-                  : "Create a new account"}
-              </Text>
+              <Text style={styles.formSubtitle}>{renderFormTitle()}</Text>
             </View>
-
-            {/* Error and success messages */}
             {(error || message) && (
               <View style={styles.messageContainer}>
                 {error ? (
@@ -943,9 +924,8 @@ const AuthScreen: React.FC = () => {
                 )}
               </View>
             )}
-
-            {/* Form inputs */}
             <View style={styles.inputsContainer}>
+              {/* Email field is shown in all modes */}
               {renderInput({
                 placeholder: "Email",
                 value: email,
@@ -955,6 +935,7 @@ const AuthScreen: React.FC = () => {
                 style: { marginBottom: 16 },
               })}
 
+              {/* Only show these fields in signup mode */}
               {authMode === "signup" && (
                 <View style={styles.nameInputsRow}>
                   {renderInput({
@@ -974,19 +955,22 @@ const AuthScreen: React.FC = () => {
                 </View>
               )}
 
-              {renderInput({
-                placeholder: "Password",
-                value: password,
-                setValue: setPassword,
-                icon: <Feather name="lock" size={20} color="#fcd34d" />,
-                secureEntry: secureTextEntry,
-                toggleSecure: () => setSecureTextEntry(!secureTextEntry),
-                style: {
-                  marginBottom: 16,
-                  marginTop: authMode === "signup" ? 16 : 0,
-                },
-              })}
+              {/* Only show password fields in login or signup modes */}
+              {(authMode === "login" || authMode === "signup") &&
+                renderInput({
+                  placeholder: "Password",
+                  value: password,
+                  setValue: setPassword,
+                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
+                  secureEntry: secureTextEntry,
+                  toggleSecure: () => setSecureTextEntry(!secureTextEntry),
+                  style: {
+                    marginBottom: 16,
+                    marginTop: authMode === "signup" ? 16 : 0,
+                  },
+                })}
 
+              {/* Only show confirm password in signup mode */}
               {authMode === "signup" &&
                 renderInput({
                   placeholder: "Confirm Password",
@@ -1000,20 +984,21 @@ const AuthScreen: React.FC = () => {
                 })}
             </View>
 
-            {/* Forgot password link (for login mode) */}
+            {/* Only show forgot password link in login mode */}
             {authMode === "login" && (
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={handleForgotPassword}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
 
-            {/* Submit button */}
+            {/* Button for handling submission in all modes */}
             <Animated.View
               style={[
                 styles.buttonContainer,
-                {
-                  transform: [{ scale: buttonScale }],
-                },
+                { transform: [{ scale: buttonScale }] },
               ]}
             >
               <TouchableOpacity
@@ -1035,7 +1020,11 @@ const AuthScreen: React.FC = () => {
                   ) : (
                     <>
                       <Text style={styles.buttonText}>
-                        {authMode === "login" ? "Sign In" : "Sign Up"}
+                        {authMode === "login"
+                          ? "Sign In"
+                          : authMode === "signup"
+                          ? "Sign Up"
+                          : "Reset Password"}
                       </Text>
                       <AntDesign name="arrowright" size={20} color="#1c1917" />
                     </>
@@ -1044,22 +1033,32 @@ const AuthScreen: React.FC = () => {
               </TouchableOpacity>
             </Animated.View>
 
-            {/* Toggle between login and signup */}
-            <TouchableOpacity
-              style={styles.toggleContainer}
-              onPress={toggleAuthMode}
-            >
-              <Text style={styles.toggleText}>
-                {authMode === "login"
-                  ? "Don't have an account? "
-                  : "Already have an account? "}
-              </Text>
-              <Text style={styles.toggleTextBold}>
-                {authMode === "login" ? "Sign Up" : "Sign In"}
-              </Text>
-            </TouchableOpacity>
+            {/* Toggle between auth modes or back to login */}
+            {authMode === "forgotPassword" ? (
+              <TouchableOpacity
+                style={styles.toggleContainer}
+                onPress={backToLogin}
+              >
+                <Text style={styles.toggleText}>Remember your password?</Text>
+                <Text style={styles.toggleTextBold}> Back to Sign In</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.toggleContainer}
+                onPress={toggleAuthMode}
+              >
+                <Text style={styles.toggleText}>
+                  {authMode === "login"
+                    ? "Don't have an account? "
+                    : "Already have an account? "}
+                </Text>
+                <Text style={styles.toggleTextBold}>
+                  {authMode === "login" ? "Sign Up" : "Sign In"}
+                </Text>
+              </TouchableOpacity>
+            )}
 
-            {/* Apple Sign In Option */}
+            {/* Only show social login options in login mode */}
             {authMode === "login" && (
               <>
                 <View style={styles.orContainer}>
@@ -1067,7 +1066,6 @@ const AuthScreen: React.FC = () => {
                   <Text style={styles.orText}>OR CONTINUE WITH</Text>
                   <View style={styles.orLine} />
                 </View>
-
                 <View style={styles.socialContainer}>
                   <TouchableOpacity
                     style={styles.socialButton}
@@ -1079,8 +1077,6 @@ const AuthScreen: React.FC = () => {
                 </View>
               </>
             )}
-
-            {/* Footer with cross */}
             <View style={styles.footer}>
               <MaterialCommunityIcons
                 name="cross"
@@ -1090,8 +1086,6 @@ const AuthScreen: React.FC = () => {
               <Text style={styles.footerText}>Powered by faith</Text>
             </View>
           </Animated.View>
-
-          {/* Bottom Navigation - Only shown when logged in */}
           {isLoggedIn && (
             <View style={styles.bottomNav}>
               <TouchableOpacity style={styles.navItem}>
