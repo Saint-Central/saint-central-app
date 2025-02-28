@@ -37,7 +37,6 @@ import Svg, {
   Stop,
   G,
 } from "react-native-svg";
-import * as AppleAuthentication from "expo-apple-authentication"; // For native Apple Sign In
 
 const { width, height } = Dimensions.get("window");
 
@@ -92,7 +91,6 @@ const generateParticleAnimations = (count: number): ParticleAnimation[] => {
   return Array.from({ length: count }).map(() => {
     const size = Math.random() * 4 + 1;
     const initialLeft = Math.random() * width;
-
     return {
       pos: new Animated.Value(0),
       opacity: new Animated.Value(Math.random() * 0.5),
@@ -549,6 +547,40 @@ const AuthScreen: React.FC = () => {
     setMessage("");
   };
 
+  // URL redirect handler for OAuth callback
+  const handleURLRedirect = async (event: { url: string }) => {
+    if (event.url.startsWith("myapp://auth/callback")) {
+      try {
+        const urlObj = new URL(event.url);
+        const code = urlObj.searchParams.get("code");
+
+        if (!code) {
+          throw new Error("No code found in URL");
+        }
+
+        const { data: authData } = await supabase.auth.exchangeCodeForSession(
+          code
+        );
+
+        if (authData?.session) {
+          setSession(authData.session);
+          if (authData.user) {
+            await createUserInDatabase(
+              authData.user.id,
+              authData.user.email || "",
+              authData.user.user_metadata?.first_name,
+              authData.user.user_metadata?.last_name
+            );
+          }
+          navigateToHome();
+        }
+      } catch (err) {
+        console.error("Error handling auth callback:", err);
+        setError("Authentication failed. Please try again.");
+      }
+    }
+  };
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -563,39 +595,6 @@ const AuthScreen: React.FC = () => {
       }),
     ]).start();
 
-    const handleURLRedirect = async (event: { url: string }) => {
-      if (event.url.startsWith("myapp://auth/callback")) {
-        try {
-          const url = new URL(event.url);
-          const code = url.searchParams.get("code");
-
-          if (!code) {
-            throw new Error("No code found in URL");
-          }
-
-          const { data: authData } = await supabase.auth.exchangeCodeForSession(
-            code
-          );
-
-          if (authData?.session) {
-            setSession(authData.session);
-            if (authData.user) {
-              await createUserInDatabase(
-                authData.user.id,
-                authData.user.email || "",
-                authData.user.user_metadata?.first_name,
-                authData.user.user_metadata?.last_name
-              );
-            }
-            navigateToHome();
-          }
-        } catch (err) {
-          console.error("Error handling auth callback:", err);
-          setError("Authentication failed. Please try again.");
-        }
-      }
-    };
-
     const subscription = Linking.addEventListener("url", handleURLRedirect);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -607,10 +606,7 @@ const AuthScreen: React.FC = () => {
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
         ) {
-          if (
-            event === "SIGNED_IN" &&
-            currentSession.user?.app_metadata?.provider === "apple"
-          ) {
+          if (currentSession.user) {
             await createUserInDatabase(
               currentSession.user.id,
               currentSession.user.email || "",
@@ -712,14 +708,12 @@ const AuthScreen: React.FC = () => {
           if (data.session) {
             setSession(data.session);
             setMessage("Sign up successful!");
-
             await createUserInDatabase(
               data.user.id,
               email,
               firstName,
               lastName
             );
-
             navigateToHome();
           } else {
             setMessage("Please check your email for confirmation link.");
@@ -741,17 +735,13 @@ const AuthScreen: React.FC = () => {
         const { data, error } = await supabase.auth.resetPasswordForEmail(
           email,
           {
-            redirectTo: "https://www.saint-central.com/update-password", // Adjust this URL as needed
+            redirectTo: "https://www.saint-central.com/update-password",
           }
         );
         if (error) {
           setError(error.message);
         } else {
           setMessage("Password reset email sent. Please check your inbox.");
-          // Option to automatically return to login screen after success
-          // setTimeout(() => {
-          //   setAuthMode("login");
-          // }, 3000);
         }
       } catch (err) {
         console.error("Forgot Password error:", err);
@@ -762,27 +752,31 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Updated Apple Sign In using native authentication
+  // Updated Apple Sign In using Supabase OAuth flow.
+  // After a successful Apple sign in, the onAuthStateChange listener will create the user and navigate home.
   const handleAppleSignIn = async () => {
     if (Platform.OS !== "ios") {
       setError("Apple Sign In is only available on iOS devices.");
       return;
     }
     try {
-      console.log("Apple sign in button pressed (native)");
       setLoading(true);
       setError("");
       setMessage("");
 
-      const appleCredential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        ],
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: "myapp://auth/callback",
+        },
       });
 
-      console.log("Apple Credential:", appleCredential);
-      setMessage("Apple sign in successful!");
+      if (error) {
+        console.error("Apple Sign In error:", error);
+        setError(error.message);
+      } else {
+        setMessage("Redirecting to Apple Sign In...");
+      }
     } catch (err) {
       console.error("Apple Sign In error:", err);
       setError("An error occurred during Apple Sign In.");
@@ -865,7 +859,6 @@ const AuthScreen: React.FC = () => {
     }).start();
   };
 
-  // Helper function to render the correct title based on auth mode
   const renderFormTitle = () => {
     if (authMode === "login") return "Sign in to your account";
     if (authMode === "signup") return "Create a new account";
@@ -925,7 +918,6 @@ const AuthScreen: React.FC = () => {
               </View>
             )}
             <View style={styles.inputsContainer}>
-              {/* Email field is shown in all modes */}
               {renderInput({
                 placeholder: "Email",
                 value: email,
@@ -934,8 +926,6 @@ const AuthScreen: React.FC = () => {
                 icon: <Feather name="mail" size={20} color="#fcd34d" />,
                 style: { marginBottom: 16 },
               })}
-
-              {/* Only show these fields in signup mode */}
               {authMode === "signup" && (
                 <View style={styles.nameInputsRow}>
                   {renderInput({
@@ -954,8 +944,6 @@ const AuthScreen: React.FC = () => {
                   })}
                 </View>
               )}
-
-              {/* Only show password fields in login or signup modes */}
               {(authMode === "login" || authMode === "signup") &&
                 renderInput({
                   placeholder: "Password",
@@ -969,8 +957,6 @@ const AuthScreen: React.FC = () => {
                     marginTop: authMode === "signup" ? 16 : 0,
                   },
                 })}
-
-              {/* Only show confirm password in signup mode */}
               {authMode === "signup" &&
                 renderInput({
                   placeholder: "Confirm Password",
@@ -983,8 +969,6 @@ const AuthScreen: React.FC = () => {
                   style: { marginBottom: 16 },
                 })}
             </View>
-
-            {/* Only show forgot password link in login mode */}
             {authMode === "login" && (
               <TouchableOpacity
                 style={styles.forgotPassword}
@@ -993,8 +977,6 @@ const AuthScreen: React.FC = () => {
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
-
-            {/* Button for handling submission in all modes */}
             <Animated.View
               style={[
                 styles.buttonContainer,
@@ -1032,8 +1014,6 @@ const AuthScreen: React.FC = () => {
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
-
-            {/* Toggle between auth modes or back to login */}
             {authMode === "forgotPassword" ? (
               <TouchableOpacity
                 style={styles.toggleContainer}
@@ -1057,8 +1037,6 @@ const AuthScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
             )}
-
-            {/* Only show social login options in login mode */}
             {authMode === "login" && (
               <>
                 <View style={styles.orContainer}>
