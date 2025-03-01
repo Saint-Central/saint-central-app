@@ -14,8 +14,7 @@ import {
   Keyboard,
   StatusBar,
   TextInputProps,
-  Easing,
-  ImageBackground,
+  SafeAreaView,
 } from "react-native";
 import { Linking } from "react-native";
 import { useRouter } from "expo-router";
@@ -24,11 +23,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { Session } from "@supabase/supabase-js";
+import { Video, ResizeMode } from "expo-av";
+import Svg, { Rect } from "react-native-svg";
 
-// Import background image
-import backgroundImage from "../assets/images/background.jpg";
+// Import video background file
+const videoSource = require("../assets/images/background.mp4");
 
 const { width, height } = Dimensions.get("window");
+
+// --- SVG Cross Component ---
+const CrossIcon = () => (
+  <Svg width={48} height={48} viewBox="0 0 64 64">
+    <Rect x="28" y="4" width="8" height="56" fill="#FAC898" />
+    <Rect x="4" y="28" width="56" height="8" fill="#FAC898" />
+  </Svg>
+);
 
 // --- Interfaces ---
 interface CustomInputProps {
@@ -114,7 +123,6 @@ const AuthScreen: React.FC = () => {
 
       if (error) throw new Error("Apple Sign In failed. Please try again.");
       if (data?.session) {
-        // Check if this is the user's first sign-in with Apple
         const { data: existingUser, error: fetchError } = await supabase
           .from("users")
           .select("id")
@@ -122,12 +130,10 @@ const AuthScreen: React.FC = () => {
           .single();
 
         if (fetchError && fetchError.code !== "PGRST116") {
-          // PGRST116 means no rows found
           throw fetchError;
         }
 
         if (!existingUser) {
-          // User doesn't exist, create them
           const firstNameFromApple = credential.fullName?.givenName ?? "";
           const lastNameFromApple = credential.fullName?.familyName ?? "";
           await createUserInDatabase(
@@ -169,7 +175,6 @@ const AuthScreen: React.FC = () => {
           currentSession &&
           (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
         ) {
-          // Navigate to home without creating user here
           navigateToHome();
         }
       }
@@ -318,15 +323,30 @@ const AuthScreen: React.FC = () => {
           backgroundColor="transparent"
           translucent
         />
-        <ImageBackground source={backgroundImage} style={styles.background}>
-          <View style={styles.overlay}>
+        {/* Video background */}
+        <Video
+          source={videoSource}
+          style={styles.background}
+          rate={1.0}
+          volume={0}
+          isMuted
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+        />
+        <View style={styles.overlay}>
+          <SafeAreaView style={styles.safeArea}>
             <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+              {/* SVG Cross rendered above the title */}
+              <View style={styles.crossContainer}>
+                <CrossIcon />
+              </View>
               <Text style={styles.title}>Saint Central</Text>
               <Text style={styles.subtitle}>
                 {authMode === "login"
                   ? "Let's begin the journey to your spiritual life"
                   : authMode === "signup"
-                  ? "Begin your spiritual journey with us"
+                  ? "Join today"
                   : "Reset your password to continue your journey"}
               </Text>
 
@@ -454,8 +474,8 @@ const AuthScreen: React.FC = () => {
               >
                 <Text style={styles.switchText}>
                   {authMode === "login"
-                    ? "Already a member? Log in"
-                    : "Need an account? Sign Up"}
+                    ? "Need an account? Sign up"
+                    : "Already a member? Log in"}
                 </Text>
               </TouchableOpacity>
 
@@ -463,8 +483,8 @@ const AuthScreen: React.FC = () => {
                 <Text style={styles.footerText}>Powered by faith</Text>
               </View>
             </Animated.View>
-          </View>
-        </ImageBackground>
+          </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -475,15 +495,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   background: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
+    ...StyleSheet.absoluteFillObject,
   },
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.6)", // Darker overlay
     justifyContent: "center",
     alignItems: "center",
+  },
+  safeArea: {
+    flex: 1,
+    width: "100%",
+    paddingTop: Platform.OS === "ios" ? 40 : 20,
+  },
+  crossContainer: {
+    alignSelf: "center",
+    marginBottom: 8,
   },
   content: {
     width: "100%",
