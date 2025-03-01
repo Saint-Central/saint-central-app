@@ -186,6 +186,14 @@ const AuthScreen: React.FC = () => {
     };
   }, []);
 
+  // Automatically clear error after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSubmit = async () => {
     Keyboard.dismiss();
     setError("");
@@ -335,6 +343,12 @@ const AuthScreen: React.FC = () => {
           isLooping
         />
         <View style={styles.overlay}>
+          {/* Toast error message (absolute positioned) */}
+          {error !== "" && (
+            <View style={styles.toastContainer} pointerEvents="none">
+              <Text style={styles.toastText}>{error}</Text>
+            </View>
+          )}
           <SafeAreaView style={styles.safeArea}>
             <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
               {/* SVG Cross rendered above the title */}
@@ -350,24 +364,13 @@ const AuthScreen: React.FC = () => {
                   : "Reset your password to continue your journey"}
               </Text>
 
-              {(error || message) && (
+              {/* Only show success messages in the content */}
+              {!error && message !== "" && (
                 <View
-                  style={[
-                    styles.messageContainer,
-                    error ? styles.errorContainer : styles.successContainer,
-                  ]}
+                  style={[styles.messageContainer, styles.successContainer]}
                 >
-                  {error ? (
-                    <>
-                      <Feather name="alert-circle" size={18} color="#ef4444" />
-                      <Text style={styles.error}>{error}</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Feather name="check-circle" size={18} color="#10b981" />
-                      <Text style={styles.message}>{message}</Text>
-                    </>
-                  )}
+                  <Feather name="check-circle" size={18} color="#10b981" />
+                  <Text style={styles.message}>{message}</Text>
                 </View>
               )}
 
@@ -673,6 +676,21 @@ const styles = StyleSheet.create({
   footerText: {
     color: "rgba(255, 255, 255, 0.5)",
     fontSize: 12,
+  },
+  toastContainer: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(239,68,68,0.9)",
+    padding: 10,
+    borderRadius: 8,
+    zIndex: 100,
+    alignItems: "center",
+  },
+  toastText: {
+    color: "#fff",
+    fontSize: 14,
   },
 });
 
