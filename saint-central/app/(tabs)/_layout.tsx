@@ -6,16 +6,20 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
+  Text,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
   interpolateColor,
   useDerivedValue,
+  Easing,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
-import { FontAwesome5 } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 
@@ -31,153 +35,224 @@ const AnimatedTabIcon = ({
   index: number;
   activeIndex: number;
 }) => {
-  // Animation values
+  // Animation values with improved configurations
   const scale = useSharedValue(1);
   const circleScale = useSharedValue(0);
   const circleOpacity = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const rotation = useSharedValue(0);
+  const textOpacity = useSharedValue(0);
 
-  // Animate based on focus state
+  // Animation configuration for more fluid movements
+  const springConfig = {
+    damping: 10,
+    stiffness: 80,
+    mass: 0.5,
+    overshootClamping: false,
+  };
+
+  // Enhance animations with rotation and improved timing
   useEffect(() => {
     if (focused) {
-      scale.value = withSpring(1.2, { damping: 14, stiffness: 100 });
-      circleScale.value = withSpring(1, { damping: 14, stiffness: 80 });
-      circleOpacity.value = withSpring(1, { damping: 20 });
+      scale.value = withSpring(1.15, springConfig);
+      circleScale.value = withSpring(1, springConfig);
+      circleOpacity.value = withTiming(1, {
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+      });
+      translateY.value = withSpring(-4, springConfig);
+      rotation.value = withTiming(0, { duration: 300 });
+      textOpacity.value = withTiming(1, {
+        duration: 250,
+        easing: Easing.out(Easing.quad),
+      });
     } else {
-      scale.value = withSpring(1, { damping: 14, stiffness: 100 });
-      circleScale.value = withSpring(0, { damping: 14, stiffness: 80 });
-      circleOpacity.value = withSpring(0, { damping: 20 });
+      scale.value = withSpring(1, springConfig);
+      circleScale.value = withSpring(0, springConfig);
+      circleOpacity.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.in(Easing.cubic),
+      });
+      translateY.value = withSpring(0, springConfig);
+      rotation.value = withTiming(0, { duration: 300 });
+      textOpacity.value = withTiming(0, { duration: 150 });
     }
   }, [focused]);
 
-  // Derived color value for smooth transitions
-  const color = useDerivedValue(() => {
+  // Fixed white color for icons
+  const iconColor = useDerivedValue(() => {
     return interpolateColor(
       circleOpacity.value,
       [0, 1],
-      ["rgba(255, 255, 255, 0.6)", "#FAC898"]
+      ["rgba(255, 255, 255, 0.7)", "#FFFFFF"]
     );
   });
 
   // Animated styles
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [
+      { scale: scale.value },
+      { translateY: translateY.value },
+      { rotate: `${rotation.value}deg` },
+    ],
     zIndex: 2,
   }));
 
   const circleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: circleScale.value }],
-    opacity: circleOpacity.value * 0.2,
-    backgroundColor: "#FAC898",
+    opacity: circleOpacity.value * 0.25,
   }));
 
-  // Render icon based on tab name
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: circleOpacity.value * 0.6,
+    transform: [{ scale: circleScale.value * 1.15 }],
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+    transform: [
+      { translateY: withTiming(focused ? 0 : 5, { duration: 200 }) },
+      { scale: textOpacity.value * 0.2 + 0.8 },
+    ],
+  }));
+
+  // Refined icon selection with improved naming
   const getIcon = () => {
     switch (name) {
       case "home":
         return (
-          <FontAwesome5
-            name="church"
-            size={24}
-            color={focused ? "#FAC898" : "rgba(255, 255, 255, 0.6)"}
-            solid={focused}
-          />
+          <Animated.View style={iconStyle}>
+            <Feather name="home" size={22} color="#FFFFFF" />
+          </Animated.View>
         );
       case "discover":
         return (
-          <FontAwesome5
-            name="compass"
-            size={24}
-            color={focused ? "#FAC898" : "rgba(255, 255, 255, 0.6)"}
-            solid={focused}
-          />
+          <Animated.View style={iconStyle}>
+            <Feather name="compass" size={22} color="#FFFFFF" />
+          </Animated.View>
         );
       case "community":
         return (
-          <FontAwesome5
-            name="praying-hands"
-            size={24}
-            color={focused ? "#FAC898" : "rgba(255, 255, 255, 0.6)"}
-            solid={focused}
-          />
+          <Animated.View style={iconStyle}>
+            <Feather name="users" size={22} color="#FFFFFF" />
+          </Animated.View>
         );
       case "me":
         return (
-          <FontAwesome5
-            name="user-alt"
-            size={24}
-            color={focused ? "#FAC898" : "rgba(255, 255, 255, 0.6)"}
-            solid={focused}
-          />
+          <Animated.View style={iconStyle}>
+            <Feather name="user" size={22} color="#FFFFFF" />
+          </Animated.View>
         );
       default:
         return null;
     }
   };
 
+  // Refined labels with better naming
+  const getLabel = () => {
+    switch (name) {
+      case "home":
+        return "Home";
+      case "discover":
+        return "Explore";
+      case "community":
+        return "Connect";
+      case "me":
+        return "Self";
+      default:
+        return "";
+    }
+  };
+
   return (
     <View style={styles.iconContainer}>
+      {/* Background glow effect */}
+      <Animated.View style={[styles.shimmerCircle, shimmerStyle]} />
+
+      {/* Main circle background */}
       <Animated.View style={[styles.focusCircle, circleStyle]} />
-      <Animated.View style={iconStyle}>{getIcon()}</Animated.View>
+
+      {/* Icon */}
+      {getIcon()}
+
+      {/* Label with enhanced animation */}
+      <Animated.Text style={[styles.tabLabel, textStyle]}>
+        {getLabel()}
+      </Animated.Text>
     </View>
   );
 };
 
-// Custom tab bar with seamless design
+// Custom tab bar with seamless design and improved visual aesthetics
 const CustomTabBar = ({ state, descriptors, navigation }: any) => {
   return (
     <View style={styles.tabBarContainer}>
-      <View style={styles.tabBarWrapper}>
-        {/* Glass effect background with proper shadows */}
-        {Platform.OS === "ios" ? (
-          <BlurView
-            intensity={30}
-            tint="dark"
-            style={[StyleSheet.absoluteFill, styles.blurView]}
+      <View style={styles.tabBarShadow}>
+        <View style={styles.tabBarWrapper}>
+          {/* Solid background with gradient overlay */}
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              Platform.OS === "ios" ? styles.blurView : styles.androidBar,
+            ]}
+          >
+            <LinearGradient
+              colors={["rgba(35, 35, 35, 0.98)", "rgba(20, 20, 20, 1)"]}
+              style={StyleSheet.absoluteFill}
+            />
+            {Platform.OS === "ios" && (
+              <BlurView
+                intensity={15}
+                tint="dark"
+                style={[StyleSheet.absoluteFill, { opacity: 0.6 }]}
+              />
+            )}
+          </View>
+
+          {/* Solid accent line for more defined appearance */}
+          <LinearGradient
+            colors={["#FAC898", "#FAC898"]}
+            style={styles.accentLine}
           />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.androidBar]} />
-        )}
 
-        {/* Top accent line with gradient fade effect */}
-        <View style={styles.accentLine} />
+          {/* Tab buttons with improved spacing */}
+          <View style={styles.tabButtonsRow}>
+            {state.routes.map((route: any, index: number) => {
+              // Skip hidden tabs
+              if (
+                route.name === "Lent2025" ||
+                route.name.includes("faith/") ||
+                route.name.includes("womens-ministry/") ||
+                route.name.includes("culture-and-testimonies/") ||
+                route.name.includes("news/") ||
+                route.name === "donate"
+              ) {
+                return null;
+              }
 
-        {/* Tab buttons */}
-        <View style={styles.tabButtonsRow}>
-          {state.routes.map((route: any, index: number) => {
-            // Skip hidden tabs
-            if (
-              route.name === "Lent2025" ||
-              route.name.includes("faith/") ||
-              route.name.includes("womens-ministry/") ||
-              route.name.includes("culture-and-testimonies/") ||
-              route.name.includes("news/") ||
-              route.name === "donate"
-            ) {
-              return null;
-            }
+              const isFocused = state.index === index;
 
-            const isFocused = state.index === index;
+              const onPress = () => {
+                navigation.navigate(route.name);
+              };
 
-            const onPress = () => {
-              navigation.navigate(route.name);
-            };
-
-            return (
-              <TouchableOpacity
-                key={route.key}
-                style={styles.tabButton}
-                onPress={onPress}
-                activeOpacity={0.8}
-              >
-                <AnimatedTabIcon
-                  name={route.name}
-                  focused={isFocused}
-                  index={index}
-                  activeIndex={state.index}
-                />
-              </TouchableOpacity>
-            );
-          })}
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  style={styles.tabButton}
+                  onPress={onPress}
+                  activeOpacity={0.65}
+                >
+                  <AnimatedTabIcon
+                    name={route.name}
+                    focused={isFocused}
+                    index={index}
+                    activeIndex={state.index}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </View>
     </View>
@@ -226,50 +301,66 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: "absolute",
-    bottom: Platform.OS === "ios" ? 24 : 16,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: "center",
     justifyContent: "center",
   },
-  tabBarWrapper: {
-    width: width - 32,
-    height: 60, // Reduced height since we removed labels
-    borderRadius: 30, // More circular without labels
-    overflow: "hidden",
+  tabBarShadow: {
+    // Shadow only on top for a solid bottom bar
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 10,
+    width: "100%",
+  },
+  tabBarWrapper: {
+    width: "100%",
+    height: Platform.OS === "ios" ? 85 : 65, // Adjust height for iOS safe area
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    overflow: "hidden",
   },
   blurView: {
-    borderRadius: 30,
-    borderWidth: 0.5,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderWidth: 0,
+    borderTopWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "rgba(35, 35, 35, 0.95)",
   },
   androidBar: {
-    backgroundColor: "rgba(30, 30, 30, 0.95)",
-    borderRadius: 30,
-    borderWidth: 0.5,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    backgroundColor: "rgba(25, 25, 25, 0.98)",
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderWidth: 0,
+    borderTopWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.2)",
   },
   accentLine: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 1.5,
-    backgroundColor: "#FAC898",
-    opacity: 0.8,
+    height: 2,
     zIndex: 1,
+    borderRadius: 0,
   },
   tabButtonsRow: {
     flexDirection: "row",
     height: "100%",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingBottom: Platform.OS === "ios" ? 20 : 0, // Add padding for iOS safe area
   },
   tabButton: {
     flex: 1,
@@ -280,14 +371,33 @@ const styles = StyleSheet.create({
   iconContainer: {
     justifyContent: "center",
     alignItems: "center",
-    height: 50,
-    width: 50,
+    height: 54,
+    width: 60,
   },
   focusCircle: {
+    position: "absolute",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(250, 200, 152, 0.6)",
+    zIndex: 1,
+  },
+  shimmerCircle: {
     position: "absolute",
     width: 50,
     height: 50,
     borderRadius: 25,
-    zIndex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    zIndex: 0,
+  },
+  tabLabel: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 2,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    letterSpacing: 0.3,
   },
 });
