@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -15,6 +15,7 @@ import {
   StatusBar,
   TextInputProps,
   Easing,
+  ImageBackground,
 } from "react-native";
 import { Linking } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,7 +24,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { Session } from "@supabase/supabase-js";
-import Svg, { Rect, Defs, RadialGradient, Stop } from "react-native-svg";
+
+// Import background image
+import backgroundImage from "../assets/images/background.jpg";
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,342 +40,6 @@ interface CustomInputProps {
   secureEntry?: boolean;
   toggleSecure?: () => void;
 }
-
-interface CrossAnimation {
-  rotate: Animated.Value;
-  float: Animated.Value;
-  opacity: Animated.Value;
-  rotationDuration: number;
-  direction: number;
-  floatDistance: number;
-  floatDuration: number;
-  position: { top: number; left: number; size: number; zIndex: number };
-}
-
-interface ParticleAnimation {
-  pos: Animated.Value;
-  opacity: Animated.Value;
-  duration: number;
-  delay: number;
-  path: number[];
-  size: number;
-}
-
-// --- Animation Generators ---
-const generateCrossAnimations = (count: number): CrossAnimation[] => {
-  return Array.from({ length: count }).map(() => ({
-    rotate: new Animated.Value(0),
-    float: new Animated.Value(0),
-    opacity: new Animated.Value(0.05 + Math.random() * 0.2),
-    rotationDuration: 15000 + Math.random() * 25000,
-    direction: Math.random() > 0.5 ? 1 : -1,
-    floatDistance: 30 + Math.random() * 50,
-    floatDuration: 5000 + Math.random() * 3000,
-    position: {
-      top: Math.random() * height,
-      left: Math.random() * width,
-      size: 20 + Math.random() * 60,
-      zIndex: Math.floor(Math.random() * 5) + 1,
-    },
-  }));
-};
-
-const generateParticleAnimations = (count: number): ParticleAnimation[] => {
-  return Array.from({ length: count }).map(() => {
-    const size = Math.random() * 4 + 1;
-    const initialLeft = Math.random() * width;
-    return {
-      pos: new Animated.Value(0),
-      opacity: new Animated.Value(Math.random() * 0.5),
-      duration: 20000 + Math.random() * 30000,
-      delay: Math.random() * 10000,
-      path: [
-        initialLeft,
-        initialLeft + Math.random() * 50 - 25,
-        initialLeft + Math.random() * 100 - 50,
-        initialLeft + Math.random() * 50 - 25,
-        initialLeft + Math.random() * 100 - 50,
-        initialLeft + Math.random() * 50 - 25,
-      ],
-      size,
-    };
-  });
-};
-
-// --- Background Components ---
-const LightRaysBackground = () => {
-  const rayAnim1 = useRef(new Animated.Value(0)).current;
-  const rayAnim2 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rayAnim1, {
-        toValue: 1,
-        duration: 120000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-    Animated.loop(
-      Animated.timing(rayAnim2, {
-        toValue: 1,
-        duration: 180000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, []);
-
-  const rotate1 = rayAnim1.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
-  const rotate2 = rayAnim2.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "-360deg"],
-  });
-
-  return (
-    <View style={styles.raysContainer}>
-      <Animated.View
-        style={[styles.rayLayer, { transform: [{ rotate: rotate1 }] }]}
-      >
-        <Svg height="900" width="900" viewBox="0 0 900 900">
-          <Defs>
-            <RadialGradient
-              id="grad"
-              cx="50%"
-              cy="50%"
-              r="50%"
-              fx="50%"
-              fy="50%"
-            >
-              <Stop offset="0%" stopColor="#fcd34d" stopOpacity="0.1" />
-              <Stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Rect
-              key={i}
-              x="440"
-              y="30"
-              width="20"
-              height="400"
-              fill="url(#grad)"
-              opacity={0.4}
-              transform={`rotate(${i * 30} 450 450)`}
-            />
-          ))}
-        </Svg>
-      </Animated.View>
-      <Animated.View
-        style={[styles.rayLayer, { transform: [{ rotate: rotate2 }] }]}
-      >
-        <Svg height="800" width="800" viewBox="0 0 800 800">
-          <Defs>
-            <RadialGradient
-              id="grad2"
-              cx="50%"
-              cy="50%"
-              r="50%"
-              fx="50%"
-              fy="50%"
-            >
-              <Stop offset="0%" stopColor="#fcd34d" stopOpacity="0.07" />
-              <Stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Rect
-              key={i}
-              x="390"
-              y="20"
-              width="20"
-              height="350"
-              fill="url(#grad2)"
-              opacity={0.3}
-              transform={`rotate(${i * 45} 400 400)`}
-            />
-          ))}
-        </Svg>
-      </Animated.View>
-    </View>
-  );
-};
-
-const AnimatedCrosses = () => {
-  const crossAnimations = useMemo(() => generateCrossAnimations(12), []);
-
-  useEffect(() => {
-    crossAnimations.forEach((crossAnim) => {
-      Animated.loop(
-        Animated.timing(crossAnim.rotate, {
-          toValue: crossAnim.direction * 360,
-          duration: crossAnim.rotationDuration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(crossAnim.float, {
-            toValue: crossAnim.floatDistance,
-            duration: crossAnim.floatDuration,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(crossAnim.float, {
-            toValue: 0,
-            duration: crossAnim.floatDuration,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(crossAnim.opacity, {
-            toValue: 0.15 + Math.random() * 0.2,
-            duration: 3000 + Math.random() * 2000,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(crossAnim.opacity, {
-            toValue: 0.05 + Math.random() * 0.1,
-            duration: 3000 + Math.random() * 2000,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    });
-  }, [crossAnimations]);
-
-  return (
-    <View style={styles.crossesContainer}>
-      {crossAnimations.map((crossAnim, index) => {
-        const spin = crossAnim.rotate.interpolate({
-          inputRange: [0, 360],
-          outputRange: ["0deg", "360deg"],
-        });
-        const { top, left, size, zIndex } = crossAnim.position;
-        return (
-          <Animated.View
-            key={index}
-            style={[
-              styles.crossContainer,
-              {
-                top,
-                left,
-                width: size,
-                height: size,
-                zIndex,
-                opacity: crossAnim.opacity,
-                transform: [{ translateY: crossAnim.float }, { rotate: spin }],
-              },
-            ]}
-          >
-            <Svg width="100%" height="100%" viewBox="0 0 24 24">
-              <Defs>
-                <RadialGradient
-                  id={`crossGrad${index}`}
-                  cx="50%"
-                  cy="50%"
-                  r="50%"
-                  fx="50%"
-                  fy="50%"
-                >
-                  <Stop offset="0%" stopColor="#fcd34d" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#fcd34d" stopOpacity="0.8" />
-                </RadialGradient>
-              </Defs>
-              <Rect
-                x="10.5"
-                y="4"
-                width="3"
-                height="16"
-                fill={`url(#crossGrad${index})`}
-                rx="1"
-              />
-              <Rect
-                x="4"
-                y="10.5"
-                width="16"
-                height="3"
-                fill={`url(#crossGrad${index})`}
-                rx="1"
-              />
-            </Svg>
-          </Animated.View>
-        );
-      })}
-    </View>
-  );
-};
-
-const ParticlesAnimation = () => {
-  const particleAnimations = useMemo(() => generateParticleAnimations(40), []);
-
-  useEffect(() => {
-    particleAnimations.forEach((particleAnim) => {
-      const startAnimation = () => {
-        Animated.loop(
-          Animated.timing(particleAnim.pos, {
-            toValue: 1,
-            duration: particleAnim.duration,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          })
-        ).start();
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(particleAnim.opacity, {
-              toValue: 0.6,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(particleAnim.opacity, {
-              toValue: 0.1,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
-      };
-      setTimeout(startAnimation, particleAnim.delay);
-    });
-  }, [particleAnimations]);
-
-  return (
-    <View style={styles.particlesContainer}>
-      {particleAnimations.map((particleAnim, index) => {
-        const translateY = particleAnim.pos.interpolate({
-          inputRange: [0, 1],
-          outputRange: [height + particleAnim.size, -particleAnim.size * 2],
-        });
-        const translateX = particleAnim.pos.interpolate({
-          inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
-          outputRange: particleAnim.path,
-        });
-        return (
-          <Animated.View
-            key={index}
-            style={[
-              styles.particle,
-              {
-                width: particleAnim.size,
-                height: particleAnim.size,
-                borderRadius: particleAnim.size / 2,
-                opacity: particleAnim.opacity,
-                transform: [{ translateY }, { translateX }],
-              },
-            ]}
-          />
-        );
-      })}
-    </View>
-  );
-};
 
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
@@ -621,7 +288,7 @@ const AuthScreen: React.FC = () => {
       <TextInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor="rgba(252, 211, 77, 0.5)"
+        placeholderTextColor="rgba(255, 255, 255, 0.6)"
         value={value}
         onChangeText={setValue}
         keyboardType={keyboardType}
@@ -633,7 +300,7 @@ const AuthScreen: React.FC = () => {
           <Feather
             name={secureEntry ? "eye-off" : "eye"}
             size={20}
-            color="#fcd34d"
+            color="#FAC898"
           />
         </TouchableOpacity>
       )}
@@ -651,149 +318,153 @@ const AuthScreen: React.FC = () => {
           backgroundColor="transparent"
           translucent
         />
-        <LinearGradient colors={["#0a090a", "#1a1917"]} style={styles.gradient}>
-          <LightRaysBackground />
-          <ParticlesAnimation />
-          <AnimatedCrosses />
-          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-            <Text style={styles.title}>Saint Central</Text>
-            <Text style={styles.subtitle}>
-              {authMode === "login"
-                ? "Welcome Back"
-                : authMode === "signup"
-                ? "Join Us"
-                : "Reset Password"}
-            </Text>
+        <ImageBackground source={backgroundImage} style={styles.background}>
+          <View style={styles.overlay}>
+            <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+              <Text style={styles.title}>Saint Central</Text>
+              <Text style={styles.subtitle}>
+                {authMode === "login"
+                  ? "Let's begin the journey to your spiritual life"
+                  : authMode === "signup"
+                  ? "Begin your spiritual journey with us"
+                  : "Reset your password to continue your journey"}
+              </Text>
 
-            {(error || message) && (
-              <View style={styles.messageContainer}>
-                {error ? (
-                  <>
-                    <Feather name="alert-circle" size={18} color="#ef4444" />
-                    <Text style={styles.error}>{error}</Text>
-                  </>
-                ) : (
-                  <>
-                    <Feather name="check-circle" size={18} color="#10b981" />
-                    <Text style={styles.message}>{message}</Text>
-                  </>
-                )}
-              </View>
-            )}
-
-            <View style={styles.form}>
-              {renderInput({
-                placeholder: "Email",
-                value: email,
-                setValue: setEmail,
-                keyboardType: "email-address",
-                icon: <Feather name="mail" size={20} color="#fcd34d" />,
-              })}
-
-              {authMode === "signup" && (
-                <View style={styles.nameRow}>
-                  {renderInput({
-                    placeholder: "First Name",
-                    value: firstName,
-                    setValue: setFirstName,
-                    icon: <Feather name="user" size={20} color="#fcd34d" />,
-                  })}
-                  {renderInput({
-                    placeholder: "Last Name",
-                    value: lastName,
-                    setValue: setLastName,
-                    icon: <Ionicons name="person" size={20} color="#fcd34d" />,
-                  })}
+              {(error || message) && (
+                <View
+                  style={[
+                    styles.messageContainer,
+                    error ? styles.errorContainer : styles.successContainer,
+                  ]}
+                >
+                  {error ? (
+                    <>
+                      <Feather name="alert-circle" size={18} color="#ef4444" />
+                      <Text style={styles.error}>{error}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Feather name="check-circle" size={18} color="#10b981" />
+                      <Text style={styles.message}>{message}</Text>
+                    </>
+                  )}
                 </View>
               )}
 
-              {(authMode === "login" || authMode === "signup") &&
-                renderInput({
-                  placeholder: "Password",
-                  value: password,
-                  setValue: setPassword,
-                  secureEntry: secureTextEntry,
-                  toggleSecure: () => setSecureTextEntry(!secureTextEntry),
-                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
+              <View style={styles.form}>
+                {renderInput({
+                  placeholder: "Email",
+                  value: email,
+                  setValue: setEmail,
+                  keyboardType: "email-address",
+                  icon: <Feather name="mail" size={20} color="#FAC898" />,
                 })}
 
-              {authMode === "signup" &&
-                renderInput({
-                  placeholder: "Confirm Password",
-                  value: confirmPassword,
-                  setValue: setConfirmPassword,
-                  secureEntry: secureConfirmTextEntry,
-                  toggleSecure: () =>
-                    setSecureConfirmTextEntry(!secureConfirmTextEntry),
-                  icon: <Feather name="lock" size={20} color="#fcd34d" />,
-                })}
+                {authMode === "signup" && (
+                  <View style={styles.nameRow}>
+                    {renderInput({
+                      placeholder: "First Name",
+                      value: firstName,
+                      setValue: setFirstName,
+                      icon: <Feather name="user" size={20} color="#FAC898" />,
+                    })}
+                    {renderInput({
+                      placeholder: "Last Name",
+                      value: lastName,
+                      setValue: setLastName,
+                      icon: (
+                        <Ionicons name="person" size={20} color="#FAC898" />
+                      ),
+                    })}
+                  </View>
+                )}
 
-              {authMode === "login" && (
-                <TouchableOpacity
-                  style={styles.forgotLink}
-                  onPress={() => setAuthMode("forgotPassword")}
-                >
-                  <Text style={styles.forgotText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                {(authMode === "login" || authMode === "signup") &&
+                  renderInput({
+                    placeholder: "Password",
+                    value: password,
+                    setValue: setPassword,
+                    secureEntry: secureTextEntry,
+                    toggleSecure: () => setSecureTextEntry(!secureTextEntry),
+                    icon: <Feather name="lock" size={20} color="#FAC898" />,
+                  })}
 
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={["#eab308", "#fbbf24"]}
-                style={styles.buttonGradient}
+                {authMode === "signup" &&
+                  renderInput({
+                    placeholder: "Confirm Password",
+                    value: confirmPassword,
+                    setValue: setConfirmPassword,
+                    secureEntry: secureConfirmTextEntry,
+                    toggleSecure: () =>
+                      setSecureConfirmTextEntry(!secureConfirmTextEntry),
+                    icon: <Feather name="lock" size={20} color="#FAC898" />,
+                  })}
+
+                {authMode === "login" && (
+                  <TouchableOpacity
+                    style={styles.forgotLink}
+                    onPress={() => setAuthMode("forgotPassword")}
+                  >
+                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleSubmit}
+                disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#513C28" />
                 ) : (
-                  <Text style={styles.buttonText}>
-                    {authMode === "login"
-                      ? "Sign In"
-                      : authMode === "signup"
-                      ? "Sign Up"
-                      : "Reset"}
-                  </Text>
+                  <View style={styles.buttonInner}>
+                    <Text style={styles.buttonText}>
+                      {authMode === "login"
+                        ? "START HERE"
+                        : authMode === "signup"
+                        ? "SIGN UP"
+                        : "RESET PASSWORD"}
+                    </Text>
+                    <Feather name="arrow-right" size={16} color="#513C28" />
+                  </View>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+              </TouchableOpacity>
 
-            {authMode !== "forgotPassword" && (
-              <View style={styles.socialSection}>
-                <Text style={styles.orText}>Or continue with</Text>
-                <TouchableOpacity
-                  style={styles.socialButton}
-                  onPress={handleAppleSignIn}
-                  disabled={loading}
-                >
-                  <FontAwesome5 name="apple" size={24} color="#fcd34d" />
-                  <Text style={styles.socialButtonText}>
-                    Sign in with Apple
-                  </Text>
-                </TouchableOpacity>
+              {authMode !== "forgotPassword" && (
+                <View style={styles.socialSection}>
+                  <Text style={styles.orText}>Or continue with</Text>
+                  <TouchableOpacity
+                    style={styles.socialButton}
+                    onPress={handleAppleSignIn}
+                    disabled={loading}
+                  >
+                    <FontAwesome5 name="apple" size={24} color="#FFFFFF" />
+                    <Text style={styles.socialButtonText}>
+                      Sign in with Apple
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() =>
+                  setAuthMode(authMode === "login" ? "signup" : "login")
+                }
+              >
+                <Text style={styles.switchText}>
+                  {authMode === "login"
+                    ? "Already a member? Log in"
+                    : "Need an account? Sign Up"}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Powered by faith</Text>
               </View>
-            )}
-
-            <TouchableOpacity
-              onPress={() =>
-                setAuthMode(authMode === "login" ? "signup" : "login")
-              }
-            >
-              <Text style={styles.switchText}>
-                {authMode === "login"
-                  ? "Need an account? Sign Up"
-                  : "Already have an account? Sign In"}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Powered by faith</Text>
-            </View>
-          </Animated.View>
-        </LinearGradient>
+            </Animated.View>
+          </View>
+        </ImageBackground>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -803,72 +474,59 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradient: {
+  background: {
     flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  raysContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1,
-  },
-  rayLayer: {
-    position: "absolute",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  crossesContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-  },
-  crossContainer: {
-    position: "absolute",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  particlesContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  particle: {
-    position: "absolute",
-    backgroundColor: "#fcd34d",
   },
   content: {
     width: "100%",
     maxWidth: 400,
     alignItems: "center",
+    paddingHorizontal: 24,
     paddingVertical: 24,
-    zIndex: 10,
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
-    color: "#fcd34d",
+    fontWeight: "300",
+    color: "#FFFFFF",
     letterSpacing: 1,
     marginBottom: 8,
-    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 18,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 24,
-    fontFamily: Platform.OS === "ios" ? "Helvetica Neue" : "sans-serif",
+    color: "#FFFFFF",
+    marginBottom: 30,
+    textAlign: "center",
+    fontWeight: "300",
+    opacity: 0.9,
+    letterSpacing: 0.5,
+    maxWidth: 280,
   },
   messageContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    marginBottom: 20,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
     width: "100%",
+  },
+  errorContainer: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderColor: "rgba(239, 68, 68, 0.3)",
+  },
+  successContainer: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderColor: "rgba(16, 185, 129, 0.3)",
   },
   error: {
     color: "#ef4444",
@@ -885,16 +543,17 @@ const styles = StyleSheet.create({
   form: {
     width: "100%",
     gap: 16,
+    marginBottom: 20,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 52,
     borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     width: "100%",
   },
   nameInput: {
@@ -923,25 +582,29 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   forgotText: {
-    color: "#fcd34d",
+    color: "#FFFFFF",
     fontSize: 14,
+    opacity: 0.8,
   },
   button: {
     width: "100%",
     height: 52,
-    borderRadius: 12,
-    overflow: "hidden",
-    marginTop: 24,
-  },
-  buttonGradient: {
-    flex: 1,
+    borderRadius: 30,
+    backgroundColor: "#FAC898",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 10,
+  },
+  buttonInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
-    color: "#fff",
+    color: "#513C28",
     fontSize: 16,
     fontWeight: "600",
+    marginRight: 8,
   },
   socialSection: {
     marginTop: 24,
@@ -950,37 +613,38 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   orText: {
-    color: "rgba(252, 211, 77, 0.5)",
+    color: "rgba(255, 255, 255, 0.6)",
     fontSize: 14,
   },
   socialButton: {
     width: "100%",
     height: 52,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 30,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     gap: 8,
   },
   socialButtonText: {
-    color: "#fcd34d",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "400",
   },
   switchText: {
-    color: "#fcd34d",
+    color: "#FFFFFF",
     fontSize: 14,
     marginTop: 24,
+    opacity: 0.8,
   },
   footer: {
     marginTop: 32,
     marginBottom: 24,
   },
   footerText: {
-    color: "rgba(252, 211, 77, 0.5)",
+    color: "rgba(255, 255, 255, 0.5)",
     fontSize: 12,
   },
 });

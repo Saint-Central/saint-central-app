@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   ScrollView,
   Image,
   Alert,
+  ImageBackground,
+  Dimensions,
+  Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -17,6 +20,10 @@ import lentImage from "../../assets/images/lent.jpg";
 import reflectionImage from "../../assets/images/reflection.jpg";
 import intentionsImage from "../../assets/images/intentions.jpg";
 import heroImage from "../../assets/images/hero-image.jpg";
+// Using require for background
+const backgroundImageRequire = require("../../assets/images/home-image.jpg");
+
+const { width } = Dimensions.get("window");
 
 // Define allowed Feather icon names for the featured cards.
 type FeatherIconName = "heart" | "book-open" | "globe";
@@ -44,6 +51,7 @@ interface QuickLink {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const featuredCards: Card[] = [
     {
@@ -80,175 +88,227 @@ export default function HomeScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
-        {/* Hero Banner */}
-        <View style={styles.heroSection}>
-          <Image source={heroImage} style={styles.heroImage} />
-          <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle}>Welcome to Saint Central</Text>
+    <ImageBackground
+      source={backgroundImageRequire}
+      style={styles.backgroundImage}
+    >
+      <Animated.View
+        style={[
+          styles.backgroundOverlay,
+          {
+            opacity: scrollY.interpolate({
+              inputRange: [0, 200],
+              outputRange: [0.35, 0.6],
+              extrapolate: "clamp",
+            }),
+          },
+        ]}
+      />
+      <SafeAreaView style={styles.container}>
+        <Animated.ScrollView
+          contentContainerStyle={styles.scrollContent}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+        >
+          {/* Enhanced Hero Banner */}
+          <View style={styles.heroSection}>
+            <View style={styles.iconContainer}>
+              <Feather name="sunrise" size={36} color="#FAC898" />
+            </View>
+            <Text style={styles.heroTitle}>Saint Central</Text>
             <Text style={styles.heroSubtitle}>
-              Experience faith, community, and inspiration.
+              Let's begin the journey to your spiritual life
             </Text>
             <TouchableOpacity
               style={styles.heroButton}
               onPress={() => router.push("/discover" as any)}
             >
-              <Text style={styles.heroButtonText}>Get Started</Text>
+              <Text style={styles.heroButtonText}>DISCOVER</Text>
+              <Feather name="arrow-right" size={16} color="#513C28" />
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Featured Cards Section */}
-        <View style={styles.featuredSection}>
-          <Text style={styles.sectionTitle}>Featured</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.featuredScroll}
-          >
-            {featuredCards.map((card) => (
-              <TouchableOpacity
-                key={card.id}
-                style={styles.featuredCard}
-                onPress={() => {
-                  if (card.title === "Daily Reflection") {
-                    Alert.alert("this page is not set up yet");
-                  } else {
-                    router.push(card.route as any);
-                  }
-                }}
-              >
-                <Image source={card.image} style={styles.featuredCardImage} />
-                <View style={styles.featuredCardContent}>
-                  <View style={styles.featuredCardHeader}>
-                    <Feather name={card.icon} size={20} color="#FFD700" />
-                    <Text style={styles.featuredCardTitle}>{card.title}</Text>
+          {/* Featured Cards Section */}
+          <View style={styles.featuredSection}>
+            <Text style={styles.sectionTitle}>Explore Your Journey</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredScroll}
+            >
+              {featuredCards.map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.featuredCard}
+                  onPress={() => {
+                    if (card.title === "Daily Reflection") {
+                      Alert.alert("this page is not set up yet");
+                    } else {
+                      router.push(card.route as any);
+                    }
+                  }}
+                >
+                  <View style={styles.cardImageContainer}>
+                    <Image
+                      source={card.image}
+                      style={styles.featuredCardImage}
+                    />
+                    <View style={styles.cardImageOverlay} />
                   </View>
-                  <Text style={styles.featuredCardDescription}>
-                    {card.description}
-                  </Text>
-                  <View style={styles.featuredCardFooter}>
-                    <Text style={styles.featuredCardLink}>Explore</Text>
-                    <Feather name="chevron-right" size={16} color="#FFD700" />
+                  <View style={styles.featuredCardContent}>
+                    <View style={styles.featuredCardHeader}>
+                      <Feather name={card.icon} size={20} color="#E9967A" />
+                      <Text style={styles.featuredCardTitle}>{card.title}</Text>
+                    </View>
+                    <Text style={styles.featuredCardDescription}>
+                      {card.description}
+                    </Text>
+                    <View style={styles.featuredCardFooter}>
+                      <Text style={styles.featuredCardLink}>Explore</Text>
+                      <Feather name="arrow-right" size={16} color="#E9967A" />
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Quick Links Grid */}
-        <View style={styles.quickLinksSection}>
-          <Text style={styles.sectionTitle}>Quick Links</Text>
-          <View style={styles.quickLinksGrid}>
-            {quickLinks.map((link) => (
-              <TouchableOpacity
-                key={link.id}
-                style={styles.quickLinkCard}
-                onPress={() => {
-                  if (link.route === "/donate") {
-                    router.push(link.route as any);
-                  } else {
-                    Alert.alert("this page is not set up yet");
-                  }
-                }}
-              >
-                <Feather name={link.icon as any} size={24} color="#FFD700" />
-                <Text style={styles.quickLinkText}>{link.title}</Text>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        </View>
 
-        {/* Bottom Spacer */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </SafeAreaView>
+          {/* Quick Links Grid */}
+          <View style={styles.quickLinksSection}>
+            <Text style={styles.sectionTitle}>Quick Access</Text>
+            <View style={styles.quickLinksGrid}>
+              {quickLinks.map((link) => (
+                <TouchableOpacity
+                  key={link.id}
+                  style={styles.quickLinkCard}
+                  onPress={() => {
+                    if (link.route === "/donate") {
+                      router.push(link.route as any);
+                    } else {
+                      Alert.alert("this page is not set up yet");
+                    }
+                  }}
+                >
+                  <Feather name={link.icon as any} size={24} color="#E9967A" />
+                  <Text style={styles.quickLinkText}>{link.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Animated.ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backgroundImage: {
     flex: 1,
-    backgroundColor: "#1C1917",
-  },
-  heroSection: {
-    position: "relative",
-    height: 250,
-    marginBottom: 20,
-  },
-  heroImage: {
     width: "100%",
     height: "100%",
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
-  heroOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(28, 25, 23, 0.6)",
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 1)",
+  },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
+  heroSection: {
+    height: 400,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
   },
+  iconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#FFF9C4",
+    fontSize: 36,
+    fontWeight: "300",
+    color: "#FFFFFF",
     textAlign: "center",
+    marginBottom: 10,
+    letterSpacing: 1,
   },
   heroSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 215, 0, 0.8)",
-    marginTop: 8,
+    fontSize: 18,
+    color: "#FFF",
     textAlign: "center",
+    marginBottom: 30,
+    opacity: 0.9,
+    letterSpacing: 0.5,
+    maxWidth: 280,
   },
   heroButton: {
-    marginTop: 16,
-    backgroundColor: "rgba(147, 51, 234, 0.8)",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
+    flexDirection: "row",
+    backgroundColor: "#FAC898",
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroButtonText: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#513C28",
+    fontWeight: "600",
+    marginRight: 8,
   },
+
   featuredSection: {
     marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#FFF9C4",
-    marginHorizontal: 16,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: "400",
+    color: "#FFFFFF",
+    marginHorizontal: 20,
+    marginBottom: 15,
+    letterSpacing: 0.5,
   },
   featuredScroll: {
-    paddingLeft: 16,
+    paddingLeft: 20,
+    paddingRight: 10,
   },
   featuredCard: {
-    backgroundColor: "rgba(41, 37, 36, 0.7)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     width: 250,
-    marginRight: 16,
-    borderRadius: 20,
+    marginRight: 15,
+    borderRadius: 15,
     overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  cardImageContainer: {
+    position: "relative",
+    height: 140,
   },
   featuredCardImage: {
     width: "100%",
-    height: 140,
+    height: "100%",
+  },
+  cardImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
   },
   featuredCardContent: {
-    padding: 12,
+    padding: 15,
   },
   featuredCardHeader: {
     flexDirection: "row",
@@ -258,13 +318,14 @@ const styles = StyleSheet.create({
   featuredCardTitle: {
     fontSize: 18,
     fontWeight: "500",
-    color: "#FFF9C4",
-    marginLeft: 8,
+    color: "#FFFFFF",
+    marginLeft: 10,
   },
   featuredCardDescription: {
     fontSize: 14,
-    color: "rgba(255, 249, 196, 0.8)",
+    color: "rgba(255, 255, 255, 0.8)",
     marginBottom: 10,
+    lineHeight: 20,
   },
   featuredCardFooter: {
     flexDirection: "row",
@@ -273,12 +334,12 @@ const styles = StyleSheet.create({
   },
   featuredCardLink: {
     fontSize: 14,
-    color: "rgba(255, 215, 0, 0.8)",
+    color: "#E9967A",
     marginRight: 4,
   },
   quickLinksSection: {
     marginBottom: 30,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   quickLinksGrid: {
     flexDirection: "row",
@@ -286,20 +347,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   quickLinkCard: {
-    width: "47%",
-    backgroundColor: "rgba(41, 37, 36, 0.7)",
-    paddingVertical: 20,
+    width: "48%",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    padding: 20,
     borderRadius: 15,
-    marginBottom: 16,
+    marginBottom: 15,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    height: 100,
   },
   quickLinkText: {
     fontSize: 16,
-    color: "#FFF9C4",
-    marginTop: 8,
-  },
-  bottomSpacer: {
-    height: 80,
+    color: "#FFFFFF",
+    marginTop: 10,
+    opacity: 0.9,
   },
 });
