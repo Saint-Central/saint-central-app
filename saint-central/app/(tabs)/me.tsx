@@ -16,7 +16,6 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 interface UserProfile {
@@ -278,7 +277,7 @@ export default function MeScreen() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar style="light" />
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color="#FAC898" />
       </SafeAreaView>
     );
   }
@@ -307,7 +306,7 @@ export default function MeScreen() {
           <MaterialCommunityIcons
             name="information"
             size={24}
-            color="#FFF9C4"
+            color="#FFFFFF"
           />
           <Text style={styles.warningText}>No user profile found.</Text>
         </View>
@@ -319,7 +318,7 @@ export default function MeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <LinearGradient colors={["#292524", "#1C1917"]} style={styles.card}>
+        <View style={styles.card}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => {
@@ -330,7 +329,7 @@ export default function MeScreen() {
             <MaterialCommunityIcons
               name="arrow-left"
               size={22}
-              color="#FFF9C4"
+              color="#FFFFFF"
             />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
@@ -345,7 +344,7 @@ export default function MeScreen() {
             <MaterialCommunityIcons
               name={isEditing ? "close" : "pencil-outline"}
               size={22}
-              color="#FFF9C4"
+              color="#FFFFFF"
             />
           </TouchableOpacity>
 
@@ -371,7 +370,7 @@ export default function MeScreen() {
                   onChangeText={(text) =>
                     setEditForm({ ...editForm, first_name: text })
                   }
-                  placeholderTextColor="rgba(255,215,0,0.5)"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
                 />
               </View>
               <View style={styles.inputGroup}>
@@ -382,7 +381,7 @@ export default function MeScreen() {
                   onChangeText={(text) =>
                     setEditForm({ ...editForm, last_name: text })
                   }
-                  placeholderTextColor="rgba(255,215,0,0.5)"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
                 />
               </View>
 
@@ -393,7 +392,7 @@ export default function MeScreen() {
                 <MaterialCommunityIcons
                   name="content-save-outline"
                   size={22}
-                  color="#FFF9C4"
+                  color="#FFFFFF"
                 />
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               </TouchableOpacity>
@@ -420,7 +419,7 @@ export default function MeScreen() {
                   <MaterialCommunityIcons
                     name="account"
                     size={22}
-                    color="rgba(255,215,0,0.7)"
+                    color="#E9967A"
                   />
                   <Text style={styles.detailHeaderText}>Account Details</Text>
                 </View>
@@ -448,7 +447,7 @@ export default function MeScreen() {
                   <MaterialCommunityIcons
                     name="email"
                     size={22}
-                    color="rgba(255,215,0,0.7)"
+                    color="#E9967A"
                   />
                   <Text style={styles.detailHeaderText}>Contact</Text>
                 </View>
@@ -465,7 +464,7 @@ export default function MeScreen() {
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={22}
-                    color="rgba(255,215,0,0.7)"
+                    color="#E9967A"
                   />
                   <Text style={styles.detailHeaderText}>Timeline</Text>
                 </View>
@@ -508,10 +507,10 @@ export default function MeScreen() {
               </View>
             </View>
           )}
-        </LinearGradient>
+        </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialCommunityIcons name="logout" size={22} color="#FFF9C4" />
+          <MaterialCommunityIcons name="logout" size={22} color="#FFFFFF" />
           <Text style={styles.logoutButtonText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -557,25 +556,23 @@ export default function MeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1C1917",
+    backgroundColor: "#000000",
   },
   scrollContent: {
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
+    padding: 20,
     paddingBottom: 100,
   },
   card: {
     width: "100%",
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 15,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     padding: 24,
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   backButton: {
     position: "absolute",
@@ -586,8 +583,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backButtonText: {
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     marginLeft: 6,
+    fontWeight: "300",
+    letterSpacing: 0.5,
   },
   editButton: {
     position: "absolute",
@@ -599,20 +598,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1C1917",
+    backgroundColor: "#000000",
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1C1917",
+    backgroundColor: "#000000",
     padding: 16,
   },
   errorBox: {
     backgroundColor: "rgba(220,38,38,0.2)",
     borderWidth: 1,
     borderColor: "rgba(220,38,38,0.4)",
-    borderRadius: 12,
+    borderRadius: 15,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -620,19 +619,21 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#FFCCCC",
     marginLeft: 8,
+    letterSpacing: 0.5,
   },
   warningBox: {
-    backgroundColor: "rgba(255,215,0,0.1)",
+    backgroundColor: "rgba(233, 150, 122, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.3)",
-    borderRadius: 12,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderRadius: 15,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
   },
   warningText: {
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     marginLeft: 8,
+    letterSpacing: 0.5,
   },
   profileHeader: {
     alignItems: "center",
@@ -643,24 +644,29 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "rgba(255,215,0,0.2)",
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   avatarText: {
     fontSize: 32,
-    fontWeight: "bold",
-    color: "#FFF9C4",
+    fontWeight: "300",
+    color: "#FFFFFF",
+    letterSpacing: 1,
   },
   profileName: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFF9C4",
+    fontWeight: "300",
+    color: "#FFFFFF",
     marginBottom: 8,
+    letterSpacing: 1,
   },
   profileEmail: {
-    color: "rgba(255,215,0,0.7)",
+    color: "rgba(255, 255, 255, 0.7)",
+    letterSpacing: 0.5,
   },
   formContainer: {
     gap: 16,
@@ -671,46 +677,49 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     marginBottom: 8,
-    color: "#FFF9C4",
-    fontWeight: "500",
+    color: "#FFFFFF",
+    fontWeight: "400",
+    letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: "#1C1917",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.2)",
-    borderRadius: 8,
-    padding: 8,
-    color: "#FFF9C4",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 15,
+    padding: 12,
+    color: "#FFFFFF",
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   saveButton: {
-    backgroundColor: "rgba(255,215,0,0.1)",
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.3)",
-    borderRadius: 8,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderRadius: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     marginTop: 16,
   },
   saveButtonText: {
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     fontWeight: "500",
     marginLeft: 8,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   deleteButton: {
     backgroundColor: "rgba(220,38,38,0.1)",
     borderWidth: 1,
     borderColor: "rgba(220,38,38,0.3)",
-    borderRadius: 8,
+    borderRadius: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     marginTop: 16,
   },
   deleteButtonText: {
@@ -718,17 +727,18 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginLeft: 8,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   detailsContainer: {
     gap: 16,
   },
   detailCard: {
-    backgroundColor: "rgba(41,37,36,0.5)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.2)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   detailHeader: {
     flexDirection: "row",
@@ -736,39 +746,44 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   detailHeaderText: {
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     fontWeight: "500",
     marginLeft: 12,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   detailContent: {
     paddingLeft: 32,
   },
   detailLabel: {
-    color: "rgba(255,249,196,0.8)",
+    color: "rgba(255, 255, 255, 0.8)",
     marginBottom: 10,
     fontSize: 15,
+    letterSpacing: 0.5,
   },
   detailValue: {
-    color: "rgba(255,215,0,0.7)",
+    color: "#FAC898",
+    letterSpacing: 0.5,
   },
   logoutButton: {
-    backgroundColor: "rgba(255,215,0,0.1)",
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.3)",
-    borderRadius: 8,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderRadius: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 24,
+    width: "60%",
   },
   logoutButtonText: {
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     fontWeight: "500",
     marginLeft: 8,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   // Modal styles
   modalOverlay: {
@@ -779,8 +794,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#292524",
-    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    borderRadius: 15,
     padding: 24,
     width: "100%",
     maxWidth: 400,
@@ -789,17 +804,19 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontWeight: "300",
     color: "#FFCCCC",
     marginBottom: 16,
     textAlign: "center",
+    letterSpacing: 1,
   },
   modalMessage: {
     fontSize: 16,
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     marginBottom: 24,
     textAlign: "center",
     lineHeight: 22,
+    letterSpacing: 0.5,
   },
   modalButtons: {
     flexDirection: "row",
@@ -807,27 +824,28 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: "rgba(255,215,0,0.1)",
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.3)",
-    borderRadius: 8,
-    paddingVertical: 10,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderRadius: 30,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     marginRight: 8,
     alignItems: "center",
   },
   modalCancelButtonText: {
-    color: "#FFF9C4",
+    color: "#FFFFFF",
     fontWeight: "500",
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   modalConfirmButton: {
     flex: 1,
     backgroundColor: "rgba(220,38,38,0.2)",
     borderWidth: 1,
     borderColor: "rgba(220,38,38,0.4)",
-    borderRadius: 8,
-    paddingVertical: 10,
+    borderRadius: 30,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     marginLeft: 8,
     alignItems: "center",
@@ -836,5 +854,6 @@ const styles = StyleSheet.create({
     color: "#FFCCCC",
     fontWeight: "500",
     fontSize: 16,
+    letterSpacing: 0.5,
   },
 });

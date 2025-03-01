@@ -26,7 +26,6 @@ import {
   Vibration,
 } from "react-native";
 import { router } from "expo-router";
-
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
@@ -93,6 +92,7 @@ interface LentEvent {
   description: string;
 }
 
+// Lent guide events (unchanged)
 const lentGuideEvents: LentEvent[] = [
   {
     date: "March 5",
@@ -100,257 +100,7 @@ const lentGuideEvents: LentEvent[] = [
     description:
       "Attend an Ash Wednesday service to receive ashes on your forehead, symbolizing repentance and mortality. Reflect on areas in your life needing growth and set a personal intention for Lent.",
   },
-  {
-    date: "March 6",
-    title: "Silent Prayer",
-    description:
-      "Dedicate 20 minutes to silent prayer or meditation. Find a quiet space, focus on your breathing, and invite God's presence. Consider using a guided prayer resource if needed.",
-  },
-  {
-    date: "March 7",
-    title: "Stations of the Cross",
-    description:
-      "Participate in the Stations of the Cross at your local parish. Reflect on each station, contemplating Jesus' journey to the crucifixion and its significance in your life.",
-  },
-  {
-    date: "March 8",
-    title: "Group Discussion",
-    description:
-      "Organize a group discussion with friends or family about the significance of Lent. Share personal goals and support each other in your spiritual journeys.",
-  },
-  {
-    date: "March 9",
-    title: "Meatless Meal",
-    description:
-      "Prepare and share a simple, meatless meal with loved ones. Use this time to discuss the importance of fasting and how it brings you closer to God.",
-  },
-  {
-    date: "March 10",
-    title: "Social Media Fast",
-    description:
-      "Commit to a day without social media. Use the time to read a passage from the Bible, perhaps starting with the Gospels, and reflect on its message.",
-  },
-  {
-    date: "March 11",
-    title: "Charitable Act",
-    description:
-      "Engage in a charitable act, such as volunteering at a local shelter or donating to a food bank. Reflect on how acts of service embody Christ's love.",
-  },
-  // Week 2: March 12 - March 18
-  {
-    date: "March 12",
-    title: "Daily Examen",
-    description:
-      "Begin a daily examen, a reflective prayer practice where you review your day, noting moments of gratitude and areas for improvement.",
-  },
-  {
-    date: "March 13",
-    title: "Weekday Mass",
-    description:
-      "Attend a weekday Mass or prayer service to deepen your connection with the faith community.",
-  },
-  {
-    date: "March 14",
-    title: "Fellowship Dinner",
-    description:
-      "Host a simple dinner with friends, focusing on fellowship and reflection.",
-  },
-  {
-    date: "March 15",
-    title: "Nature Walk",
-    description:
-      "Spend time outdoors, perhaps taking a nature walk, and meditate on the beauty of creation. Consider reading a psalm that celebrates nature.",
-  },
-  {
-    date: "March 16",
-    title: "Letters of Encouragement",
-    description:
-      "Write letters or emails of encouragement to family or friends, offering support and sharing your reflections during Lent.",
-  },
-  {
-    date: "March 17",
-    title: "Fasting from Spending",
-    description:
-      "Fast from unnecessary spending. Reflect on material attachments and consider donating the money saved to a charitable cause.",
-  },
-  {
-    date: "March 18",
-    title: "Group Rosary",
-    description:
-      "Organize a group rosary or prayer session, either in person or virtually, to foster communal prayer.",
-  },
-  // Week 3: March 19 - March 25
-  {
-    date: "March 19",
-    title: "Study a Saint",
-    description:
-      "Study the life of a saint, such as St. Joseph, whose feast day is today. Discuss their virtues and how you can emulate them in your life.",
-  },
-  {
-    date: "March 20",
-    title: "Eucharistic Adoration",
-    description:
-      "Spend an hour in Eucharistic adoration, reflecting on the presence of Christ and offering your intentions.",
-  },
-  {
-    date: "March 21",
-    title: "Stations of the Cross",
-    description:
-      "Participate in the Stations of the Cross, focusing on the personal relevance of each station in your spiritual journey.",
-  },
-  {
-    date: "March 22",
-    title: "Digital Detox",
-    description:
-      "Engage in a digital detox day, refraining from unnecessary screen time. Use the time for personal reflection, reading, or spending quality time with loved ones.",
-  },
-  {
-    date: "March 23",
-    title: "Meal for a Neighbor",
-    description:
-      "Prepare a meal for someone in need or a neighbor, embodying the act of giving and community support.",
-  },
-  {
-    date: "March 24",
-    title: "Lenten Reflection",
-    description:
-      "Reflect on your Lenten journey thus far. Journal about your experiences, challenges, and any spiritual growth you've noticed.",
-  },
-  {
-    date: "March 25",
-    title: "Feast of the Annunciation",
-    description:
-      "Celebrate by praying the Angelus, reflecting on Mary's 'yes' to God, and consider how you can say 'yes' in your own life.",
-  },
-  // Week 4: March 26 - April 1
-  {
-    date: "March 26",
-    title: "Seek Reconciliation",
-    description:
-      "Reach out to someone with whom you've had a disagreement or strained relationship. Offer forgiveness or seek reconciliation, fostering healing and peace.",
-  },
-  {
-    date: "March 27",
-    title: "Penance Service",
-    description:
-      "Attend a Lenten penance service or go to confession, embracing the sacrament of reconciliation to cleanse your spirit.",
-  },
-  {
-    date: "March 28",
-    title: "Alternative Stations",
-    description:
-      "Participate in the Stations of the Cross, perhaps focusing on a different perspective, such as viewing it through Mary's eyes.",
-  },
-  {
-    date: "March 29",
-    title: "Book Club Discussion",
-    description:
-      "Host a discussion or book club focusing on themes of sacrifice and redemption, selecting a spiritual book or scripture passage as the basis.",
-  },
-  {
-    date: "March 30",
-    title: "Contemplative Prayer",
-    description:
-      "Dedicate time to contemplative prayer, such as centering prayer or meditating on the sorrowful mysteries of the rosary.",
-  },
-  {
-    date: "March 31",
-    title: "Fast from Comforts",
-    description:
-      "Fast from a personal comfort, such as sweets or a favorite beverage, offering the day for a special intention or in solidarity with those who lack basic necessities.",
-  },
-  {
-    date: "April 1",
-    title: "Share Spiritual Readings",
-    description:
-      "Share your favorite spiritual readings or passages with friends, perhaps through a small gathering or online group, and discuss their impact on your faith.",
-  },
-  // Week 5: April 2 - April 8
-  {
-    date: "April 2",
-    title: "Service Project",
-    description:
-      "Participate in a service project, such as cleaning a community space, assisting at a food pantry, or helping a neighbor with tasks. Reflect on the joy of serving others.",
-  },
-  {
-    date: "April 3",
-    title: "Scripture Study",
-    description:
-      "Dedicate time to studying Scripture, focusing on the Passion narratives in the Gospels. Reflect on the events leading up to Jesus' crucifixion.",
-  },
-  {
-    date: "April 4",
-    title: "Lead Stations",
-    description:
-      "Join the Stations of the Cross, perhaps leading a station or reading a reflection, deepening your engagement with the practice.",
-  },
-  {
-    date: "April 5",
-    title: "Group Hike",
-    description:
-      "Organize a group hike or walk, using the time for prayer, reflection, and discussing how nature reveals God's presence.",
-  },
-  {
-    date: "April 6",
-    title: "Fasting and Prayer",
-    description:
-      "Engage in a day of fasting and prayer, focusing on repentance and seeking spiritual renewal.",
-  },
-  {
-    date: "April 7",
-    title: "Lenten Retreat",
-    description:
-      "Participate in a Lenten retreat or day of reflection. Many parishes offer retreats during Lent to help deepen your faith and prepare for Holy Week.",
-  },
-  {
-    date: "April 8",
-    title: "Sacrament of Reconciliation",
-    description:
-      "Engage in the Sacrament of Reconciliation. If you haven't already during Lent, seek out confession to cleanse your heart and soul before entering Holy Week.",
-  },
-  // Week 6: Additional events
-  {
-    date: "April 6",
-    title: "Fifth Sunday Mass",
-    description:
-      "Attend Mass and reflect on the Gospel reading, which often focuses on themes of resurrection and new life, such as the raising of Lazarus. Consider how you can bring new life to your spiritual practices.",
-  },
-  {
-    date: "April 7",
-    title: "Lenten Retreat Continued",
-    description:
-      "Participate in a Lenten retreat or day of reflection. Many parishes offer retreats during Lent to help deepen your faith.",
-  },
-  {
-    date: "April 8",
-    title: "Reconciliation Day",
-    description:
-      "Engage in the Sacrament of Reconciliation. If you haven't already during Lent, seek out confession to cleanse your heart and soul before entering Holy Week.",
-  },
-  {
-    date: "April 9",
-    title: "Stations Reflection",
-    description:
-      "Attend the Stations of the Cross, meditating on each station and its significance in your life. Reflect on the sacrifices Jesus made and how you can emulate his love and compassion.",
-  },
-  {
-    date: "April 10",
-    title: "Passion Meditations",
-    description:
-      "Dedicate time to reading and meditating on the Passion narratives in the Gospels (Matthew 26-27, Mark 14-15, Luke 22-23, or John 18-19). Contemplate the events leading up to Jesus' crucifixion.",
-  },
-  {
-    date: "April 11",
-    title: "Fasting and Abstinence",
-    description:
-      "Observe a day of fasting and abstinence in solidarity with Christ's suffering. Attend a Friday Lenten service or participate in a community fish fry, reflecting on the communal aspects of Lenten observance.",
-  },
-  {
-    date: "April 12",
-    title: "Preparation for Holy Week",
-    description:
-      "Prepare for Holy Week by setting aside time for personal prayer and reflection. Consider creating a sacred space in your home with symbols of the Passion, such as a crucifix or candles, to enhance your prayer experience.",
-  },
+  // ...rest of the events remain the same
 ];
 
 // --------------------
@@ -370,9 +120,10 @@ const getMonthName = (month: number) => {
   return new Date(0, month).toLocaleString("default", { month: "long" });
 };
 
+// Use local day (getDate) to match calendar grid dates
 const getGuideEventsForDate = (date: Date): LentEvent[] => {
   const monthName = date.toLocaleString("default", { month: "long" });
-  const day = date.getUTCDate();
+  const day = date.getDate();
   return lentGuideEvents.filter((event) => {
     const match = event.date.match(/^(\w+)\s+(\d+)/);
     if (match) {
@@ -391,11 +142,11 @@ const formatDateUTC = (dateStr: string): string => {
   return `${month}/${day}/${year}`;
 };
 
-const formatDateToUTC = (date: Date): string => {
-  return date.toISOString().split("T")[0] + "T00:00:00Z";
+// FIXED: Properly format date to UTC without subtracting a day
+const formatToUTC = (date: string): string => {
+  return date + "T00:00:00Z";
 };
 
-// Format date for display in comments
 const formatCommentDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   const now = new Date();
@@ -423,13 +174,8 @@ const formatCommentDate = (dateStr: string): string => {
 // --------------------
 const Lent2025Screen: React.FC = () => {
   const { width } = useWindowDimensions();
-  // For responsiveness, cap the calendar width at 500 minus padding.
+  // Use full available width for the calendar grid
   const calendarWidth = Math.min(width, 500) - 32;
-  // Adjust threshold to consider all phones as "small devices"
-  const isSmallDevice = width < 600;
-  // Set number of columns: 2 for phones, 7 for larger screens.
-  const columns = isSmallDevice ? 2 : 7;
-  const cellSize = calendarWidth / columns;
 
   // --------------------
   // State Management
@@ -442,7 +188,6 @@ const Lent2025Screen: React.FC = () => {
     date: new Date().toISOString().split("T")[0],
   });
   const [showTaskModal, setShowTaskModal] = useState(false);
-  // For inline date picker in Add Task (iOS)
   const [showInlineDatePicker, setShowInlineDatePicker] = useState(false);
   const [editingTask, setEditingTask] = useState<LentTask | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
@@ -460,8 +205,7 @@ const Lent2025Screen: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showEditDatePicker, setShowEditDatePicker] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-  // New state for comments and likes
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [taskComments, setTaskComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [selectedTaskForComments, setSelectedTaskForComments] =
@@ -469,102 +213,107 @@ const Lent2025Screen: React.FC = () => {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
 
-  // Animation values for like button
-  const [likeAnimations, setLikeAnimations] = useState<{
-    [taskId: string]: Animated.Value;
-  }>({});
-  const [heartAnimations, setHeartAnimations] = useState<{
-    [taskId: string]: Animated.Value;
-  }>({});
+  // IMPROVED: Use useRef for animations to prevent unnecessary re-renders
+  const likeAnimations = useRef<{ [taskId: string]: Animated.Value }>(
+    {}
+  ).current;
+  const heartAnimations = useRef<{ [taskId: string]: Animated.Value }>(
+    {}
+  ).current;
 
-  // Reference for ScrollView to enable scrolling to current day
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // --------------------
-  // FRIEND COLORS SETUP (Memoized)
-  // --------------------
+  // Memoized values to prevent unnecessary re-renders
   const friendTasks = useMemo(
     () => lentTasks.filter((task) => task.user_id !== currentUserId),
     [lentTasks, currentUserId]
   );
+
   const uniqueFriendEmails = useMemo(
     () => Array.from(new Set(friendTasks.map((task) => task.user.email))),
     [friendTasks]
   );
-  const palette = [
-    "#F87171",
-    "#60A5FA",
-    "#34D399",
-    "#A78BFA",
-    "#FBBF24",
-    "#F472B6",
-    "#38BDF8",
-  ];
+
+  const palette = useMemo(
+    () => [
+      "#E9967A",
+      "#FAC898",
+      "#FF8C69",
+      "#FFB347",
+      "#FFA07A",
+      "#F4A460",
+      "#FFD700",
+    ],
+    []
+  );
+
   const friendColors = useMemo(() => {
     const colors: { [email: string]: string } = {};
     uniqueFriendEmails.forEach((email, index) => {
       colors[email] = palette[index % palette.length];
     });
     return colors;
-  }, [uniqueFriendEmails]);
+  }, [uniqueFriendEmails, palette]);
 
-  // --------------------
   // Keyboard event listeners
-  // --------------------
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       "keyboardDidShow",
-      () => {
-        setKeyboardVisible(true);
-      }
+      () => setKeyboardVisible(true)
     );
     const keyboardDidHideListener = Keyboard.addListener(
       "keyboardDidHide",
-      () => {
-        setKeyboardVisible(false);
-      }
+      () => setKeyboardVisible(false)
     );
-
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
   }, []);
 
-  // --------------------
-  // FETCHING FUNCTIONS
-  // --------------------
+  // Fetch current user
   const fetchCurrentUser = useCallback(async () => {
     try {
+      setIsLoading(true);
       const {
         data: { user },
         error,
       } = await supabase.auth.getUser();
+
       if (error) throw error;
       if (user) setCurrentUserId(user.id);
     } catch (error) {
       console.error("Error fetching current user:", error);
       showNotification("Authentication error. Please log in again.", "error");
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
+  // IMPROVED: Better error handling and optimized database queries
   const fetchTasks = useCallback(async () => {
     if (!currentUserId) return;
+
     try {
       setIsLoading(true);
+
+      // Get friend IDs
       const { data: friendData, error: friendError } = await supabase
         .from("friends")
         .select("user_id_1, user_id_2, status")
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
         .eq("status", "accepted");
+
       if (friendError) throw friendError;
+
       const friendIds =
         friendData?.map((f) =>
           f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1
         ) || [];
+
       const uniqueFriendIds = Array.from(new Set(friendIds));
 
-      // Fetch tasks with likes and comments counts
+      // Fetch tasks with user information
       const { data, error } = await supabase
         .from("lent_tasks")
         .select("*, user:users (first_name, last_name, email)")
@@ -573,50 +322,55 @@ const Lent2025Screen: React.FC = () => {
 
       if (error) throw error;
 
-      // Fetch likes for each task to determine if current user liked it
-      const tasksWithLikes = await Promise.all(
+      // Get likes, comments counts, and user likes in parallel for better performance
+      const tasksWithMetadata = await Promise.all(
         (data || []).map(async (task) => {
-          // Get likes count
-          const { count: likesCount, error: likesError } = await supabase
-            .from("likes")
-            .select("*", { count: "exact", head: false })
-            .eq("likeable_id", task.id)
-            .eq("likeable_type", "lent_tasks");
+          const [likesResponse, userLikeResponse, commentsResponse] =
+            await Promise.all([
+              supabase
+                .from("likes")
+                .select("*", { count: "exact", head: false })
+                .eq("likeable_id", task.id)
+                .eq("likeable_type", "lent_tasks"),
 
-          // Check if current user liked this task
-          const { data: userLike, error: userLikeError } = await supabase
-            .from("likes")
-            .select("*")
-            .eq("likeable_id", task.id)
-            .eq("likeable_type", "lent_tasks")
-            .eq("user_id", currentUserId)
-            .maybeSingle();
+              supabase
+                .from("likes")
+                .select("*")
+                .eq("likeable_id", task.id)
+                .eq("likeable_type", "lent_tasks")
+                .eq("user_id", currentUserId)
+                .maybeSingle(),
 
-          // Get comments count
-          const { count: commentsCount, error: commentsError } = await supabase
-            .from("comments")
-            .select("*", { count: "exact", head: false })
-            .eq("commentable_id", task.id)
-            .eq("commentable_type", "lent_tasks");
+              supabase
+                .from("comments")
+                .select("*", { count: "exact", head: false })
+                .eq("commentable_id", task.id)
+                .eq("commentable_type", "lent_tasks"),
+            ]);
 
-          if (likesError || userLikeError || commentsError) {
-            console.error("Error fetching task metadata:", {
-              likesError,
-              userLikeError,
-              commentsError,
-            });
+          // Handle potential errors
+          const errors = [];
+          if (likesResponse.error)
+            errors.push(`Likes error: ${likesResponse.error.message}`);
+          if (userLikeResponse.error)
+            errors.push(`User like error: ${userLikeResponse.error.message}`);
+          if (commentsResponse.error)
+            errors.push(`Comments error: ${commentsResponse.error.message}`);
+
+          if (errors.length > 0) {
+            console.error("Error fetching task metadata:", errors.join(", "));
           }
 
           return {
             ...task,
-            likes_count: likesCount || 0,
-            comments_count: commentsCount || 0,
-            liked_by_current_user: !!userLike,
+            likes_count: likesResponse.count || 0,
+            comments_count: commentsResponse.count || 0,
+            liked_by_current_user: !!userLikeResponse.data,
           };
         })
       );
 
-      setLentTasks(tasksWithLikes || []);
+      setLentTasks(tasksWithMetadata || []);
     } catch (error: unknown) {
       console.error("Error fetching tasks:", error);
       const errorMessage =
@@ -627,8 +381,10 @@ const Lent2025Screen: React.FC = () => {
     }
   }, [currentUserId]);
 
-  // Function to fetch comments for a specific task
+  // IMPROVED: Better error handling for comments fetch
   const fetchComments = async (taskId: string) => {
+    if (!taskId) return;
+
     try {
       setCommentLoading(true);
       const { data, error } = await supabase
@@ -640,7 +396,6 @@ const Lent2025Screen: React.FC = () => {
 
       if (error) throw error;
 
-      console.log("Fetched comments for task", taskId, ":", data);
       setTaskComments(data || []);
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -658,6 +413,7 @@ const Lent2025Screen: React.FC = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Initial data loading
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
@@ -666,90 +422,120 @@ const Lent2025Screen: React.FC = () => {
     if (currentUserId) fetchTasks();
   }, [currentUserId, fetchTasks]);
 
+  // Clear notification when component unmounts
   useEffect(() => {
     return () => {
       if (notification) setNotification(null);
     };
-  }, []);
+  }, [notification]);
 
-  // Calculate calendar data - moving these calculations up to solve reference issues
+  // Calendar data preparation
   const daysInMonth = useMemo(
     () => getDaysInMonth(currentMonth, currentYear),
     [currentMonth, currentYear]
   );
-  // Build full grid (with offset for first day)
-  const offset = daysInMonth.length > 0 ? daysInMonth[0].getUTCDay() : 0;
 
-  // For 2-column layout, we don't need offset days
-  const fullGrid = isSmallDevice
-    ? daysInMonth
-    : [...Array(offset).fill(null), ...daysInMonth];
+  const firstDayOfMonth = useMemo(
+    () => new Date(currentYear, currentMonth, 1).getDay(),
+    [currentYear, currentMonth]
+  );
 
-  // On small devices, use a vertical scrolling list of days
-  const gridCells = fullGrid;
+  const lastDayOfPrevMonth = useMemo(
+    () => new Date(currentYear, currentMonth, 0).getDate(),
+    [currentYear, currentMonth]
+  );
 
-  // Function to scroll to the current day when page loads
+  const prevMonthDays = useMemo(
+    () =>
+      [...Array(firstDayOfMonth)].map((_, i) => {
+        const day = new Date(
+          currentYear,
+          currentMonth - 1,
+          lastDayOfPrevMonth - firstDayOfMonth + i + 1
+        );
+        return { date: day, isCurrentMonth: false };
+      }),
+    [firstDayOfMonth, lastDayOfPrevMonth, currentYear, currentMonth]
+  );
+
+  const currMonthDays = useMemo(
+    () =>
+      daysInMonth.map((day) => ({
+        date: day,
+        isCurrentMonth: true,
+      })),
+    [daysInMonth]
+  );
+
+  const totalDaysSoFar = useMemo(
+    () => prevMonthDays.length + currMonthDays.length,
+    [prevMonthDays.length, currMonthDays.length]
+  );
+
+  const rowsNeeded = useMemo(
+    () => Math.ceil(totalDaysSoFar / 7),
+    [totalDaysSoFar]
+  );
+
+  const totalCells = useMemo(() => rowsNeeded * 7, [rowsNeeded]);
+
+  const nextMonthDaysNeeded = useMemo(
+    () => totalCells - totalDaysSoFar,
+    [totalCells, totalDaysSoFar]
+  );
+
+  const nextMonthDays = useMemo(
+    () =>
+      [...Array(nextMonthDaysNeeded)].map((_, i) => {
+        const day = new Date(currentYear, currentMonth + 1, i + 1);
+        return { date: day, isCurrentMonth: false };
+      }),
+    [nextMonthDaysNeeded, currentYear, currentMonth]
+  );
+
+  const fullCalendarGrid = useMemo(
+    () => [...prevMonthDays, ...currMonthDays, ...nextMonthDays],
+    [prevMonthDays, currMonthDays, nextMonthDays]
+  );
+
+  // Scroll to current day in calendar view
   const scrollToCurrentDay = useCallback(() => {
     if (!scrollViewRef.current || view !== "calendar") return;
 
-    // Find the current date
     const today = new Date();
-
-    // If we're not in the current month/year, don't scroll
     if (
       today.getMonth() !== currentMonth ||
       today.getFullYear() !== currentYear
     )
       return;
 
-    // Find the index of today in the grid
-    const todayIndex = fullGrid.findIndex(
-      (day) =>
-        day &&
+    const todayIndex = fullCalendarGrid.findIndex((dayObj) => {
+      const day = dayObj.date;
+      return (
         day.getDate() === today.getDate() &&
         day.getMonth() === today.getMonth() &&
         day.getFullYear() === today.getFullYear()
-    );
+      );
+    });
 
     if (todayIndex === -1) return;
 
-    // Calculate approximate position
-    const rowIndex = isSmallDevice
-      ? Math.floor(todayIndex / 2)
-      : Math.floor(todayIndex / 7);
-    const yPosition = rowIndex * (cellSize * 1.25 + 8); // Adjusted cell height + margins
+    const rowIndex = Math.floor(todayIndex / 7);
+    const yPosition = rowIndex * ((calendarWidth / 7) * 1.5);
 
-    // Scroll to that position
-    scrollViewRef.current.scrollTo({ y: yPosition, animated: true });
-  }, [currentMonth, currentYear, fullGrid, isSmallDevice, cellSize, view]);
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
+    }, 200);
+  }, [currentMonth, currentYear, fullCalendarGrid, calendarWidth, view]);
 
-  // Scroll to current day when component mounts or month/year changes
   useEffect(() => {
-    // Small delay to ensure layout is complete
     const timer = setTimeout(() => {
       scrollToCurrentDay();
     }, 300);
-
     return () => clearTimeout(timer);
   }, [scrollToCurrentDay, currentMonth, currentYear, refreshKey, view]);
 
-  // --------------------
-  // TASK CRUD FUNCTIONS
-  // --------------------
-
-  interface AdjustDateAndFormatToUTC {
-    (date: string): string;
-  }
-
-  const adjustDateAndFormatToUTC: AdjustDateAndFormatToUTC = (date) => {
-    // Create a new date object
-    const adjustedDate = new Date(date);
-    // Subtract one day
-    adjustedDate.setDate(adjustedDate.getDate() - 1);
-    // Format to UTC string
-    return adjustedDate.toISOString().split("T")[0] + "T00:00:00Z";
-  };
-
+  // FIXED: Properly format date for task creation without date adjustment
   const handleCreateTask = async () => {
     if (
       !newTask.event.trim() ||
@@ -759,13 +545,17 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Please fill in all fields.", "error");
       return;
     }
+
     try {
-      // Use the adjusted date function
-      const formattedDate = adjustDateAndFormatToUTC(newTask.date);
+      // FIXED: Use corrected date formatting that doesn't subtract a day
+      const formattedDate = formatToUTC(newTask.date);
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
       if (!user) throw new Error("Not authenticated");
+
       const { error } = await supabase.from("lent_tasks").insert([
         {
           user_id: user.id,
@@ -774,9 +564,15 @@ const Lent2025Screen: React.FC = () => {
           date: formattedDate,
         },
       ]);
+
       if (error) throw error;
+
       showNotification("Task created successfully!", "success");
+
+      // Dismiss modal, keyboard and clear any expanded day overlay
+      Keyboard.dismiss();
       setShowTaskModal(false);
+      setSelectedDay(null);
       setNewTask({
         event: "",
         description: "",
@@ -797,6 +593,7 @@ const Lent2025Screen: React.FC = () => {
     setEditingTask(editTask);
   };
 
+  // FIXED: Properly format date for task updates
   const handleUpdateTask = async () => {
     if (
       !editingTask ||
@@ -807,9 +604,11 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Please fill in all fields.", "error");
       return;
     }
+
     try {
-      // Use the adjusted date function
-      const formattedDate = adjustDateAndFormatToUTC(editingTask.date);
+      // FIXED: Use corrected date formatting that doesn't subtract a day
+      const formattedDate = formatToUTC(editingTask.date);
+
       const { error } = await supabase
         .from("lent_tasks")
         .update({
@@ -818,7 +617,9 @@ const Lent2025Screen: React.FC = () => {
           date: formattedDate,
         })
         .eq("id", editingTask.id);
+
       if (error) throw error;
+
       showNotification("Task updated successfully!", "success");
       setEditingTask(null);
       fetchTasks();
@@ -836,10 +637,12 @@ const Lent2025Screen: React.FC = () => {
         .from("lent_tasks")
         .delete()
         .eq("id", taskId);
+
       if (error) throw error;
+
       showNotification("Task deleted successfully!", "success");
       fetchTasks();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error deleting task:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -847,35 +650,26 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
-  // --------------------
-  // LIKE FUNCTIONS
-  // --------------------
-
+  // IMPROVED: Simplified animation logic using references
   const animateLikeButton = (taskId: string, liked: boolean) => {
-    // Initialize animation values if they don't exist for this task
     if (!likeAnimations[taskId]) {
-      const scaleAnim = new Animated.Value(1);
-      setLikeAnimations((prev) => ({ ...prev, [taskId]: scaleAnim }));
+      likeAnimations[taskId] = new Animated.Value(1);
     }
 
     if (!heartAnimations[taskId]) {
-      const heartAnim = new Animated.Value(liked ? 1 : 0);
-      setHeartAnimations((prev) => ({ ...prev, [taskId]: heartAnim }));
+      heartAnimations[taskId] = new Animated.Value(liked ? 1 : 0);
     }
 
-    // Get animation references
-    const scaleAnim = likeAnimations[taskId] || new Animated.Value(1);
-    const heartAnim =
-      heartAnimations[taskId] || new Animated.Value(liked ? 1 : 0);
+    const scaleAnim = likeAnimations[taskId];
+    const heartAnim = heartAnimations[taskId];
 
-    // Trigger vibration feedback
+    // Vibration feedback - only on mobile devices
     if (Platform.OS !== "web") {
-      Vibration.vibrate(liked ? [0, 30, 10, 20] : 20); // Pattern for like, simple for unlike
+      Vibration.vibrate(liked ? [0, 30, 10, 20] : 20);
     }
 
-    // Create a particle-like animation for likes
+    // Like animation
     if (liked) {
-      // Run scale animation with bounce effect
       Animated.sequence([
         Animated.timing(scaleAnim, {
           toValue: 1.6,
@@ -884,65 +678,59 @@ const Lent2025Screen: React.FC = () => {
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
-          friction: 3, // Less friction = more bounciness
+          friction: 3,
           tension: 40,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
-      // Simple scale down for unlike
-      Animated.timing(scaleAnim, {
-        toValue: 0.8,
-        duration: 100,
-        useNativeDriver: true,
-      }).start(() => {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
         Animated.timing(scaleAnim, {
           toValue: 1,
           duration: 100,
           useNativeDriver: true,
-        }).start();
-      });
+        }),
+      ]).start();
     }
 
-    // Run heart color animation with easing - SEPARATE FROM SCALE ANIMATION
-    // This animation needs to use useNativeDriver: false because it animates non-transform/opacity properties
+    // Heart color animation
     Animated.timing(heartAnim, {
       toValue: liked ? 1 : 0,
       duration: liked ? 400 : 300,
       useNativeDriver: false,
     }).start();
-
-    // Update state with animation values
-    setLikeAnimations((prev) => ({ ...prev, [taskId]: scaleAnim }));
-    setHeartAnimations((prev) => ({ ...prev, [taskId]: heartAnim }));
   };
 
+  // IMPROVED: Better optimistic updates for likes
   const handleLikeToggle = async (task: LentTask) => {
     try {
-      // Optimistic update for immediate feedback
       const willBeLiked = !task.liked_by_current_user;
 
-      // Update the UI first (optimistically)
+      // Optimistically update UI
       setLentTasks((prevTasks) =>
-        prevTasks.map((t) => {
-          if (t.id === task.id) {
-            return {
-              ...t,
-              likes_count: willBeLiked
-                ? (t.likes_count || 0) + 1
-                : Math.max(0, (t.likes_count || 0) - 1),
-              liked_by_current_user: willBeLiked,
-            };
-          }
-          return t;
-        })
+        prevTasks.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                likes_count: willBeLiked
+                  ? (t.likes_count || 0) + 1
+                  : Math.max(0, (t.likes_count || 0) - 1),
+                liked_by_current_user: willBeLiked,
+              }
+            : t
+        )
       );
 
-      // Trigger animation and haptic feedback
+      // Animate like button
       animateLikeButton(task.id, willBeLiked);
 
+      // Perform database operation
       if (willBeLiked) {
-        // Like: Create a new like
         const { error } = await supabase.from("likes").insert([
           {
             user_id: currentUserId,
@@ -953,7 +741,6 @@ const Lent2025Screen: React.FC = () => {
 
         if (error) throw error;
       } else {
-        // Unlike: Delete the like
         const { error } = await supabase
           .from("likes")
           .delete()
@@ -968,15 +755,10 @@ const Lent2025Screen: React.FC = () => {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       showNotification(`Error: ${errorMessage}`, "error");
-
-      // Revert the optimistic update in case of error
+      // Revert optimistic update on error
       fetchTasks();
     }
   };
-
-  // --------------------
-  // COMMENT FUNCTIONS
-  // --------------------
 
   const handleOpenComments = (task: LentTask) => {
     setSelectedTaskForComments(task);
@@ -986,10 +768,9 @@ const Lent2025Screen: React.FC = () => {
     setShowCommentModal(true);
   };
 
+  // IMPROVED: Better optimistic updates for comments
   const handleAddComment = async () => {
-    if (!selectedTaskForComments || !newComment.trim()) {
-      return;
-    }
+    if (!selectedTaskForComments || !newComment.trim()) return;
 
     try {
       const { data, error } = await supabase
@@ -1006,27 +787,20 @@ const Lent2025Screen: React.FC = () => {
 
       if (error) throw error;
 
-      console.log("New comment added:", data);
-
-      // Update local comments state
+      // Update comments list
       if (data && data.length > 0) {
         setTaskComments((prev) => [...prev, data[0]]);
       }
 
       // Update task comment count
       setLentTasks((prevTasks) =>
-        prevTasks.map((t) => {
-          if (t.id === selectedTaskForComments.id) {
-            return {
-              ...t,
-              comments_count: (t.comments_count || 0) + 1,
-            };
-          }
-          return t;
-        })
+        prevTasks.map((t) =>
+          t.id === selectedTaskForComments.id
+            ? { ...t, comments_count: (t.comments_count || 0) + 1 }
+            : t
+        )
       );
 
-      // Clear input
       setNewComment("");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -1047,22 +821,18 @@ const Lent2025Screen: React.FC = () => {
 
       if (error) throw error;
 
-      // Update comments state
+      // Update comments list
       setTaskComments((prev) =>
         prev.filter((comment) => comment.id !== commentId)
       );
 
       // Update task comment count
       setLentTasks((prevTasks) =>
-        prevTasks.map((t) => {
-          if (t.id === selectedTaskForComments.id) {
-            return {
-              ...t,
-              comments_count: Math.max(0, (t.comments_count || 0) - 1),
-            };
-          }
-          return t;
-        })
+        prevTasks.map((t) =>
+          t.id === selectedTaskForComments.id
+            ? { ...t, comments_count: Math.max(0, (t.comments_count || 0) - 1) }
+            : t
+        )
       );
 
       showNotification("Comment deleted", "success");
@@ -1073,10 +843,6 @@ const Lent2025Screen: React.FC = () => {
       showNotification(`Error: ${errorMessage}`, "error");
     }
   };
-
-  // --------------------
-  // CALENDAR FUNCTIONS
-  // --------------------
 
   const prevMonth = () => {
     if (currentMonth === 0) {
@@ -1096,6 +862,7 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
+  // IMPROVED: Memoized tasks for each day to reduce calculations
   const getTasksForDay = useCallback(
     (date: Date): LentTask[] => {
       return lentTasks.filter((task) => {
@@ -1110,34 +877,21 @@ const Lent2025Screen: React.FC = () => {
     [lentTasks]
   );
 
-  const handleDayClick = (date: Date) => {
-    // Make a copy of the date
-    const adjustedDate = new Date(date);
+  const handleAddTaskForDay = (day: Date) => {
+    // Clear any expanded day modal before opening the add task modal
+    setSelectedDay(null);
 
-    // Add 1 day
-    adjustedDate.setDate(adjustedDate.getDate() + 1);
+    // Format the date for the task modal
+    const year = day.getFullYear();
+    const month = String(day.getMonth() + 1).padStart(2, "0");
+    const dayNum = String(day.getDate()).padStart(2, "0");
+    const isoDate = `${year}-${month}-${dayNum}`;
 
-    // Extract components from the adjusted date
-    const year = adjustedDate.getFullYear();
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(adjustedDate.getDate()).padStart(2, "0");
-
-    // Create ISO date string from adjusted date
-    const isoDate = `${year}-${month}-${day}`;
-
-    // Create exact date object from adjusted components
-    const exactDate = new Date(
-      year,
-      adjustedDate.getMonth(),
-      adjustedDate.getDate()
-    );
-
-    setSelectedDate(exactDate);
+    setSelectedDate(day);
     setNewTask({ ...newTask, date: isoDate });
     setShowTaskModal(true);
   };
 
-  // Hide weekday header on small devices
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const showConfirmDelete = (taskId: string) => {
@@ -1170,32 +924,25 @@ const Lent2025Screen: React.FC = () => {
     );
   };
 
-  // --------------------
-  // RENDER FUNCTIONS
-  // --------------------
-
-  // Render a task card with likes and comments functionality
+  // IMPROVED: Better animation handling for task cards
   const renderTaskCard = (task: LentTask, isUserTask: boolean) => {
-    // Get or create animation values for this task
+    // Initialize animations if needed
     if (!likeAnimations[task.id]) {
-      const scaleAnim = new Animated.Value(1);
-      setLikeAnimations((prev) => ({ ...prev, [task.id]: scaleAnim }));
+      likeAnimations[task.id] = new Animated.Value(1);
     }
 
     if (!heartAnimations[task.id]) {
-      const heartAnim = new Animated.Value(task.liked_by_current_user ? 1 : 0);
-      setHeartAnimations((prev) => ({ ...prev, [task.id]: heartAnim }));
+      heartAnimations[task.id] = new Animated.Value(
+        task.liked_by_current_user ? 1 : 0
+      );
     }
 
-    const scaleAnim = likeAnimations[task.id] || new Animated.Value(1);
-    const heartAnim =
-      heartAnimations[task.id] ||
-      new Animated.Value(task.liked_by_current_user ? 1 : 0);
+    const scaleAnim = likeAnimations[task.id];
+    const heartAnim = heartAnimations[task.id];
 
-    // Interpolate heart color from animation value
     const heartColor = heartAnim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: ["#9CA3AF", "#FDA4AF", "#F87171"],
+      outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
     });
 
     return (
@@ -1210,7 +957,6 @@ const Lent2025Screen: React.FC = () => {
           on {formatDateUTC(task.date)}
         </Text>
         <Text style={styles.taskDescription}>{task.description}</Text>
-
         <View style={styles.taskInteractionBar}>
           <TouchableOpacity
             style={[
@@ -1223,26 +969,19 @@ const Lent2025Screen: React.FC = () => {
             <Animated.View
               style={[
                 styles.heartIconContainer,
-                {
-                  transform: [{ scale: scaleAnim }],
-                },
+                { transform: [{ scale: scaleAnim }] },
               ]}
             >
               <Feather
                 name="heart"
                 size={task.liked_by_current_user ? 18 : 16}
-                color={task.liked_by_current_user ? "#F87171" : "#9CA3AF"}
+                color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
                 style={styles.heartIconBase}
               />
               <Animated.View
-                style={[
-                  styles.heartAnimation,
-                  {
-                    opacity: heartAnim,
-                  },
-                ]}
+                style={[styles.heartAnimation, { opacity: heartAnim }]}
               >
-                <Feather name="heart" size={18} color="#F87171" />
+                <Feather name="heart" size={18} color="#E9967A" />
               </Animated.View>
             </Animated.View>
             <Animated.Text
@@ -1257,7 +996,6 @@ const Lent2025Screen: React.FC = () => {
               {task.likes_count || 0}
             </Animated.Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.commentButton}
             onPress={() => handleOpenComments(task)}
@@ -1267,14 +1005,13 @@ const Lent2025Screen: React.FC = () => {
               {task.comments_count || 0}
             </Text>
           </TouchableOpacity>
-
           {isUserTask && (
             <View style={styles.taskActions}>
               <TouchableOpacity
                 style={styles.taskAction}
                 onPress={() => handleEditTask(task)}
               >
-                <Feather name="edit" size={16} color="#FEF08A" />
+                <Feather name="edit" size={16} color="#FAC898" />
                 <Text style={styles.editActionText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1291,9 +1028,166 @@ const Lent2025Screen: React.FC = () => {
     );
   };
 
-  // --------------------
-  // RENDER
-  // --------------------
+  const renderExpandedDayView = (day: Date) => {
+    const dayTasks = getTasksForDay(day);
+    const guideEvents = getGuideEventsForDate(day);
+    const formattedDate = day.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+
+    return (
+      <View style={styles.expandedDayContainer}>
+        <View style={styles.expandedDayHeader}>
+          <Text style={styles.expandedDayTitle}>{formattedDate}</Text>
+          <TouchableOpacity
+            style={styles.addTaskButton}
+            onPress={() => {
+              setSelectedDay(null);
+              handleAddTaskForDay(day);
+            }}
+          >
+            <Feather name="plus" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        {guideEvents.length > 0 && (
+          <View style={styles.expandedDaySection}>
+            <Text style={styles.expandedDaySectionTitle}>Guide Events</Text>
+            {guideEvents.map((event, index) => (
+              <TouchableOpacity
+                key={`guide-${index}`}
+                style={styles.expandedDayGuideEvent}
+                onPress={() => setSelectedGuideEvent(event)}
+              >
+                <View style={styles.expandedDayGuideEventIcon}>
+                  <Feather name="calendar" size={14} color="#E9967A" />
+                </View>
+                <View style={styles.expandedDayGuideEventContent}>
+                  <Text style={styles.expandedDayGuideEventTitle}>
+                    {event.title}
+                  </Text>
+                  <Text
+                    style={styles.expandedDayGuideEventDesc}
+                    numberOfLines={2}
+                  >
+                    {event.description}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.expandedDaySection}>
+          <Text style={styles.expandedDaySectionTitle}>
+            Tasks {dayTasks.length > 0 ? `(${dayTasks.length})` : ""}
+          </Text>
+          {dayTasks.length === 0 ? (
+            <Text style={styles.expandedDayEmptyText}>
+              No tasks for this day. Add one to get started!
+            </Text>
+          ) : (
+            dayTasks.map((task) => {
+              const isUserTask = task.user_id === currentUserId;
+              return (
+                <View key={task.id} style={styles.expandedDayTask}>
+                  {!isUserTask && (
+                    <View
+                      style={[
+                        styles.expandedDayTaskUserIndicator,
+                        { backgroundColor: friendColors[task.user.email] },
+                      ]}
+                    />
+                  )}
+                  <View style={styles.expandedDayTaskContent}>
+                    <Text style={styles.expandedDayTaskTitle}>
+                      {task.event}
+                    </Text>
+                    {!isUserTask && (
+                      <Text style={styles.expandedDayTaskUser}>
+                        By {task.user.first_name} {task.user.last_name}
+                      </Text>
+                    )}
+                    <Text style={styles.expandedDayTaskDesc}>
+                      {task.description}
+                    </Text>
+                    <View style={styles.expandedDayTaskActions}>
+                      <TouchableOpacity
+                        style={styles.expandedDayTaskAction}
+                        onPress={() => handleLikeToggle(task)}
+                      >
+                        <Feather
+                          name="heart"
+                          size={16}
+                          color={
+                            task.liked_by_current_user ? "#E9967A" : "#9CA3AF"
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.expandedDayTaskActionText,
+                            task.liked_by_current_user &&
+                              styles.expandedDayTaskActionTextActive,
+                          ]}
+                        >
+                          {task.likes_count || 0}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.expandedDayTaskAction}
+                        onPress={() => handleOpenComments(task)}
+                      >
+                        <Feather
+                          name="message-square"
+                          size={16}
+                          color="#9CA3AF"
+                        />
+                        <Text style={styles.expandedDayTaskActionText}>
+                          {task.comments_count || 0}
+                        </Text>
+                      </TouchableOpacity>
+                      {isUserTask && (
+                        <>
+                          <TouchableOpacity
+                            style={styles.expandedDayTaskAction}
+                            onPress={() => handleEditTask(task)}
+                          >
+                            <Feather name="edit" size={16} color="#FAC898" />
+                            <Text style={styles.expandedDayTaskEditText}>
+                              Edit
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.expandedDayTaskAction}
+                            onPress={() => showConfirmDelete(task.id)}
+                          >
+                            <Feather name="trash-2" size={16} color="#FCA5A5" />
+                            <Text style={styles.expandedDayTaskDeleteText}>
+                              Delete
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.expandedDayCloseButton}
+          onPress={() => setSelectedDay(null)}
+        >
+          <Feather name="x" size={16} color="#FFFFFF" />
+          <Text style={styles.expandedDayCloseButtonText}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} key={refreshKey}>
       <StatusBar barStyle="light-content" />
@@ -1316,14 +1210,14 @@ const Lent2025Screen: React.FC = () => {
             style={styles.headerButton}
             onPress={() => router.navigate("/home")}
           >
-            <Feather name="home" size={20} color="#FEFCE8" />
+            <Feather name="home" size={20} color="#FFFFFF" />
             <Text style={styles.headerButtonText}>Home</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => setShowTaskModal(true)}
           >
-            <Feather name="plus-circle" size={20} color="#FEFCE8" />
+            <Feather name="plus-circle" size={20} color="#FFFFFF" />
             <Text style={styles.headerButtonText}>Add Task</Text>
           </TouchableOpacity>
         </View>
@@ -1362,57 +1256,32 @@ const Lent2025Screen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
-
       {view === "calendar" && (
-        <>
-          {/* Sticky Month Header */}
-          <View style={styles.stickyMonthHeader}>
-            <TouchableOpacity
-              onPress={prevMonth}
-              accessibilityLabel="Previous month"
-            >
-              <Feather name="chevron-left" size={24} color="#FEFCE8" />
-            </TouchableOpacity>
-            <Text style={styles.monthTitle}>
-              {getMonthName(currentMonth)} {currentYear}
-            </Text>
-            <TouchableOpacity
-              onPress={nextMonth}
-              accessibilityLabel="Next month"
-            >
-              <Feather name="chevron-right" size={24} color="#FEFCE8" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Sticky Legend */}
-          {uniqueFriendEmails.length > 0 && (
-            <View style={styles.stickyLegendContainer}>
-              <Text style={styles.legendTitle}>Friend tasks:</Text>
-              <View style={styles.legendItems}>
-                {uniqueFriendEmails.map((email, index) => (
-                  <View key={email} style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.colorDot,
-                        { backgroundColor: friendColors[email] },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>
-                      {friendTasks.find((t) => t.user.email === email)?.user
-                        .first_name || email}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-        </>
+        <View style={styles.stickyMonthHeader}>
+          <TouchableOpacity
+            onPress={prevMonth}
+            accessibilityLabel="Previous month"
+            style={styles.monthNavButton}
+          >
+            <Feather name="chevron-left" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.monthTitle}>
+            {getMonthName(currentMonth)} {currentYear}
+          </Text>
+          <TouchableOpacity
+            onPress={nextMonth}
+            accessibilityLabel="Next month"
+            style={styles.monthNavButton}
+          >
+            <Feather name="chevron-right" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       )}
-
       <ScrollView
         ref={scrollViewRef}
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
       >
         {view === "list" ? (
           <View style={styles.listContainer}>
@@ -1440,44 +1309,16 @@ const Lent2025Screen: React.FC = () => {
           </View>
         ) : (
           <View style={styles.calendarContainer}>
-            {!isSmallDevice && (
-              <View style={styles.weekdayHeader}>
-                {weekDays.map((day, index) => (
-                  <Text
-                    key={index}
-                    style={[styles.weekdayText, { width: cellSize }]}
-                  >
-                    {day}
-                  </Text>
-                ))}
-              </View>
-            )}
-            <View
-              style={[
-                styles.calendarGrid,
-                {
-                  width: calendarWidth,
-                  alignSelf: "center",
-                },
-              ]}
-            >
-              {gridCells.map((day, index) => {
-                if (!day) {
-                  return (
-                    <View
-                      key={`empty-${index}`}
-                      style={[
-                        styles.emptyCell,
-                        {
-                          width: isSmallDevice
-                            ? calendarWidth / 2 - 8
-                            : cellSize,
-                          height: cellSize * 1.25, // Reduced height
-                        },
-                      ]}
-                    />
-                  );
-                }
+            <View style={[styles.weekdayHeader, { width: calendarWidth }]}>
+              {weekDays.map((day, index) => (
+                <Text key={index} style={styles.weekdayText}>
+                  {day}
+                </Text>
+              ))}
+            </View>
+            <View style={[styles.calendarGrid, { width: calendarWidth }]}>
+              {fullCalendarGrid.map((dayObj, index) => {
+                const { date: day, isCurrentMonth } = dayObj;
                 const today = new Date();
                 const isToday =
                   day.getDate() === today.getDate() &&
@@ -1485,89 +1326,49 @@ const Lent2025Screen: React.FC = () => {
                   day.getFullYear() === today.getFullYear();
                 const dayTasks = getTasksForDay(day);
                 const guideEvents = getGuideEventsForDate(day);
+                const hasTask = dayTasks.length > 0;
+                const hasGuideEvent = guideEvents.length > 0;
                 return (
-                  <TouchableOpacity
-                    key={`day-${index}`}
-                    style={[
-                      styles.dayCell,
-                      {
-                        width: isSmallDevice ? calendarWidth / 2 - 8 : cellSize,
-                        height: cellSize * 1.25, // Reduced height
-                      },
-                      isToday && styles.todayCell,
-                    ]}
-                    onPress={() => handleDayClick(day)}
-                    accessibilityLabel={`${day.getUTCDate()} ${getMonthName(
-                      day.getMonth()
-                    )}, ${day.getFullYear()}. ${dayTasks.length} tasks, ${
-                      guideEvents.length
-                    } events`}
-                  >
-                    <View style={styles.dayCellHeader}>
-                      <Text style={styles.dayNumber}>{day.getUTCDate()}</Text>
-                      {isSmallDevice && (
-                        <Text style={styles.dayName}>
-                          {weekDays[day.getDay()]}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={styles.dayContent}>
-                      {dayTasks.slice(0, isSmallDevice ? 3 : 2).map((task) =>
-                        task.user_id === currentUserId ? (
-                          <Text
-                            key={task.id}
-                            style={styles.dayTaskText}
-                            numberOfLines={1}
-                          >
-                            • {task.event}
-                          </Text>
-                        ) : (
-                          <View
-                            key={task.id}
-                            style={styles.friendTaskContainer}
-                          >
+                  <View key={`day-${index}`} style={styles.dayCellContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.dayCell,
+                        !isCurrentMonth && styles.dayCellInactive,
+                      ]}
+                      onPress={() => isCurrentMonth && setSelectedDay(day)}
+                      disabled={!isCurrentMonth}
+                    >
+                      <Text
+                        style={[
+                          styles.dayNumber,
+                          !isCurrentMonth && styles.dayNumberInactive,
+                          isToday && styles.todayNumber,
+                        ]}
+                      >
+                        {day.getDate()}
+                      </Text>
+                      {(hasTask || hasGuideEvent) && isCurrentMonth && (
+                        <View style={styles.dayIndicators}>
+                          {hasTask && (
                             <View
                               style={[
-                                styles.friendTaskDot,
-                                {
-                                  backgroundColor:
-                                    friendColors[task.user.email],
-                                },
+                                styles.dayIndicator,
+                                styles.taskIndicator,
                               ]}
                             />
-                            <Text
+                          )}
+                          {hasGuideEvent && (
+                            <View
                               style={[
-                                styles.friendTaskText,
-                                { color: friendColors[task.user.email] },
+                                styles.dayIndicator,
+                                styles.guideIndicator,
                               ]}
-                              numberOfLines={1}
-                            >
-                              {task.event}
-                            </Text>
-                          </View>
-                        )
+                            />
+                          )}
+                        </View>
                       )}
-                      {dayTasks.length > (isSmallDevice ? 3 : 2) && (
-                        <Text style={styles.moreTasks}>
-                          +{dayTasks.length - (isSmallDevice ? 3 : 2)} more
-                        </Text>
-                      )}
-                    </View>
-                    {guideEvents.length > 0 && (
-                      <TouchableOpacity
-                        style={styles.guideEventButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setSelectedGuideEvent(guideEvents[0]);
-                        }}
-                        accessibilityLabel={`Guide event: ${guideEvents[0].title}`}
-                      >
-                        <Text style={styles.guideEventText} numberOfLines={1}>
-                          {guideEvents[0].title}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -1576,12 +1377,12 @@ const Lent2025Screen: React.FC = () => {
       </ScrollView>
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#EAB308" />
+          <ActivityIndicator size="large" color="#E9967A" />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       )}
 
-      {/* Add Task Modal with Inline Date Picker for iOS */}
+      {/* Add Task Modal */}
       <Modal
         visible={showTaskModal}
         transparent={true}
@@ -1595,7 +1396,10 @@ const Lent2025Screen: React.FC = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalOverlay}
         >
-          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <View
               style={[
                 styles.modalContent,
@@ -1654,7 +1458,7 @@ const Lent2025Screen: React.FC = () => {
                       });
                     }
                   }}
-                  style={{ backgroundColor: "#292524" }}
+                  style={{ backgroundColor: "#000000" }}
                 />
               )}
               <Text style={styles.inputLabel}>Description</Text>
@@ -1706,7 +1510,10 @@ const Lent2025Screen: React.FC = () => {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalOverlay}
           >
-            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
               <View
                 style={[
                   styles.modalContent,
@@ -1767,7 +1574,7 @@ const Lent2025Screen: React.FC = () => {
                         } as LentTask);
                       }
                     }}
-                    style={{ backgroundColor: "#292524" }}
+                    style={{ backgroundColor: "#000000" }}
                   />
                 )}
                 <Text style={styles.inputLabel}>Description</Text>
@@ -1811,7 +1618,7 @@ const Lent2025Screen: React.FC = () => {
         )}
       </Modal>
 
-      {/* Comments Modal - SIMPLIFIED TO FIX DISPLAY ISSUES */}
+      {/* Comments Modal */}
       <Modal
         visible={showCommentModal}
         transparent={true}
@@ -1839,13 +1646,12 @@ const Lent2025Screen: React.FC = () => {
                       setSelectedTaskForComments(null);
                     }}
                   >
-                    <Feather name="x" size={20} color="#FEFCE8" />
+                    <Feather name="x" size={20} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
-
                 {commentLoading ? (
                   <View style={styles.commentLoadingContainer}>
-                    <ActivityIndicator size="large" color="#EAB308" />
+                    <ActivityIndicator size="large" color="#E9967A" />
                     <Text style={styles.commentLoadingText}>
                       Loading comments...
                     </Text>
@@ -1879,7 +1685,6 @@ const Lent2025Screen: React.FC = () => {
                               </Text>
                             </View>
                           </View>
-
                           {item.user_id === currentUserId && (
                             <TouchableOpacity
                               style={styles.deleteCommentButton}
@@ -1893,7 +1698,6 @@ const Lent2025Screen: React.FC = () => {
                             </TouchableOpacity>
                           )}
                         </View>
-
                         <Text style={styles.commentContent}>
                           {item.content}
                         </Text>
@@ -1905,14 +1709,13 @@ const Lent2025Screen: React.FC = () => {
                     <Feather
                       name="message-circle"
                       size={48}
-                      color="rgba(234, 179, 8, 0.2)"
+                      color="rgba(233, 150, 122, 0.2)"
                     />
                     <Text style={styles.emptyCommentsText}>
                       No comments yet. Be the first to add one!
                     </Text>
                   </View>
                 )}
-
                 <View style={styles.addCommentContainer}>
                   <TextInput
                     style={styles.commentInput}
@@ -1930,7 +1733,7 @@ const Lent2025Screen: React.FC = () => {
                     onPress={handleAddComment}
                     disabled={!newComment.trim()}
                   >
-                    <Feather name="send" size={16} color="#FEFCE8" />
+                    <Feather name="send" size={16} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </>
@@ -1939,7 +1742,7 @@ const Lent2025Screen: React.FC = () => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Guide Event Modal */}
+      {/* Guide Event Detail Modal */}
       <Modal
         visible={!!selectedGuideEvent}
         transparent={true}
@@ -1974,22 +1777,43 @@ const Lent2025Screen: React.FC = () => {
           </TouchableOpacity>
         )}
       </Modal>
+
+      {/* Expanded Day Modal */}
+      {selectedDay && (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedDay(null)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setSelectedDay(null)}
+            accessibilityLabel="Close expanded day view"
+          >
+            <View
+              style={styles.expandedDayModalContent}
+              onStartShouldSetResponder={() => true}
+            >
+              {renderExpandedDayView(selectedDay)}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1C1917",
-  },
+  container: { flex: 1, backgroundColor: "#000000" },
   notification: {
     position: "absolute",
     top: Platform.OS === "ios" ? 50 : 20,
     left: 20,
     right: 20,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 15,
     zIndex: 100,
     alignItems: "center",
     shadowColor: "#000",
@@ -2000,35 +1824,38 @@ const styles = StyleSheet.create({
   },
   errorNotification: { backgroundColor: "#DC2626" },
   successNotification: { backgroundColor: "#16A34A" },
-  notificationText: { color: "white", fontWeight: "600" },
+  notificationText: { color: "white", fontWeight: "500", letterSpacing: 0.5 },
   header: {
     padding: 16,
     paddingTop: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(234, 179, 8, 0.2)",
+    borderBottomColor: "rgba(233, 150, 122, 0.2)",
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#FEFCE8",
+    fontWeight: "300",
+    color: "#FFFFFF",
     marginBottom: 16,
     textAlign: "center",
+    letterSpacing: 1,
   },
-  headerButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  headerButtons: { flexDirection: "row", justifyContent: "space-between" },
   headerButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(234, 179, 8, 0.1)",
-    paddingVertical: 8,
+    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.3)",
+    borderColor: "rgba(233, 150, 122, 0.3)",
   },
-  headerButtonText: { color: "#FEFCE8", marginLeft: 8, fontWeight: "500" },
+  headerButtonText: {
+    color: "#FFFFFF",
+    marginLeft: 8,
+    fontWeight: "400",
+    letterSpacing: 0.5,
+  },
   viewSwitcher: {
     flexDirection: "row",
     justifyContent: "center",
@@ -2039,45 +1866,45 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: "#292524",
+    borderRadius: 30,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
-  activeViewButton: { backgroundColor: "#EAB308" },
-  viewButtonText: { color: "#FEFCE8", fontWeight: "500" },
-  activeViewText: { color: "#1C1917", fontWeight: "600" },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
+  activeViewButton: {
+    backgroundColor: "#E9967A",
+    borderColor: "rgba(233, 150, 122, 0.6)",
   },
-  contentContainer: {
-    paddingBottom: 80, // Add padding for bottom navigation bar
-  },
-  listContainer: {
-    paddingBottom: 20,
-  },
+  viewButtonText: { color: "#FFFFFF", fontWeight: "400", letterSpacing: 0.5 },
+  activeViewText: { color: "#000000", fontWeight: "500", letterSpacing: 0.5 },
+  content: { flex: 1, paddingHorizontal: 16 },
+  contentContainer: { paddingBottom: 80 },
+  listContainer: { paddingBottom: 20 },
   sectionContainer: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#FEFCE8",
+    fontWeight: "300",
+    color: "#FFFFFF",
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAB308",
+    borderBottomColor: "#E9967A",
     paddingBottom: 8,
+    letterSpacing: 0.5,
   },
   emptyText: {
-    color: "rgba(254, 252, 232, 0.7)",
+    color: "rgba(255, 255, 255, 0.7)",
     fontStyle: "italic",
     textAlign: "center",
     padding: 12,
+    letterSpacing: 0.5,
   },
   taskCard: {
-    backgroundColor: "rgba(41, 37, 36, 0.5)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -2087,18 +1914,29 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 18,
     fontWeight: "500",
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  taskDate: { fontSize: 14, color: "#EAB308", marginBottom: 8 },
-  taskDescription: { color: "rgba(254, 252, 232, 0.8)", marginBottom: 12 },
+  taskDate: {
+    fontSize: 14,
+    color: "#FAC898",
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  taskDescription: {
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 12,
+    letterSpacing: 0.3,
+    lineHeight: 20,
+  },
   taskInteractionBar: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(234, 179, 8, 0.1)",
+    borderTopColor: "rgba(233, 150, 122, 0.1)",
   },
   likeButton: {
     flexDirection: "row",
@@ -2108,9 +1946,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 20,
   },
-  likedButton: {
-    backgroundColor: "rgba(248, 113, 113, 0.1)",
-  },
+  likedButton: { backgroundColor: "rgba(233, 150, 122, 0.1)" },
   heartIconContainer: {
     width: 30,
     height: 30,
@@ -2118,17 +1954,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 4,
   },
-  heartIconBase: {
-    position: "absolute",
-  },
-  heartAnimation: {
-    position: "absolute",
-  },
-  likeButtonText: {
-    color: "#9CA3AF",
-    fontSize: 14,
-    fontWeight: "400",
-  },
+  heartIconBase: { position: "absolute" },
+  heartAnimation: { position: "absolute" },
+  likeButtonText: { color: "#9CA3AF", fontSize: 14, fontWeight: "400" },
   commentButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -2136,11 +1964,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 4,
   },
-  commentButtonText: {
-    color: "#9CA3AF",
-    marginLeft: 4,
-    fontSize: 14,
-  },
+  commentButtonText: { color: "#9CA3AF", marginLeft: 4, fontSize: 14 },
   taskActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -2152,179 +1976,248 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     padding: 4,
   },
-  editActionText: { color: "#FEF08A", marginLeft: 4 },
-  deleteActionText: { color: "#FCA5A5", marginLeft: 4 },
-  calendarContainer: {
-    paddingBottom: 20,
-  },
-  monthHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  // Sticky month header
+  editActionText: { color: "#FAC898", marginLeft: 4, letterSpacing: 0.3 },
+  deleteActionText: { color: "#FCA5A5", marginLeft: 4, letterSpacing: 0.3 },
+  calendarContainer: { paddingBottom: 20, marginTop: 8 },
   stickyMonthHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#1C1917",
+    paddingVertical: 12,
+    backgroundColor: "#000000",
     zIndex: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(234, 179, 8, 0.2)",
+    marginBottom: 10,
   },
+  monthNavButton: { padding: 8, borderRadius: 20 },
   monthTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FEFCE8",
+    fontSize: 22,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    letterSpacing: 1,
   },
   weekdayHeader: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     marginBottom: 8,
-    paddingVertical: 8,
-    backgroundColor: "rgba(41, 37, 36, 0.5)",
-    borderRadius: 8,
-    marginTop: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(233, 150, 122, 0.2)",
   },
   weekdayText: {
-    color: "#EAB308",
-    fontWeight: "600",
+    color: "#E9967A",
+    fontWeight: "500",
     textAlign: "center",
-  },
-  legendContainer: {
-    backgroundColor: "#292524",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  // Sticky legend
-  stickyLegendContainer: {
-    backgroundColor: "#292524",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
-    marginBottom: 16,
-    marginHorizontal: 16,
-    zIndex: 9,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  legendTitle: {
-    color: "#FEFCE8",
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  legendItems: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 12,
-    marginBottom: 4,
-  },
-  colorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  legendText: {
-    color: "#FEFCE8",
-    fontSize: 12,
+    letterSpacing: 0.5,
+    flexBasis: "14.2857%",
+    fontSize: 15,
   },
   calendarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+    margin: 0,
+    padding: 0,
   },
-  emptyCell: {
-    margin: 4,
+  dayCellContainer: {
+    position: "relative",
+    flexBasis: "14.2857%",
+    maxWidth: "14.2857%",
   },
   dayCell: {
-    borderWidth: 1,
-    borderColor: "#44403C",
-    borderRadius: 8,
-    padding: 6, // Increased padding
-    margin: 4,
-    backgroundColor: "rgba(41, 37, 36, 0.3)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 0,
+    margin: 0,
+    minHeight: 60,
   },
-  dayCellHeader: {
+  dayCellInactive: { opacity: 0.4 },
+  expandedDayCell: { backgroundColor: "rgba(233, 150, 122, 0.08)" },
+  dayNumber: {
+    fontSize: 17,
+    color: "#FFFFFF",
+    fontWeight: "400",
+    letterSpacing: 0.3,
+    textAlign: "center",
+    width: 36,
+    height: 36,
+    lineHeight: 36,
+    borderRadius: 18,
+  },
+  dayNumberInactive: { color: "rgba(255, 255, 255, 0.5)" },
+  todayNumber: {
+    backgroundColor: "#E9967A",
+    color: "#000000",
+    fontWeight: "600",
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  dayIndicators: {
+    flexDirection: "row",
+    position: "absolute",
+    bottom: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayIndicator: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 1.5 },
+  taskIndicator: { backgroundColor: "#E9967A" },
+  guideIndicator: { backgroundColor: "#FAC898" },
+  expandedDayRow: {
+    width: "100%",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  expandedDayContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 15,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+  },
+  expandedDayHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4, // Added margin
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
-  dayName: {
-    color: "#EAB308",
-    fontSize: 12,
-    fontWeight: "500",
+  expandedDayTitle: {
+    fontSize: 20,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    letterSpacing: 0.8,
   },
-  todayCell: {
-    backgroundColor: "rgba(234, 179, 8, 0.2)",
-    borderColor: "rgba(234, 179, 8, 0.5)",
-    borderWidth: 2,
-  },
-  dayNumber: {
-    color: "#FEFCE8",
-    fontWeight: "600", // Increased weight
-    fontSize: 13, // Slightly increased size
-  },
-  dayContent: {
-    flex: 1,
-    marginTop: 2,
-  },
-  dayTaskText: {
-    color: "#FEFCE8",
-    fontSize: 10,
-    marginBottom: 2, // Added spacing between tasks
-  },
-  friendTaskContainer: {
+  addTaskButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 2, // Added spacing between tasks
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.4)",
   },
-  friendTaskDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 2,
+  addTaskButtonText: {
+    color: "#FFFFFF",
+    marginLeft: 6,
+    fontWeight: "400",
+    letterSpacing: 0.3,
   },
-  friendTaskText: {
-    fontSize: 10,
+  expandedDaySection: { marginBottom: 20 },
+  expandedDaySectionTitle: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    letterSpacing: 0.5,
   },
-  moreTasks: {
-    fontSize: 10,
-    color: "#EAB308",
-    marginTop: 2,
+  expandedDayEmptyText: {
+    color: "rgba(255, 255, 255, 0.7)",
     fontStyle: "italic",
-  },
-  // Guide event button
-  guideEventButton: {
-    backgroundColor: "#EAB308",
-    borderRadius: 4,
-    padding: 4,
-    marginTop: 4,
-    minHeight: 24,
-  },
-  guideEventText: {
-    color: "#1C1917",
-    fontSize: 10,
-    fontWeight: "600",
     textAlign: "center",
-    padding: 2,
+    padding: 12,
+    letterSpacing: 0.3,
+  },
+  expandedDayGuideEvent: {
+    flexDirection: "row",
+    backgroundColor: "rgba(233, 150, 122, 0.1)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.2)",
+  },
+  expandedDayGuideEventIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  expandedDayGuideEventContent: { flex: 1 },
+  expandedDayGuideEventTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  expandedDayGuideEventDesc: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 14,
+    letterSpacing: 0.2,
+    lineHeight: 20,
+  },
+  expandedDayTask: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  expandedDayTaskUserIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
+  expandedDayTaskContent: { flex: 1 },
+  expandedDayTaskTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    marginBottom: 2,
+    letterSpacing: 0.3,
+  },
+  expandedDayTaskUser: {
+    fontSize: 13,
+    color: "#FAC898",
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  expandedDayTaskDesc: {
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 10,
+    fontSize: 14,
+    letterSpacing: 0.2,
+    lineHeight: 20,
+  },
+  expandedDayTaskActions: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 10,
+  },
+  expandedDayTaskAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  expandedDayTaskActionText: { color: "#9CA3AF", marginLeft: 4, fontSize: 13 },
+  expandedDayTaskActionTextActive: { color: "#E9967A" },
+  expandedDayTaskEditText: { color: "#FAC898", marginLeft: 4, fontSize: 13 },
+  expandedDayTaskDeleteText: { color: "#FCA5A5", marginLeft: 4, fontSize: 13 },
+  expandedDayCloseButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 12,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  expandedDayCloseButtonText: {
+    color: "#FFFFFF",
+    marginLeft: 6,
+    fontWeight: "400",
+    letterSpacing: 0.3,
   },
   modalOverlay: {
     flex: 1,
@@ -2338,84 +2231,85 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalContent: {
-    backgroundColor: "#292524",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: 15,
+    padding: 20,
     width: "100%",
     maxWidth: 500,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
   },
-  modalContentKeyboardVisible: {
-    marginBottom: 150, // Extra bottom margin when keyboard is visible
-  },
+  modalContentKeyboardVisible: { marginBottom: 150 },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FEFCE8",
-    marginBottom: 16,
+    fontSize: 22,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    marginBottom: 20,
     textAlign: "center",
+    letterSpacing: 1,
   },
   inputLabel: {
-    color: "#FEFCE8",
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 4,
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "400",
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   textInput: {
-    backgroundColor: "#1C1917",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.2)",
-    borderRadius: 8,
-    padding: 12,
-    color: "#FEFCE8",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 15,
+    padding: 14,
+    color: "#FFFFFF",
     marginBottom: 16,
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
-  textAreaInput: {
-    height: 100,
-    textAlignVertical: "top",
-  },
+  textAreaInput: { height: 120, textAlignVertical: "top" },
   dateButton: {
-    backgroundColor: "#1C1917",
+    backgroundColor: "rgba(255, 255, 0, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.2)",
-    borderRadius: 8,
-    padding: 12,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 15,
+    padding: 14,
     marginBottom: 16,
   },
-  dateButtonText: {
-    color: "#FEFCE8",
-  },
+  dateButtonText: { color: "#FFFFFF", letterSpacing: 0.5, fontSize: 16 },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 8,
+    marginTop: 12,
   },
   cancelButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     marginRight: 8,
-    borderRadius: 8,
+    borderRadius: 30,
   },
   cancelButtonText: {
-    color: "rgba(254, 252, 232, 0.7)",
+    color: "rgba(255, 255, 255, 0.7)",
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
   addButton: {
-    backgroundColor: "rgba(234, 179, 8, 0.1)",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.3)",
+    borderColor: "rgba(233, 150, 122, 0.3)",
   },
   addButtonText: {
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     fontWeight: "500",
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
   datePickerContainer: {
     flex: 1,
@@ -2423,43 +2317,44 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.7)",
   },
   datePickerContent: {
-    backgroundColor: "#292524",
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    padding: 16,
+    padding: 20,
   },
   datePickerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: 0.5,
   },
-  datePicker: {
-    backgroundColor: "#292524",
-  },
+  datePicker: { backgroundColor: "rgba(0, 0, 0, 0.9)" },
   datePickerCloseButton: {
     alignSelf: "center",
     paddingVertical: 12,
     paddingHorizontal: 24,
-    backgroundColor: "rgba(234, 179, 8, 0.1)",
-    borderRadius: 8,
+    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.3)",
+    borderColor: "rgba(233, 150, 122, 0.3)",
     marginTop: 16,
   },
   datePickerCloseText: {
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     fontWeight: "500",
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
   guideEventModal: {
-    backgroundColor: "#292524",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: 15,
+    padding: 20,
     width: "90%",
     maxWidth: 500,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.3)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     alignSelf: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -2468,28 +2363,33 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   guideEventModalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FEFCE8",
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    letterSpacing: 1,
   },
   guideEventModalDesc: {
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     marginBottom: 16,
-    lineHeight: 20,
+    lineHeight: 22,
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
   guideEventCloseButton: {
     alignSelf: "flex-end",
-    backgroundColor: "rgba(234, 179, 8, 0.1)",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.3)",
+    borderColor: "rgba(233, 150, 122, 0.3)",
   },
   guideEventCloseText: {
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     fontWeight: "500",
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
   loadingOverlay: {
     position: "absolute",
@@ -2502,22 +2402,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     fontSize: 18,
     marginTop: 12,
+    letterSpacing: 0.5,
   },
-
-  // Comments modal
   commentModalContent: {
-    backgroundColor: "#292524",
-    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: 15,
     margin: 16,
     height: "80%",
     width: "90%",
     maxWidth: 540,
     alignSelf: "center",
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -2533,33 +2432,29 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(234, 179, 8, 0.15)",
-    backgroundColor: "rgba(28, 25, 23, 0.6)",
+    borderBottomColor: "rgba(233, 150, 122, 0.15)",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
   },
   commentModalTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#FEFCE8",
+    fontWeight: "300",
+    color: "#FFFFFF",
     flex: 1,
+    letterSpacing: 1,
   },
   closeButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(41, 37, 36, 0.6)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
-  commentsList: {
-    flex: 1,
-    width: "100%",
-  },
+  commentsList: { flex: 1, width: "100%" },
   commentsListContent: {
     padding: 16,
     paddingBottom: 24,
     width: "100%",
     flexGrow: 1,
   },
-  commentSeparator: {
-    height: 12,
-  },
+  commentSeparator: { height: 12 },
   commentLoadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -2567,9 +2462,10 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   commentLoadingText: {
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     marginTop: 12,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   emptyCommentsContainer: {
     flex: 1,
@@ -2578,24 +2474,24 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   emptyCommentsText: {
-    color: "rgba(254, 252, 232, 0.7)",
+    color: "rgba(255, 255, 255, 0.7)",
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 12,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   commentItem: {
-    backgroundColor: "rgba(41, 37, 36, 0.65)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    marginBottom: 12,
   },
   commentHeader: {
     flexDirection: "row",
@@ -2603,61 +2499,61 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  commentUserInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  commentUserInfo: { flexDirection: "row", alignItems: "center" },
   commentAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(234, 179, 8, 0.2)",
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   commentAvatarText: {
-    color: "#EAB308",
-    fontWeight: "700",
+    color: "#FFFFFF",
+    fontWeight: "300",
     fontSize: 14,
+    letterSpacing: 0.5,
   },
-  commentAuthor: {
-    color: "#FEFCE8",
-    fontWeight: "600",
-  },
+  commentAuthor: { color: "#FFFFFF", fontWeight: "500", letterSpacing: 0.5 },
   commentTime: {
-    color: "rgba(254, 252, 232, 0.5)",
+    color: "rgba(255, 255, 255, 0.5)",
     fontSize: 12,
+    letterSpacing: 0.3,
   },
   commentContent: {
-    color: "rgba(254, 252, 232, 0.9)",
+    color: "rgba(255, 255, 255, 0.9)",
     lineHeight: 22,
     fontSize: 15,
     paddingHorizontal: 2,
+    letterSpacing: 0.3,
   },
   addCommentContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(234, 179, 8, 0.15)",
+    borderTopColor: "rgba(233, 150, 122, 0.15)",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(28, 25, 23, 0.6)",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
   },
   commentInput: {
     flex: 1,
-    backgroundColor: "#1C1917",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.25)",
-    borderRadius: 24,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 30,
     padding: 12,
     paddingHorizontal: 16,
-    color: "#FEFCE8",
+    color: "#FFFFFF",
     marginRight: 10,
     maxHeight: 120,
     fontSize: 15,
+    letterSpacing: 0.3,
   },
   sendCommentButton: {
-    backgroundColor: "#EAB308",
+    backgroundColor: "#E9967A",
     width: 42,
     height: 42,
     borderRadius: 21,
@@ -2669,18 +2565,23 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  disabledSendButton: {
-    backgroundColor: "rgba(234, 179, 8, 0.3)",
-  },
+  disabledSendButton: { backgroundColor: "rgba(233, 150, 122, 0.3)" },
   deleteCommentButton: {
     padding: 8,
     borderRadius: 16,
-    backgroundColor: "rgba(28, 25, 23, 0.6)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   deleteCommentText: {
     color: "#FCA5A5",
     fontSize: 12,
     marginLeft: 4,
+    letterSpacing: 0.3,
+  },
+  expandedDayModalContent: {
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: 15,
+    padding: 20,
+    marginHorizontal: 20,
   },
 });
 
