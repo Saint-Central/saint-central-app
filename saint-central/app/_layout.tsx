@@ -7,8 +7,9 @@ import { useFonts } from "expo-font";
 import { Slot, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "react-native-reanimated";
+import { StripeProvider } from "@stripe/stripe-react-native";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { supabase } from "../supabaseClient";
@@ -21,6 +22,9 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const [publishableKey] = useState(
+    "pk_live_51QxbTHLRn9raMPQqDLHJzIvyWgG7UwJU0WVuw9XrigLtSDDGeXctdUA4kaWlObeOB53Bk2dqxotHXdc1xBcvrSWv00Lt2A5aFX"
+  ); // Replace with your actual key
 
   useEffect(() => {
     if (loaded) {
@@ -49,9 +53,14 @@ export default function RootLayout() {
 
   // Always render a Slot even while loading
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Slot />
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <StripeProvider
+      publishableKey={publishableKey}
+      merchantIdentifier="merchant.com.saintcentral" // Replace with your merchant identifier
+    >
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Slot />
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </StripeProvider>
   );
 }

@@ -76,7 +76,7 @@ export default function HomeScreen() {
     { id: 1, title: "Events", icon: "calendar", route: "/events" },
     { id: 2, title: "Sermons", icon: "play", route: "/sermons" },
     { id: 3, title: "Bible", icon: "book", route: "/bible" },
-    { id: 4, title: "Donations", icon: "heart", route: "/donations" },
+    { id: 4, title: "Donations", icon: "heart", route: "/donate" },
   ];
 
   return (
@@ -146,7 +146,13 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={link.id}
                 style={styles.quickLinkCard}
-                onPress={() => Alert.alert("this page is not set up yet")}
+                onPress={() => {
+                  if (link.route === "/donate") {
+                    router.push(link.route as any);
+                  } else {
+                    Alert.alert("this page is not set up yet");
+                  }
+                }}
               >
                 <Feather name={link.icon as any} size={24} color="#FFD700" />
                 <Text style={styles.quickLinkText}>{link.title}</Text>
