@@ -27,7 +27,8 @@
       "bundleIdentifier": "com.saintcentral.app",
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "We need camera access to scan credit cards for donations."
       }
     },
     "android": {

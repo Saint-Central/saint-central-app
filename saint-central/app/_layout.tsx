@@ -24,7 +24,7 @@ export default function RootLayout() {
   });
   const [publishableKey] = useState(
     "pk_live_51QxbTHLRn9raMPQqDLHJzIvyWgG7UwJU0WVuw9XrigLtSDDGeXctdUA4kaWlObeOB53Bk2dqxotHXdc1xBcvrSWv00Lt2A5aFX"
-  ); // Replace with your actual key
+  );
 
   useEffect(() => {
     if (loaded) {
