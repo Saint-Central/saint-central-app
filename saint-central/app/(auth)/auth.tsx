@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { Linking } from "react-native";
 import { useRouter } from "expo-router";
-import { supabase } from "../supabaseClient";
+import { supabase } from "../../supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
@@ -27,7 +27,7 @@ import { Video, ResizeMode } from "expo-av";
 import Svg, { Rect } from "react-native-svg";
 
 // Import video background file
-const videoSource = require("../assets/images/background.mp4");
+const videoSource = require("../../assets/images/background.mp4");
 
 const { width, height } = Dimensions.get("window");
 const isIpad = width >= 768;
@@ -51,26 +51,6 @@ interface CustomInputProps {
   toggleSecure?: () => void;
 }
 
-// --- Password Validation Function ---
-const validatePassword = (password: string): string | null => {
-  if (password.length < 6) {
-    return "Password must be at least 6 characters.";
-  }
-  if (!/[A-Z]/.test(password)) {
-    return "Password must contain at least one uppercase letter.";
-  }
-  if (!/[a-z]/.test(password)) {
-    return "Password must contain at least one lowercase letter.";
-  }
-  if (!/[0-9]/.test(password)) {
-    return "Password must contain at least one digit.";
-  }
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    return "Password must contain at least one symbol.";
-  }
-  return null;
-};
-
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
@@ -88,8 +68,16 @@ const AuthScreen: React.FC = () => {
   const [secureTextEntry, setSecureTextEntry] = useState<boolean>(true);
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] =
     useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const navigateToHome = () => {
+    if (!isLoggedIn) {
+      setIsLoggedIn(true);
+      router.replace("/(tabs)/home");
+    }
+  };
 
   const createUserInDatabase = async (
     userId: string,
@@ -156,7 +144,7 @@ const AuthScreen: React.FC = () => {
             lastNameFromApple
           );
         }
-        // No navigation here
+        navigateToHome();
       }
     } catch (e: any) {
       setError(
@@ -181,17 +169,28 @@ const AuthScreen: React.FC = () => {
       }
     });
 
-    // REMOVED all auth state listeners completely
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        if (
+          currentSession &&
+          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
+        ) {
+          navigateToHome();
+        }
+      }
+    );
 
     return () => {
       subscription.remove();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
-  // Automatically clear error after 15 seconds
+  // Automatically clear error after 3 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(""), 15000);
+      const timer = setTimeout(() => setError(""), 3000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -219,7 +218,7 @@ const AuthScreen: React.FC = () => {
             "Unable to sign in. Please check your connection and try again."
           );
         }
-        // No navigation here
+        if (data?.session) navigateToHome();
       } else if (authMode === "signup") {
         if (
           !email ||
@@ -232,55 +231,20 @@ const AuthScreen: React.FC = () => {
         }
         if (password !== confirmPassword)
           throw new Error("Passwords don't match. Please check and try again.");
-
-        // Pre-validate the password on the client side.
-        const validationError = validatePassword(password);
-        if (validationError) {
-          throw new Error(validationError);
-        }
-
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { first_name: firstName, last_name: lastName } },
         });
         if (error) {
-          console.log("Sign-up error:", error);
-          // Try to get more detailed error info
-          const errMsg = error.message;
-          const lowerCaseError = errMsg.toLowerCase();
-
-          if (lowerCaseError.includes("user already registered")) {
+          if (error.message.includes("User already registered")) {
             throw new Error(
               "This email is already registered. Try signing in instead."
             );
           }
-
-          // Check for weak password errors first
-          if (lowerCaseError.includes("weak")) {
-            throw new Error(
-              "Password is known to be weak and easy to guess. Please choose a different password."
-            );
-          }
-
-          // Check for data breach or exposed password keywords.
-          if (
-            lowerCaseError.includes("leak") ||
-            lowerCaseError.includes("exposed")
-          ) {
-            throw new Error(
-              "Password has been exposed in a data breach. Please choose a different password."
-            );
-          }
-
-          // Otherwise, if the error mentions password requirements.
-          if (lowerCaseError.includes("password")) {
-            throw new Error(
-              "Password must contain an uppercase letter, a lowercase letter, a digit, and a symbol."
-            );
-          }
-
-          throw new Error(errMsg);
+          throw new Error(
+            "Unable to create your account. Please try again later."
+          );
         }
         if (data?.user) {
           await createUserInDatabase(data.user.id, email, firstName, lastName);
@@ -289,7 +253,7 @@ const AuthScreen: React.FC = () => {
               ? "Welcome! You've signed up successfully."
               : "Check your email to confirm your account."
           );
-          // No navigation here
+          if (data.session) navigateToHome();
         }
       } else {
         if (!email) {
@@ -389,6 +353,7 @@ const AuthScreen: React.FC = () => {
           <SafeAreaView
             style={[
               styles.safeArea,
+              // On iPad, center vertically and horizontally; on phones, still center horizontally.
               { alignItems: "center" },
               isIpad && {
                 maxWidth: 600,

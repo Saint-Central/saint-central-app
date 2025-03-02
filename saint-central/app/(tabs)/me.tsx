@@ -62,7 +62,7 @@ export default function MeScreen() {
       if (session) {
         fetchUserProfile();
       } else if (session === null && !loading) {
-        router.push("/");
+        router.push("/(auth)/auth");
       }
       return () => {};
     }, [session])
@@ -74,7 +74,7 @@ export default function MeScreen() {
       setError("");
 
       if (!session?.user) {
-        router.push("/");
+        router.push("/(auth)/auth");
         return;
       }
 
@@ -239,7 +239,7 @@ export default function MeScreen() {
 
       // Sign out and redirect to home page
       await supabase.auth.signOut();
-      router.push("/");
+      router.push("/(auth)/auth");
     } catch (err: unknown) {
       setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -256,7 +256,7 @@ export default function MeScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await supabase.auth.signOut();
-      router.push("/");
+      router.push("/(auth)/auth");
     } catch (err: unknown) {
       if (err instanceof Error) {
         Alert.alert("Logout Error", err.message || "Failed to log out");
