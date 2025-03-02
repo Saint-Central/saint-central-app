@@ -14,11 +14,13 @@ import { StripeProvider } from "@stripe/stripe-react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { supabase } from "../supabaseClient";
 
+// Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
@@ -26,36 +28,42 @@ export default function RootLayout() {
     "pk_live_51QxbTHLRn9raMPQqDLHJzIvyWgG7UwJU0WVuw9XrigLtSDDGeXctdUA4kaWlObeOB53Bk2dqxotHXdc1xBcvrSWv00Lt2A5aFX"
   );
 
+  // Only check if fonts are loaded, don't navigate here
   useEffect(() => {
     if (loaded) {
-      // Check auth and redirect
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
+      // Just mark that we've checked auth
+      supabase.auth.getSession().then(() => {
+        setHasCheckedAuth(true);
+      });
+    }
+  }, [loaded]);
+
+  // Handle all navigation in ONE place only
+  useEffect(() => {
+    if (loaded && hasCheckedAuth) {
+      // Hide splash screen once fonts are loaded and auth is checked
+      SplashScreen.hideAsync();
+
+      // Set up auth listener for ALL navigation related to auth state
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_, session) => {
+        if (session) {
           router.replace("/(tabs)/home");
         } else {
           router.replace("/");
         }
-        // Hide splash screen after routing decision
-        SplashScreen.hideAsync();
-      });
-
-      // Set up auth listener
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_, session) => {
-        if (session) router.replace("/(tabs)/home");
-        else router.replace("/");
       });
 
       return () => subscription.unsubscribe();
     }
-  }, [loaded, router]);
+  }, [loaded, hasCheckedAuth, router]);
 
   // Always render a Slot even while loading
   return (
     <StripeProvider
       publishableKey={publishableKey}
-      merchantIdentifier="merchant.com.saintcentral" // Replace with your merchant identifier
+      merchantIdentifier="merchant.com.saintcentral"
     >
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Slot />

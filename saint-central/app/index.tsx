@@ -88,16 +88,8 @@ const AuthScreen: React.FC = () => {
   const [secureTextEntry, setSecureTextEntry] = useState<boolean>(true);
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] =
     useState<boolean>(true);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const navigateToHome = () => {
-    if (!isLoggedIn) {
-      setIsLoggedIn(true);
-      router.replace("/(tabs)/home");
-    }
-  };
 
   const createUserInDatabase = async (
     userId: string,
@@ -164,7 +156,7 @@ const AuthScreen: React.FC = () => {
             lastNameFromApple
           );
         }
-        navigateToHome();
+        // No navigation here
       }
     } catch (e: any) {
       setError(
@@ -189,21 +181,10 @@ const AuthScreen: React.FC = () => {
       }
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        setSession(currentSession);
-        if (
-          currentSession &&
-          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
-        ) {
-          navigateToHome();
-        }
-      }
-    );
+    // REMOVED all auth state listeners completely
 
     return () => {
       subscription.remove();
-      authListener?.subscription.unsubscribe();
     };
   }, []);
 
@@ -238,7 +219,7 @@ const AuthScreen: React.FC = () => {
             "Unable to sign in. Please check your connection and try again."
           );
         }
-        if (data?.session) navigateToHome();
+        // No navigation here
       } else if (authMode === "signup") {
         if (
           !email ||
@@ -308,7 +289,7 @@ const AuthScreen: React.FC = () => {
               ? "Welcome! You've signed up successfully."
               : "Check your email to confirm your account."
           );
-          if (data.session) navigateToHome();
+          // No navigation here
         }
       } else {
         if (!email) {
