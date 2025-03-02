@@ -14,11 +14,20 @@ import {
   Vibration,
   Animated,
   ImageBackground,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
 import { Link, router } from "expo-router";
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === "android") {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 
 // Interface definitions
 interface UserData {
@@ -94,11 +103,17 @@ interface IntentionCardProps {
   item: Intention;
   currentUserId: string | null;
   onLike: (id: string, isLiked: boolean) => void;
-  onComment: (intention: Intention) => void;
+  onComment: (intentionId: string) => void;
   onEdit: (intention: Intention) => void;
   onDelete: (id: string) => void;
   likeScaleAnim: Animated.Value;
   likeOpacityAnim: Animated.Value;
+  isCommentsExpanded: boolean;
+  comments: Comment[];
+  newComment: string;
+  setNewComment: (text: string) => void;
+  handleAddComment: (intentionId: string) => void;
+  commentsLoading: boolean;
 }
 
 // Import background image
@@ -114,7 +129,32 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
   onDelete,
   likeScaleAnim,
   likeOpacityAnim,
+  isCommentsExpanded,
+  comments,
+  newComment,
+  setNewComment,
+  handleAddComment,
+  commentsLoading,
 }) => {
+  const renderCommentItem = ({ item: comment }: { item: Comment }) => (
+    <View style={styles.commentItem}>
+      <View style={styles.commentHeader}>
+        <View style={styles.commentAvatar}>
+          <Feather name="user" size={18} color="#FAC898" />
+        </View>
+        <View style={styles.commentUser}>
+          <Text style={styles.commentUserName}>
+            {comment.user.first_name} {comment.user.last_name}
+          </Text>
+          <Text style={styles.commentTime}>
+            {new Date(comment.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.commentContent}>{comment.content}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.intentionCard}>
       <View style={styles.intentionHeader}>
@@ -197,11 +237,12 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.intentionAction}
-          onPress={() => onComment(item)}
+          onPress={() => onComment(item.id)}
         >
           <Feather name="message-circle" size={18} color="#FAC898" />
           <Text style={styles.actionText}>
-            Comment {item.comments_count ? `(${item.comments_count})` : ""}
+            {isCommentsExpanded ? "Hide Comments" : "Comment"}{" "}
+            {item.comments_count ? `(${item.comments_count})` : ""}
           </Text>
         </TouchableOpacity>
         {item.user_id === currentUserId && (
@@ -223,6 +264,54 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
           </>
         )}
       </View>
+
+      {/* Expandable Comments Section */}
+      {isCommentsExpanded && (
+        <View style={styles.commentsSection}>
+          <View style={styles.commentsDivider} />
+
+          {commentsLoading ? (
+            <ActivityIndicator
+              size="small"
+              color="#FAC898"
+              style={styles.commentsLoading}
+            />
+          ) : (
+            <>
+              {comments.length > 0 ? (
+                <FlatList
+                  data={comments}
+                  renderItem={renderCommentItem}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                  contentContainerStyle={styles.commentsList}
+                />
+              ) : (
+                <View style={styles.emptyComments}>
+                  <Text style={styles.emptyCommentsText}>No comments yet.</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          <View style={styles.addCommentContainer}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a comment..."
+              placeholderTextColor="rgba(250, 200, 152, 0.5)"
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline={true}
+            />
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={() => handleAddComment(item.id)}
+            >
+              <Feather name="send" size={22} color="#FAC898" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -270,15 +359,27 @@ export default function CommunityScreen() {
   });
   const [friendRequestCount, setFriendRequestCount] = useState<number>(0);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [showCommentsModal, setShowCommentsModal] = useState<boolean>(false);
-  const [selectedIntention, setSelectedIntention] = useState<Intention | null>(
-    null
-  );
   const [newComment, setNewComment] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
+
+  // New state for tracking expanded comment sections
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(
+    null
+  );
 
   // New state for FAB menu
   const [showFabMenu, setShowFabMenu] = useState<boolean>(false);
+
+  // New state for filter dropdown
+  const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
+
+  // Ref for header height measurement
+  const headerRef = useRef<View>(null);
+  const [headerHeight, setHeaderHeight] = useState<number>(0);
+
+  // Animation for filter dropdown
+  const filterDropdownAnim = useRef(new Animated.Value(0)).current;
 
   // Animation refs
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -335,10 +436,20 @@ export default function CommunityScreen() {
   }, [notification]);
 
   useEffect(() => {
-    if (selectedIntention) {
-      fetchComments(selectedIntention.id);
+    // If an expandedCommentId exists, fetch comments for that intention
+    if (expandedCommentId) {
+      fetchComments(expandedCommentId);
     }
-  }, [selectedIntention]);
+  }, [expandedCommentId]);
+
+  // Animate dropdown when visibility changes
+  useEffect(() => {
+    Animated.timing(filterDropdownAnim, {
+      toValue: showFilterDropdown ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [showFilterDropdown]);
 
   // Animation helpers
   const getLikeScaleAnimation = (intentionId: string): Animated.Value => {
@@ -353,6 +464,18 @@ export default function CommunityScreen() {
       likeOpacityAnimations.current.set(intentionId, new Animated.Value(0));
     }
     return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
+  };
+
+  // Helper to get title based on selected filter
+  const getHeaderTitle = (): string => {
+    switch (intentionsFilter) {
+      case "mine":
+        return "My Posts";
+      case "friends":
+        return "Friends";
+      default:
+        return "Community";
+    }
   };
 
   // Data fetching functions
@@ -489,7 +612,7 @@ export default function CommunityScreen() {
 
   const fetchComments = async (intentionId: string): Promise<void> => {
     try {
-      setIsLoading(true);
+      setCommentsLoading(true);
       const { data, error } = await supabase
         .from("comments")
         .select(`*, user:users(*)`)
@@ -508,7 +631,7 @@ export default function CommunityScreen() {
         type: "error",
       });
     } finally {
-      setIsLoading(false);
+      setCommentsLoading(false);
     }
   };
 
@@ -788,8 +911,8 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleAddComment = async (): Promise<void> => {
-    if (!selectedIntention || !newComment.trim()) {
+  const handleAddComment = async (intentionId: string): Promise<void> => {
+    if (!newComment.trim()) {
       setNotification({ message: "Please enter a comment", type: "error" });
       return;
     }
@@ -805,7 +928,7 @@ export default function CommunityScreen() {
         .from("comments")
         .insert({
           user_id: user.id,
-          commentable_id: selectedIntention.id,
+          commentable_id: intentionId,
           commentable_type: "intentions",
           content: newComment,
         })
@@ -815,7 +938,7 @@ export default function CommunityScreen() {
       if (data && data.length > 0) setComments([...comments, data[0]]);
       setIntentions(
         intentions.map((intention) =>
-          intention.id === selectedIntention.id
+          intention.id === intentionId
             ? {
                 ...intention,
                 comments_count: (intention.comments_count || 0) + 1,
@@ -835,9 +958,17 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleOpenComments = (intention: Intention): void => {
-    setSelectedIntention(intention);
-    setShowCommentsModal(true);
+  const handleToggleComments = (intentionId: string): void => {
+    // Use LayoutAnimation for smooth transition
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    if (expandedCommentId === intentionId) {
+      // If this intention's comments are already expanded, collapse them
+      setExpandedCommentId(null);
+    } else {
+      // Otherwise, expand this intention's comments
+      setExpandedCommentId(intentionId);
+    }
   };
 
   const handleCreateIntention = async (): Promise<void> => {
@@ -1150,43 +1281,43 @@ export default function CommunityScreen() {
     }
   };
 
+  // Handle filter option selection
+  const handleSelectFilter = (filter: "all" | "mine" | "friends"): void => {
+    setIntentionsFilter(filter);
+    setShowFilterDropdown(false);
+  };
+
+  // Used to get the header dimensions for proper dropdown positioning
+  const onHeaderLayout = (event: any) => {
+    const { height } = event.nativeEvent.layout;
+    setHeaderHeight(height);
+  };
+
   // Render methods
   const renderIntentionCard = ({ item }: { item: Intention }): JSX.Element => {
     const scaleAnim = getLikeScaleAnimation(item.id);
     const opacityAnim = getLikeOpacityAnimation(item.id);
+    const isCommentsExpanded = expandedCommentId === item.id;
 
     return (
       <IntentionCard
         item={item}
         currentUserId={currentUserId}
         onLike={handleLikeIntention}
-        onComment={handleOpenComments}
+        onComment={handleToggleComments}
         onEdit={handleEditIntention}
         onDelete={handleDeleteClick}
         likeScaleAnim={scaleAnim}
         likeOpacityAnim={opacityAnim}
+        isCommentsExpanded={isCommentsExpanded}
+        comments={comments}
+        newComment={newComment}
+        setNewComment={setNewComment}
+        handleAddComment={handleAddComment}
+        commentsLoading={commentsLoading}
       />
     );
   };
-
-  const renderCommentItem = ({ item }: { item: Comment }): JSX.Element => (
-    <View style={styles.commentItem}>
-      <View style={styles.commentHeader}>
-        <View style={styles.commentAvatar}>
-          <Feather name="user" size={18} color="#FAC898" />
-        </View>
-        <View style={styles.commentUser}>
-          <Text style={styles.commentUserName}>
-            {item.user.first_name} {item.user.last_name}
-          </Text>
-          <Text style={styles.commentTime}>
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.commentContent}>{item.content}</Text>
-    </View>
-  );
 
   const renderUserCard = ({ item }: { item: UserData }): JSX.Element => (
     <View style={styles.userCard}>
@@ -1335,25 +1466,53 @@ export default function CommunityScreen() {
           </View>
         )}
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Community</Text>
+        {/* Header with clickable title */}
+        <View style={styles.header} ref={headerRef} onLayout={onHeaderLayout}>
+          <TouchableOpacity
+            style={styles.headerTitleContainer}
+            onPress={() => setShowFilterDropdown(!showFilterDropdown)}
+          >
+            <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
+            <View style={styles.headerFilterIndicator}>
+              <Feather
+                name={showFilterDropdown ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#FAC898"
+              />
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {/* Feed Header + Lent Button */}
-        {!showFriendsSearch && (
-          <View style={styles.filterTabs}>
+        {/* Filter Dropdown - Now positioned below the header */}
+        {showFilterDropdown && (
+          <Animated.View
+            style={[
+              styles.filterDropdown,
+              {
+                top: headerHeight + 45, // Position it with significant space below the header
+                opacity: filterDropdownAnim,
+                transform: [
+                  {
+                    translateY: filterDropdownAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <TouchableOpacity
               style={[
-                styles.filterTab,
-                intentionsFilter === "all" && styles.activeFilterTab,
+                styles.filterOption,
+                intentionsFilter === "all" && styles.activeFilterOption,
               ]}
-              onPress={() => setIntentionsFilter("all")}
+              onPress={() => handleSelectFilter("all")}
             >
               <Text
                 style={[
-                  styles.filterTabText,
-                  intentionsFilter === "all" && styles.activeFilterTabText,
+                  styles.filterOptionText,
+                  intentionsFilter === "all" && styles.activeFilterOptionText,
                 ]}
               >
                 All
@@ -1361,37 +1520,38 @@ export default function CommunityScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[
-                styles.filterTab,
-                intentionsFilter === "mine" && styles.activeFilterTab,
+                styles.filterOption,
+                intentionsFilter === "friends" && styles.activeFilterOption,
               ]}
-              onPress={() => setIntentionsFilter("mine")}
+              onPress={() => handleSelectFilter("friends")}
             >
               <Text
                 style={[
-                  styles.filterTabText,
-                  intentionsFilter === "mine" && styles.activeFilterTabText,
-                ]}
-              >
-                My Posts
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterTab,
-                intentionsFilter === "friends" && styles.activeFilterTab,
-              ]}
-              onPress={() => setIntentionsFilter("friends")}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  intentionsFilter === "friends" && styles.activeFilterTabText,
+                  styles.filterOptionText,
+                  intentionsFilter === "friends" &&
+                    styles.activeFilterOptionText,
                 ]}
               >
                 Friends
               </Text>
             </TouchableOpacity>
-          </View>
+            <TouchableOpacity
+              style={[
+                styles.filterOption,
+                intentionsFilter === "mine" && styles.activeFilterOption,
+              ]}
+              onPress={() => handleSelectFilter("mine")}
+            >
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  intentionsFilter === "mine" && styles.activeFilterOptionText,
+                ]}
+              >
+                My Posts
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Intentions List */}
@@ -1844,76 +2004,6 @@ export default function CommunityScreen() {
           )}
         </Modal>
 
-        {/* Comments Modal */}
-        <Modal
-          visible={showCommentsModal && selectedIntention !== null}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => {
-            setShowCommentsModal(false);
-            setSelectedIntention(null);
-            setComments([]);
-          }}
-        >
-          {selectedIntention && (
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-              <View style={styles.modalOverlay}>
-                <View
-                  style={[styles.modalContent, styles.commentsModalContent]}
-                >
-                  <View style={styles.commentsHeader}>
-                    <Text style={styles.modalTitle}>
-                      {selectedIntention.title}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setShowCommentsModal(false);
-                        setSelectedIntention(null);
-                        setComments([]);
-                      }}
-                    >
-                      <Feather name="x" size={26} color="#FAC898" />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={comments}
-                    renderItem={renderCommentItem}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.commentsList}
-                    ListEmptyComponent={
-                      <View style={styles.emptyComments}>
-                        <Text style={styles.emptyCommentsText}>
-                          No comments yet.
-                        </Text>
-                      </View>
-                    }
-                    style={styles.commentsListContainer}
-                  />
-                  <View style={styles.addCommentContainer}>
-                    <TextInput
-                      style={styles.commentInput}
-                      placeholder="Add a comment..."
-                      placeholderTextColor="rgba(250, 200, 152, 0.5)"
-                      value={newComment}
-                      onChangeText={setNewComment}
-                      multiline={true}
-                    />
-                    <TouchableOpacity
-                      style={styles.sendButton}
-                      onPress={handleAddComment}
-                    >
-                      <Feather name="send" size={22} color="#FAC898" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          )}
-        </Modal>
-
         {/* Delete Confirmation Modal */}
         <Modal
           visible={deleteModal.isOpen}
@@ -2006,39 +2096,60 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(250, 200, 152, 0.1)",
+    zIndex: 10,
+  },
+  headerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 36,
     fontWeight: "300",
     color: "#FFFFFF",
-    marginBottom: 10,
     letterSpacing: 1,
-  },
-  filterTabs: {
-    flexDirection: "row",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-  },
-  filterTab: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 30,
     marginRight: 10,
   },
-  activeFilterTab: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  headerFilterIndicator: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterDropdown: {
+    position: "absolute",
+    left: 15,
+    right: 15,
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    borderRadius: 10,
+    padding: 5,
+    marginTop: 5,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
-  filterTabText: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 14,
+  filterOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
+  activeFilterOption: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+  },
+  filterOptionText: {
+    color: "#FFFFFF",
+    fontSize: 16,
     fontWeight: "500",
   },
-  activeFilterTabText: { color: "#FFFFFF", fontWeight: "600" },
-  intentionList: { padding: 15, paddingBottom: 100 },
+  activeFilterOptionText: {
+    color: "#FAC898",
+    fontWeight: "600",
+  },
+  intentionList: {
+    padding: 15,
+    paddingBottom: 100,
+  },
   intentionCard: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 15,
@@ -2113,15 +2224,22 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   actionTextActive: { color: "#E9967A" },
-  commentsModalContent: { maxHeight: "85%", width: "90%", paddingBottom: 20 },
-  commentsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
+
+  // New styles for comments section inside card
+  commentsSection: {
+    marginTop: 10,
   },
-  commentsListContainer: { maxHeight: 350 },
-  commentsList: { paddingVertical: 10 },
+  commentsDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginVertical: 10,
+  },
+  commentsList: {
+    paddingVertical: 5,
+  },
+  commentsLoading: {
+    marginVertical: 10,
+  },
   commentItem: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 10,
@@ -2150,14 +2268,11 @@ const styles = StyleSheet.create({
   commentUserName: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
   commentTime: { color: "rgba(250, 200, 152, 0.7)", fontSize: 11 },
   commentContent: { color: "#FFFFFF", fontSize: 14, lineHeight: 20 },
-  emptyComments: { padding: 20, alignItems: "center" },
+  emptyComments: { padding: 10, alignItems: "center" },
   emptyCommentsText: { color: "rgba(255, 255, 255, 0.6)", fontSize: 14 },
   addCommentContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.2)",
-    paddingTop: 15,
     marginTop: 10,
   },
   commentInput: {
@@ -2532,7 +2647,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
 
-  // New styles for floating action button and menu
+  // Styles for floating action button and menu
   fab: {
     position: "absolute",
     right: 20,
@@ -2586,7 +2701,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // New styles for back button in friends section
+  // Back button styles
   backButton: {
     flexDirection: "row",
     alignItems: "center",
