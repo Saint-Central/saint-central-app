@@ -158,7 +158,7 @@ const AnimatedTabIcon = ({
       case "community":
         return "Connect";
       case "me":
-        return "Self";
+        return "Me";
       default:
         return "";
     }
