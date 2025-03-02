@@ -383,14 +383,12 @@ const getGuideEventsForDate = (date: Date): LentEvent[] => {
   });
 };
 
-// Updated: Extract only the date part before splitting
 const formatDateUTC = (dateStr: string): string => {
   const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
   const [year, month, day] = datePart.split("-");
   return `${Number(month)}/${Number(day)}/${year}`;
 };
 
-// Updated: Strip off time portion if present before parsing.
 const parseLocalDate = (dateStr: string): Date => {
   const cleanStr = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
   const [year, month, day] = cleanStr.split("-").map(Number);
@@ -614,7 +612,9 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
 // --------------------
 const Lent2025Screen: React.FC = () => {
   const { width } = useWindowDimensions();
-  const calendarWidth = Math.min(width, 500) - 32;
+  const isIpad = width >= 768;
+  // On iPad, use almost full width with padding
+  const calendarWidth = isIpad ? width - 32 : Math.min(width, 500) - 32;
 
   // --------------------
   // State Management
@@ -942,7 +942,6 @@ const Lent2025Screen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [scrollToCurrentDay, currentMonth, currentYear, refreshKey, view]);
 
-  // Fix: Do not subtract a day when creating/updating tasks. Use local time.
   const handleCreateTask = async () => {
     if (
       !newTask.event.trim() ||
@@ -1047,7 +1046,6 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
-  // ---- Animation Helpers ----
   const animateLikeButton = (taskId: string, liked: boolean) => {
     if (!likeAnimations[taskId]) {
       likeAnimations[taskId] = new Animated.Value(1);
@@ -1384,327 +1382,214 @@ const Lent2025Screen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} key={refreshKey}>
-      <StatusBar barStyle="light-content" />
-      {notification && (
-        <View
-          style={[
-            styles.notification,
-            notification.type === "error"
-              ? styles.errorNotification
-              : styles.successNotification,
-          ]}
-        >
-          <Text style={styles.notificationText}>{notification.message}</Text>
-        </View>
-      )}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Lent 2025 – Task Tracker</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.navigate("/home")}
+      {/* For iPad, the container now uses full width */}
+      <View style={{ flex: 1 }}>
+        <StatusBar barStyle="light-content" />
+        {notification && (
+          <View
+            style={[
+              styles.notification,
+              notification.type === "error"
+                ? styles.errorNotification
+                : styles.successNotification,
+            ]}
           >
-            <Feather name="home" size={20} color="#FFFFFF" />
-            <Text style={styles.headerButtonText}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setShowTaskModal(true)}
-          >
-            <Feather name="plus-circle" size={20} color="#FFFFFF" />
-            <Text style={styles.headerButtonText}>Add Task</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={styles.viewSwitcher}>
-        <TouchableOpacity
-          style={[
-            styles.viewButton,
-            view === "calendar" ? styles.activeViewButton : null,
-          ]}
-          onPress={() => setView("calendar")}
-        >
-          <Text
-            style={
-              view === "calendar"
-                ? styles.activeViewText
-                : styles.viewButtonText
-            }
-          >
-            Calendar View
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.viewButton,
-            view === "list" ? styles.activeViewButton : null,
-          ]}
-          onPress={() => setView("list")}
-        >
-          <Text
-            style={
-              view === "list" ? styles.activeViewText : styles.viewButtonText
-            }
-          >
-            List View
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {view === "calendar" && (
-        <View style={styles.stickyMonthHeader}>
-          <TouchableOpacity
-            onPress={prevMonth}
-            accessibilityLabel="Previous month"
-            style={styles.monthNavButton}
-          >
-            <Feather name="chevron-left" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.monthTitle}>
-            {getMonthName(currentMonth)} {currentYear}
-          </Text>
-          <TouchableOpacity
-            onPress={nextMonth}
-            accessibilityLabel="Next month"
-            style={styles.monthNavButton}
-          >
-            <Feather name="chevron-right" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      )}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        {view === "list" ? (
-          <View style={styles.listContainer}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>My Tasks</Text>
-              {lentTasks.filter((task) => task.user_id === currentUserId)
-                .length === 0 ? (
-                <Text style={styles.emptyText}>
-                  You haven't added any tasks yet.
-                </Text>
-              ) : (
-                lentTasks
-                  .filter((task) => task.user_id === currentUserId)
-                  .map((task) => renderTaskCard(task, true))
-              )}
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Friends' Tasks</Text>
-              {friendTasks.length === 0 ? (
-                <Text style={styles.emptyText}>No tasks from friends yet.</Text>
-              ) : (
-                friendTasks.map((task) => renderTaskCard(task, false))
-              )}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.calendarContainer}>
-            <View style={[styles.weekdayHeader, { width: calendarWidth }]}>
-              {weekDays.map((day, index) => (
-                <Text key={index} style={styles.weekdayText}>
-                  {day}
-                </Text>
-              ))}
-            </View>
-            <View style={[styles.calendarGrid, { width: calendarWidth }]}>
-              {fullCalendarGrid.map((dayObj, index) => {
-                const { date: day, isCurrentMonth } = dayObj;
-                const today = new Date();
-                const isToday =
-                  day.getDate() === today.getDate() &&
-                  day.getMonth() === today.getMonth() &&
-                  day.getFullYear() === today.getFullYear();
-                const dayTasks = getTasksForDay(day);
-                const guideEvents = getGuideEventsForDate(day);
-                const hasTask = dayTasks.length > 0;
-                const hasGuideEvent = guideEvents.length > 0;
-                return (
-                  <View key={`day-${index}`} style={styles.dayCellContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.dayCell,
-                        !isCurrentMonth && styles.dayCellInactive,
-                      ]}
-                      onPress={() => isCurrentMonth && setSelectedDay(day)}
-                      disabled={!isCurrentMonth}
-                    >
-                      <Text
-                        style={[
-                          styles.dayNumber,
-                          !isCurrentMonth && styles.dayNumberInactive,
-                          isToday && styles.todayNumber,
-                        ]}
-                      >
-                        {day.getDate()}
-                      </Text>
-                      {(hasTask || hasGuideEvent) && isCurrentMonth && (
-                        <View style={styles.dayIndicators}>
-                          {hasTask && (
-                            <View
-                              style={[
-                                styles.dayIndicator,
-                                styles.taskIndicator,
-                              ]}
-                            />
-                          )}
-                          {hasGuideEvent && (
-                            <View
-                              style={[
-                                styles.dayIndicator,
-                                styles.guideIndicator,
-                              ]}
-                            />
-                          )}
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
+            <Text style={styles.notificationText}>{notification.message}</Text>
           </View>
         )}
-      </ScrollView>
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#E9967A" />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      )}
-
-      {/* Add Task Modal */}
-      <Modal
-        visible={showTaskModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowTaskModal(false);
-          setShowInlineDatePicker(false);
-        }}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <ScrollView
-            contentContainerStyle={styles.modalScrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View
-              style={[
-                styles.modalContent,
-                keyboardVisible && styles.modalContentKeyboardVisible,
-              ]}
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, isIpad && { fontSize: 28 }]}>
+            Lent 2025 – Task Tracker
+          </Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.navigate("/home")}
             >
-              <Text style={styles.modalTitle}>Add New Task</Text>
-              <Text style={styles.inputLabel}>Event</Text>
-              <TextInput
-                style={styles.textInput}
-                value={newTask.event}
-                onChangeText={(text) => setNewTask({ ...newTask, event: text })}
-                placeholder="Enter event..."
-                placeholderTextColor="#9CA3AF"
-                accessibilityLabel="Event name"
-              />
-              <Text style={styles.inputLabel}>Date</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => {
-                  if (Platform.OS === "android") {
-                    DateTimePickerAndroid.open({
-                      value: new Date(newTask.date + "T00:00:00"),
-                      onChange: (event, date) => {
-                        if (date) {
-                          const y = date.getFullYear();
-                          const m = String(date.getMonth() + 1).padStart(
-                            2,
-                            "0"
-                          );
-                          const d = String(date.getDate()).padStart(2, "0");
-                          setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
-                        }
-                      },
-                      mode: "date",
-                    });
-                  } else {
-                    setShowInlineDatePicker((prev) => !prev);
-                  }
-                }}
-                accessibilityLabel={`Select date, current date: ${new Date(
-                  newTask.date + "T00:00:00"
-                ).toLocaleDateString()}`}
-              >
-                <Text style={styles.dateButtonText}>
-                  {new Date(newTask.date + "T00:00:00").toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-              {Platform.OS !== "android" && showInlineDatePicker && (
-                <DateTimePicker
-                  value={new Date(newTask.date + "T00:00:00")}
-                  mode="date"
-                  display="spinner"
-                  onChange={(event, date) => {
-                    if (date) {
-                      const y = date.getFullYear();
-                      const m = String(date.getMonth() + 1).padStart(2, "0");
-                      const d = String(date.getDate()).padStart(2, "0");
-                      setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
-                    }
-                  }}
-                  style={{ backgroundColor: "#000000" }}
-                  textColor="#FFFFFF"
-                  themeVariant="dark"
-                />
-              )}
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.textAreaInput]}
-                value={newTask.description}
-                onChangeText={(text) =>
-                  setNewTask({ ...newTask, description: text })
-                }
-                placeholder="Enter description..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                numberOfLines={4}
-                accessibilityLabel="Event description"
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setShowTaskModal(false);
-                    setShowInlineDatePicker(false);
-                  }}
-                  accessibilityLabel="Cancel"
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={handleCreateTask}
-                  accessibilityLabel="Add task"
-                >
-                  <Text style={styles.addButtonText}>Add</Text>
-                </TouchableOpacity>
+              <Feather name="home" size={20} color="#FFFFFF" />
+              <Text style={styles.headerButtonText}>Home</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowTaskModal(true)}
+            >
+              <Feather name="plus-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.headerButtonText}>Add Task</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.viewSwitcher}>
+          <TouchableOpacity
+            style={[
+              styles.viewButton,
+              view === "calendar" ? styles.activeViewButton : null,
+            ]}
+            onPress={() => setView("calendar")}
+          >
+            <Text
+              style={
+                view === "calendar"
+                  ? styles.activeViewText
+                  : styles.viewButtonText
+              }
+            >
+              Calendar View
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.viewButton,
+              view === "list" ? styles.activeViewButton : null,
+            ]}
+            onPress={() => setView("list")}
+          >
+            <Text
+              style={
+                view === "list" ? styles.activeViewText : styles.viewButtonText
+              }
+            >
+              List View
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {view === "calendar" && (
+          <View style={styles.stickyMonthHeader}>
+            <TouchableOpacity
+              onPress={prevMonth}
+              accessibilityLabel="Previous month"
+              style={styles.monthNavButton}
+            >
+              <Feather name="chevron-left" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.monthTitle}>
+              {getMonthName(currentMonth)} {currentYear}
+            </Text>
+            <TouchableOpacity
+              onPress={nextMonth}
+              accessibilityLabel="Next month"
+              style={styles.monthNavButton}
+            >
+              <Feather name="chevron-right" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {view === "list" ? (
+            <View style={styles.listContainer}>
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>My Tasks</Text>
+                {lentTasks.filter((task) => task.user_id === currentUserId)
+                  .length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    You haven't added any tasks yet.
+                  </Text>
+                ) : (
+                  lentTasks
+                    .filter((task) => task.user_id === currentUserId)
+                    .map((task) => renderTaskCard(task, true))
+                )}
+              </View>
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Friends' Tasks</Text>
+                {friendTasks.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    No tasks from friends yet.
+                  </Text>
+                ) : (
+                  friendTasks.map((task) => renderTaskCard(task, false))
+                )}
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
+          ) : (
+            <View style={styles.calendarContainer}>
+              <View style={[styles.weekdayHeader, { width: calendarWidth }]}>
+                {weekDays.map((day, index) => (
+                  <Text key={index} style={styles.weekdayText}>
+                    {day}
+                  </Text>
+                ))}
+              </View>
+              <View style={[styles.calendarGrid, { width: calendarWidth }]}>
+                {fullCalendarGrid.map((dayObj, index) => {
+                  const { date: day, isCurrentMonth } = dayObj;
+                  const today = new Date();
+                  const isToday =
+                    day.getDate() === today.getDate() &&
+                    day.getMonth() === today.getMonth() &&
+                    day.getFullYear() === today.getFullYear();
+                  const dayTasks = getTasksForDay(day);
+                  const guideEvents = getGuideEventsForDate(day);
+                  const hasTask = dayTasks.length > 0;
+                  const hasGuideEvent = guideEvents.length > 0;
+                  return (
+                    <View key={`day-${index}`} style={styles.dayCellContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.dayCell,
+                          !isCurrentMonth && styles.dayCellInactive,
+                        ]}
+                        onPress={() => isCurrentMonth && setSelectedDay(day)}
+                        disabled={!isCurrentMonth}
+                      >
+                        <Text
+                          style={[
+                            styles.dayNumber,
+                            !isCurrentMonth && styles.dayNumberInactive,
+                            isToday && styles.todayNumber,
+                          ]}
+                        >
+                          {day.getDate()}
+                        </Text>
+                        {(hasTask || hasGuideEvent) && isCurrentMonth && (
+                          <View style={styles.dayIndicators}>
+                            {hasTask && (
+                              <View
+                                style={[
+                                  styles.dayIndicator,
+                                  styles.taskIndicator,
+                                ]}
+                              />
+                            )}
+                            {hasGuideEvent && (
+                              <View
+                                style={[
+                                  styles.dayIndicator,
+                                  styles.guideIndicator,
+                                ]}
+                              />
+                            )}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+        </ScrollView>
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#E9967A" />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        )}
 
-      {/* Edit Task Modal */}
-      <Modal
-        visible={!!editingTask}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setEditingTask(null)}
-      >
-        {editingTask && (
+        {/* Add Task Modal */}
+        <Modal
+          visible={showTaskModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowTaskModal(false);
+            setShowInlineDatePicker(false);
+          }}
+        >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalOverlay}
@@ -1717,15 +1602,16 @@ const Lent2025Screen: React.FC = () => {
                 style={[
                   styles.modalContent,
                   keyboardVisible && styles.modalContentKeyboardVisible,
+                  isIpad && { width: "90%" },
                 ]}
               >
-                <Text style={styles.modalTitle}>Edit Task</Text>
+                <Text style={styles.modalTitle}>Add New Task</Text>
                 <Text style={styles.inputLabel}>Event</Text>
                 <TextInput
                   style={styles.textInput}
-                  value={editingTask.event}
+                  value={newTask.event}
                   onChangeText={(text) =>
-                    setEditingTask({ ...editingTask, event: text } as LentTask)
+                    setNewTask({ ...newTask, event: text })
                   }
                   placeholder="Enter event..."
                   placeholderTextColor="#9CA3AF"
@@ -1737,7 +1623,7 @@ const Lent2025Screen: React.FC = () => {
                   onPress={() => {
                     if (Platform.OS === "android") {
                       DateTimePickerAndroid.open({
-                        value: new Date(editingTask.date + "T00:00:00"),
+                        value: new Date(newTask.date + "T00:00:00"),
                         onChange: (event, date) => {
                           if (date) {
                             const y = date.getFullYear();
@@ -1746,31 +1632,26 @@ const Lent2025Screen: React.FC = () => {
                               "0"
                             );
                             const d = String(date.getDate()).padStart(2, "0");
-                            setEditingTask({
-                              ...editingTask,
-                              date: `${y}-${m}-${d}`,
-                            } as LentTask);
+                            setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
                           }
                         },
                         mode: "date",
                       });
                     } else {
-                      setShowEditDatePicker((prev) => !prev);
+                      setShowInlineDatePicker((prev) => !prev);
                     }
                   }}
                   accessibilityLabel={`Select date, current date: ${new Date(
-                    editingTask.date + "T00:00:00"
+                    newTask.date + "T00:00:00"
                   ).toLocaleDateString()}`}
                 >
                   <Text style={styles.dateButtonText}>
-                    {new Date(
-                      editingTask.date + "T00:00:00"
-                    ).toLocaleDateString()}
+                    {new Date(newTask.date + "T00:00:00").toLocaleDateString()}
                   </Text>
                 </TouchableOpacity>
-                {Platform.OS !== "android" && showEditDatePicker && (
+                {Platform.OS !== "android" && showInlineDatePicker && (
                   <DateTimePicker
-                    value={new Date(editingTask.date + "T00:00:00")}
+                    value={new Date(newTask.date + "T00:00:00")}
                     mode="date"
                     display="spinner"
                     onChange={(event, date) => {
@@ -1778,10 +1659,7 @@ const Lent2025Screen: React.FC = () => {
                         const y = date.getFullYear();
                         const m = String(date.getMonth() + 1).padStart(2, "0");
                         const d = String(date.getDate()).padStart(2, "0");
-                        setEditingTask({
-                          ...editingTask,
-                          date: `${y}-${m}-${d}`,
-                        } as LentTask);
+                        setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
                       }
                     }}
                     style={{ backgroundColor: "#000000" }}
@@ -1792,12 +1670,9 @@ const Lent2025Screen: React.FC = () => {
                 <Text style={styles.inputLabel}>Description</Text>
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
-                  value={editingTask.description}
+                  value={newTask.description}
                   onChangeText={(text) =>
-                    setEditingTask({
-                      ...editingTask,
-                      description: text,
-                    } as LentTask)
+                    setNewTask({ ...newTask, description: text })
                   }
                   placeholder="Enter description..."
                   placeholderTextColor="#9CA3AF"
@@ -1809,8 +1684,8 @@ const Lent2025Screen: React.FC = () => {
                   <TouchableOpacity
                     style={styles.cancelButton}
                     onPress={() => {
-                      setEditingTask(null);
-                      setShowEditDatePicker(false);
+                      setShowTaskModal(false);
+                      setShowInlineDatePicker(false);
                     }}
                     accessibilityLabel="Cancel"
                   >
@@ -1818,202 +1693,344 @@ const Lent2025Screen: React.FC = () => {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={handleUpdateTask}
-                    accessibilityLabel="Save changes"
+                    onPress={handleCreateTask}
+                    accessibilityLabel="Add task"
                   >
-                    <Text style={styles.addButtonText}>Save</Text>
+                    <Text style={styles.addButtonText}>Add</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
-        )}
-      </Modal>
+        </Modal>
 
-      {/* Comments Modal */}
-      <Modal
-        visible={showCommentModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowCommentModal(false);
-          setSelectedTaskForComments(null);
-        }}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.commentModalContent}>
-            {selectedTaskForComments && (
-              <>
-                <View style={styles.commentModalHeader}>
-                  <Text style={styles.commentModalTitle}>
-                    Comments on "{selectedTaskForComments.event}"
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => {
-                      setShowCommentModal(false);
-                      setSelectedTaskForComments(null);
-                    }}
-                  >
-                    <Feather name="x" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-                {commentLoading ? (
-                  <View style={styles.commentLoadingContainer}>
-                    <ActivityIndicator size="large" color="#E9967A" />
-                    <Text style={styles.commentLoadingText}>
-                      Loading comments...
-                    </Text>
-                  </View>
-                ) : taskComments.length > 0 ? (
-                  <FlatList
-                    data={taskComments}
-                    keyExtractor={(item) => item.id}
-                    style={styles.commentsList}
-                    contentContainerStyle={styles.commentsListContent}
-                    ItemSeparatorComponent={() => (
-                      <View style={styles.commentSeparator} />
-                    )}
-                    renderItem={({ item }) => (
-                      <View style={styles.commentItem}>
-                        <View style={styles.commentHeader}>
-                          <View style={styles.commentUserInfo}>
-                            <View style={styles.commentAvatar}>
-                              <Text style={styles.commentAvatarText}>
-                                {item.user?.first_name?.charAt(0) || ""}
-                                {item.user?.last_name?.charAt(0) || ""}
-                              </Text>
-                            </View>
-                            <View>
-                              <Text style={styles.commentAuthor}>
-                                {item.user?.first_name || "User"}{" "}
-                                {item.user?.last_name || ""}
-                              </Text>
-                              <Text style={styles.commentTime}>
-                                {formatCommentDate(item.created_at)}
-                              </Text>
-                            </View>
-                          </View>
-                          {item.user_id === currentUserId && (
-                            <TouchableOpacity
-                              style={styles.deleteCommentButton}
-                              onPress={() => showConfirmDeleteComment(item.id)}
-                            >
-                              <Feather
-                                name="trash-2"
-                                size={14}
-                                color="#FCA5A5"
-                              />
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                        <Text style={styles.commentContent}>
-                          {item.content}
-                        </Text>
-                      </View>
-                    )}
-                  />
-                ) : (
-                  <View style={styles.emptyCommentsContainer}>
-                    <Feather
-                      name="message-circle"
-                      size={48}
-                      color="rgba(233, 150, 122, 0.2)"
-                    />
-                    <Text style={styles.emptyCommentsText}>
-                      No comments yet. Be the first to add one!
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.addCommentContainer}>
-                  <TextInput
-                    style={styles.commentInput}
-                    value={newComment}
-                    onChangeText={setNewComment}
-                    placeholder="Add a comment..."
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.sendCommentButton,
-                      !newComment.trim() && styles.disabledSendButton,
-                    ]}
-                    onPress={handleAddComment}
-                    disabled={!newComment.trim()}
-                  >
-                    <Feather name="send" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Guide Event Detail Modal */}
-      <Modal
-        visible={!!selectedGuideEvent}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSelectedGuideEvent(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={styles.guideEventModal}
-            onStartShouldSetResponder={() => true}
-          >
-            <Text style={styles.guideEventModalTitle}>
-              {selectedGuideEvent?.title}
-            </Text>
-            <Text style={styles.guideEventModalDesc}>
-              {selectedGuideEvent?.description}
-            </Text>
-            <TouchableOpacity
-              style={styles.guideEventCloseButton}
-              onPress={() => setSelectedGuideEvent(null)}
-              accessibilityLabel="Close"
-            >
-              <Text style={styles.guideEventCloseText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Expanded Day Modal (Close only via X) */}
-      {selectedDay && (
+        {/* Edit Task Modal */}
         <Modal
-          visible={true}
+          visible={!!editingTask}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => {}}
+          onRequestClose={() => setEditingTask(null)}
+        >
+          {editingTask && (
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={styles.modalOverlay}
+            >
+              <ScrollView
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View
+                  style={[
+                    styles.modalContent,
+                    keyboardVisible && styles.modalContentKeyboardVisible,
+                    isIpad && { width: "90%" },
+                  ]}
+                >
+                  <Text style={styles.modalTitle}>Edit Task</Text>
+                  <Text style={styles.inputLabel}>Event</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editingTask.event}
+                    onChangeText={(text) =>
+                      setEditingTask({
+                        ...editingTask,
+                        event: text,
+                      } as LentTask)
+                    }
+                    placeholder="Enter event..."
+                    placeholderTextColor="#9CA3AF"
+                    accessibilityLabel="Event name"
+                  />
+                  <Text style={styles.inputLabel}>Date</Text>
+                  <TouchableOpacity
+                    style={styles.dateButton}
+                    onPress={() => {
+                      if (Platform.OS === "android") {
+                        DateTimePickerAndroid.open({
+                          value: new Date(editingTask.date + "T00:00:00"),
+                          onChange: (event, date) => {
+                            if (date) {
+                              const y = date.getFullYear();
+                              const m = String(date.getMonth() + 1).padStart(
+                                2,
+                                "0"
+                              );
+                              const d = String(date.getDate()).padStart(2, "0");
+                              setEditingTask({
+                                ...editingTask,
+                                date: `${y}-${m}-${d}`,
+                              } as LentTask);
+                            }
+                          },
+                          mode: "date",
+                        });
+                      } else {
+                        setShowEditDatePicker((prev) => !prev);
+                      }
+                    }}
+                    accessibilityLabel={`Select date, current date: ${new Date(
+                      editingTask.date + "T00:00:00"
+                    ).toLocaleDateString()}`}
+                  >
+                    <Text style={styles.dateButtonText}>
+                      {new Date(
+                        editingTask.date + "T00:00:00"
+                      ).toLocaleDateString()}
+                    </Text>
+                  </TouchableOpacity>
+                  {Platform.OS !== "android" && showEditDatePicker && (
+                    <DateTimePicker
+                      value={new Date(editingTask.date + "T00:00:00")}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, date) => {
+                        if (date) {
+                          const y = date.getFullYear();
+                          const m = String(date.getMonth() + 1).padStart(
+                            2,
+                            "0"
+                          );
+                          const d = String(date.getDate()).padStart(2, "0");
+                          setEditingTask({
+                            ...editingTask,
+                            date: `${y}-${m}-${d}`,
+                          } as LentTask);
+                        }
+                      }}
+                      style={{ backgroundColor: "#000000" }}
+                      textColor="#FFFFFF"
+                      themeVariant="dark"
+                    />
+                  )}
+                  <Text style={styles.inputLabel}>Description</Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textAreaInput]}
+                    value={editingTask.description}
+                    onChangeText={(text) =>
+                      setEditingTask({
+                        ...editingTask,
+                        description: text,
+                      } as LentTask)
+                    }
+                    placeholder="Enter description..."
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                    numberOfLines={4}
+                    accessibilityLabel="Event description"
+                  />
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={() => {
+                        setEditingTask(null);
+                        setShowEditDatePicker(false);
+                      }}
+                      accessibilityLabel="Cancel"
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addButton}
+                      onPress={handleUpdateTask}
+                      accessibilityLabel="Save changes"
+                    >
+                      <Text style={styles.addButtonText}>Save</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          )}
+        </Modal>
+
+        {/* Comments Modal */}
+        <Modal
+          visible={showCommentModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowCommentModal(false);
+            setSelectedTaskForComments(null);
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalOverlay}
+          >
+            <View style={styles.commentModalContent}>
+              {selectedTaskForComments && (
+                <>
+                  <View style={styles.commentModalHeader}>
+                    <Text style={styles.commentModalTitle}>
+                      Comments on "{selectedTaskForComments.event}"
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.closeButton}
+                      onPress={() => {
+                        setShowCommentModal(false);
+                        setSelectedTaskForComments(null);
+                      }}
+                    >
+                      <Feather name="x" size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                  {commentLoading ? (
+                    <View style={styles.commentLoadingContainer}>
+                      <ActivityIndicator size="large" color="#E9967A" />
+                      <Text style={styles.commentLoadingText}>
+                        Loading comments...
+                      </Text>
+                    </View>
+                  ) : taskComments.length > 0 ? (
+                    <FlatList
+                      data={taskComments}
+                      keyExtractor={(item) => item.id}
+                      style={styles.commentsList}
+                      contentContainerStyle={styles.commentsListContent}
+                      ItemSeparatorComponent={() => (
+                        <View style={styles.commentSeparator} />
+                      )}
+                      renderItem={({ item }) => (
+                        <View style={styles.commentItem}>
+                          <View style={styles.commentHeader}>
+                            <View style={styles.commentUserInfo}>
+                              <View style={styles.commentAvatar}>
+                                <Text style={styles.commentAvatarText}>
+                                  {item.user?.first_name?.charAt(0) || ""}
+                                  {item.user?.last_name?.charAt(0) || ""}
+                                </Text>
+                              </View>
+                              <View>
+                                <Text style={styles.commentAuthor}>
+                                  {item.user?.first_name || "User"}{" "}
+                                  {item.user?.last_name || ""}
+                                </Text>
+                                <Text style={styles.commentTime}>
+                                  {formatCommentDate(item.created_at)}
+                                </Text>
+                              </View>
+                            </View>
+                            {item.user_id === currentUserId && (
+                              <TouchableOpacity
+                                style={styles.deleteCommentButton}
+                                onPress={() =>
+                                  showConfirmDeleteComment(item.id)
+                                }
+                              >
+                                <Feather
+                                  name="trash-2"
+                                  size={14}
+                                  color="#FCA5A5"
+                                />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                          <Text style={styles.commentContent}>
+                            {item.content}
+                          </Text>
+                        </View>
+                      )}
+                    />
+                  ) : (
+                    <View style={styles.emptyCommentsContainer}>
+                      <Feather
+                        name="message-circle"
+                        size={48}
+                        color="rgba(233, 150, 122, 0.2)"
+                      />
+                      <Text style={styles.emptyCommentsText}>
+                        No comments yet. Be the first to add one!
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.addCommentContainer}>
+                    <TextInput
+                      style={styles.commentInput}
+                      value={newComment}
+                      onChangeText={setNewComment}
+                      placeholder="Add a comment..."
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.sendCommentButton,
+                        !newComment.trim() && styles.disabledSendButton,
+                      ]}
+                      onPress={handleAddComment}
+                      disabled={!newComment.trim()}
+                    >
+                      <Feather name="send" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Guide Event Detail Modal */}
+        <Modal
+          visible={!!selectedGuideEvent}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedGuideEvent(null)}
         >
           <View style={styles.modalOverlay}>
-            <ExpandedDayView
-              day={selectedDay}
-              onClose={() => setSelectedDay(null)}
-              onAddTask={() => {
-                setSelectedDay(null);
-                handleAddTaskForDay(selectedDay);
-              }}
-              dayTasks={getTasksForDay(selectedDay)}
-              guideEvents={getGuideEventsForDate(selectedDay)}
-              currentUserId={currentUserId}
-              friendColors={friendColors}
-              handleLikeToggle={handleLikeToggle}
-              handleOpenComments={handleOpenComments}
-              showConfirmDelete={showConfirmDelete}
-              onGuideEventPress={(event: LentEvent) => {
-                setSelectedGuideEvent(event);
-                setSelectedDay(null);
-              }}
-            />
+            <View
+              style={styles.guideEventModal}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={styles.guideEventModalTitle}>
+                {selectedGuideEvent?.title}
+              </Text>
+              <Text style={styles.guideEventModalDesc}>
+                {selectedGuideEvent?.description}
+              </Text>
+              <TouchableOpacity
+                style={styles.guideEventCloseButton}
+                onPress={() => setSelectedGuideEvent(null)}
+                accessibilityLabel="Close"
+              >
+                <Text style={styles.guideEventCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Modal>
-      )}
+
+        {/* Expanded Day Modal */}
+        {selectedDay && (
+          <Modal
+            visible={true}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => {}}
+          >
+            <View style={styles.modalOverlay}>
+              <ExpandedDayView
+                day={selectedDay}
+                onClose={() => setSelectedDay(null)}
+                onAddTask={() => {
+                  setSelectedDay(null);
+                  handleAddTaskForDay(selectedDay);
+                }}
+                dayTasks={getTasksForDay(selectedDay)}
+                guideEvents={getGuideEventsForDate(selectedDay)}
+                currentUserId={currentUserId}
+                friendColors={friendColors}
+                handleLikeToggle={handleLikeToggle}
+                handleOpenComments={handleOpenComments}
+                showConfirmDelete={showConfirmDelete}
+                onGuideEventPress={(event: LentEvent) => {
+                  setSelectedGuideEvent(event);
+                  setSelectedDay(null);
+                }}
+              />
+            </View>
+          </Modal>
+        )}
+      </View>
     </SafeAreaView>
   );
 };

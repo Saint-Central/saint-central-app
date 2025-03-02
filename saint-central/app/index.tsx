@@ -30,6 +30,7 @@ import Svg, { Rect } from "react-native-svg";
 const videoSource = require("../assets/images/background.mp4");
 
 const { width, height } = Dimensions.get("window");
+const isIpad = width >= 768;
 
 // --- SVG Cross Component ---
 const CrossIcon = () => (
@@ -343,15 +344,27 @@ const AuthScreen: React.FC = () => {
           isLooping
         />
         <View style={styles.overlay}>
-          {/* Toast error message (absolute positioned) */}
+          {/* Toast error message */}
           {error !== "" && (
             <View style={styles.toastContainer} pointerEvents="none">
               <Text style={styles.toastText}>{error}</Text>
             </View>
           )}
-          <SafeAreaView style={styles.safeArea}>
-            <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-              {/* SVG Cross rendered above the title */}
+          <SafeAreaView
+            style={[
+              styles.safeArea,
+              // On iPad, center vertically and horizontally; on phones, still center horizontally.
+              { alignItems: "center" },
+              isIpad && {
+                maxWidth: 600,
+                alignSelf: "center",
+                justifyContent: "center",
+              },
+            ]}
+          >
+            <Animated.View
+              style={[styles.content, isIpad && { maxWidth: 600 }]}
+            >
               <View style={styles.crossContainer}>
                 <CrossIcon />
               </View>
@@ -363,8 +376,6 @@ const AuthScreen: React.FC = () => {
                   ? "Join today"
                   : "Reset your password to continue your journey"}
               </Text>
-
-              {/* Only show success messages in the content */}
               {!error && message !== "" && (
                 <View
                   style={[styles.messageContainer, styles.successContainer]}
@@ -373,7 +384,6 @@ const AuthScreen: React.FC = () => {
                   <Text style={styles.message}>{message}</Text>
                 </View>
               )}
-
               <View style={styles.form}>
                 {renderInput({
                   placeholder: "Email",
@@ -382,7 +392,6 @@ const AuthScreen: React.FC = () => {
                   keyboardType: "email-address",
                   icon: <Feather name="mail" size={20} color="#FAC898" />,
                 })}
-
                 {authMode === "signup" && (
                   <View style={styles.nameRow}>
                     {renderInput({
@@ -401,7 +410,6 @@ const AuthScreen: React.FC = () => {
                     })}
                   </View>
                 )}
-
                 {(authMode === "login" || authMode === "signup") &&
                   renderInput({
                     placeholder: "Password",
@@ -411,7 +419,6 @@ const AuthScreen: React.FC = () => {
                     toggleSecure: () => setSecureTextEntry(!secureTextEntry),
                     icon: <Feather name="lock" size={20} color="#FAC898" />,
                   })}
-
                 {authMode === "signup" &&
                   renderInput({
                     placeholder: "Confirm Password",
@@ -422,7 +429,6 @@ const AuthScreen: React.FC = () => {
                       setSecureConfirmTextEntry(!secureConfirmTextEntry),
                     icon: <Feather name="lock" size={20} color="#FAC898" />,
                   })}
-
                 {authMode === "login" && (
                   <TouchableOpacity
                     style={styles.forgotLink}
@@ -432,7 +438,6 @@ const AuthScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
               </View>
-
               <TouchableOpacity
                 style={styles.button}
                 onPress={handleSubmit}
@@ -453,7 +458,6 @@ const AuthScreen: React.FC = () => {
                   </View>
                 )}
               </TouchableOpacity>
-
               {authMode !== "forgotPassword" && (
                 <View style={styles.socialSection}>
                   <Text style={styles.orText}>Or continue with</Text>
@@ -469,7 +473,6 @@ const AuthScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
               )}
-
               <TouchableOpacity
                 onPress={() =>
                   setAuthMode(authMode === "login" ? "signup" : "login")
@@ -481,7 +484,6 @@ const AuthScreen: React.FC = () => {
                     : "Already a member? Log in"}
                 </Text>
               </TouchableOpacity>
-
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Powered by faith</Text>
               </View>
@@ -494,15 +496,11 @@ const AuthScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  container: { flex: 1 },
+  background: { ...StyleSheet.absoluteFillObject },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)", // Darker overlay
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -511,10 +509,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingTop: Platform.OS === "ios" ? 40 : 20,
   },
-  crossContainer: {
-    alignSelf: "center",
-    marginBottom: 8,
-  },
+  crossContainer: { alignSelf: "center", marginBottom: 8 },
   content: {
     width: "100%",
     maxWidth: 400,
@@ -558,23 +553,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16, 185, 129, 0.1)",
     borderColor: "rgba(16, 185, 129, 0.3)",
   },
-  error: {
-    color: "#ef4444",
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  message: {
-    color: "#10b981",
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  form: {
-    width: "100%",
-    gap: 16,
-    marginBottom: 20,
-  },
+  error: { color: "#ef4444", marginLeft: 8, fontSize: 14, fontWeight: "500" },
+  message: { color: "#10b981", marginLeft: 8, fontSize: 14, fontWeight: "500" },
+  form: { width: "100%", gap: 16, marginBottom: 20 },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -586,10 +567,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.2)",
     width: "100%",
   },
-  nameInput: {
-    flex: 1,
-    width: undefined,
-  },
+  nameInput: { flex: 1, width: undefined },
   input: {
     flex: 1,
     color: "#fff",
@@ -597,25 +575,15 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     height: "100%",
   },
-  eyeIcon: {
-    padding: 8,
-  },
+  eyeIcon: { padding: 8 },
   nameRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
     width: "100%",
   },
-  forgotLink: {
-    alignSelf: "flex-end",
-    marginTop: 8,
-    marginBottom: 0,
-  },
-  forgotText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    opacity: 0.8,
-  },
+  forgotLink: { alignSelf: "flex-end", marginTop: 8, marginBottom: 0 },
+  forgotText: { color: "#FFFFFF", fontSize: 14, opacity: 0.8 },
   button: {
     width: "100%",
     height: 52,
@@ -642,10 +610,7 @@ const styles = StyleSheet.create({
     gap: 16,
     width: "100%",
   },
-  orText: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 14,
-  },
+  orText: { color: "rgba(255, 255, 255, 0.6)", fontSize: 14 },
   socialButton: {
     width: "100%",
     height: 52,
@@ -658,25 +623,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.2)",
     gap: 8,
   },
-  socialButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "400",
-  },
-  switchText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    marginTop: 24,
-    opacity: 0.8,
-  },
-  footer: {
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  footerText: {
-    color: "rgba(255, 255, 255, 0.5)",
-    fontSize: 12,
-  },
+  socialButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "400" },
+  switchText: { color: "#FFFFFF", fontSize: 14, marginTop: 24, opacity: 0.8 },
+  footer: { marginTop: 32, marginBottom: 24 },
+  footerText: { color: "rgba(255, 255, 255, 0.5)", fontSize: 12 },
   toastContainer: {
     position: "absolute",
     top: 50,
@@ -688,10 +638,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
     alignItems: "center",
   },
-  toastText: {
-    color: "#fff",
-    fontSize: 14,
-  },
+  toastText: { color: "#fff", fontSize: 14 },
 });
 
 export default AuthScreen;
