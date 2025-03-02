@@ -222,7 +222,10 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
           <Feather name="x" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-      <ScrollView style={[styles.expandedDayContent, { width: "100%" }]}>
+      <ScrollView
+        style={[styles.expandedDayContent, { width: "100%" }]}
+        contentContainerStyle={{ paddingBottom: 80 }}
+      >
         {guideEvents.length > 0 && (
           <View style={styles.expandedDaySection}>
             <Text style={styles.expandedDaySectionTitle}>Guide Events</Text>
@@ -2250,13 +2253,13 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     letterSpacing: 0.3,
   },
-  // New styles for the enhanced expanded day view
+  // New styles for enhanced expanded day view
   expandedDayContainer: {
     backgroundColor: "rgba(0, 0, 0, 0.95)",
     borderRadius: 20,
     width: "90%",
-    maxHeight: "90%",
-    minHeight: 400,
+    maxHeight: "95%",
+    minHeight: 500,
     padding: 16,
     alignSelf: "center",
     shadowColor: "#000",
