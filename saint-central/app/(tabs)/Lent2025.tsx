@@ -2055,9 +2055,10 @@ const styles = StyleSheet.create({
   dayIndicators: {
     flexDirection: "row",
     position: "absolute",
-    bottom: 8,
+    bottom: 3,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 5, // Ensure indicators appear above other elements
   },
   dayIndicator: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 1.5 },
   taskIndicator: { backgroundColor: "#E9967A" },
