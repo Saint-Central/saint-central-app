@@ -92,7 +92,6 @@ interface LentEvent {
   description: string;
 }
 
-// Lent guide events (unchanged)
 const lentGuideEvents: LentEvent[] = [
   {
     date: "March 5",
@@ -120,7 +119,6 @@ const getMonthName = (month: number) => {
   return new Date(0, month).toLocaleString("default", { month: "long" });
 };
 
-// Use local day (getDate) to match calendar grid dates
 const getGuideEventsForDate = (date: Date): LentEvent[] => {
   const monthName = date.toLocaleString("default", { month: "long" });
   const day = date.getDate();
@@ -142,7 +140,6 @@ const formatDateUTC = (dateStr: string): string => {
   return `${month}/${day}/${year}`;
 };
 
-// FIXED: Properly format date to UTC without subtracting a day
 const formatToUTC = (date: string): string => {
   return date + "T00:00:00Z";
 };
@@ -152,7 +149,6 @@ const formatCommentDate = (dateStr: string): string => {
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - date.getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
   if (diffDays === 0) {
     const hours = Math.floor(diffTime / (1000 * 60 * 60));
     if (hours === 0) {
@@ -170,11 +166,198 @@ const formatCommentDate = (dateStr: string): string => {
 };
 
 // --------------------
+// Enhanced Expanded Day View Component
+// --------------------
+interface ExpandedDayViewProps {
+  day: Date;
+  onClose: () => void;
+  onAddTask: () => void;
+  dayTasks: LentTask[];
+  guideEvents: LentEvent[];
+  currentUserId: string;
+  friendColors: { [email: string]: string };
+  handleLikeToggle: (task: LentTask) => void;
+  handleOpenComments: (task: LentTask) => void;
+  showConfirmDelete: (taskId: string) => void;
+}
+
+const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
+  day,
+  onClose,
+  onAddTask,
+  dayTasks,
+  guideEvents,
+  currentUserId,
+  friendColors,
+  handleLikeToggle,
+  handleOpenComments,
+  showConfirmDelete,
+}) => {
+  const slideAnim = useRef(new Animated.Value(500)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const formattedDate = day.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.expandedDayContainer,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <View style={styles.expandedDayHeader}>
+        <Text style={styles.expandedDayTitle}>{formattedDate}</Text>
+        <TouchableOpacity style={styles.closeIconButton} onPress={onClose}>
+          <Feather name="x" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={[styles.expandedDayContent, { width: "100%" }]}>
+        {guideEvents.length > 0 && (
+          <View style={styles.expandedDaySection}>
+            <Text style={styles.expandedDaySectionTitle}>Guide Events</Text>
+            {guideEvents.map((event, index) => (
+              <TouchableOpacity
+                key={`guide-${index}`}
+                style={styles.expandedDayGuideEvent}
+                onPress={() => {
+                  onClose();
+                  // Optionally, trigger a detailed guide event modal here
+                }}
+              >
+                <View style={styles.expandedDayGuideEventIcon}>
+                  <Feather name="calendar" size={14} color="#E9967A" />
+                </View>
+                <View style={styles.expandedDayGuideEventContent}>
+                  <Text style={styles.expandedDayGuideEventTitle}>
+                    {event.title}
+                  </Text>
+                  <Text
+                    style={styles.expandedDayGuideEventDesc}
+                    numberOfLines={2}
+                  >
+                    {event.description}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        <View style={styles.expandedDaySection}>
+          <Text style={styles.expandedDaySectionTitle}>
+            Tasks {dayTasks.length > 0 ? `(${dayTasks.length})` : ""}
+          </Text>
+          {dayTasks.length === 0 ? (
+            <Text style={styles.expandedDayEmptyText}>
+              No tasks for this day. Add one to get started!
+            </Text>
+          ) : (
+            dayTasks.map((task) => {
+              const isUserTask = task.user_id === currentUserId;
+              return (
+                <View key={task.id} style={styles.expandedDayTask}>
+                  {!isUserTask && (
+                    <View
+                      style={[
+                        styles.expandedDayTaskUserIndicator,
+                        { backgroundColor: friendColors[task.user.email] },
+                      ]}
+                    />
+                  )}
+                  <View style={styles.expandedDayTaskContent}>
+                    <Text style={styles.expandedDayTaskTitle}>
+                      {task.event}
+                    </Text>
+                    {!isUserTask && (
+                      <Text style={styles.expandedDayTaskUser}>
+                        By {task.user.first_name} {task.user.last_name}
+                      </Text>
+                    )}
+                    <Text style={styles.expandedDayTaskDesc}>
+                      {task.description}
+                    </Text>
+                    <View style={styles.expandedDayTaskActions}>
+                      <TouchableOpacity
+                        style={styles.expandedDayTaskAction}
+                        onPress={() => handleLikeToggle(task)}
+                      >
+                        <Feather
+                          name="heart"
+                          size={16}
+                          color={
+                            task.liked_by_current_user ? "#E9967A" : "#9CA3AF"
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.expandedDayTaskActionText,
+                            task.liked_by_current_user &&
+                              styles.expandedDayTaskActionTextActive,
+                          ]}
+                        >
+                          {task.likes_count || 0}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.expandedDayTaskAction}
+                        onPress={() => handleOpenComments(task)}
+                      >
+                        <Feather
+                          name="message-square"
+                          size={16}
+                          color="#9CA3AF"
+                        />
+                        <Text style={styles.expandedDayTaskActionText}>
+                          {task.comments_count || 0}
+                        </Text>
+                      </TouchableOpacity>
+                      {isUserTask && (
+                        <TouchableOpacity
+                          style={styles.expandedDayTaskAction}
+                          onPress={() => {
+                            onClose();
+                            showConfirmDelete(task.id);
+                          }}
+                        >
+                          <Feather name="trash-2" size={16} color="#FCA5A5" />
+                          <Text style={styles.expandedDayTaskDeleteText}>
+                            Delete
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
+      <TouchableOpacity
+        style={styles.floatingAddTaskButton}
+        onPress={onAddTask}
+      >
+        <Feather name="plus" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// --------------------
 // Lent2025 Screen Component
 // --------------------
 const Lent2025Screen: React.FC = () => {
   const { width } = useWindowDimensions();
-  // Use full available width for the calendar grid
   const calendarWidth = Math.min(width, 500) - 32;
 
   // --------------------
@@ -213,27 +396,24 @@ const Lent2025Screen: React.FC = () => {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
 
-  // IMPROVED: Use useRef for animations to prevent unnecessary re-renders
+  // Animation refs
   const likeAnimations = useRef<{ [taskId: string]: Animated.Value }>(
     {}
   ).current;
   const heartAnimations = useRef<{ [taskId: string]: Animated.Value }>(
     {}
   ).current;
-
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Memoized values to prevent unnecessary re-renders
+  // Memoized friend tasks and colors
   const friendTasks = useMemo(
     () => lentTasks.filter((task) => task.user_id !== currentUserId),
     [lentTasks, currentUserId]
   );
-
   const uniqueFriendEmails = useMemo(
     () => Array.from(new Set(friendTasks.map((task) => task.user.email))),
     [friendTasks]
   );
-
   const palette = useMemo(
     () => [
       "#E9967A",
@@ -246,7 +426,6 @@ const Lent2025Screen: React.FC = () => {
     ],
     []
   );
-
   const friendColors = useMemo(() => {
     const colors: { [email: string]: string } = {};
     uniqueFriendEmails.forEach((email, index) => {
@@ -279,7 +458,6 @@ const Lent2025Screen: React.FC = () => {
         data: { user },
         error,
       } = await supabase.auth.getUser();
-
       if (error) throw error;
       if (user) setCurrentUserId(user.id);
     } catch (error) {
@@ -290,39 +468,28 @@ const Lent2025Screen: React.FC = () => {
     }
   }, []);
 
-  // IMPROVED: Better error handling and optimized database queries
+  // Fetch tasks
   const fetchTasks = useCallback(async () => {
     if (!currentUserId) return;
-
     try {
       setIsLoading(true);
-
-      // Get friend IDs
       const { data: friendData, error: friendError } = await supabase
         .from("friends")
         .select("user_id_1, user_id_2, status")
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
         .eq("status", "accepted");
-
       if (friendError) throw friendError;
-
       const friendIds =
         friendData?.map((f) =>
           f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1
         ) || [];
-
       const uniqueFriendIds = Array.from(new Set(friendIds));
-
-      // Fetch tasks with user information
       const { data, error } = await supabase
         .from("lent_tasks")
         .select("*, user:users (first_name, last_name, email)")
         .in("user_id", [currentUserId, ...uniqueFriendIds])
         .order("created_at", { ascending: false });
-
       if (error) throw error;
-
-      // Get likes, comments counts, and user likes in parallel for better performance
       const tasksWithMetadata = await Promise.all(
         (data || []).map(async (task) => {
           const [likesResponse, userLikeResponse, commentsResponse] =
@@ -332,7 +499,6 @@ const Lent2025Screen: React.FC = () => {
                 .select("*", { count: "exact", head: false })
                 .eq("likeable_id", task.id)
                 .eq("likeable_type", "lent_tasks"),
-
               supabase
                 .from("likes")
                 .select("*")
@@ -340,15 +506,12 @@ const Lent2025Screen: React.FC = () => {
                 .eq("likeable_type", "lent_tasks")
                 .eq("user_id", currentUserId)
                 .maybeSingle(),
-
               supabase
                 .from("comments")
                 .select("*", { count: "exact", head: false })
                 .eq("commentable_id", task.id)
                 .eq("commentable_type", "lent_tasks"),
             ]);
-
-          // Handle potential errors
           const errors = [];
           if (likesResponse.error)
             errors.push(`Likes error: ${likesResponse.error.message}`);
@@ -356,11 +519,9 @@ const Lent2025Screen: React.FC = () => {
             errors.push(`User like error: ${userLikeResponse.error.message}`);
           if (commentsResponse.error)
             errors.push(`Comments error: ${commentsResponse.error.message}`);
-
           if (errors.length > 0) {
             console.error("Error fetching task metadata:", errors.join(", "));
           }
-
           return {
             ...task,
             likes_count: likesResponse.count || 0,
@@ -369,7 +530,6 @@ const Lent2025Screen: React.FC = () => {
           };
         })
       );
-
       setLentTasks(tasksWithMetadata || []);
     } catch (error: unknown) {
       console.error("Error fetching tasks:", error);
@@ -381,10 +541,8 @@ const Lent2025Screen: React.FC = () => {
     }
   }, [currentUserId]);
 
-  // IMPROVED: Better error handling for comments fetch
   const fetchComments = async (taskId: string) => {
     if (!taskId) return;
-
     try {
       setCommentLoading(true);
       const { data, error } = await supabase
@@ -393,9 +551,7 @@ const Lent2025Screen: React.FC = () => {
         .eq("commentable_id", taskId)
         .eq("commentable_type", "lent_tasks")
         .order("created_at", { ascending: true });
-
       if (error) throw error;
-
       setTaskComments(data || []);
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -413,7 +569,6 @@ const Lent2025Screen: React.FC = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Initial data loading
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
@@ -422,14 +577,12 @@ const Lent2025Screen: React.FC = () => {
     if (currentUserId) fetchTasks();
   }, [currentUserId, fetchTasks]);
 
-  // Clear notification when component unmounts
   useEffect(() => {
     return () => {
       if (notification) setNotification(null);
     };
   }, [notification]);
 
-  // Calendar data preparation
   const daysInMonth = useMemo(
     () => getDaysInMonth(currentMonth, currentYear),
     [currentMonth, currentYear]
@@ -476,9 +629,7 @@ const Lent2025Screen: React.FC = () => {
     () => Math.ceil(totalDaysSoFar / 7),
     [totalDaysSoFar]
   );
-
   const totalCells = useMemo(() => rowsNeeded * 7, [rowsNeeded]);
-
   const nextMonthDaysNeeded = useMemo(
     () => totalCells - totalDaysSoFar,
     [totalCells, totalDaysSoFar]
@@ -498,17 +649,14 @@ const Lent2025Screen: React.FC = () => {
     [prevMonthDays, currMonthDays, nextMonthDays]
   );
 
-  // Scroll to current day in calendar view
   const scrollToCurrentDay = useCallback(() => {
     if (!scrollViewRef.current || view !== "calendar") return;
-
     const today = new Date();
     if (
       today.getMonth() !== currentMonth ||
       today.getFullYear() !== currentYear
     )
       return;
-
     const todayIndex = fullCalendarGrid.findIndex((dayObj) => {
       const day = dayObj.date;
       return (
@@ -517,12 +665,9 @@ const Lent2025Screen: React.FC = () => {
         day.getFullYear() === today.getFullYear()
       );
     });
-
     if (todayIndex === -1) return;
-
     const rowIndex = Math.floor(todayIndex / 7);
     const yPosition = rowIndex * ((calendarWidth / 7) * 1.5);
-
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: yPosition, animated: true });
     }, 200);
@@ -535,7 +680,6 @@ const Lent2025Screen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [scrollToCurrentDay, currentMonth, currentYear, refreshKey, view]);
 
-  // FIXED: Properly format date for task creation without date adjustment
   const handleCreateTask = async () => {
     if (
       !newTask.event.trim() ||
@@ -545,17 +689,12 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Please fill in all fields.", "error");
       return;
     }
-
     try {
-      // FIXED: Use corrected date formatting that doesn't subtract a day
       const formattedDate = formatToUTC(newTask.date);
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
       if (!user) throw new Error("Not authenticated");
-
       const { error } = await supabase.from("lent_tasks").insert([
         {
           user_id: user.id,
@@ -564,12 +703,8 @@ const Lent2025Screen: React.FC = () => {
           date: formattedDate,
         },
       ]);
-
       if (error) throw error;
-
       showNotification("Task created successfully!", "success");
-
-      // Dismiss modal, keyboard and clear any expanded day overlay
       Keyboard.dismiss();
       setShowTaskModal(false);
       setSelectedDay(null);
@@ -588,16 +723,12 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
-  // FIXED: Close selectedDay modal before opening edit modal
   const handleEditTask = (task: LentTask) => {
-    // First close the expanded day modal
     setSelectedDay(null);
-
     const editTask = { ...task, date: task.date.split("T")[0] };
     setEditingTask(editTask);
   };
 
-  // FIXED: Properly format date for task updates
   const handleUpdateTask = async () => {
     if (
       !editingTask ||
@@ -608,11 +739,8 @@ const Lent2025Screen: React.FC = () => {
       showNotification("Please fill in all fields.", "error");
       return;
     }
-
     try {
-      // FIXED: Use corrected date formatting that doesn't subtract a day
       const formattedDate = formatToUTC(editingTask.date);
-
       const { error } = await supabase
         .from("lent_tasks")
         .update({
@@ -621,9 +749,7 @@ const Lent2025Screen: React.FC = () => {
           date: formattedDate,
         })
         .eq("id", editingTask.id);
-
       if (error) throw error;
-
       showNotification("Task updated successfully!", "success");
       setEditingTask(null);
       fetchTasks();
@@ -635,16 +761,13 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
-  // FIXED: Only close selectedDay when explicitly requested
   const handleDeleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase
         .from("lent_tasks")
         .delete()
         .eq("id", taskId);
-
       if (error) throw error;
-
       showNotification("Task deleted successfully!", "success");
       fetchTasks();
     } catch (error) {
@@ -655,25 +778,19 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
-  // IMPROVED: Simplified animation logic using references
+  // ---- Animation Helpers ----
   const animateLikeButton = (taskId: string, liked: boolean) => {
     if (!likeAnimations[taskId]) {
       likeAnimations[taskId] = new Animated.Value(1);
     }
-
     if (!heartAnimations[taskId]) {
       heartAnimations[taskId] = new Animated.Value(liked ? 1 : 0);
     }
-
     const scaleAnim = likeAnimations[taskId];
     const heartAnim = heartAnimations[taskId];
-
-    // Vibration feedback - only on mobile devices
     if (Platform.OS !== "web") {
       Vibration.vibrate(liked ? [0, 30, 10, 20] : 20);
     }
-
-    // Like animation
     if (liked) {
       Animated.sequence([
         Animated.timing(scaleAnim, {
@@ -702,8 +819,6 @@ const Lent2025Screen: React.FC = () => {
         }),
       ]).start();
     }
-
-    // Heart color animation
     Animated.timing(heartAnim, {
       toValue: liked ? 1 : 0,
       duration: liked ? 400 : 300,
@@ -711,12 +826,9 @@ const Lent2025Screen: React.FC = () => {
     }).start();
   };
 
-  // IMPROVED: Better optimistic updates for likes
   const handleLikeToggle = async (task: LentTask) => {
     try {
       const willBeLiked = !task.liked_by_current_user;
-
-      // Optimistically update UI
       setLentTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === task.id
@@ -730,11 +842,7 @@ const Lent2025Screen: React.FC = () => {
             : t
         )
       );
-
-      // Animate like button
       animateLikeButton(task.id, willBeLiked);
-
-      // Perform database operation
       if (willBeLiked) {
         const { error } = await supabase.from("likes").insert([
           {
@@ -743,7 +851,6 @@ const Lent2025Screen: React.FC = () => {
             likeable_type: "lent_tasks",
           },
         ]);
-
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -752,7 +859,6 @@ const Lent2025Screen: React.FC = () => {
           .eq("likeable_id", task.id)
           .eq("likeable_type", "lent_tasks")
           .eq("user_id", currentUserId);
-
         if (error) throw error;
       }
     } catch (error) {
@@ -760,16 +866,12 @@ const Lent2025Screen: React.FC = () => {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       showNotification(`Error: ${errorMessage}`, "error");
-      // Revert optimistic update on error
       fetchTasks();
     }
   };
 
-  // FIXED: Close selectedDay modal before opening comments modal
   const handleOpenComments = (task: LentTask) => {
-    // First close the expanded day modal
     setSelectedDay(null);
-
     setSelectedTaskForComments(task);
     setTaskComments([]);
     setCommentLoading(true);
@@ -777,10 +879,8 @@ const Lent2025Screen: React.FC = () => {
     setShowCommentModal(true);
   };
 
-  // IMPROVED: Better optimistic updates for comments
   const handleAddComment = async () => {
     if (!selectedTaskForComments || !newComment.trim()) return;
-
     try {
       const { data, error } = await supabase
         .from("comments")
@@ -793,15 +893,10 @@ const Lent2025Screen: React.FC = () => {
           },
         ])
         .select("*, user:users(first_name, last_name, email)");
-
       if (error) throw error;
-
-      // Update comments list
       if (data && data.length > 0) {
         setTaskComments((prev) => [...prev, data[0]]);
       }
-
-      // Update task comment count
       setLentTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === selectedTaskForComments.id
@@ -809,7 +904,6 @@ const Lent2025Screen: React.FC = () => {
             : t
         )
       );
-
       setNewComment("");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -821,21 +915,15 @@ const Lent2025Screen: React.FC = () => {
 
   const handleDeleteComment = async (commentId: string) => {
     if (!selectedTaskForComments) return;
-
     try {
       const { error } = await supabase
         .from("comments")
         .delete()
         .eq("id", commentId);
-
       if (error) throw error;
-
-      // Update comments list
       setTaskComments((prev) =>
         prev.filter((comment) => comment.id !== commentId)
       );
-
-      // Update task comment count
       setLentTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === selectedTaskForComments.id
@@ -843,7 +931,6 @@ const Lent2025Screen: React.FC = () => {
             : t
         )
       );
-
       showNotification("Comment deleted", "success");
     } catch (error) {
       console.error("Error deleting comment:", error);
@@ -871,7 +958,6 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
-  // IMPROVED: Memoized tasks for each day to reduce calculations
   const getTasksForDay = useCallback(
     (date: Date): LentTask[] => {
       return lentTasks.filter((task) => {
@@ -887,15 +973,11 @@ const Lent2025Screen: React.FC = () => {
   );
 
   const handleAddTaskForDay = (day: Date) => {
-    // Clear any expanded day modal before opening the add task modal
     setSelectedDay(null);
-
-    // Format the date for the task modal
     const year = day.getFullYear();
     const month = String(day.getMonth() + 1).padStart(2, "0");
     const dayNum = String(day.getDate()).padStart(2, "0");
     const isoDate = `${year}-${month}-${dayNum}`;
-
     setSelectedDate(day);
     setNewTask({ ...newTask, date: isoDate });
     setShowTaskModal(true);
@@ -933,27 +1015,21 @@ const Lent2025Screen: React.FC = () => {
     );
   };
 
-  // IMPROVED: Better animation handling for task cards
   const renderTaskCard = (task: LentTask, isUserTask: boolean) => {
-    // Initialize animations if needed
     if (!likeAnimations[task.id]) {
       likeAnimations[task.id] = new Animated.Value(1);
     }
-
     if (!heartAnimations[task.id]) {
       heartAnimations[task.id] = new Animated.Value(
         task.liked_by_current_user ? 1 : 0
       );
     }
-
     const scaleAnim = likeAnimations[task.id];
     const heartAnim = heartAnimations[task.id];
-
     const heartColor = heartAnim.interpolate({
       inputRange: [0, 0.5, 1],
       outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
     });
-
     return (
       <View key={task.id} style={styles.taskCard}>
         <Text style={styles.taskTitle}>{task.event}</Text>
@@ -1033,161 +1109,6 @@ const Lent2025Screen: React.FC = () => {
             </View>
           )}
         </View>
-      </View>
-    );
-  };
-
-  const renderExpandedDayView = (day: Date) => {
-    const dayTasks = getTasksForDay(day);
-    const guideEvents = getGuideEventsForDate(day);
-    const formattedDate = day.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-
-    return (
-      <View style={styles.expandedDayContainer}>
-        <View style={styles.expandedDayHeader}>
-          <Text style={styles.expandedDayTitle}>{formattedDate}</Text>
-          <TouchableOpacity
-            style={styles.addTaskButton}
-            onPress={() => {
-              setSelectedDay(null);
-              handleAddTaskForDay(day);
-            }}
-          >
-            <Feather name="plus" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {guideEvents.length > 0 && (
-          <View style={styles.expandedDaySection}>
-            <Text style={styles.expandedDaySectionTitle}>Guide Events</Text>
-            {guideEvents.map((event, index) => (
-              <TouchableOpacity
-                key={`guide-${index}`}
-                style={styles.expandedDayGuideEvent}
-                onPress={() => {
-                  setSelectedDay(null); // Close day view before showing event details
-                  setSelectedGuideEvent(event);
-                }}
-              >
-                <View style={styles.expandedDayGuideEventIcon}>
-                  <Feather name="calendar" size={14} color="#E9967A" />
-                </View>
-                <View style={styles.expandedDayGuideEventContent}>
-                  <Text style={styles.expandedDayGuideEventTitle}>
-                    {event.title}
-                  </Text>
-                  <Text
-                    style={styles.expandedDayGuideEventDesc}
-                    numberOfLines={2}
-                  >
-                    {event.description}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.expandedDaySection}>
-          <Text style={styles.expandedDaySectionTitle}>
-            Tasks {dayTasks.length > 0 ? `(${dayTasks.length})` : ""}
-          </Text>
-          {dayTasks.length === 0 ? (
-            <Text style={styles.expandedDayEmptyText}>
-              No tasks for this day. Add one to get started!
-            </Text>
-          ) : (
-            dayTasks.map((task) => {
-              const isUserTask = task.user_id === currentUserId;
-              return (
-                <View key={task.id} style={styles.expandedDayTask}>
-                  {!isUserTask && (
-                    <View
-                      style={[
-                        styles.expandedDayTaskUserIndicator,
-                        { backgroundColor: friendColors[task.user.email] },
-                      ]}
-                    />
-                  )}
-                  <View style={styles.expandedDayTaskContent}>
-                    <Text style={styles.expandedDayTaskTitle}>
-                      {task.event}
-                    </Text>
-                    {!isUserTask && (
-                      <Text style={styles.expandedDayTaskUser}>
-                        By {task.user.first_name} {task.user.last_name}
-                      </Text>
-                    )}
-                    <Text style={styles.expandedDayTaskDesc}>
-                      {task.description}
-                    </Text>
-                    <View style={styles.expandedDayTaskActions}>
-                      <TouchableOpacity
-                        style={styles.expandedDayTaskAction}
-                        onPress={() => handleLikeToggle(task)}
-                      >
-                        <Feather
-                          name="heart"
-                          size={16}
-                          color={
-                            task.liked_by_current_user ? "#E9967A" : "#9CA3AF"
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.expandedDayTaskActionText,
-                            task.liked_by_current_user &&
-                              styles.expandedDayTaskActionTextActive,
-                          ]}
-                        >
-                          {task.likes_count || 0}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.expandedDayTaskAction}
-                        onPress={() => handleOpenComments(task)}
-                      >
-                        <Feather
-                          name="message-square"
-                          size={16}
-                          color="#9CA3AF"
-                        />
-                        <Text style={styles.expandedDayTaskActionText}>
-                          {task.comments_count || 0}
-                        </Text>
-                      </TouchableOpacity>
-                      {isUserTask && (
-                        <TouchableOpacity
-                          style={styles.expandedDayTaskAction}
-                          onPress={() => {
-                            setSelectedDay(null); // FIXED: Close day view first
-                            showConfirmDelete(task.id);
-                          }}
-                        >
-                          <Feather name="trash-2" size={16} color="#FCA5A5" />
-                          <Text style={styles.expandedDayTaskDeleteText}>
-                            Delete
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </View>
-        <TouchableOpacity
-          style={styles.expandedDayCloseButton}
-          onPress={() => setSelectedDay(null)}
-        >
-          <Feather name="x" size={16} color="#FFFFFF" />
-          <Text style={styles.expandedDayCloseButtonText}>Close</Text>
-        </TouchableOpacity>
       </View>
     );
   };
@@ -1757,56 +1678,53 @@ const Lent2025Screen: React.FC = () => {
         animationType="fade"
         onRequestClose={() => setSelectedGuideEvent(null)}
       >
-        {selectedGuideEvent && (
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setSelectedGuideEvent(null)}
-            accessibilityLabel="Close guide event details"
+        <View style={styles.modalOverlay}>
+          <View
+            style={styles.guideEventModal}
+            onStartShouldSetResponder={() => true}
           >
-            <View
-              style={styles.guideEventModal}
-              onStartShouldSetResponder={() => true}
+            <Text style={styles.guideEventModalTitle}>
+              {selectedGuideEvent?.title}
+            </Text>
+            <Text style={styles.guideEventModalDesc}>
+              {selectedGuideEvent?.description}
+            </Text>
+            <TouchableOpacity
+              style={styles.guideEventCloseButton}
+              onPress={() => setSelectedGuideEvent(null)}
+              accessibilityLabel="Close"
             >
-              <Text style={styles.guideEventModalTitle}>
-                {selectedGuideEvent.title}
-              </Text>
-              <Text style={styles.guideEventModalDesc}>
-                {selectedGuideEvent.description}
-              </Text>
-              <TouchableOpacity
-                style={styles.guideEventCloseButton}
-                onPress={() => setSelectedGuideEvent(null)}
-                accessibilityLabel="Close"
-              >
-                <Text style={styles.guideEventCloseText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
+              <Text style={styles.guideEventCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
-      {/* Expanded Day Modal */}
+      {/* Expanded Day Modal (Close only via X) */}
       {selectedDay && (
         <Modal
           visible={true}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setSelectedDay(null)}
+          onRequestClose={() => {}}
         >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setSelectedDay(null)}
-            accessibilityLabel="Close expanded day view"
-          >
-            <View
-              style={styles.expandedDayModalContent}
-              onStartShouldSetResponder={() => true}
-            >
-              {renderExpandedDayView(selectedDay)}
-            </View>
-          </TouchableOpacity>
+          <View style={styles.modalOverlay}>
+            <ExpandedDayView
+              day={selectedDay}
+              onClose={() => setSelectedDay(null)}
+              onAddTask={() => {
+                setSelectedDay(null);
+                handleAddTaskForDay(selectedDay);
+              }}
+              dayTasks={getTasksForDay(selectedDay)}
+              guideEvents={getGuideEventsForDate(selectedDay)}
+              currentUserId={currentUserId}
+              friendColors={friendColors}
+              handleLikeToggle={handleLikeToggle}
+              handleOpenComments={handleOpenComments}
+              showConfirmDelete={showConfirmDelete}
+            />
+          </View>
         </Modal>
       )}
     </SafeAreaView>
@@ -2040,7 +1958,6 @@ const styles = StyleSheet.create({
     minHeight: 60,
   },
   dayCellInactive: { opacity: 0.4 },
-  expandedDayCell: { backgroundColor: "rgba(233, 150, 122, 0.08)" },
   dayNumber: {
     fontSize: 17,
     color: "#FFFFFF",
@@ -2066,168 +1983,11 @@ const styles = StyleSheet.create({
     bottom: 3,
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 5, // Ensure indicators appear above other elements
+    zIndex: 5,
   },
   dayIndicator: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 1.5 },
   taskIndicator: { backgroundColor: "#E9967A" },
   guideIndicator: { backgroundColor: "#FAC898" },
-  expandedDayRow: {
-    width: "100%",
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  expandedDayContainer: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    borderRadius: 15,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-  },
-  expandedDayHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  expandedDayTitle: {
-    fontSize: 20,
-    fontWeight: "300",
-    color: "#FFFFFF",
-    letterSpacing: 0.8,
-  },
-  addTaskButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.4)",
-  },
-  addTaskButtonText: {
-    color: "#FFFFFF",
-    marginLeft: 6,
-    fontWeight: "400",
-    letterSpacing: 0.3,
-  },
-  expandedDaySection: { marginBottom: 20 },
-  expandedDaySectionTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#FFFFFF",
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  expandedDayEmptyText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontStyle: "italic",
-    textAlign: "center",
-    padding: 12,
-    letterSpacing: 0.3,
-  },
-  expandedDayGuideEvent: {
-    flexDirection: "row",
-    backgroundColor: "rgba(233, 150, 122, 0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.2)",
-  },
-  expandedDayGuideEventIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  expandedDayGuideEventContent: { flex: 1 },
-  expandedDayGuideEventTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#FFFFFF",
-    marginBottom: 6,
-    letterSpacing: 0.3,
-  },
-  expandedDayGuideEventDesc: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 14,
-    letterSpacing: 0.2,
-    lineHeight: 20,
-  },
-  expandedDayTask: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  expandedDayTaskUserIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
-  expandedDayTaskContent: { flex: 1 },
-  expandedDayTaskTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#FFFFFF",
-    marginBottom: 2,
-    letterSpacing: 0.3,
-  },
-  expandedDayTaskUser: {
-    fontSize: 13,
-    color: "#FAC898",
-    marginBottom: 4,
-    letterSpacing: 0.3,
-  },
-  expandedDayTaskDesc: {
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 10,
-    fontSize: 14,
-    letterSpacing: 0.2,
-    lineHeight: 20,
-  },
-  expandedDayTaskActions: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    paddingTop: 10,
-  },
-  expandedDayTaskAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  expandedDayTaskActionText: { color: "#9CA3AF", marginLeft: 4, fontSize: 13 },
-  expandedDayTaskActionTextActive: { color: "#E9967A" },
-  expandedDayTaskEditText: { color: "#FAC898", marginLeft: 4, fontSize: 13 },
-  expandedDayTaskDeleteText: { color: "#FCA5A5", marginLeft: 4, fontSize: 13 },
-  expandedDayCloseButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginTop: 12,
-    alignSelf: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  expandedDayCloseButtonText: {
-    color: "#FFFFFF",
-    marginLeft: 6,
-    fontWeight: "400",
-    letterSpacing: 0.3,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
@@ -2319,102 +2079,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     letterSpacing: 0.5,
     fontSize: 16,
-  },
-  datePickerContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-  },
-  datePickerContent: {
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-  },
-  datePickerTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  datePicker: { backgroundColor: "rgba(0, 0, 0, 0.9)" },
-  datePickerCloseButton: {
-    alignSelf: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(233, 150, 122, 0.15)",
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-    marginTop: 16,
-  },
-  datePickerCloseText: {
-    color: "#FFFFFF",
-    fontWeight: "500",
-    letterSpacing: 0.5,
-    fontSize: 16,
-  },
-  guideEventModal: {
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    borderRadius: 15,
-    padding: 20,
-    width: "90%",
-    maxWidth: 500,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    alignSelf: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  guideEventModalTitle: {
-    fontSize: 20,
-    fontWeight: "300",
-    color: "#FFFFFF",
-    marginBottom: 12,
-    letterSpacing: 1,
-  },
-  guideEventModalDesc: {
-    color: "#FFFFFF",
-    marginBottom: 16,
-    lineHeight: 22,
-    letterSpacing: 0.5,
-    fontSize: 16,
-  },
-  guideEventCloseButton: {
-    alignSelf: "flex-end",
-    backgroundColor: "rgba(233, 150, 122, 0.15)",
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-  },
-  guideEventCloseText: {
-    color: "#FFFFFF",
-    fontWeight: "500",
-    letterSpacing: 0.5,
-    fontSize: 16,
-  },
-  loadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    marginTop: 12,
-    letterSpacing: 0.5,
   },
   commentModalContent: {
     backgroundColor: "rgba(0, 0, 0, 0.8)",
@@ -2586,11 +2250,202 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     letterSpacing: 0.3,
   },
-  expandedDayModalContent: {
+  // New styles for the enhanced expanded day view
+  expandedDayContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    borderRadius: 20,
+    width: "90%",
+    maxHeight: "90%",
+    minHeight: 400,
+    padding: 16,
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  expandedDayHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(233, 150, 122, 0.3)",
+    paddingBottom: 8,
+    marginBottom: 12,
+  },
+  expandedDayTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#E9967A",
+  },
+  closeIconButton: {
+    padding: 8,
+  },
+  expandedDayContent: {
+    flex: 1,
+    width: "100%",
+  },
+  expandedDaySection: { marginBottom: 20 },
+  expandedDaySectionTitle: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    marginBottom: 12,
+  },
+  expandedDayEmptyText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontStyle: "italic",
+    textAlign: "center",
+    padding: 12,
+  },
+  expandedDayGuideEvent: {
+    flexDirection: "row",
+    backgroundColor: "rgba(233, 150, 122, 0.1)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.2)",
+  },
+  expandedDayGuideEventIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  expandedDayGuideEventContent: { flex: 1 },
+  expandedDayGuideEventTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    marginBottom: 6,
+  },
+  expandedDayGuideEventDesc: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  expandedDayTask: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  expandedDayTaskUserIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
+  expandedDayTaskContent: { flex: 1 },
+  expandedDayTaskTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  expandedDayTaskUser: {
+    fontSize: 13,
+    color: "#FAC898",
+    marginBottom: 4,
+  },
+  expandedDayTaskDesc: {
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 10,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  expandedDayTaskActions: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 10,
+  },
+  expandedDayTaskAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  expandedDayTaskActionText: { color: "#9CA3AF", marginLeft: 4, fontSize: 13 },
+  expandedDayTaskActionTextActive: { color: "#E9967A" },
+  expandedDayTaskDeleteText: { color: "#FCA5A5", marginLeft: 4, fontSize: 13 },
+  floatingAddTaskButton: {
+    position: "absolute",
+    bottom: 16,
+    right: 16,
+    backgroundColor: "#E9967A",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    marginTop: 12,
+    letterSpacing: 0.5,
+  },
+  guideEventModal: {
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     borderRadius: 15,
     padding: 20,
-    marginHorizontal: 20,
+    width: "90%",
+    maxWidth: 500,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  guideEventModalTitle: {
+    fontSize: 20,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+  guideEventModalDesc: {
+    color: "#FFFFFF",
+    marginBottom: 16,
+    lineHeight: 22,
+    letterSpacing: 0.5,
+    fontSize: 16,
+  },
+  guideEventCloseButton: {
+    alignSelf: "flex-end",
+    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+  },
+  guideEventCloseText: {
+    color: "#FFFFFF",
+    fontWeight: "500",
+    letterSpacing: 0.5,
+    fontSize: 16,
   },
 });
 
