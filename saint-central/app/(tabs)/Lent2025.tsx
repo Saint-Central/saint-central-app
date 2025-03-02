@@ -24,6 +24,7 @@ import {
   FlatList,
   Animated,
   Vibration,
+  Easing,
 } from "react-native";
 import { router } from "expo-router";
 import DateTimePicker, {
@@ -40,7 +41,7 @@ interface LentTask {
   user_id: string;
   event: string;
   description: string;
-  date: string; // ISO date string in UTC (with T00:00:00Z)
+  date: string; // Stored in "YYYY-MM-DD" or "YYYY-MM-DDT00:00:00" format
   created_at: string;
   user: {
     first_name: string;
@@ -103,7 +104,7 @@ const lentGuideEvents: LentEvent[] = [
 ];
 
 // --------------------
-// Helper Functions for Calendar
+// Helper Functions for Dates and Calendar
 // --------------------
 const getDaysInMonth = (month: number, year: number) => {
   const date = new Date(year, month, 1);
@@ -132,16 +133,18 @@ const getGuideEventsForDate = (date: Date): LentEvent[] => {
   });
 };
 
+// Updated: Extract only the date part before splitting
 const formatDateUTC = (dateStr: string): string => {
-  const d = new Date(dateStr);
-  const month = d.getUTCMonth() + 1;
-  const day = d.getUTCDate();
-  const year = d.getUTCFullYear();
-  return `${month}/${day}/${year}`;
+  const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+  const [year, month, day] = datePart.split("-");
+  return `${Number(month)}/${Number(day)}/${year}`;
 };
 
-const formatToUTC = (date: string): string => {
-  return date + "T00:00:00Z";
+// Updated: Strip off time portion if present before parsing.
+const parseLocalDate = (dateStr: string): Date => {
+  const cleanStr = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+  const [year, month, day] = cleanStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
 };
 
 const formatCommentDate = (dateStr: string): string => {
@@ -166,7 +169,7 @@ const formatCommentDate = (dateStr: string): string => {
 };
 
 // --------------------
-// Enhanced Expanded Day View Component
+// Expanded Day View Component
 // --------------------
 interface ExpandedDayViewProps {
   day: Date;
@@ -179,6 +182,7 @@ interface ExpandedDayViewProps {
   handleLikeToggle: (task: LentTask) => void;
   handleOpenComments: (task: LentTask) => void;
   showConfirmDelete: (taskId: string) => void;
+  onGuideEventPress: (event: LentEvent) => void;
 }
 
 const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
@@ -192,13 +196,15 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
   handleLikeToggle,
   handleOpenComments,
   showConfirmDelete,
+  onGuideEventPress,
 }) => {
   const slideAnim = useRef(new Animated.Value(500)).current;
 
   useEffect(() => {
-    Animated.spring(slideAnim, {
+    Animated.timing(slideAnim, {
       toValue: 0,
-      friction: 8,
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, []);
@@ -233,10 +239,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
               <TouchableOpacity
                 key={`guide-${index}`}
                 style={styles.expandedDayGuideEvent}
-                onPress={() => {
-                  onClose();
-                  // Optionally, trigger a detailed guide event modal here
-                }}
+                onPress={() => onGuideEventPress(event)}
               >
                 <View style={styles.expandedDayGuideEventIcon}>
                   <Feather name="calendar" size={14} color="#E9967A" />
@@ -371,7 +374,13 @@ const Lent2025Screen: React.FC = () => {
   const [newTask, setNewTask] = useState({
     event: "",
     description: "",
-    date: new Date().toISOString().split("T")[0],
+    date: (() => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    })(),
   });
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showInlineDatePicker, setShowInlineDatePicker] = useState(false);
@@ -683,6 +692,7 @@ const Lent2025Screen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [scrollToCurrentDay, currentMonth, currentYear, refreshKey, view]);
 
+  // Fix: Do not subtract a day when creating/updating tasks. Use local time.
   const handleCreateTask = async () => {
     if (
       !newTask.event.trim() ||
@@ -693,7 +703,7 @@ const Lent2025Screen: React.FC = () => {
       return;
     }
     try {
-      const formattedDate = formatToUTC(newTask.date);
+      const formattedDate = newTask.date + "T00:00:00";
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -714,7 +724,13 @@ const Lent2025Screen: React.FC = () => {
       setNewTask({
         event: "",
         description: "",
-        date: new Date().toISOString().split("T")[0],
+        date: (() => {
+          const d = new Date();
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        })(),
       });
       setShowInlineDatePicker(false);
       fetchTasks();
@@ -743,7 +759,7 @@ const Lent2025Screen: React.FC = () => {
       return;
     }
     try {
-      const formattedDate = formatToUTC(editingTask.date);
+      const formattedDate = editingTask.date + "T00:00:00";
       const { error } = await supabase
         .from("lent_tasks")
         .update({
@@ -964,11 +980,11 @@ const Lent2025Screen: React.FC = () => {
   const getTasksForDay = useCallback(
     (date: Date): LentTask[] => {
       return lentTasks.filter((task) => {
-        const taskDate = new Date(task.date);
+        const taskDate = parseLocalDate(task.date);
         return (
-          taskDate.getUTCFullYear() === date.getUTCFullYear() &&
-          taskDate.getUTCMonth() === date.getUTCMonth() &&
-          taskDate.getUTCDate() === date.getUTCDate()
+          taskDate.getFullYear() === date.getFullYear() &&
+          taskDate.getMonth() === date.getMonth() &&
+          taskDate.getDate() === date.getDate()
         );
       });
     },
@@ -1350,13 +1366,16 @@ const Lent2025Screen: React.FC = () => {
                 onPress={() => {
                   if (Platform.OS === "android") {
                     DateTimePickerAndroid.open({
-                      value: new Date(newTask.date),
+                      value: new Date(newTask.date + "T00:00:00"),
                       onChange: (event, date) => {
                         if (date) {
-                          setNewTask({
-                            ...newTask,
-                            date: date.toISOString().split("T")[0],
-                          });
+                          const y = date.getFullYear();
+                          const m = String(date.getMonth() + 1).padStart(
+                            2,
+                            "0"
+                          );
+                          const d = String(date.getDate()).padStart(2, "0");
+                          setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
                         }
                       },
                       mode: "date",
@@ -1366,24 +1385,24 @@ const Lent2025Screen: React.FC = () => {
                   }
                 }}
                 accessibilityLabel={`Select date, current date: ${new Date(
-                  newTask.date
+                  newTask.date + "T00:00:00"
                 ).toLocaleDateString()}`}
               >
                 <Text style={styles.dateButtonText}>
-                  {new Date(newTask.date).toLocaleDateString()}
+                  {new Date(newTask.date + "T00:00:00").toLocaleDateString()}
                 </Text>
               </TouchableOpacity>
               {Platform.OS !== "android" && showInlineDatePicker && (
                 <DateTimePicker
-                  value={new Date(newTask.date)}
+                  value={new Date(newTask.date + "T00:00:00")}
                   mode="date"
                   display="spinner"
                   onChange={(event, date) => {
                     if (date) {
-                      setNewTask({
-                        ...newTask,
-                        date: date.toISOString().split("T")[0],
-                      });
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, "0");
+                      const d = String(date.getDate()).padStart(2, "0");
+                      setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
                     }
                   }}
                   style={{ backgroundColor: "#000000" }}
@@ -1468,12 +1487,18 @@ const Lent2025Screen: React.FC = () => {
                   onPress={() => {
                     if (Platform.OS === "android") {
                       DateTimePickerAndroid.open({
-                        value: new Date(editingTask.date),
+                        value: new Date(editingTask.date + "T00:00:00"),
                         onChange: (event, date) => {
                           if (date) {
+                            const y = date.getFullYear();
+                            const m = String(date.getMonth() + 1).padStart(
+                              2,
+                              "0"
+                            );
+                            const d = String(date.getDate()).padStart(2, "0");
                             setEditingTask({
                               ...editingTask,
-                              date: date.toISOString().split("T")[0],
+                              date: `${y}-${m}-${d}`,
                             } as LentTask);
                           }
                         },
@@ -1484,23 +1509,28 @@ const Lent2025Screen: React.FC = () => {
                     }
                   }}
                   accessibilityLabel={`Select date, current date: ${new Date(
-                    editingTask.date
+                    editingTask.date + "T00:00:00"
                   ).toLocaleDateString()}`}
                 >
                   <Text style={styles.dateButtonText}>
-                    {new Date(editingTask.date).toLocaleDateString()}
+                    {new Date(
+                      editingTask.date + "T00:00:00"
+                    ).toLocaleDateString()}
                   </Text>
                 </TouchableOpacity>
                 {Platform.OS !== "android" && showEditDatePicker && (
                   <DateTimePicker
-                    value={new Date(editingTask.date)}
+                    value={new Date(editingTask.date + "T00:00:00")}
                     mode="date"
                     display="spinner"
                     onChange={(event, date) => {
                       if (date) {
+                        const y = date.getFullYear();
+                        const m = String(date.getMonth() + 1).padStart(2, "0");
+                        const d = String(date.getDate()).padStart(2, "0");
                         setEditingTask({
                           ...editingTask,
-                          date: date.toISOString().split("T")[0],
+                          date: `${y}-${m}-${d}`,
                         } as LentTask);
                       }
                     }}
@@ -1726,6 +1756,10 @@ const Lent2025Screen: React.FC = () => {
               handleLikeToggle={handleLikeToggle}
               handleOpenComments={handleOpenComments}
               showConfirmDelete={showConfirmDelete}
+              onGuideEventPress={(event: LentEvent) => {
+                setSelectedGuideEvent(event);
+                setSelectedDay(null);
+              }}
             />
           </View>
         </Modal>
@@ -2253,7 +2287,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     letterSpacing: 0.3,
   },
-  // New styles for enhanced expanded day view
+  // Styles for expanded day view
   expandedDayContainer: {
     backgroundColor: "rgba(0, 0, 0, 0.95)",
     borderRadius: 20,
