@@ -100,7 +100,257 @@ const lentGuideEvents: LentEvent[] = [
     description:
       "Attend an Ash Wednesday service to receive ashes on your forehead, symbolizing repentance and mortality. Reflect on areas in your life needing growth and set a personal intention for Lent.",
   },
-  // ...rest of the events remain the same
+  {
+    date: "March 6",
+    title: "Silent Prayer",
+    description:
+      "Dedicate 20 minutes to silent prayer or meditation. Find a quiet space, focus on your breathing, and invite God's presence. Consider using a guided prayer resource if needed.",
+  },
+  {
+    date: "March 7",
+    title: "Stations of the Cross",
+    description:
+      "Participate in the Stations of the Cross at your local parish. Reflect on each station, contemplating Jesus' journey to the crucifixion and its significance in your life.",
+  },
+  {
+    date: "March 8",
+    title: "Group Discussion",
+    description:
+      "Organize a group discussion with friends or family about the significance of Lent. Share personal goals and support each other in your spiritual journeys.",
+  },
+  {
+    date: "March 9",
+    title: "Meatless Meal",
+    description:
+      "Prepare and share a simple, meatless meal with loved ones. Use this time to discuss the importance of fasting and how it brings you closer to God.",
+  },
+  {
+    date: "March 10",
+    title: "Social Media Fast",
+    description:
+      "Commit to a day without social media. Use the time to read a passage from the Bible, perhaps starting with the Gospels, and reflect on its message.",
+  },
+  {
+    date: "March 11",
+    title: "Charitable Act",
+    description:
+      "Engage in a charitable act, such as volunteering at a local shelter or donating to a food bank. Reflect on how acts of service embody Christ's love.",
+  },
+  // Week 2: March 12 - March 18
+  {
+    date: "March 12",
+    title: "Daily Examen",
+    description:
+      "Begin a daily examen, a reflective prayer practice where you review your day, noting moments of gratitude and areas for improvement.",
+  },
+  {
+    date: "March 13",
+    title: "Weekday Mass",
+    description:
+      "Attend a weekday Mass or prayer service to deepen your connection with the faith community.",
+  },
+  {
+    date: "March 14",
+    title: "Fellowship Dinner",
+    description:
+      "Host a simple dinner with friends, focusing on fellowship and reflection.",
+  },
+  {
+    date: "March 15",
+    title: "Nature Walk",
+    description:
+      "Spend time outdoors, perhaps taking a nature walk, and meditate on the beauty of creation. Consider reading a psalm that celebrates nature.",
+  },
+  {
+    date: "March 16",
+    title: "Letters of Encouragement",
+    description:
+      "Write letters or emails of encouragement to family or friends, offering support and sharing your reflections during Lent.",
+  },
+  {
+    date: "March 17",
+    title: "Fasting from Spending",
+    description:
+      "Fast from unnecessary spending. Reflect on material attachments and consider donating the money saved to a charitable cause.",
+  },
+  {
+    date: "March 18",
+    title: "Group Rosary",
+    description:
+      "Organize a group rosary or prayer session, either in person or virtually, to foster communal prayer.",
+  },
+  // Week 3: March 19 - March 25
+  {
+    date: "March 19",
+    title: "Study a Saint",
+    description:
+      "Study the life of a saint, such as St. Joseph, whose feast day is today. Discuss their virtues and how you can emulate them in your life.",
+  },
+  {
+    date: "March 20",
+    title: "Eucharistic Adoration",
+    description:
+      "Spend an hour in Eucharistic adoration, reflecting on the presence of Christ and offering your intentions.",
+  },
+  {
+    date: "March 21",
+    title: "Stations of the Cross",
+    description:
+      "Participate in the Stations of the Cross, focusing on the personal relevance of each station in your spiritual journey.",
+  },
+  {
+    date: "March 22",
+    title: "Digital Detox",
+    description:
+      "Engage in a digital detox day, refraining from unnecessary screen time. Use the time for personal reflection, reading, or spending quality time with loved ones.",
+  },
+  {
+    date: "March 23",
+    title: "Meal for a Neighbor",
+    description:
+      "Prepare a meal for someone in need or a neighbor, embodying the act of giving and community support.",
+  },
+  {
+    date: "March 24",
+    title: "Lenten Reflection",
+    description:
+      "Reflect on your Lenten journey thus far. Journal about your experiences, challenges, and any spiritual growth you've noticed.",
+  },
+  {
+    date: "March 25",
+    title: "Feast of the Annunciation",
+    description:
+      "Celebrate by praying the Angelus, reflecting on Mary's 'yes' to God, and consider how you can say 'yes' in your own life.",
+  },
+  // Week 4: March 26 - April 1
+  {
+    date: "March 26",
+    title: "Seek Reconciliation",
+    description:
+      "Reach out to someone with whom you've had a disagreement or strained relationship. Offer forgiveness or seek reconciliation, fostering healing and peace.",
+  },
+  {
+    date: "March 27",
+    title: "Penance Service",
+    description:
+      "Attend a Lenten penance service or go to confession, embracing the sacrament of reconciliation to cleanse your spirit.",
+  },
+  {
+    date: "March 28",
+    title: "Alternative Stations",
+    description:
+      "Participate in the Stations of the Cross, perhaps focusing on a different perspective, such as viewing it through Mary's eyes.",
+  },
+  {
+    date: "March 29",
+    title: "Book Club Discussion",
+    description:
+      "Host a discussion or book club focusing on themes of sacrifice and redemption, selecting a spiritual book or scripture passage as the basis.",
+  },
+  {
+    date: "March 30",
+    title: "Contemplative Prayer",
+    description:
+      "Dedicate time to contemplative prayer, such as centering prayer or meditating on the sorrowful mysteries of the rosary.",
+  },
+  {
+    date: "March 31",
+    title: "Fast from Comforts",
+    description:
+      "Fast from a personal comfort, such as sweets or a favorite beverage, offering the day for a special intention or in solidarity with those who lack basic necessities.",
+  },
+  {
+    date: "April 1",
+    title: "Share Spiritual Readings",
+    description:
+      "Share your favorite spiritual readings or passages with friends, perhaps through a small gathering or online group, and discuss their impact on your faith.",
+  },
+  // Week 5: April 2 - April 8
+  {
+    date: "April 2",
+    title: "Service Project",
+    description:
+      "Participate in a service project, such as cleaning a community space, assisting at a food pantry, or helping a neighbor with tasks. Reflect on the joy of serving others.",
+  },
+  {
+    date: "April 3",
+    title: "Scripture Study",
+    description:
+      "Dedicate time to studying Scripture, focusing on the Passion narratives in the Gospels. Reflect on the events leading up to Jesus' crucifixion.",
+  },
+  {
+    date: "April 4",
+    title: "Lead Stations",
+    description:
+      "Join the Stations of the Cross, perhaps leading a station or reading a reflection, deepening your engagement with the practice.",
+  },
+  {
+    date: "April 5",
+    title: "Group Hike",
+    description:
+      "Organize a group hike or walk, using the time for prayer, reflection, and discussing how nature reveals God's presence.",
+  },
+  {
+    date: "April 6",
+    title: "Fasting and Prayer",
+    description:
+      "Engage in a day of fasting and prayer, focusing on repentance and seeking spiritual renewal.",
+  },
+  {
+    date: "April 7",
+    title: "Lenten Retreat",
+    description:
+      "Participate in a Lenten retreat or day of reflection. Many parishes offer retreats during Lent to help deepen your faith and prepare for Holy Week.",
+  },
+  {
+    date: "April 8",
+    title: "Sacrament of Reconciliation",
+    description:
+      "Engage in the Sacrament of Reconciliation. If you haven't already during Lent, seek out confession to cleanse your heart and soul before entering Holy Week.",
+  },
+  // Week 6: Additional events
+  {
+    date: "April 6",
+    title: "Fifth Sunday Mass",
+    description:
+      "Attend Mass and reflect on the Gospel reading, which often focuses on themes of resurrection and new life, such as the raising of Lazarus. Consider how you can bring new life to your spiritual practices.",
+  },
+  {
+    date: "April 7",
+    title: "Lenten Retreat Continued",
+    description:
+      "Participate in a Lenten retreat or day of reflection. Many parishes offer retreats during Lent to help deepen your faith.",
+  },
+  {
+    date: "April 8",
+    title: "Reconciliation Day",
+    description:
+      "Engage in the Sacrament of Reconciliation. If you haven't already during Lent, seek out confession to cleanse your heart and soul before entering Holy Week.",
+  },
+  {
+    date: "April 9",
+    title: "Stations Reflection",
+    description:
+      "Attend the Stations of the Cross, meditating on each station and its significance in your life. Reflect on the sacrifices Jesus made and how you can emulate his love and compassion.",
+  },
+  {
+    date: "April 10",
+    title: "Passion Meditations",
+    description:
+      "Dedicate time to reading and meditating on the Passion narratives in the Gospels (Matthew 26-27, Mark 14-15, Luke 22-23, or John 18-19). Contemplate the events leading up to Jesus' crucifixion.",
+  },
+  {
+    date: "April 11",
+    title: "Fasting and Abstinence",
+    description:
+      "Observe a day of fasting and abstinence in solidarity with Christ's suffering. Attend a Friday Lenten service or participate in a community fish fry, reflecting on the communal aspects of Lenten observance.",
+  },
+  {
+    date: "April 12",
+    title: "Preparation for Holy Week",
+    description:
+      "Prepare for Holy Week by setting aside time for personal prayer and reflection. Consider creating a sacred space in your home with symbols of the Passion, such as a crucifix or candles, to enhance your prayer experience.",
+  },
 ];
 
 // --------------------
