@@ -246,22 +246,13 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
           </Text>
         </TouchableOpacity>
         {item.user_id === currentUserId && (
-          <>
-            <TouchableOpacity
-              style={styles.intentionAction}
-              onPress={() => onEdit(item)}
-            >
-              <Feather name="edit" size={18} color="#FAC898" />
-              <Text style={styles.actionText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.intentionAction}
-              onPress={() => onDelete(item.id)}
-            >
-              <Feather name="trash-2" size={18} color="#FAC898" />
-              <Text style={styles.actionText}>Delete</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={styles.intentionAction}
+            onPress={() => onEdit(item)}
+          >
+            <Feather name="edit" size={18} color="#FAC898" />
+            <Text style={styles.actionText}>Edit</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -1982,6 +1973,21 @@ export default function CommunityScreen() {
                     />
                   </View>
                   <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => {
+                        if (editingIntention) {
+                          setDeleteModal({
+                            isOpen: true,
+                            intentionId: editingIntention.id,
+                          });
+                          setShowEditModal(false);
+                        }
+                      }}
+                    >
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }} />
                     <TouchableOpacity
                       style={styles.cancelButton}
                       onPress={() => {
