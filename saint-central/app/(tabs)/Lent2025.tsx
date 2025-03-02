@@ -588,7 +588,11 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
+  // FIXED: Close selectedDay modal before opening edit modal
   const handleEditTask = (task: LentTask) => {
+    // First close the expanded day modal
+    setSelectedDay(null);
+
     const editTask = { ...task, date: task.date.split("T")[0] };
     setEditingTask(editTask);
   };
@@ -631,6 +635,7 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
+  // FIXED: Only close selectedDay when explicitly requested
   const handleDeleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase
@@ -760,7 +765,11 @@ const Lent2025Screen: React.FC = () => {
     }
   };
 
+  // FIXED: Close selectedDay modal before opening comments modal
   const handleOpenComments = (task: LentTask) => {
+    // First close the expanded day modal
+    setSelectedDay(null);
+
     setSelectedTaskForComments(task);
     setTaskComments([]);
     setCommentLoading(true);
@@ -1059,7 +1068,10 @@ const Lent2025Screen: React.FC = () => {
               <TouchableOpacity
                 key={`guide-${index}`}
                 style={styles.expandedDayGuideEvent}
-                onPress={() => setSelectedGuideEvent(event)}
+                onPress={() => {
+                  setSelectedDay(null); // Close day view before showing event details
+                  setSelectedGuideEvent(event);
+                }}
               >
                 <View style={styles.expandedDayGuideEventIcon}>
                   <Feather name="calendar" size={14} color="#E9967A" />
@@ -1149,26 +1161,18 @@ const Lent2025Screen: React.FC = () => {
                         </Text>
                       </TouchableOpacity>
                       {isUserTask && (
-                        <>
-                          <TouchableOpacity
-                            style={styles.expandedDayTaskAction}
-                            onPress={() => handleEditTask(task)}
-                          >
-                            <Feather name="edit" size={16} color="#FAC898" />
-                            <Text style={styles.expandedDayTaskEditText}>
-                              Edit
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.expandedDayTaskAction}
-                            onPress={() => showConfirmDelete(task.id)}
-                          >
-                            <Feather name="trash-2" size={16} color="#FCA5A5" />
-                            <Text style={styles.expandedDayTaskDeleteText}>
-                              Delete
-                            </Text>
-                          </TouchableOpacity>
-                        </>
+                        <TouchableOpacity
+                          style={styles.expandedDayTaskAction}
+                          onPress={() => {
+                            setSelectedDay(null); // FIXED: Close day view first
+                            showConfirmDelete(task.id);
+                          }}
+                        >
+                          <Feather name="trash-2" size={16} color="#FCA5A5" />
+                          <Text style={styles.expandedDayTaskDeleteText}>
+                            Delete
+                          </Text>
+                        </TouchableOpacity>
                       )}
                     </View>
                   </View>
@@ -1459,6 +1463,8 @@ const Lent2025Screen: React.FC = () => {
                     }
                   }}
                   style={{ backgroundColor: "#000000" }}
+                  textColor="#FFFFFF"
+                  themeVariant="dark"
                 />
               )}
               <Text style={styles.inputLabel}>Description</Text>
@@ -1575,6 +1581,8 @@ const Lent2025Screen: React.FC = () => {
                       }
                     }}
                     style={{ backgroundColor: "#000000" }}
+                    textColor="#FFFFFF"
+                    themeVariant="dark"
                   />
                 )}
                 <Text style={styles.inputLabel}>Description</Text>
