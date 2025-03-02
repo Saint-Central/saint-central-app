@@ -51,6 +51,26 @@ interface CustomInputProps {
   toggleSecure?: () => void;
 }
 
+// --- Password Validation Function ---
+const validatePassword = (password: string): string | null => {
+  if (password.length < 6) {
+    return "Password must be at least 6 characters.";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password must contain at least one uppercase letter.";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password must contain at least one lowercase letter.";
+  }
+  if (!/[0-9]/.test(password)) {
+    return "Password must contain at least one digit.";
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return "Password must contain at least one symbol.";
+  }
+  return null;
+};
+
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
@@ -187,10 +207,10 @@ const AuthScreen: React.FC = () => {
     };
   }, []);
 
-  // Automatically clear error after 3 seconds
+  // Automatically clear error after 15 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(""), 3000);
+      const timer = setTimeout(() => setError(""), 15000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -231,20 +251,55 @@ const AuthScreen: React.FC = () => {
         }
         if (password !== confirmPassword)
           throw new Error("Passwords don't match. Please check and try again.");
+
+        // Pre-validate the password on the client side.
+        const validationError = validatePassword(password);
+        if (validationError) {
+          throw new Error(validationError);
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { first_name: firstName, last_name: lastName } },
         });
         if (error) {
-          if (error.message.includes("User already registered")) {
+          console.log("Sign-up error:", error);
+          // Try to get more detailed error info
+          const errMsg = error.message;
+          const lowerCaseError = errMsg.toLowerCase();
+
+          if (lowerCaseError.includes("user already registered")) {
             throw new Error(
               "This email is already registered. Try signing in instead."
             );
           }
-          throw new Error(
-            "Unable to create your account. Please try again later."
-          );
+
+          // Check for weak password errors first
+          if (lowerCaseError.includes("weak")) {
+            throw new Error(
+              "Password is known to be weak and easy to guess. Please choose a different password."
+            );
+          }
+
+          // Check for data breach or exposed password keywords.
+          if (
+            lowerCaseError.includes("leak") ||
+            lowerCaseError.includes("exposed")
+          ) {
+            throw new Error(
+              "Password has been exposed in a data breach. Please choose a different password."
+            );
+          }
+
+          // Otherwise, if the error mentions password requirements.
+          if (lowerCaseError.includes("password")) {
+            throw new Error(
+              "Password must contain an uppercase letter, a lowercase letter, a digit, and a symbol."
+            );
+          }
+
+          throw new Error(errMsg);
         }
         if (data?.user) {
           await createUserInDatabase(data.user.id, email, firstName, lastName);
@@ -353,7 +408,6 @@ const AuthScreen: React.FC = () => {
           <SafeAreaView
             style={[
               styles.safeArea,
-              // On iPad, center vertically and horizontally; on phones, still center horizontally.
               { alignItems: "center" },
               isIpad && {
                 maxWidth: 600,
