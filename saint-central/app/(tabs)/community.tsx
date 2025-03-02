@@ -277,10 +277,20 @@ export default function CommunityScreen() {
   const [newComment, setNewComment] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // New state for FAB menu
+  const [showFabMenu, setShowFabMenu] = useState<boolean>(false);
+
   // Animation refs
   const scrollY = useRef(new Animated.Value(0)).current;
   const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
   const likeOpacityAnimations = useRef<Map<string, Animated.Value>>(new Map());
+
+  // New animations for FAB menu
+  const fabMenuAnimation = useRef(new Animated.Value(0)).current;
+  const fabRotation = fabMenuAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "45deg"],
+  });
 
   // Effects
   useEffect(() => {
@@ -1099,6 +1109,47 @@ export default function CommunityScreen() {
     }
   };
 
+  // Handle FAB menu animation and toggle
+  const toggleFabMenu = (): void => {
+    // Start the animation
+    Animated.spring(fabMenuAnimation, {
+      toValue: showFabMenu ? 0 : 1,
+      friction: 6,
+      tension: 80,
+      useNativeDriver: true,
+    }).start();
+
+    // Toggle the state
+    setShowFabMenu(!showFabMenu);
+  };
+
+  // Handle FAB option selection
+  const handleFabOption = (option: string): void => {
+    // Close the menu with animation
+    Animated.timing(fabMenuAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowFabMenu(false);
+    });
+
+    switch (option) {
+      case "intention":
+        setShowIntentionModal(true);
+        break;
+      case "friends":
+        setShowFriendsSearch(true);
+        setSearchQuery("");
+        setUsers([]);
+        setFriendTab("search");
+        break;
+      case "lent":
+        router.push("/Lent2025");
+        break;
+    }
+  };
+
   // Render methods
   const renderIntentionCard = ({ item }: { item: Intention }): JSX.Element => {
     const scaleAnim = getLikeScaleAnimation(item.id);
@@ -1287,38 +1338,6 @@ export default function CommunityScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Community</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => setShowIntentionModal(true)}
-            >
-              <Feather name="plus-circle" size={22} color="#FAC898" />
-              <Text style={styles.headerButtonText}>New</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => {
-                setShowFriendsSearch(!showFriendsSearch);
-                setSearchQuery("");
-                setUsers([]);
-                setFriendTab("search");
-              }}
-            >
-              <View style={styles.badgeContainer}>
-                {showFriendsSearch ? (
-                  <Feather name="list" size={22} color="#FAC898" />
-                ) : (
-                  <Feather name="users" size={22} color="#FAC898" />
-                )}
-                {!showFriendsSearch && friendRequestCount > 0 && (
-                  <View style={styles.badge} />
-                )}
-              </View>
-              <Text style={styles.headerButtonText}>
-                {showFriendsSearch ? "Intentions" : "Friends"}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Feed Header + Lent Button */}
@@ -1372,12 +1391,6 @@ export default function CommunityScreen() {
                 Friends
               </Text>
             </TouchableOpacity>
-            <Link href="/Lent2025" asChild>
-              <TouchableOpacity style={styles.lentButton}>
-                <Feather name="book-open" size={18} color="#FFFFFF" />
-                <Text style={styles.lentButtonText}>Lent 2025</Text>
-              </TouchableOpacity>
-            </Link>
           </View>
         )}
 
@@ -1419,6 +1432,15 @@ export default function CommunityScreen() {
         {/* Friends Section */}
         {showFriendsSearch && (
           <View style={styles.friendsSection}>
+            {/* Back button for friends section */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setShowFriendsSearch(false)}
+            >
+              <Feather name="arrow-left" size={24} color="#FAC898" />
+              <Text style={styles.backButtonText}>Back to Feed</Text>
+            </TouchableOpacity>
+
             <View style={styles.friendsTabs}>
               <TouchableOpacity
                 style={[
@@ -1577,6 +1599,65 @@ export default function CommunityScreen() {
               </>
             )}
           </View>
+        )}
+
+        {/* Floating Action Button with animated rotation */}
+        <TouchableOpacity style={styles.fab} onPress={toggleFabMenu}>
+          <Animated.View style={{ transform: [{ rotate: fabRotation }] }}>
+            <Feather name="plus" size={26} color="#FFFFFF" />
+          </Animated.View>
+        </TouchableOpacity>
+
+        {/* FAB Menu */}
+        {showFabMenu && (
+          <Animated.View
+            style={[
+              styles.fabMenu,
+              {
+                opacity: fabMenuAnimation,
+                transform: [
+                  {
+                    translateY: fabMenuAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => handleFabOption("intention")}
+            >
+              <Feather name="edit" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>Add Intention</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => handleFabOption("friends")}
+            >
+              <Feather name="users" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>
+                Friends
+                {friendRequestCount > 0 && (
+                  <Text style={styles.fabMenuBadge}>
+                    {" "}
+                    • {friendRequestCount}
+                  </Text>
+                )}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => handleFabOption("lent")}
+            >
+              <Feather name="book-open" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>Lent 2025</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Create Intention Modal */}
@@ -1933,36 +2014,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     letterSpacing: 1,
   },
-  headerButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  headerButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  badgeContainer: { position: "relative" },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#E9967A",
-  },
-  headerButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 8,
-  },
   filterTabs: {
     flexDirection: "row",
     paddingHorizontal: 15,
@@ -1987,21 +2038,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   activeFilterTabText: { color: "#FFFFFF", fontWeight: "600" },
-  lentButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(233, 150, 122, 0.9)",
-    borderRadius: 30,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    marginLeft: "auto",
-  },
-  lentButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
   intentionList: { padding: 15, paddingBottom: 100 },
   intentionCard: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
@@ -2494,5 +2530,79 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+
+  // New styles for floating action button and menu
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 100, // Increased to position above bottom nav
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(233, 150, 122, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 1000,
+  },
+  fabMenu: {
+    position: "absolute",
+    right: 20,
+    bottom: 170, // Adjusted to appear above the FAB button
+    borderRadius: 15,
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    padding: 10,
+    paddingVertical: 15,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    zIndex: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    width: 180,
+  },
+  fabMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+  },
+  fabMenuItemText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    marginLeft: 10,
+    fontWeight: "500",
+  },
+  fabMenuBadge: {
+    color: "#E9967A",
+    fontWeight: "600",
+  },
+
+  // New styles for back button in friends section
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignSelf: "flex-start",
+  },
+  backButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    marginLeft: 8,
+    fontWeight: "500",
   },
 });
