@@ -94,6 +94,13 @@ export default function GroupsScreen() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Leave Group confirmation modal state
+  const [selectedGroupToLeave, setSelectedGroupToLeave] = useState<
+    string | null
+  >(null);
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] =
+    useState<boolean>(false);
+
   // FAB animation state
   const [showFabMenu, setShowFabMenu] = useState(false);
   const fabMenuAnimation = React.useRef(new Animated.Value(0)).current;
@@ -104,8 +111,14 @@ export default function GroupsScreen() {
 
   useEffect(() => {
     getCurrentUser();
-    fetchGroups();
   }, []);
+
+  // New: Once currentUserId is set, fetch groups
+  useEffect(() => {
+    if (currentUserId) {
+      fetchGroups();
+    }
+  }, [currentUserId]);
 
   useEffect(() => {
     if (notification) {
@@ -127,13 +140,15 @@ export default function GroupsScreen() {
     }
   };
 
-  // Fetch groups from Supabase
+  // Fetch groups from Supabase that the current user is a member of
   const fetchGroups = async () => {
+    if (!currentUserId) return;
     try {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("groups")
-        .select("*")
+        .select("*, group_members!inner(*)")
+        .eq("group_members.user_id", currentUserId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setGroups(data || []);
@@ -236,16 +251,33 @@ export default function GroupsScreen() {
       if (error) throw error;
       const newGroupId = groupData[0].id;
 
-      // Insert selected members (if any)
-      if (selectedMembersForCreation.length > 0) {
-        const membersPayload = selectedMembersForCreation.map((friendId) => ({
+      // Insert current user as admin into group_members
+      const { error: adminInsertError } = await supabase
+        .from("group_members")
+        .insert({
           group_id: newGroupId,
-          user_id: friendId,
-        }));
-        const { error: membersError } = await supabase
-          .from("group_members")
-          .insert(membersPayload);
-        if (membersError) throw membersError;
+          user_id: userData.user.id,
+          role: "admin",
+        });
+      if (adminInsertError) throw adminInsertError;
+
+      // Insert selected members (if any) as members
+      if (selectedMembersForCreation.length > 0) {
+        // Remove current user if accidentally included
+        const filteredMembers = selectedMembersForCreation.filter(
+          (friendId) => friendId !== userData.user.id
+        );
+        if (filteredMembers.length > 0) {
+          const membersPayload = filteredMembers.map((friendId) => ({
+            group_id: newGroupId,
+            user_id: friendId,
+            role: "member",
+          }));
+          const { error: membersError } = await supabase
+            .from("group_members")
+            .insert(membersPayload);
+          if (membersError) throw membersError;
+        }
       }
       setShowCreateModal(false);
       setNewGroup({ name: "", description: "" });
@@ -345,6 +377,7 @@ export default function GroupsScreen() {
         const addPayload = toAdd.map((friendId) => ({
           group_id: selectedGroupForAddingMembers,
           user_id: friendId,
+          role: "member",
         }));
         const { error: addError } = await supabase
           .from("group_members")
@@ -352,7 +385,7 @@ export default function GroupsScreen() {
         if (addError) throw addError;
       }
       if (toRemove.length > 0) {
-        // Change order of filters: first .eq("group_id", …) then .in("user_id", …)
+        // Delete records by matching both group_id and user_id
         const { error: removeError } = await supabase
           .from("group_members")
           .delete()
@@ -374,6 +407,32 @@ export default function GroupsScreen() {
       console.error("Error updating group members:", error);
       setNotification({
         message: `Error updating group members: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
+      });
+    }
+  };
+
+  // New: Leave Group Functionality
+  const handleLeaveGroup = async (groupId: string) => {
+    if (!currentUserId) return;
+    try {
+      const { error } = await supabase
+        .from("group_members")
+        .delete()
+        .eq("group_id", groupId)
+        .eq("user_id", currentUserId);
+      if (error) throw error;
+      setNotification({
+        message: "You have left the group.",
+        type: "success",
+      });
+      fetchGroups();
+    } catch (error: any) {
+      console.error("Error leaving group:", error);
+      setNotification({
+        message: `Error leaving group: ${
           error instanceof Error ? error.message : String(error)
         }`,
         type: "error",
@@ -409,7 +468,6 @@ export default function GroupsScreen() {
   };
 
   // Toggle friend selection in the friend selection overlay/modal.
-  // This function toggles the friend’s ID in the selection state.
   const toggleFriendSelectionHandler = (friendId: string) => {
     if (selectedMembersForCreation.includes(friendId)) {
       setSelectedMembersForCreation(
@@ -437,6 +495,7 @@ export default function GroupsScreen() {
   };
 
   // Render a single group card with Edit and Add Members buttons (if created by current user)
+  // Also shows a "Leave Group" button for groups not created by the current user.
   const renderGroupItem = ({ item }: { item: Group }) => {
     return (
       <View style={styles.groupCard}>
@@ -450,7 +509,7 @@ export default function GroupsScreen() {
               Created: {new Date(item.created_at).toLocaleDateString()}
             </Text>
           </View>
-          {item.created_by === currentUserId && (
+          {item.created_by === currentUserId ? (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <TouchableOpacity
                 style={{ marginRight: 10 }}
@@ -467,7 +526,6 @@ export default function GroupsScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
-                  // For group card add-members, fetch existing members and open a separate modal.
                   setSelectedGroupForAddingMembers(item.id);
                   fetchExistingGroupMembers(item.id);
                   setShowFriendSelectionModal(true);
@@ -476,6 +534,16 @@ export default function GroupsScreen() {
                 <Feather name="user-plus" size={18} color="#FAC898" />
               </TouchableOpacity>
             </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.leaveButton}
+              onPress={() => {
+                setSelectedGroupToLeave(item.id);
+                setShowLeaveConfirmModal(true);
+              }}
+            >
+              <Text style={styles.leaveButtonText}>Leave Group</Text>
+            </TouchableOpacity>
           )}
         </View>
         {item.description ? (
@@ -867,6 +935,48 @@ export default function GroupsScreen() {
               </View>
             </Modal>
           )}
+
+        {/* Leave Group Confirmation Modal */}
+        {showLeaveConfirmModal && (
+          <Modal
+            visible={showLeaveConfirmModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowLeaveConfirmModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Confirm Leave</Text>
+                <Text style={styles.modalText}>
+                  Are you sure you want to leave this group?
+                </Text>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setShowLeaveConfirmModal(false);
+                      setSelectedGroupToLeave(null);
+                    }}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => {
+                      if (selectedGroupToLeave) {
+                        handleLeaveGroup(selectedGroupToLeave);
+                      }
+                      setShowLeaveConfirmModal(false);
+                      setSelectedGroupToLeave(null);
+                    }}
+                  >
+                    <Text style={styles.deleteButtonText}>Leave</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -1186,5 +1296,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
+  },
+  leaveButton: {
+    backgroundColor: "rgba(220,38,38,0.2)",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: "flex-end",
+    marginTop: 10,
+  },
+  leaveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
