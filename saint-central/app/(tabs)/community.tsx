@@ -1269,6 +1269,10 @@ export default function CommunityScreen() {
       case "lent":
         router.push("/Lent2025");
         break;
+      case "groups":
+        // Navigate to your Groups page:
+        router.push("/groups");
+        break;
     }
   };
 
@@ -1480,7 +1484,7 @@ export default function CommunityScreen() {
             style={[
               styles.filterDropdown,
               {
-                top: headerHeight + 45, // Position it with significant space below the header
+                top: headerHeight + 45, // Position it with space below the header
                 opacity: filterDropdownAnim,
                 transform: [
                   {
@@ -1807,6 +1811,15 @@ export default function CommunityScreen() {
             >
               <Feather name="book-open" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Lent 2025</Text>
+            </TouchableOpacity>
+
+            {/* NEW GROUPS BUTTON */}
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => handleFabOption("groups")}
+            >
+              <Feather name="users" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>Groups</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -2657,7 +2670,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 100, // Increased to position above bottom nav
+    bottom: 100, // to position above any bottom nav
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -2674,7 +2687,7 @@ const styles = StyleSheet.create({
   fabMenu: {
     position: "absolute",
     right: 20,
-    bottom: 170, // Adjusted to appear above the FAB button
+    bottom: 170, // Adjust to appear above the FAB
     borderRadius: 15,
     backgroundColor: "rgba(41, 37, 36, 0.95)",
     padding: 10,

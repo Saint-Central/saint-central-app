@@ -225,7 +225,8 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 route.name.includes("womens-ministry/") ||
                 route.name.includes("culture-and-testimonies/") ||
                 route.name.includes("news/") ||
-                route.name === "donate"
+                route.name === "donate" ||
+                route.name === "groups"
               ) {
                 return null;
               }
@@ -294,6 +295,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen name="news/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="donate" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="groups" options={{ tabBarButton: () => null }} />
     </Tabs>
   );
 }
