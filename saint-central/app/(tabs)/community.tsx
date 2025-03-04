@@ -37,6 +37,22 @@ interface UserData {
   created_at: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  created_by: string;
+}
+
+interface GroupMember {
+  id: string;
+  group_id: string;
+  user_id: string;
+  role: string;
+  group: Group;
+}
+
 interface Intention {
   id: string;
   user_id: string;
@@ -48,6 +64,7 @@ interface Intention {
   likes_count?: number | null;
   comments_count?: number | null;
   is_liked?: boolean;
+  group_info?: Group | null;
 }
 
 type IntentionType = "resolution" | "prayer" | "goal";
@@ -189,6 +206,14 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
               • {new Date(item.created_at).toLocaleDateString()}
             </Text>
           </View>
+          {item.group_info && (
+            <View style={styles.groupTag}>
+              <Feather name="users" size={12} color="#FAC898" />
+              <Text style={styles.groupTagText}>
+                Shared in group: {item.group_info.name}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.intentionContent}>
@@ -315,7 +340,7 @@ export default function CommunityScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeTab] = useState<TabType>("all");
   const [intentionsFilter, setIntentionsFilter] = useState<
-    "all" | "mine" | "friends"
+    "all" | "mine" | "friends" | "groups"
   >("all");
   const [showIntentionModal, setShowIntentionModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -353,6 +378,7 @@ export default function CommunityScreen() {
   const [newComment, setNewComment] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
 
   // New state for tracking expanded comment sections
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(
@@ -403,6 +429,13 @@ export default function CommunityScreen() {
     };
     getCurrentUser();
   }, []);
+
+  useEffect(() => {
+    // Fetch user groups when user ID is set
+    if (currentUserId) {
+      fetchUserGroups();
+    }
+  }, [currentUserId]);
 
   useEffect(() => {
     setNotification(null);
@@ -457,6 +490,44 @@ export default function CommunityScreen() {
     return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
   };
 
+  // Check if a user is a friend of the current user
+  const isUserFriend = async (
+    currentUserId: string,
+    userId: string
+  ): Promise<boolean> => {
+    try {
+      // Skip check if it's the current user
+      if (currentUserId === userId) return false;
+
+      // Check if there's a friendship where current user is user_id_1
+      const { data: sent, error: sentError } = await supabase
+        .from("friends")
+        .select("id")
+        .eq("user_id_1", currentUserId)
+        .eq("user_id_2", userId)
+        .eq("status", "accepted")
+        .maybeSingle();
+
+      if (sentError) throw sentError;
+
+      // Check if there's a friendship where current user is user_id_2
+      const { data: received, error: receivedError } = await supabase
+        .from("friends")
+        .select("id")
+        .eq("user_id_1", userId)
+        .eq("user_id_2", currentUserId)
+        .eq("status", "accepted")
+        .maybeSingle();
+
+      if (receivedError) throw receivedError;
+
+      return !!(sent || received); // Return true if either exists
+    } catch (error) {
+      console.error("Error checking friendship:", error);
+      return false;
+    }
+  };
+
   // Helper to get title based on selected filter
   const getHeaderTitle = (): string => {
     switch (intentionsFilter) {
@@ -464,8 +535,32 @@ export default function CommunityScreen() {
         return "My Posts";
       case "friends":
         return "Friends";
+      case "groups":
+        return "Groups";
       default:
         return "Community";
+    }
+  };
+
+  // Fetch user's groups
+  const fetchUserGroups = async (): Promise<void> => {
+    try {
+      if (!currentUserId) return;
+
+      const { data, error } = await supabase
+        .from("group_members")
+        .select("group:groups(*)")
+        .eq("user_id", currentUserId);
+
+      if (error) throw error;
+
+      const groups = data.map((item: any) => item.group);
+      setUserGroups(groups || []);
+
+      // Immediately fetch intentions after groups are loaded
+      fetchIntentions();
+    } catch (error: any) {
+      console.error("Error fetching user groups:", error);
     }
   };
 
@@ -516,6 +611,35 @@ export default function CommunityScreen() {
           return;
         }
         query = query.in("user_id", friendIds);
+      } else if (intentionsFilter === "groups") {
+        // Get all group members from the user's groups
+        if (userGroups.length === 0) {
+          setIntentions([]);
+          setIsLoading(false);
+          return;
+        }
+
+        const groupIds = userGroups.map((group) => group.id);
+
+        // Get all members from user's groups
+        const { data: groupMembers, error: membersError } = await supabase
+          .from("group_members")
+          .select("user_id")
+          .in("group_id", groupIds);
+
+        if (membersError) throw membersError;
+
+        if (!groupMembers || groupMembers.length === 0) {
+          setIntentions([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Get unique user IDs
+        const memberIds = [
+          ...new Set(groupMembers.map((member) => member.user_id)),
+        ];
+        query = query.in("user_id", memberIds);
       } else if (intentionsFilter === "all") {
         // Get all friend IDs
         const { data: sent, error: sentError } = await supabase
@@ -531,6 +655,17 @@ export default function CommunityScreen() {
           .eq("status", "accepted");
         if (incomingError) throw incomingError;
 
+        // Get all group members from user's groups
+        const { data: groupMembers, error: membersError } = await supabase
+          .from("group_members")
+          .select("user_id, group_id")
+          .in(
+            "group_id",
+            userGroups.map((group) => group.id)
+          );
+
+        if (membersError) throw membersError;
+
         let userIds: string[] = [user.id]; // Start with current user
 
         // Add friend IDs
@@ -545,7 +680,13 @@ export default function CommunityScreen() {
           );
         }
 
-        // Get intentions from current user and all friends
+        // Add group member IDs
+        if (groupMembers && groupMembers.length > 0) {
+          const groupMemberIds = groupMembers.map((member) => member.user_id);
+          userIds = [...new Set([...userIds, ...groupMemberIds])]; // Remove duplicates
+        }
+
+        // Get intentions from current user, friends, and group members
         query = query.in("user_id", userIds);
       }
 
@@ -577,11 +718,70 @@ export default function CommunityScreen() {
             .maybeSingle();
           if (userLikeError) throw userLikeError;
 
+          // Add group info for group posts
+          let groupInfo = null;
+          if (userGroups.length > 0) {
+            // Always show group info if filter is set to groups (except for current user's posts)
+            // Otherwise, only show for non-friends who aren't the current user
+            const showGroupInfo =
+              (intentionsFilter === "groups" &&
+                intention.user_id !== user.id) ||
+              (intention.user_id !== user.id &&
+                !(await isUserFriend(user.id, intention.user_id)));
+
+            if (showGroupInfo) {
+              // Get all group memberships for this user
+              const { data: userGroupData, error: userGroupError } =
+                await supabase
+                  .from("group_members")
+                  .select("group_id")
+                  .eq("user_id", intention.user_id);
+
+              if (userGroupError) throw userGroupError;
+
+              // Get current user's group memberships
+              const { data: currentUserGroups, error: currentUserGroupError } =
+                await supabase
+                  .from("group_members")
+                  .select("group_id")
+                  .eq("user_id", user.id);
+
+              if (currentUserGroupError) throw currentUserGroupError;
+
+              // Find shared groups
+              if (userGroupData && currentUserGroups) {
+                const userGroupIds = userGroupData.map((g) => g.group_id);
+                const currentUserGroupIds = currentUserGroups.map(
+                  (g) => g.group_id
+                );
+
+                // Find intersection of groups
+                const sharedGroupIds = userGroupIds.filter((id) =>
+                  currentUserGroupIds.includes(id)
+                );
+
+                if (sharedGroupIds.length > 0) {
+                  // Get the first shared group for display
+                  const { data: groupData, error: groupError } = await supabase
+                    .from("groups")
+                    .select("*")
+                    .eq("id", sharedGroupIds[0])
+                    .single();
+
+                  if (!groupError && groupData) {
+                    groupInfo = groupData;
+                  }
+                }
+              }
+            }
+          }
+
           return {
             ...intention,
             likes_count: likesCount,
             comments_count: commentsCount,
             is_liked: !!userLike,
+            group_info: groupInfo,
           };
         })
       );
@@ -1277,7 +1477,9 @@ export default function CommunityScreen() {
   };
 
   // Handle filter option selection
-  const handleSelectFilter = (filter: "all" | "mine" | "friends"): void => {
+  const handleSelectFilter = (
+    filter: "all" | "mine" | "friends" | "groups"
+  ): void => {
     setIntentionsFilter(filter);
     setShowFilterDropdown(false);
   };
@@ -1533,6 +1735,23 @@ export default function CommunityScreen() {
             <TouchableOpacity
               style={[
                 styles.filterOption,
+                intentionsFilter === "groups" && styles.activeFilterOption,
+              ]}
+              onPress={() => handleSelectFilter("groups")}
+            >
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  intentionsFilter === "groups" &&
+                    styles.activeFilterOptionText,
+                ]}
+              >
+                Groups
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterOption,
                 intentionsFilter === "mine" && styles.activeFilterOption,
               ]}
               onPress={() => handleSelectFilter("mine")}
@@ -1569,6 +1788,8 @@ export default function CommunityScreen() {
                     ? "No intentions yet."
                     : intentionsFilter === "friends"
                     ? "No friend intentions."
+                    : intentionsFilter === "groups"
+                    ? "No group intentions."
                     : "No posts to show."}
                 </Text>
                 <TouchableOpacity
@@ -2243,6 +2464,26 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   actionTextActive: { color: "#E9967A" },
+
+  // Group tag style
+  groupTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginTop: 5,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.3)",
+  },
+  groupTagText: {
+    color: "#FAC898",
+    fontSize: 12,
+    marginLeft: 5,
+    fontWeight: "600",
+  },
 
   // New styles for comments section inside card
   commentsSection: {
