@@ -385,6 +385,9 @@ export default function CommunityScreen() {
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
   const [userGroups, setUserGroups] = useState<Group[]>([]);
 
+  // New state for tracking if groups have been loaded
+  const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
+
   // New state for tracking expanded comment sections
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(
     null
@@ -417,8 +420,10 @@ export default function CommunityScreen() {
 
   // Effects
   useEffect(() => {
+    // For the "all" filter, wait until groups have been loaded.
+    if (intentionsFilter === "all" && !groupsLoaded) return;
     fetchIntentions();
-  }, [intentionsFilter, activeTab]);
+  }, [intentionsFilter, activeTab, groupsLoaded]);
 
   useEffect(() => {
     // Fetch current user ID when component mounts
@@ -561,9 +566,10 @@ export default function CommunityScreen() {
 
       const groups = data.map((item: any) => item.group);
       setUserGroups(groups || []);
+      setGroupsLoaded(true); // Mark groups as loaded
 
       // Immediately fetch intentions after groups are loaded
-      fetchIntentions();
+      // fetchIntentions(); // Not needed due to dependency in useEffect
     } catch (error: any) {
       console.error("Error fetching user groups:", error);
     }
