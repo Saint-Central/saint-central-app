@@ -214,7 +214,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
             <View style={styles.groupTag}>
               <Feather name="users" size={12} color="#FAC898" />
               <Text style={styles.groupTagText}>
-                Shared in group: {item.group_info.name}
+                Shared group(s): {item.group_info.name}
               </Text>
             </View>
           )}
