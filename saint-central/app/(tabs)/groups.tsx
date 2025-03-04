@@ -37,6 +37,14 @@ interface UserData {
   created_at: string;
 }
 
+interface GroupMember {
+  id: string;
+  user_id: string;
+  group_id: string;
+  role: string;
+  user: UserData;
+}
+
 interface Notification {
   message: string;
   type: "error" | "success";
@@ -101,6 +109,16 @@ export default function GroupsScreen() {
   const [showLeaveConfirmModal, setShowLeaveConfirmModal] =
     useState<boolean>(false);
 
+  // NEW: View members modal state
+  const [showMembersModal, setShowMembersModal] = useState<boolean>(false);
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<
+    GroupMember[]
+  >([]);
+  const [selectedGroupForMembers, setSelectedGroupForMembers] =
+    useState<Group | null>(null);
+  const [membersLoading, setMembersLoading] = useState<boolean>(false);
+  const [isManagingMembers, setIsManagingMembers] = useState<boolean>(false);
+
   // FAB animation state
   const [showFabMenu, setShowFabMenu] = useState(false);
   const fabMenuAnimation = React.useRef(new Animated.Value(0)).current;
@@ -162,6 +180,44 @@ export default function GroupsScreen() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch all members of a specific group
+  const fetchGroupMembers = async (groupId: string, groupData: Group) => {
+    try {
+      setMembersLoading(true);
+      const { data, error } = await supabase
+        .from("group_members")
+        .select("*, user:users(*)")
+        .eq("group_id", groupId);
+
+      if (error) throw error;
+      setSelectedGroupMembers(data || []);
+      setSelectedGroupForMembers(groupData);
+      setShowMembersModal(true);
+
+      // Reset states
+      setIsManagingMembers(false);
+
+      // Pre-populate selected members if this is a group created by current user
+      if (groupData.created_by === currentUserId) {
+        const memberIds =
+          data?.map((member: GroupMember) => member.user_id) || [];
+        setSelectedMembersForCreation(memberIds);
+        setExistingMembers(memberIds);
+        setSelectedGroupForAddingMembers(groupId);
+      }
+    } catch (error: any) {
+      console.error("Error fetching group members:", error);
+      setNotification({
+        message: `Error fetching members: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
+      });
+    } finally {
+      setMembersLoading(false);
     }
   };
 
@@ -364,14 +420,34 @@ export default function GroupsScreen() {
   // Update Group Members – compute diff and update membership.
   const handleUpdateGroupMembers = async () => {
     if (!selectedGroupForAddingMembers) return;
+
+    // Don't allow removing yourself if you're the admin
+    const currentUserIsAdmin = selectedGroupMembers.some(
+      (member) => member.user_id === currentUserId && member.role === "admin"
+    );
+
+    let processedSelectedMembers = [...selectedMembersForCreation];
+
+    // If current user is admin, make sure they're in the selected list
+    if (
+      currentUserIsAdmin &&
+      !processedSelectedMembers.includes(currentUserId!)
+    ) {
+      processedSelectedMembers.push(currentUserId!);
+    }
+
     // Compute friend IDs to add (in selectedMembersForCreation but not in existingMembers)
-    const toAdd = selectedMembersForCreation.filter(
+    const toAdd = processedSelectedMembers.filter(
       (friendId) => !existingMembers.includes(friendId)
     );
+
     // Compute friend IDs to remove (in existingMembers but not in selectedMembersForCreation)
     const toRemove = existingMembers.filter(
-      (friendId) => !selectedMembersForCreation.includes(friendId)
+      (friendId) =>
+        !processedSelectedMembers.includes(friendId) &&
+        !(friendId === currentUserId && currentUserIsAdmin) // Don't remove yourself if admin
     );
+
     try {
       if (toAdd.length > 0) {
         const addPayload = toAdd.map((friendId) => ({
@@ -384,6 +460,7 @@ export default function GroupsScreen() {
           .insert(addPayload);
         if (addError) throw addError;
       }
+
       if (toRemove.length > 0) {
         // Delete records by matching both group_id and user_id
         const { error: removeError } = await supabase
@@ -393,14 +470,21 @@ export default function GroupsScreen() {
           .in("user_id", toRemove);
         if (removeError) throw removeError;
       }
+
       setNotification({
         message: "Group members updated successfully!",
         type: "success",
       });
-      // Clear update mode state
-      setSelectedMembersForCreation([]);
-      setSelectedGroupForAddingMembers(null);
-      setExistingMembers([]);
+
+      // Refresh the members list
+      if (selectedGroupForMembers) {
+        fetchGroupMembers(
+          selectedGroupForAddingMembers,
+          selectedGroupForMembers
+        );
+      }
+
+      setShowFriendSelectionOverlay(false);
       setShowFriendSelectionModal(false);
       fetchGroups();
     } catch (error: any) {
@@ -478,6 +562,30 @@ export default function GroupsScreen() {
     }
   };
 
+  // NEW: Get role label with proper formatting
+  const getRoleLabel = (role: string) => {
+    switch (role.toLowerCase()) {
+      case "admin":
+        return (
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleBadgeText}>Admin</Text>
+          </View>
+        );
+      case "member":
+        return (
+          <View style={[styles.roleBadge, styles.memberRoleBadge]}>
+            <Text style={styles.roleBadgeText}>Member</Text>
+          </View>
+        );
+      default:
+        return (
+          <View style={[styles.roleBadge, styles.otherRoleBadge]}>
+            <Text style={styles.roleBadgeText}>{role}</Text>
+          </View>
+        );
+    }
+  };
+
   // Render friend item in friend selection overlay/modal.
   const renderFriendItem = ({ item }: { item: UserData }) => {
     const isSelected = selectedMembersForCreation.includes(item.id);
@@ -494,7 +602,54 @@ export default function GroupsScreen() {
     );
   };
 
-  // Render a single group card with Edit and Add Members buttons (if created by current user)
+  // Render a group member item for the members modal
+  const renderMemberItem = ({ item }: { item: GroupMember }) => {
+    // In manage mode, don't allow removing yourself if you're the admin
+    const canRemove =
+      isManagingMembers &&
+      !(item.user_id === currentUserId && item.role === "admin") &&
+      selectedGroupForMembers?.created_by === currentUserId;
+
+    const isSelected = selectedMembersForCreation.includes(item.user_id);
+
+    return (
+      <View style={styles.memberItem}>
+        <View style={styles.memberAvatar}>
+          <Text style={styles.memberInitials}>
+            {item.user?.first_name?.[0] || ""}
+            {item.user?.last_name?.[0] || ""}
+          </Text>
+        </View>
+        <View style={styles.memberInfo}>
+          <Text style={styles.memberName}>
+            {item.user?.first_name || ""} {item.user?.last_name || ""}
+          </Text>
+          {item.user_id === currentUserId && (
+            <Text style={styles.currentUserTag}>(You)</Text>
+          )}
+        </View>
+
+        <View style={styles.memberActions}>
+          {isManagingMembers && canRemove ? (
+            <TouchableOpacity
+              style={styles.memberRemoveButton}
+              onPress={() => toggleFriendSelectionHandler(item.user_id)}
+            >
+              <Feather
+                name={isSelected ? "check" : "x"}
+                size={18}
+                color={isSelected ? "#4CAF50" : "#DC3545"}
+              />
+            </TouchableOpacity>
+          ) : (
+            getRoleLabel(item.role)
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // Render a single group card with Edit button and View Members button
   // Also shows a "Leave Group" button for groups not created by the current user.
   const renderGroupItem = ({ item }: { item: Group }) => {
     return (
@@ -509,8 +664,16 @@ export default function GroupsScreen() {
               Created: {new Date(item.created_at).toLocaleDateString()}
             </Text>
           </View>
-          {item.created_by === currentUserId ? (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* View Members Button */}
+            <TouchableOpacity
+              style={{ marginRight: 10 }}
+              onPress={() => fetchGroupMembers(item.id, item)}
+            >
+              <Feather name="users" size={18} color="#FAC898" />
+            </TouchableOpacity>
+
+            {item.created_by === currentUserId ? (
               <TouchableOpacity
                 style={{ marginRight: 10 }}
                 onPress={() => {
@@ -524,27 +687,18 @@ export default function GroupsScreen() {
               >
                 <Feather name="edit" size={18} color="#FAC898" />
               </TouchableOpacity>
+            ) : (
               <TouchableOpacity
+                style={styles.leaveButton}
                 onPress={() => {
-                  setSelectedGroupForAddingMembers(item.id);
-                  fetchExistingGroupMembers(item.id);
-                  setShowFriendSelectionModal(true);
+                  setSelectedGroupToLeave(item.id);
+                  setShowLeaveConfirmModal(true);
                 }}
               >
-                <Feather name="user-plus" size={18} color="#FAC898" />
+                <Text style={styles.leaveButtonText}>Leave</Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.leaveButton}
-              onPress={() => {
-                setSelectedGroupToLeave(item.id);
-                setShowLeaveConfirmModal(true);
-              }}
-            >
-              <Text style={styles.leaveButtonText}>Leave Group</Text>
-            </TouchableOpacity>
-          )}
+            )}
+          </View>
         </View>
         {item.description ? (
           <Text style={styles.groupDescription}>{item.description}</Text>
@@ -650,6 +804,141 @@ export default function GroupsScreen() {
             </TouchableOpacity>
           </Animated.View>
         )}
+
+        {/* Group Members Modal */}
+        <Modal
+          visible={showMembersModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowMembersModal(false);
+            setSelectedGroupMembers([]);
+            setSelectedGroupForMembers(null);
+            setIsManagingMembers(false);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {selectedGroupForMembers?.name} Members
+                </Text>
+                <View style={{ flexDirection: "row" }}>
+                  {/* Only show manage/done button for group admins */}
+                  {selectedGroupForMembers?.created_by === currentUserId && (
+                    <TouchableOpacity
+                      style={{ marginRight: 15 }}
+                      onPress={() => setIsManagingMembers(!isManagingMembers)}
+                    >
+                      <Feather
+                        name={isManagingMembers ? "check" : "edit-2"}
+                        size={20}
+                        color="#FAC898"
+                      />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowMembersModal(false);
+                      setSelectedGroupMembers([]);
+                      setSelectedGroupForMembers(null);
+                      setIsManagingMembers(false);
+                    }}
+                  >
+                    <Feather name="x" size={24} color="#FAC898" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {membersLoading ? (
+                <ActivityIndicator
+                  size="large"
+                  color="#FAC898"
+                  style={{ marginVertical: 20 }}
+                />
+              ) : (
+                <>
+                  <View style={styles.membersHeaderRow}>
+                    <Text style={styles.memberCountText}>
+                      {selectedGroupMembers.length}{" "}
+                      {selectedGroupMembers.length === 1 ? "member" : "members"}
+                    </Text>
+
+                    {/* Show Add Members button when in managing mode */}
+                    {isManagingMembers &&
+                      selectedGroupForMembers?.created_by === currentUserId && (
+                        <TouchableOpacity
+                          style={styles.addMembersButton}
+                          onPress={() => setShowFriendSelectionOverlay(true)}
+                        >
+                          <Feather name="user-plus" size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      )}
+                  </View>
+
+                  <FlatList
+                    data={selectedGroupMembers}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderMemberItem}
+                    contentContainerStyle={styles.membersList}
+                    ListEmptyComponent={
+                      <Text style={styles.emptyMembersText}>
+                        No members found
+                      </Text>
+                    }
+                  />
+
+                  {/* Save changes button when in managing mode */}
+                  {isManagingMembers &&
+                    selectedGroupForMembers?.created_by === currentUserId && (
+                      <TouchableOpacity
+                        style={styles.saveChangesButton}
+                        onPress={() => {
+                          handleUpdateGroupMembers();
+                          setIsManagingMembers(false);
+                        }}
+                      >
+                        <Text style={styles.saveChangesButtonText}>
+                          Save Changes
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                  {/* Friend Selection Overlay */}
+                  {showFriendSelectionOverlay && (
+                    <View style={styles.friendSelectionOverlay}>
+                      <Text style={styles.modalTitle}>Add New Members</Text>
+                      <FlatList
+                        data={friends.filter(
+                          (friend) =>
+                            !selectedGroupMembers.some(
+                              (member) => member.user_id === friend.id
+                            )
+                        )}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderFriendItem}
+                        contentContainerStyle={{ maxHeight: 300 }}
+                        ListEmptyComponent={
+                          <Text style={styles.emptyMembersText}>
+                            No friends to add
+                          </Text>
+                        }
+                      />
+                      <View style={styles.modalActions}>
+                        <TouchableOpacity
+                          style={styles.cancelButton}
+                          onPress={() => setShowFriendSelectionOverlay(false)}
+                        >
+                          <Text style={styles.cancelButtonText}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
 
         {/* Create Group Modal */}
         <Modal
@@ -983,6 +1272,36 @@ export default function GroupsScreen() {
 }
 
 const styles = StyleSheet.create({
+  membersHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  memberActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  memberRemoveButton: {
+    padding: 8,
+  },
+  saveChangesButton: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignSelf: "center",
+    marginTop: 15,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.4)",
+    width: "100%",
+  },
+  saveChangesButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   backgroundImage: { flex: 1, width: "100%", height: "100%" },
   backgroundOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1153,11 +1472,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    paddingBottom: 10,
+  },
   modalTitle: {
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "600",
-    marginBottom: 15,
+    marginBottom: 5,
   },
   modalText: {
     color: "rgba(255, 255, 255, 0.9)",
@@ -1309,5 +1637,83 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
+  },
+  // NEW: Member list styles
+  membersList: {
+    paddingTop: 10,
+    paddingBottom: 20,
+    maxHeight: 400,
+  },
+  memberItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.3)",
+  },
+  memberInitials: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  memberInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  memberName: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  currentUserTag: {
+    color: "#FAC898",
+    fontSize: 14,
+    marginLeft: 5,
+    fontStyle: "italic",
+  },
+  roleBadge: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
+  },
+  memberRoleBadge: {
+    backgroundColor: "rgba(100, 100, 255, 0.2)",
+    borderColor: "rgba(100, 100, 255, 0.4)",
+  },
+  otherRoleBadge: {
+    backgroundColor: "rgba(180, 180, 180, 0.2)",
+    borderColor: "rgba(180, 180, 180, 0.4)",
+  },
+  roleBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  memberCountText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  emptyMembersText: {
+    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 16,
+    textAlign: "center",
+    padding: 20,
   },
 });
