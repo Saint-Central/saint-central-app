@@ -164,7 +164,11 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
             {comment.user.first_name} {comment.user.last_name}
           </Text>
           <Text style={styles.commentTime}>
-            {new Date(comment.created_at).toLocaleDateString()}
+            {new Date(comment.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}{" "}
+            • {new Date(comment.created_at).toLocaleDateString()}
           </Text>
         </View>
       </View>
@@ -286,6 +290,24 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
         <View style={styles.commentsSection}>
           <View style={styles.commentsDivider} />
 
+          {/* Add comment input at the top */}
+          <View style={styles.addCommentContainer}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a comment..."
+              placeholderTextColor="rgba(250, 200, 152, 0.5)"
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline={true}
+            />
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={() => handleAddComment(item.id)}
+            >
+              <Feather name="send" size={22} color="#FAC898" />
+            </TouchableOpacity>
+          </View>
+
           {commentsLoading ? (
             <ActivityIndicator
               size="small"
@@ -309,23 +331,6 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
               )}
             </>
           )}
-
-          <View style={styles.addCommentContainer}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Add a comment..."
-              placeholderTextColor="rgba(250, 200, 152, 0.5)"
-              value={newComment}
-              onChangeText={setNewComment}
-              multiline={true}
-            />
-            <TouchableOpacity
-              style={styles.sendButton}
-              onPress={() => handleAddComment(item.id)}
-            >
-              <Feather name="send" size={22} color="#FAC898" />
-            </TouchableOpacity>
-          </View>
         </View>
       )}
     </View>
@@ -809,7 +814,7 @@ export default function CommunityScreen() {
         .select(`*, user:users(*)`)
         .eq("commentable_id", intentionId)
         .eq("commentable_type", "intentions")
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       setComments(data || []);
     } catch (error: any) {
@@ -2533,7 +2538,12 @@ const styles = StyleSheet.create({
   addCommentContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    marginBottom: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   commentInput: {
     flex: 1,
