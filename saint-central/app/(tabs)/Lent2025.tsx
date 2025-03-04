@@ -51,6 +51,7 @@ interface LentTask {
   likes_count?: number;
   comments_count?: number;
   liked_by_current_user?: boolean;
+  group_info?: Group | null;
 }
 
 interface Comment {
@@ -82,7 +83,16 @@ interface Notification {
   type: "error" | "success";
 }
 
+interface Group {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  created_by: string;
+}
+
 type ViewType = "list" | "calendar";
+type FilterType = "all" | "friends" | "groups";
 
 // --------------------
 // Lent Guide Events
@@ -537,6 +547,14 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                         By {task.user.first_name} {task.user.last_name}
                       </Text>
                     )}
+                    {task.group_info && (
+                      <View style={styles.groupTag}>
+                        <Feather name="users" size={12} color="#FAC898" />
+                        <Text style={styles.groupTagText}>
+                          Shared group: {task.group_info.name}
+                        </Text>
+                      </View>
+                    )}
                     <Text style={styles.expandedDayTaskDesc}>
                       {task.description}
                     </Text>
@@ -657,6 +675,11 @@ const Lent2025Screen: React.FC = () => {
     useState<LentTask | null>(null);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  const [tasksFilter, setTasksFilter] = useState<FilterType>("all");
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
+  const [headerHeight, setHeaderHeight] = useState<number>(0);
 
   // Animation refs
   const likeAnimations = useRef<{ [taskId: string]: Animated.Value }>(
@@ -666,6 +689,8 @@ const Lent2025Screen: React.FC = () => {
     {}
   ).current;
   const scrollViewRef = useRef<ScrollView>(null);
+  const headerRef = useRef<View>(null);
+  const filterDropdownAnim = useRef(new Animated.Value(0)).current;
 
   // Memoized friend tasks and colors
   const friendTasks = useMemo(
@@ -712,6 +737,15 @@ const Lent2025Screen: React.FC = () => {
     };
   }, []);
 
+  // Animate dropdown when visibility changes
+  useEffect(() => {
+    Animated.timing(filterDropdownAnim, {
+      toValue: showFilterDropdown ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [showFilterDropdown]);
+
   // Fetch current user
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -730,28 +764,132 @@ const Lent2025Screen: React.FC = () => {
     }
   }, []);
 
+  // Fetch user groups
+  const fetchUserGroups = useCallback(async () => {
+    try {
+      if (!currentUserId) return;
+
+      const { data, error } = await supabase
+        .from("group_members")
+        .select("group:groups(*)")
+        .eq("user_id", currentUserId);
+
+      if (error) throw error;
+
+      const groups = data.map((item: any) => item.group);
+      setUserGroups(groups || []);
+      setGroupsLoaded(true);
+    } catch (error: any) {
+      console.error("Error fetching user groups:", error);
+      showNotification(`Error fetching groups: ${error.message}`, "error");
+    }
+  }, [currentUserId]);
+
+  // Helper to get title based on selected filter
+  const getHeaderTitle = (): string => {
+    switch (tasksFilter) {
+      case "friends":
+        return "Friends' Tasks";
+      case "groups":
+        return "Group Tasks";
+      default:
+        return "All Tasks";
+    }
+  };
+
   // Fetch tasks
   const fetchTasks = useCallback(async () => {
     if (!currentUserId) return;
     try {
       setIsLoading(true);
+
+      // Get friend IDs for friend filtering
       const { data: friendData, error: friendError } = await supabase
         .from("friends")
         .select("user_id_1, user_id_2, status")
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
         .eq("status", "accepted");
       if (friendError) throw friendError;
+
       const friendIds =
         friendData?.map((f) =>
           f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1
         ) || [];
       const uniqueFriendIds = Array.from(new Set(friendIds));
+
+      // Get all users to fetch based on filter
+      let userIdsToFetch: string[] = [];
+
+      if (tasksFilter === "all") {
+        // Get group members from user's groups for "all" filter
+        const groupIds = userGroups.map((group) => group.id);
+
+        if (groupIds.length > 0) {
+          const { data: groupMembers, error: membersError } = await supabase
+            .from("group_members")
+            .select("user_id")
+            .in("group_id", groupIds);
+
+          if (membersError) throw membersError;
+
+          // Get unique user IDs from group members
+          const groupMemberIds = groupMembers
+            ? [...new Set(groupMembers.map((member) => member.user_id))]
+            : [];
+
+          // Combine all IDs for "all" filter
+          userIdsToFetch = [
+            ...new Set([currentUserId, ...uniqueFriendIds, ...groupMemberIds]),
+          ];
+        } else {
+          userIdsToFetch = [...new Set([currentUserId, ...uniqueFriendIds])];
+        }
+      } else if (tasksFilter === "friends") {
+        if (uniqueFriendIds.length === 0) {
+          setLentTasks([]);
+          setIsLoading(false);
+          return;
+        }
+        userIdsToFetch = uniqueFriendIds;
+      } else if (tasksFilter === "groups") {
+        const groupIds = userGroups.map((group) => group.id);
+
+        if (groupIds.length === 0) {
+          setLentTasks([]);
+          setIsLoading(false);
+          return;
+        }
+
+        const { data: groupMembers, error: membersError } = await supabase
+          .from("group_members")
+          .select("user_id")
+          .in("group_id", groupIds);
+
+        if (membersError) throw membersError;
+
+        if (!groupMembers || groupMembers.length === 0) {
+          setLentTasks([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Get unique user IDs from group members
+        userIdsToFetch = [
+          ...new Set(groupMembers.map((member) => member.user_id)),
+        ];
+        // Remove current user from "groups" filter if we only want to see others
+        // userIdsToFetch = userIdsToFetch.filter(id => id !== currentUserId);
+      }
+
+      // Fetch tasks with the applied filter
       const { data, error } = await supabase
         .from("lent_tasks")
         .select("*, user:users (first_name, last_name, email)")
-        .in("user_id", [currentUserId, ...uniqueFriendIds])
+        .in("user_id", userIdsToFetch)
         .order("created_at", { ascending: false });
+
       if (error) throw error;
+
       const tasksWithMetadata = await Promise.all(
         (data || []).map(async (task) => {
           const [likesResponse, userLikeResponse, commentsResponse] =
@@ -774,6 +912,65 @@ const Lent2025Screen: React.FC = () => {
                 .eq("commentable_id", task.id)
                 .eq("commentable_type", "lent_tasks"),
             ]);
+
+          // Add group info for tasks from group members (for "groups" filter)
+          let groupInfo = null;
+          if (userGroups.length > 0 && task.user_id !== currentUserId) {
+            // For non-friends who aren't the current user, find shared groups
+            const isFriend = uniqueFriendIds.includes(task.user_id);
+            const showGroupInfo = tasksFilter === "groups" || !isFriend;
+
+            if (showGroupInfo) {
+              // Get all group memberships for this user
+              const { data: userGroupData, error: userGroupError } =
+                await supabase
+                  .from("group_members")
+                  .select("group_id")
+                  .eq("user_id", task.user_id);
+
+              if (
+                !userGroupError &&
+                userGroupData &&
+                userGroupData.length > 0
+              ) {
+                // Get current user's group memberships
+                const {
+                  data: currentUserGroups,
+                  error: currentUserGroupError,
+                } = await supabase
+                  .from("group_members")
+                  .select("group_id")
+                  .eq("user_id", currentUserId);
+
+                if (!currentUserGroupError && currentUserGroups) {
+                  const userGroupIds = userGroupData.map((g) => g.group_id);
+                  const currentUserGroupIds = currentUserGroups.map(
+                    (g) => g.group_id
+                  );
+
+                  // Find intersection of groups
+                  const sharedGroupIds = userGroupIds.filter((id) =>
+                    currentUserGroupIds.includes(id)
+                  );
+
+                  if (sharedGroupIds.length > 0) {
+                    // Get the first shared group for display
+                    const { data: groupData, error: groupError } =
+                      await supabase
+                        .from("groups")
+                        .select("*")
+                        .eq("id", sharedGroupIds[0])
+                        .single();
+
+                    if (!groupError && groupData) {
+                      groupInfo = groupData;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
           const errors = [];
           if (likesResponse.error)
             errors.push(`Likes error: ${likesResponse.error.message}`);
@@ -784,14 +981,17 @@ const Lent2025Screen: React.FC = () => {
           if (errors.length > 0) {
             console.error("Error fetching task metadata:", errors.join(", "));
           }
+
           return {
             ...task,
             likes_count: likesResponse.count || 0,
             comments_count: commentsResponse.count || 0,
             liked_by_current_user: !!userLikeResponse.data,
+            group_info: groupInfo,
           };
         })
       );
+
       setLentTasks(tasksWithMetadata || []);
     } catch (error: unknown) {
       console.error("Error fetching tasks:", error);
@@ -801,7 +1001,7 @@ const Lent2025Screen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUserId]);
+  }, [currentUserId, tasksFilter, userGroups]);
 
   const fetchComments = async (taskId: string) => {
     if (!taskId) return;
@@ -836,8 +1036,16 @@ const Lent2025Screen: React.FC = () => {
   }, [fetchCurrentUser]);
 
   useEffect(() => {
-    if (currentUserId) fetchTasks();
-  }, [currentUserId, fetchTasks]);
+    if (currentUserId) {
+      fetchUserGroups();
+    }
+  }, [currentUserId, fetchUserGroups]);
+
+  useEffect(() => {
+    if (currentUserId && groupsLoaded) {
+      fetchTasks();
+    }
+  }, [currentUserId, fetchTasks, tasksFilter, groupsLoaded]);
 
   useEffect(() => {
     return () => {
@@ -1282,6 +1490,17 @@ const Lent2025Screen: React.FC = () => {
     );
   };
 
+  const handleSelectFilter = (filter: FilterType) => {
+    setTasksFilter(filter);
+    setShowFilterDropdown(false);
+  };
+
+  // Used to get the header dimensions for proper dropdown positioning
+  const onHeaderLayout = (event: any) => {
+    const { height } = event.nativeEvent.layout;
+    setHeaderHeight(height);
+  };
+
   const renderTaskCard = (task: LentTask, isUserTask: boolean) => {
     if (!likeAnimations[task.id]) {
       likeAnimations[task.id] = new Animated.Value(1);
@@ -1308,6 +1527,14 @@ const Lent2025Screen: React.FC = () => {
           )}
           on {formatDateUTC(task.date)}
         </Text>
+        {task.group_info && (
+          <View style={styles.groupTag}>
+            <Feather name="users" size={12} color="#FAC898" />
+            <Text style={styles.groupTagText}>
+              Shared group: {task.group_info.name}
+            </Text>
+          </View>
+        )}
         <Text style={styles.taskDescription}>{task.description}</Text>
         <View style={styles.taskInteractionBar}>
           <TouchableOpacity
@@ -1397,10 +1624,22 @@ const Lent2025Screen: React.FC = () => {
             <Text style={styles.notificationText}>{notification.message}</Text>
           </View>
         )}
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, isIpad && { fontSize: 28 }]}>
-            Lent 2025 – Task Tracker
-          </Text>
+        <View style={styles.header} ref={headerRef} onLayout={onHeaderLayout}>
+          <TouchableOpacity
+            style={styles.headerTitleContainer}
+            onPress={() => setShowFilterDropdown(!showFilterDropdown)}
+          >
+            <Text style={[styles.headerTitle, isIpad && { fontSize: 28 }]}>
+              Lent 2025 – {getHeaderTitle()}
+            </Text>
+            <View style={styles.headerFilterIndicator}>
+              <Feather
+                name={showFilterDropdown ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#E9967A"
+              />
+            </View>
+          </TouchableOpacity>
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
@@ -1418,6 +1657,77 @@ const Lent2025Screen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Filter Dropdown */}
+        {showFilterDropdown && (
+          <Animated.View
+            style={[
+              styles.filterDropdown,
+              {
+                top: headerHeight + 10,
+                opacity: filterDropdownAnim,
+                transform: [
+                  {
+                    translateY: filterDropdownAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[
+                styles.filterOption,
+                tasksFilter === "all" && styles.activeFilterOption,
+              ]}
+              onPress={() => handleSelectFilter("all")}
+            >
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  tasksFilter === "all" && styles.activeFilterOptionText,
+                ]}
+              >
+                All
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterOption,
+                tasksFilter === "friends" && styles.activeFilterOption,
+              ]}
+              onPress={() => handleSelectFilter("friends")}
+            >
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  tasksFilter === "friends" && styles.activeFilterOptionText,
+                ]}
+              >
+                Friends
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterOption,
+                tasksFilter === "groups" && styles.activeFilterOption,
+              ]}
+              onPress={() => handleSelectFilter("groups")}
+            >
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  tasksFilter === "groups" && styles.activeFilterOptionText,
+                ]}
+              >
+                Groups
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         <View style={styles.viewSwitcher}>
           <TouchableOpacity
             style={[
@@ -1482,26 +1792,43 @@ const Lent2025Screen: React.FC = () => {
           {view === "list" ? (
             <View style={styles.listContainer}>
               <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>My Tasks</Text>
-                {lentTasks.filter((task) => task.user_id === currentUserId)
-                  .length === 0 ? (
-                  <Text style={styles.emptyText}>
-                    You haven't added any tasks yet.
-                  </Text>
-                ) : (
-                  lentTasks
-                    .filter((task) => task.user_id === currentUserId)
-                    .map((task) => renderTaskCard(task, true))
+                {tasksFilter === "all" && (
+                  <>
+                    <Text style={styles.sectionTitle}>My Tasks</Text>
+                    {lentTasks.filter((task) => task.user_id === currentUserId)
+                      .length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        You haven't added any tasks yet.
+                      </Text>
+                    ) : (
+                      lentTasks
+                        .filter((task) => task.user_id === currentUserId)
+                        .map((task) => renderTaskCard(task, true))
+                    )}
+                  </>
                 )}
-              </View>
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Friends' Tasks</Text>
-                {friendTasks.length === 0 ? (
+                <Text style={styles.sectionTitle}>
+                  {tasksFilter === "all"
+                    ? "Friends' & Group Tasks"
+                    : getHeaderTitle()}
+                </Text>
+                {tasksFilter === "all" ? (
+                  friendTasks.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      No tasks from friends or groups yet.
+                    </Text>
+                  ) : (
+                    friendTasks.map((task) => renderTaskCard(task, false))
+                  )
+                ) : lentTasks.length === 0 ? (
                   <Text style={styles.emptyText}>
-                    No tasks from friends yet.
+                    No {tasksFilter === "friends" ? "friends'" : "group"} tasks
+                    available.
                   </Text>
                 ) : (
-                  friendTasks.map((task) => renderTaskCard(task, false))
+                  lentTasks.map((task) =>
+                    renderTaskCard(task, task.user_id === currentUserId)
+                  )
                 )}
               </View>
             </View>
@@ -2061,11 +2388,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(233, 150, 122, 0.2)",
   },
+  headerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  headerFilterIndicator: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: "300",
     color: "#FFFFFF",
-    marginBottom: 16,
     textAlign: "center",
     letterSpacing: 1,
   },
@@ -2085,6 +2422,40 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: "400",
     letterSpacing: 0.5,
+  },
+  // Filter dropdown styles
+  filterDropdown: {
+    position: "absolute",
+    left: 15,
+    right: 15,
+    zIndex: 100,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    borderRadius: 15,
+    padding: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+  },
+  filterOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
+  activeFilterOption: {
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
+  },
+  filterOptionText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "400",
+    textAlign: "center",
+  },
+  activeFilterOptionText: {
+    color: "#E9967A",
+    fontWeight: "600",
   },
   viewSwitcher: {
     flexDirection: "row",
@@ -2153,6 +2524,25 @@ const styles = StyleSheet.create({
     color: "#FAC898",
     marginBottom: 8,
     letterSpacing: 0.5,
+  },
+  // Group tag style
+  groupTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.3)",
+  },
+  groupTagText: {
+    color: "#FAC898",
+    fontSize: 12,
+    marginLeft: 5,
+    fontWeight: "600",
   },
   taskDescription: {
     color: "rgba(255, 255, 255, 0.8)",
