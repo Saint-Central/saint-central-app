@@ -16,6 +16,9 @@ import {
   ImageBackground,
   LayoutAnimation,
   UIManager,
+  InputAccessoryView,
+  Keyboard,
+  Easing,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather, FontAwesome } from "@expo/vector-icons";
@@ -65,6 +68,8 @@ interface Intention {
   comments_count?: number | null;
   is_liked?: boolean;
   group_info?: Group | null;
+  visibility?: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups";
+  selectedGroups?: string[]; // For "Certain Groups" selection
 }
 
 type IntentionType = "resolution" | "prayer" | "goal";
@@ -136,7 +141,24 @@ interface IntentionCardProps {
 // Import background image
 const backgroundImageRequire = require("../../assets/images/community-image.jpg");
 
-// Separate IntentionCard component to avoid hook issues
+// Define visibility options with icons and in desired order
+const visibilityOptions = [
+  {
+    label: "Friends",
+    icon: <Feather name="users" size={16} color="#FFFFFF" />,
+  },
+  {
+    label: "Certain Groups",
+    icon: <Feather name="grid" size={16} color="#FFFFFF" />,
+  },
+  {
+    label: "Friends & Groups",
+    icon: <FontAwesome name="globe" size={16} color="#FFFFFF" />,
+  },
+  { label: "Just Me", icon: <Feather name="user" size={16} color="#FFFFFF" /> },
+];
+
+// Separate IntentionCard component
 const IntentionCard: React.FC<IntentionCardProps> = ({
   item,
   currentUserId,
@@ -238,11 +260,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
                 styles.likeRipple,
                 {
                   opacity: likeOpacityAnim,
-                  transform: [
-                    {
-                      scale: Animated.multiply(likeScaleAnim, 2),
-                    },
-                  ],
+                  transform: [{ scale: Animated.multiply(likeScaleAnim, 2) }],
                 },
               ]}
             />
@@ -284,13 +302,9 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Expandable Comments Section */}
       {isCommentsExpanded && (
         <View style={styles.commentsSection}>
           <View style={styles.commentsDivider} />
-
-          {/* Add comment input at the top */}
           <View style={styles.addCommentContainer}>
             <TextInput
               style={styles.commentInput}
@@ -299,6 +313,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
               value={newComment}
               onChangeText={setNewComment}
               multiline={true}
+              inputAccessoryViewID="accessoryViewID"
             />
             <TouchableOpacity
               style={styles.sendButton}
@@ -307,7 +322,6 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
               <Feather name="send" size={22} color="#FAC898" />
             </TouchableOpacity>
           </View>
-
           {commentsLoading ? (
             <ActivityIndicator
               size="small"
@@ -338,7 +352,6 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
 };
 
 export default function CommunityScreen() {
-  // State declarations
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [users, setUsers] = useState<UserData[]>([]);
   const [intentions, setIntentions] = useState<Intention[]>([]);
@@ -365,74 +378,94 @@ export default function CommunityScreen() {
     title: string;
     description: string;
     type: IntentionType;
+    visibility: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups";
+    selectedGroups: string[];
   }>({
     title: "",
     description: "",
     type: "prayer",
+    visibility: "Friends",
+    selectedGroups: [],
   });
   const [notification, setNotification] = useState<Notification | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     intentionId: string | null;
-  }>({
-    isOpen: false,
-    intentionId: null,
-  });
+  }>({ isOpen: false, intentionId: null });
   const [friendRequestCount, setFriendRequestCount] = useState<number>(0);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
   const [userGroups, setUserGroups] = useState<Group[]>([]);
-
-  // New state for tracking if groups have been loaded
   const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
-
-  // New state for tracking expanded comment sections
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(
     null
   );
-
-  // New state for FAB menu
   const [showFabMenu, setShowFabMenu] = useState<boolean>(false);
-
-  // New state for filter dropdown
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
-
-  // Ref for header height measurement
+  // Visibility dropdown states in modals
+  const [showVisibilityDropdownNew, setShowVisibilityDropdownNew] =
+    useState<boolean>(false);
+  const [showVisibilityDropdownEdit, setShowVisibilityDropdownEdit] =
+    useState<boolean>(false);
+  // Use state to track focus of description so the accessory view appears
+  const [createDescriptionFocused, setCreateDescriptionFocused] =
+    useState(false);
+  const [editDescriptionFocused, setEditDescriptionFocused] = useState(false);
   const headerRef = useRef<View>(null);
   const [headerHeight, setHeaderHeight] = useState<number>(0);
-
-  // Animation for filter dropdown
   const filterDropdownAnim = useRef(new Animated.Value(0)).current;
-
-  // Animation refs
   const scrollY = useRef(new Animated.Value(0)).current;
   const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
   const likeOpacityAnimations = useRef<Map<string, Animated.Value>>(new Map());
-
-  // New animations for FAB menu
   const fabMenuAnimation = useRef(new Animated.Value(0)).current;
   const fabRotation = fabMenuAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "45deg"],
   });
 
-  // Effects
+  const toggleNewGroupSelection = (groupId: string) => {
+    const currentSelected = newIntention.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setNewIntention({
+        ...newIntention,
+        selectedGroups: currentSelected.filter((id) => id !== groupId),
+      });
+    } else {
+      setNewIntention({
+        ...newIntention,
+        selectedGroups: [...currentSelected, groupId],
+      });
+    }
+  };
+
+  const toggleEditGroupSelection = (groupId: string) => {
+    if (!editingIntention) return;
+    const currentSelected = editingIntention.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setEditingIntention({
+        ...editingIntention,
+        selectedGroups: currentSelected.filter((id) => id !== groupId),
+      });
+    } else {
+      setEditingIntention({
+        ...editingIntention,
+        selectedGroups: [...currentSelected, groupId],
+      });
+    }
+  };
+
   useEffect(() => {
-    // For the "all" filter, wait until groups have been loaded.
     if (intentionsFilter === "all" && !groupsLoaded) return;
     fetchIntentions();
   }, [intentionsFilter, activeTab, groupsLoaded]);
 
   useEffect(() => {
-    // Fetch current user ID when component mounts
     const getCurrentUser = async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          setCurrentUserId(data.user.id);
-        }
+        if (data?.user) setCurrentUserId(data.user.id);
       } catch (error) {
         console.error("Error getting current user:", error);
       }
@@ -441,20 +474,14 @@ export default function CommunityScreen() {
   }, []);
 
   useEffect(() => {
-    // Fetch user groups when user ID is set
-    if (currentUserId) {
-      fetchUserGroups();
-    }
+    if (currentUserId) fetchUserGroups();
   }, [currentUserId]);
 
   useEffect(() => {
     setNotification(null);
     if (showFriendsSearch) {
-      if (friendTab === "requests") {
-        fetchFriendRequests();
-      } else if (friendTab === "list") {
-        fetchFriends();
-      }
+      if (friendTab === "requests") fetchFriendRequests();
+      else if (friendTab === "list") fetchFriends();
     }
   }, [showFriendsSearch, friendTab]);
 
@@ -470,22 +497,19 @@ export default function CommunityScreen() {
   }, [notification]);
 
   useEffect(() => {
-    // If an expandedCommentId exists, fetch comments for that intention
-    if (expandedCommentId) {
-      fetchComments(expandedCommentId);
-    }
+    if (expandedCommentId) fetchComments(expandedCommentId);
   }, [expandedCommentId]);
 
-  // Animate dropdown when visibility changes
+  // Always render the dropdown, but disable pointer events when hidden.
   useEffect(() => {
     Animated.timing(filterDropdownAnim, {
       toValue: showFilterDropdown ? 1 : 0,
       duration: 300,
+      easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
   }, [showFilterDropdown]);
 
-  // Animation helpers
   const getLikeScaleAnimation = (intentionId: string): Animated.Value => {
     if (!likeScaleAnimations.current.has(intentionId)) {
       likeScaleAnimations.current.set(intentionId, new Animated.Value(1));
@@ -500,16 +524,12 @@ export default function CommunityScreen() {
     return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
   };
 
-  // Check if a user is a friend of the current user
   const isUserFriend = async (
     currentUserId: string,
     userId: string
   ): Promise<boolean> => {
     try {
-      // Skip check if it's the current user
       if (currentUserId === userId) return false;
-
-      // Check if there's a friendship where current user is user_id_1
       const { data: sent, error: sentError } = await supabase
         .from("friends")
         .select("id")
@@ -517,10 +537,7 @@ export default function CommunityScreen() {
         .eq("user_id_2", userId)
         .eq("status", "accepted")
         .maybeSingle();
-
       if (sentError) throw sentError;
-
-      // Check if there's a friendship where current user is user_id_2
       const { data: received, error: receivedError } = await supabase
         .from("friends")
         .select("id")
@@ -528,17 +545,14 @@ export default function CommunityScreen() {
         .eq("user_id_2", currentUserId)
         .eq("status", "accepted")
         .maybeSingle();
-
       if (receivedError) throw receivedError;
-
-      return !!(sent || received); // Return true if either exists
+      return !!(sent || received);
     } catch (error) {
       console.error("Error checking friendship:", error);
       return false;
     }
   };
 
-  // Helper to get title based on selected filter
   const getHeaderTitle = (): string => {
     switch (intentionsFilter) {
       case "mine":
@@ -552,30 +566,22 @@ export default function CommunityScreen() {
     }
   };
 
-  // Fetch user's groups
   const fetchUserGroups = async (): Promise<void> => {
     try {
       if (!currentUserId) return;
-
       const { data, error } = await supabase
         .from("group_members")
         .select("group:groups(*)")
         .eq("user_id", currentUserId);
-
       if (error) throw error;
-
       const groups = data.map((item: any) => item.group);
       setUserGroups(groups || []);
-      setGroupsLoaded(true); // Mark groups as loaded
-
-      // Immediately fetch intentions after groups are loaded
-      // fetchIntentions(); // Not needed due to dependency in useEffect
+      setGroupsLoaded(true);
     } catch (error: any) {
       console.error("Error fetching user groups:", error);
     }
   };
 
-  // Data fetching functions
   const fetchIntentions = async (type?: IntentionType): Promise<void> => {
     try {
       setIsLoading(true);
@@ -606,7 +612,6 @@ export default function CommunityScreen() {
           .eq("user_id_2", user.id)
           .eq("status", "accepted");
         if (incomingError) throw incomingError;
-
         let friendIds: string[] = [];
         if (sent)
           friendIds = friendIds.concat(
@@ -623,36 +628,27 @@ export default function CommunityScreen() {
         }
         query = query.in("user_id", friendIds);
       } else if (intentionsFilter === "groups") {
-        // Get all group members from the user's groups
         if (userGroups.length === 0) {
           setIntentions([]);
           setIsLoading(false);
           return;
         }
-
         const groupIds = userGroups.map((group) => group.id);
-
-        // Get all members from user's groups
         const { data: groupMembers, error: membersError } = await supabase
           .from("group_members")
           .select("user_id")
           .in("group_id", groupIds);
-
         if (membersError) throw membersError;
-
         if (!groupMembers || groupMembers.length === 0) {
           setIntentions([]);
           setIsLoading(false);
           return;
         }
-
-        // Get unique user IDs
         const memberIds = [
           ...new Set(groupMembers.map((member) => member.user_id)),
         ];
         query = query.in("user_id", memberIds);
       } else if (intentionsFilter === "all") {
-        // Get all friend IDs
         const { data: sent, error: sentError } = await supabase
           .from("friends")
           .select("user_id_2")
@@ -665,8 +661,6 @@ export default function CommunityScreen() {
           .eq("user_id_2", user.id)
           .eq("status", "accepted");
         if (incomingError) throw incomingError;
-
-        // Get all group members from user's groups
         const { data: groupMembers, error: membersError } = await supabase
           .from("group_members")
           .select("user_id, group_id")
@@ -674,12 +668,8 @@ export default function CommunityScreen() {
             "group_id",
             userGroups.map((group) => group.id)
           );
-
         if (membersError) throw membersError;
-
-        let userIds: string[] = [user.id]; // Start with current user
-
-        // Add friend IDs
+        let userIds: string[] = [user.id];
         if (sent) {
           userIds = userIds.concat(
             sent.map((row: { user_id_2: string }) => row.user_id_2)
@@ -690,14 +680,10 @@ export default function CommunityScreen() {
             incoming.map((row: { user_id_1: string }) => row.user_id_1)
           );
         }
-
-        // Add group member IDs
         if (groupMembers && groupMembers.length > 0) {
           const groupMemberIds = groupMembers.map((member) => member.user_id);
-          userIds = [...new Set([...userIds, ...groupMemberIds])]; // Remove duplicates
+          userIds = [...new Set([...userIds, ...groupMemberIds])];
         }
-
-        // Get intentions from current user, friends, and group members
         query = query.in("user_id", userIds);
       }
 
@@ -729,56 +715,40 @@ export default function CommunityScreen() {
             .maybeSingle();
           if (userLikeError) throw userLikeError;
 
-          // Add group info for group posts
           let groupInfo = null;
           if (userGroups.length > 0) {
-            // Always show group info if filter is set to groups (except for current user's posts)
-            // Otherwise, only show for non-friends who aren't the current user
             const showGroupInfo =
               (intentionsFilter === "groups" &&
                 intention.user_id !== user.id) ||
               (intention.user_id !== user.id &&
                 !(await isUserFriend(user.id, intention.user_id)));
-
             if (showGroupInfo) {
-              // Get all group memberships for this user
               const { data: userGroupData, error: userGroupError } =
                 await supabase
                   .from("group_members")
                   .select("group_id")
                   .eq("user_id", intention.user_id);
-
               if (userGroupError) throw userGroupError;
-
-              // Get current user's group memberships
               const { data: currentUserGroups, error: currentUserGroupError } =
                 await supabase
                   .from("group_members")
                   .select("group_id")
                   .eq("user_id", user.id);
-
               if (currentUserGroupError) throw currentUserGroupError;
-
-              // Find shared groups
               if (userGroupData && currentUserGroups) {
                 const userGroupIds = userGroupData.map((g) => g.group_id);
                 const currentUserGroupIds = currentUserGroups.map(
                   (g) => g.group_id
                 );
-
-                // Find intersection of groups
                 const sharedGroupIds = userGroupIds.filter((id) =>
                   currentUserGroupIds.includes(id)
                 );
-
                 if (sharedGroupIds.length > 0) {
-                  // Get the first shared group for display
                   const { data: groupData, error: groupError } = await supabase
                     .from("groups")
                     .select("*")
                     .eq("id", sharedGroupIds[0])
                     .single();
-
                   if (!groupError && groupData) {
                     groupInfo = groupData;
                   }
@@ -846,7 +816,6 @@ export default function CommunityScreen() {
       } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
-
       const { data: sent, error: sentError } = await supabase
         .from("friends")
         .select(
@@ -855,7 +824,6 @@ export default function CommunityScreen() {
         .eq("user_id_1", user.id)
         .eq("status", "pending");
       if (sentError) throw sentError;
-
       interface SentRow {
         id: string;
         user_id_2: string;
@@ -869,7 +837,6 @@ export default function CommunityScreen() {
         ...row,
         user_2: Array.isArray(row.user_2) ? row.user_2[0] : row.user_2,
       }));
-
       const { data: incoming, error: incomingError } = await supabase
         .from("friends")
         .select(
@@ -878,7 +845,6 @@ export default function CommunityScreen() {
         .eq("user_id_2", user.id)
         .eq("status", "pending");
       if (incomingError) throw incomingError;
-
       interface IncomingRow {
         id: string;
         user_id_1: string;
@@ -892,7 +858,6 @@ export default function CommunityScreen() {
         ...row,
         user_1: Array.isArray(row.user_1) ? row.user_1[0] : row.user_1,
       }));
-
       setSentRequests(formattedSent);
       setIncomingRequests(formattedIncoming);
       setFriendRequestCount(formattedIncoming.length);
@@ -917,7 +882,6 @@ export default function CommunityScreen() {
       } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) return;
-
       const { data, error } = await supabase
         .from("friends")
         .select("id")
@@ -939,7 +903,6 @@ export default function CommunityScreen() {
       } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
-
       interface SentFullRow {
         id: string;
         user_id_2: string;
@@ -962,7 +925,6 @@ export default function CommunityScreen() {
           created_at: row.created_at,
         })
       );
-
       interface IncomingFullRow {
         id: string;
         user_id_1: string;
@@ -985,7 +947,6 @@ export default function CommunityScreen() {
         friend: Array.isArray(row.user_1) ? row.user_1[0] : row.user_1,
         created_at: row.created_at,
       }));
-
       setFriends([...formattedSent, ...formattedIncoming]);
     } catch (error: any) {
       console.error("Error fetching friends:", error);
@@ -1000,7 +961,6 @@ export default function CommunityScreen() {
     }
   };
 
-  // Event handlers
   const handleLikeIntention = async (
     intentionId: string,
     isLiked: boolean
@@ -1009,7 +969,6 @@ export default function CommunityScreen() {
       Vibration.vibrate(50);
       const scaleAnim = getLikeScaleAnimation(intentionId);
       const opacityAnim = getLikeOpacityAnimation(intentionId);
-
       if (!isLiked) {
         Animated.parallel([
           Animated.sequence([
@@ -1057,14 +1016,12 @@ export default function CommunityScreen() {
           }),
         ]).start();
       }
-
       const {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
-
       if (isLiked) {
         const { error } = await supabase
           .from("likes")
@@ -1088,7 +1045,6 @@ export default function CommunityScreen() {
         });
         if (error) throw error;
       }
-
       setIntentions(
         intentions.map((intention) =>
           intention.id === intentionId
@@ -1125,7 +1081,6 @@ export default function CommunityScreen() {
       } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
-
       const { data, error } = await supabase
         .from("comments")
         .insert({
@@ -1136,7 +1091,6 @@ export default function CommunityScreen() {
         })
         .select(`*, user:users(*)`);
       if (error) throw error;
-
       if (data && data.length > 0) setComments([...comments, data[0]]);
       setIntentions(
         intentions.map((intention) =>
@@ -1161,16 +1115,9 @@ export default function CommunityScreen() {
   };
 
   const handleToggleComments = (intentionId: string): void => {
-    // Use LayoutAnimation for smooth transition
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-
-    if (expandedCommentId === intentionId) {
-      // If this intention's comments are already expanded, collapse them
-      setExpandedCommentId(null);
-    } else {
-      // Otherwise, expand this intention's comments
-      setExpandedCommentId(intentionId);
-    }
+    if (expandedCommentId === intentionId) setExpandedCommentId(null);
+    else setExpandedCommentId(intentionId);
   };
 
   const handleCreateIntention = async (): Promise<void> => {
@@ -1186,19 +1133,28 @@ export default function CommunityScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-
       const { error } = await supabase.from("intentions").insert([
         {
           user_id: user.id,
           title: newIntention.title,
           description: newIntention.description,
           type: newIntention.type,
+          visibility: newIntention.visibility,
+          selected_groups:
+            newIntention.visibility === "Certain Groups"
+              ? newIntention.selectedGroups
+              : [],
         },
       ]);
       if (error) throw error;
-
       setShowIntentionModal(false);
-      setNewIntention({ title: "", description: "", type: "prayer" });
+      setNewIntention({
+        title: "",
+        description: "",
+        type: "prayer",
+        visibility: "Friends",
+        selectedGroups: [],
+      });
       setNotification({
         message: "Intention created successfully!",
         type: "success",
@@ -1239,10 +1195,14 @@ export default function CommunityScreen() {
           title: editingIntention.title,
           description: editingIntention.description,
           type: editingIntention.type,
+          visibility: editingIntention.visibility,
+          selected_groups:
+            editingIntention.visibility === "Certain Groups"
+              ? editingIntention.selectedGroups || []
+              : [],
         })
         .eq("id", editingIntention.id);
       if (error) throw error;
-
       setShowEditModal(false);
       setEditingIntention(null);
       setNotification({
@@ -1277,7 +1237,6 @@ export default function CommunityScreen() {
         .delete()
         .eq("id", intentionId);
       if (error) throw error;
-
       setNotification({
         message: "Intention deleted successfully!",
         type: "success",
@@ -1331,12 +1290,10 @@ export default function CommunityScreen() {
       } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
-
       const { error } = await supabase
         .from("friends")
         .insert({ user_id_1: user.id, user_id_2: friendId, status: "pending" });
       if (error) throw error;
-
       setNotification({ message: "Friend request sent!", type: "success" });
       fetchIncomingRequestsCount();
     } catch (error: any) {
@@ -1357,7 +1314,6 @@ export default function CommunityScreen() {
         .update({ status: "accepted" })
         .eq("id", requestId);
       if (error) throw error;
-
       setNotification({ message: "Friend request accepted!", type: "success" });
       fetchFriendRequests();
       fetchIncomingRequestsCount();
@@ -1379,7 +1335,6 @@ export default function CommunityScreen() {
         .update({ status: "declined" })
         .eq("id", requestId);
       if (error) throw error;
-
       setNotification({ message: "Friend request declined.", type: "success" });
       fetchFriendRequests();
       fetchIncomingRequestsCount();
@@ -1401,7 +1356,6 @@ export default function CommunityScreen() {
         .delete()
         .eq("id", requestId);
       if (error) throw error;
-
       setNotification({ message: "Friend request canceled.", type: "success" });
       fetchFriendRequests();
       fetchIncomingRequestsCount();
@@ -1425,7 +1379,6 @@ export default function CommunityScreen() {
         .delete()
         .eq("id", friendRelationshipId);
       if (error) throw error;
-
       setNotification({
         message: "Friend removed successfully!",
         type: "success",
@@ -1442,23 +1395,17 @@ export default function CommunityScreen() {
     }
   };
 
-  // Handle FAB menu animation and toggle
   const toggleFabMenu = (): void => {
-    // Start the animation
     Animated.spring(fabMenuAnimation, {
       toValue: showFabMenu ? 0 : 1,
       friction: 6,
       tension: 80,
       useNativeDriver: true,
     }).start();
-
-    // Toggle the state
     setShowFabMenu(!showFabMenu);
   };
 
-  // Handle FAB option selection
   const handleFabOption = (option: string): void => {
-    // Close the menu with animation
     Animated.timing(fabMenuAnimation, {
       toValue: 0,
       duration: 300,
@@ -1466,7 +1413,6 @@ export default function CommunityScreen() {
     }).start(() => {
       setShowFabMenu(false);
     });
-
     switch (option) {
       case "intention":
         setShowIntentionModal(true);
@@ -1481,13 +1427,11 @@ export default function CommunityScreen() {
         router.push("/Lent2025");
         break;
       case "groups":
-        // Navigate to your Groups page:
         router.push("/groups");
         break;
     }
   };
 
-  // Handle filter option selection
   const handleSelectFilter = (
     filter: "all" | "mine" | "friends" | "groups"
   ): void => {
@@ -1495,18 +1439,15 @@ export default function CommunityScreen() {
     setShowFilterDropdown(false);
   };
 
-  // Used to get the header dimensions for proper dropdown positioning
   const onHeaderLayout = (event: any) => {
     const { height } = event.nativeEvent.layout;
     setHeaderHeight(height);
   };
 
-  // Render methods
   const renderIntentionCard = ({ item }: { item: Intention }): JSX.Element => {
     const scaleAnim = getLikeScaleAnimation(item.id);
     const opacityAnim = getLikeOpacityAnimation(item.id);
     const isCommentsExpanded = expandedCommentId === item.id;
-
     return (
       <IntentionCard
         item={item}
@@ -1656,11 +1597,8 @@ export default function CommunityScreen() {
       style={styles.backgroundImage}
     >
       <View style={[styles.backgroundOverlay, { opacity: 0.7 }]} />
-
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
-
-        {/* Notification Banner */}
         {notification && (
           <View
             style={[
@@ -1673,8 +1611,6 @@ export default function CommunityScreen() {
             <Text style={styles.notificationText}>{notification.message}</Text>
           </View>
         )}
-
-        {/* Header with clickable title */}
         <View style={styles.header} ref={headerRef} onLayout={onHeaderLayout}>
           <TouchableOpacity
             style={styles.headerTitleContainer}
@@ -1690,96 +1626,90 @@ export default function CommunityScreen() {
             </View>
           </TouchableOpacity>
         </View>
-
-        {/* Filter Dropdown - Now positioned below the header */}
-        {showFilterDropdown && (
-          <Animated.View
+        {/* Always render dropdown with pointerEvents controlled */}
+        <Animated.View
+          pointerEvents={showFilterDropdown ? "auto" : "none"}
+          style={[
+            styles.filterDropdown,
+            {
+              top: headerHeight + 45,
+              opacity: filterDropdownAnim,
+              transform: [
+                {
+                  translateY: filterDropdownAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <TouchableOpacity
             style={[
-              styles.filterDropdown,
-              {
-                top: headerHeight + 45, // Position it with space below the header
-                opacity: filterDropdownAnim,
-                transform: [
-                  {
-                    translateY: filterDropdownAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-20, 0],
-                    }),
-                  },
-                ],
-              },
+              styles.filterOption,
+              intentionsFilter === "all" && styles.activeFilterOption,
             ]}
+            onPress={() => handleSelectFilter("all")}
           >
-            <TouchableOpacity
+            <Text
               style={[
-                styles.filterOption,
-                intentionsFilter === "all" && styles.activeFilterOption,
+                styles.filterOptionText,
+                intentionsFilter === "all" && styles.activeFilterOptionText,
               ]}
-              onPress={() => handleSelectFilter("all")}
             >
-              <Text
-                style={[
-                  styles.filterOptionText,
-                  intentionsFilter === "all" && styles.activeFilterOptionText,
-                ]}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              intentionsFilter === "friends" && styles.activeFilterOption,
+            ]}
+            onPress={() => handleSelectFilter("friends")}
+          >
+            <Text
               style={[
-                styles.filterOption,
-                intentionsFilter === "friends" && styles.activeFilterOption,
+                styles.filterOptionText,
+                intentionsFilter === "friends" && styles.activeFilterOptionText,
               ]}
-              onPress={() => handleSelectFilter("friends")}
             >
-              <Text
-                style={[
-                  styles.filterOptionText,
-                  intentionsFilter === "friends" &&
-                    styles.activeFilterOptionText,
-                ]}
-              >
-                Friends
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              Friends
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              intentionsFilter === "groups" && styles.activeFilterOption,
+            ]}
+            onPress={() => handleSelectFilter("groups")}
+          >
+            <Text
               style={[
-                styles.filterOption,
-                intentionsFilter === "groups" && styles.activeFilterOption,
+                styles.filterOptionText,
+                intentionsFilter === "groups" && styles.activeFilterOptionText,
               ]}
-              onPress={() => handleSelectFilter("groups")}
             >
-              <Text
-                style={[
-                  styles.filterOptionText,
-                  intentionsFilter === "groups" &&
-                    styles.activeFilterOptionText,
-                ]}
-              >
-                Groups
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              Groups
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              intentionsFilter === "mine" && styles.activeFilterOption,
+            ]}
+            onPress={() => handleSelectFilter("mine")}
+          >
+            <Text
               style={[
-                styles.filterOption,
-                intentionsFilter === "mine" && styles.activeFilterOption,
+                styles.filterOptionText,
+                intentionsFilter === "mine" && styles.activeFilterOptionText,
               ]}
-              onPress={() => handleSelectFilter("mine")}
             >
-              <Text
-                style={[
-                  styles.filterOptionText,
-                  intentionsFilter === "mine" && styles.activeFilterOptionText,
-                ]}
-              >
-                My Posts
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Intentions List */}
+              My Posts
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
         {!showFriendsSearch && (
           <Animated.FlatList
             data={intentions}
@@ -1815,11 +1745,8 @@ export default function CommunityScreen() {
             }
           />
         )}
-
-        {/* Friends Section */}
         {showFriendsSearch && (
           <View style={styles.friendsSection}>
-            {/* Back button for friends section */}
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => setShowFriendsSearch(false)}
@@ -1827,7 +1754,6 @@ export default function CommunityScreen() {
               <Feather name="arrow-left" size={24} color="#FAC898" />
               <Text style={styles.backButtonText}>Back to Feed</Text>
             </TouchableOpacity>
-
             <View style={styles.friendsTabs}>
               <TouchableOpacity
                 style={[
@@ -1885,7 +1811,6 @@ export default function CommunityScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-
             {friendTab === "search" && (
               <>
                 <View style={styles.searchContainer}>
@@ -1920,7 +1845,6 @@ export default function CommunityScreen() {
                 />
               </>
             )}
-
             {friendTab === "requests" && (
               <>
                 {sentRequests.length === 0 && incomingRequests.length === 0 ? (
@@ -1959,7 +1883,6 @@ export default function CommunityScreen() {
                 )}
               </>
             )}
-
             {friendTab === "list" && (
               <>
                 {friends.length === 0 ? (
@@ -1987,15 +1910,11 @@ export default function CommunityScreen() {
             )}
           </View>
         )}
-
-        {/* Floating Action Button with animated rotation */}
         <TouchableOpacity style={styles.fab} onPress={toggleFabMenu}>
           <Animated.View style={{ transform: [{ rotate: fabRotation }] }}>
             <Feather name="plus" size={26} color="#FFFFFF" />
           </Animated.View>
         </TouchableOpacity>
-
-        {/* FAB Menu */}
         {showFabMenu && (
           <Animated.View
             style={[
@@ -2020,14 +1939,13 @@ export default function CommunityScreen() {
               <Feather name="edit" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Add Intention</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.fabMenuItem}
               onPress={() => handleFabOption("friends")}
             >
               <Feather name="users" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>
-                Friends
+                Friends{" "}
                 {friendRequestCount > 0 && (
                   <Text style={styles.fabMenuBadge}>
                     {" "}
@@ -2036,7 +1954,6 @@ export default function CommunityScreen() {
                 )}
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.fabMenuItem}
               onPress={() => handleFabOption("lent")}
@@ -2044,8 +1961,6 @@ export default function CommunityScreen() {
               <Feather name="book-open" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Lent 2025</Text>
             </TouchableOpacity>
-
-            {/* NEW GROUPS BUTTON */}
             <TouchableOpacity
               style={styles.fabMenuItem}
               onPress={() => handleFabOption("groups")}
@@ -2055,8 +1970,6 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </Animated.View>
         )}
-
-        {/* Create Intention Modal */}
         <Modal
           visible={showIntentionModal}
           transparent={true}
@@ -2096,6 +2009,93 @@ export default function CommunityScreen() {
                   </View>
                 </View>
                 <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Visibility</Text>
+                  <TouchableOpacity
+                    style={styles.dropdown}
+                    onPress={() =>
+                      setShowVisibilityDropdownNew(!showVisibilityDropdownNew)
+                    }
+                  >
+                    <View style={styles.dropdownContent}>
+                      {
+                        visibilityOptions.find(
+                          (option) => option.label === newIntention.visibility
+                        )?.icon
+                      }
+                      <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
+                        {newIntention.visibility}
+                      </Text>
+                    </View>
+                    <Feather
+                      name={
+                        showVisibilityDropdownNew
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={18}
+                      color="#FAC898"
+                    />
+                  </TouchableOpacity>
+                  {showVisibilityDropdownNew && (
+                    <View style={styles.dropdownOptions}>
+                      {visibilityOptions.map((option) => (
+                        <TouchableOpacity
+                          key={option.label}
+                          style={styles.dropdownOption}
+                          onPress={() => {
+                            setNewIntention({
+                              ...newIntention,
+                              visibility: option.label as
+                                | "Friends"
+                                | "Certain Groups"
+                                | "Just Me"
+                                | "Friends & Groups",
+                              selectedGroups:
+                                option.label === "Certain Groups"
+                                  ? newIntention.selectedGroups
+                                  : [],
+                            });
+                            setShowVisibilityDropdownNew(false);
+                          }}
+                        >
+                          <View style={styles.dropdownOptionContent}>
+                            {option.icon}
+                            <Text style={styles.dropdownOptionText}>
+                              {option.label}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  {newIntention.visibility === "Certain Groups" && (
+                    <View style={styles.groupSelectorContainer}>
+                      <Text style={styles.groupSelectorLabel}>
+                        Select Groups:
+                      </Text>
+                      <View style={styles.groupSelectorList}>
+                        {userGroups.map((group) => (
+                          <TouchableOpacity
+                            key={group.id}
+                            style={[
+                              styles.groupOption,
+                              newIntention.selectedGroups &&
+                              newIntention.selectedGroups.includes(group.id)
+                                ? styles.groupOptionSelected
+                                : null,
+                            ]}
+                            onPress={() => toggleNewGroupSelection(group.id)}
+                          >
+                            <Text style={styles.groupOptionText}>
+                              {group.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Title</Text>
                   <TextInput
                     style={styles.formInput}
@@ -2105,12 +2105,16 @@ export default function CommunityScreen() {
                     }
                     placeholder="Enter title..."
                     placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                    inputAccessoryViewID="accessoryViewID"
                   />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Description</Text>
                   <TextInput
-                    style={styles.formTextarea}
+                    style={[
+                      styles.formTextarea,
+                      createDescriptionFocused && styles.formTextareaFocused,
+                    ]}
                     value={newIntention.description}
                     onChangeText={(text) =>
                       setNewIntention({ ...newIntention, description: text })
@@ -2120,8 +2124,18 @@ export default function CommunityScreen() {
                     multiline={true}
                     numberOfLines={4}
                     textAlignVertical="top"
+                    inputAccessoryViewID="accessoryViewID"
+                    onFocus={() => setCreateDescriptionFocused(true)}
+                    onBlur={() => setCreateDescriptionFocused(false)}
                   />
                 </View>
+                <InputAccessoryView nativeID="accessoryViewID">
+                  <View style={styles.accessory}>
+                    <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+                      <Text style={styles.accessoryText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                </InputAccessoryView>
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={styles.cancelButton}
@@ -2140,8 +2154,6 @@ export default function CommunityScreen() {
             </View>
           </KeyboardAvoidingView>
         </Modal>
-
-        {/* Edit Intention Modal */}
         <Modal
           visible={showEditModal && editingIntention !== null}
           transparent={true}
@@ -2185,6 +2197,98 @@ export default function CommunityScreen() {
                     </View>
                   </View>
                   <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Visibility</Text>
+                    <TouchableOpacity
+                      style={styles.dropdown}
+                      onPress={() =>
+                        setShowVisibilityDropdownEdit(
+                          !showVisibilityDropdownEdit
+                        )
+                      }
+                    >
+                      <View style={styles.dropdownContent}>
+                        {
+                          visibilityOptions.find(
+                            (option) =>
+                              option.label === editingIntention.visibility
+                          )?.icon
+                        }
+                        <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
+                          {editingIntention.visibility}
+                        </Text>
+                      </View>
+                      <Feather
+                        name={
+                          showVisibilityDropdownEdit
+                            ? "chevron-up"
+                            : "chevron-down"
+                        }
+                        size={18}
+                        color="#FAC898"
+                      />
+                    </TouchableOpacity>
+                    {showVisibilityDropdownEdit && (
+                      <View style={styles.dropdownOptions}>
+                        {visibilityOptions.map((option) => (
+                          <TouchableOpacity
+                            key={option.label}
+                            style={styles.dropdownOption}
+                            onPress={() => {
+                              setEditingIntention({
+                                ...editingIntention,
+                                visibility: option.label as
+                                  | "Friends"
+                                  | "Certain Groups"
+                                  | "Just Me"
+                                  | "Friends & Groups",
+                                selectedGroups:
+                                  option.label === "Certain Groups"
+                                    ? editingIntention.selectedGroups || []
+                                    : [],
+                              });
+                              setShowVisibilityDropdownEdit(false);
+                            }}
+                          >
+                            <View style={styles.dropdownOptionContent}>
+                              {option.icon}
+                              <Text style={styles.dropdownOptionText}>
+                                {option.label}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                    {editingIntention.visibility === "Certain Groups" && (
+                      <View style={styles.groupSelectorContainer}>
+                        <Text style={styles.groupSelectorLabel}>
+                          Select Groups:
+                        </Text>
+                        <View style={styles.groupSelectorList}>
+                          {userGroups.map((group) => (
+                            <TouchableOpacity
+                              key={group.id}
+                              style={[
+                                styles.groupOption,
+                                editingIntention.selectedGroups &&
+                                editingIntention.selectedGroups.includes(
+                                  group.id
+                                )
+                                  ? styles.groupOptionSelected
+                                  : null,
+                              ]}
+                              onPress={() => toggleEditGroupSelection(group.id)}
+                            >
+                              <Text style={styles.groupOptionText}>
+                                {group.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Title</Text>
                     <TextInput
                       style={styles.formInput}
@@ -2197,12 +2301,16 @@ export default function CommunityScreen() {
                       }
                       placeholder="Enter title..."
                       placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                      inputAccessoryViewID="accessoryViewID"
                     />
                   </View>
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Description</Text>
                     <TextInput
-                      style={styles.formTextarea}
+                      style={[
+                        styles.formTextarea,
+                        editDescriptionFocused && styles.formTextareaFocused,
+                      ]}
                       value={editingIntention.description}
                       onChangeText={(text) =>
                         setEditingIntention({
@@ -2215,8 +2323,18 @@ export default function CommunityScreen() {
                       multiline={true}
                       numberOfLines={4}
                       textAlignVertical="top"
+                      inputAccessoryViewID="accessoryViewID"
+                      onFocus={() => setEditDescriptionFocused(true)}
+                      onBlur={() => setEditDescriptionFocused(false)}
                     />
                   </View>
+                  <InputAccessoryView nativeID="accessoryViewID">
+                    <View style={styles.accessory}>
+                      <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+                        <Text style={styles.accessoryText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </InputAccessoryView>
                   <View style={styles.modalActions}>
                     <TouchableOpacity
                       style={styles.deleteButton}
@@ -2254,8 +2372,6 @@ export default function CommunityScreen() {
             </KeyboardAvoidingView>
           )}
         </Modal>
-
-        {/* Delete Confirmation Modal */}
         <Modal
           visible={deleteModal.isOpen}
           transparent={true}
@@ -2289,7 +2405,6 @@ export default function CommunityScreen() {
             </View>
           </View>
         </Modal>
-
         {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#FAC898" />
@@ -2301,19 +2416,12 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
+  backgroundImage: { flex: 1, width: "100%", height: "100%" },
   backgroundOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 1)",
   },
-  container: {
-    flex: 1,
-    paddingTop: Platform.OS === "android" ? 20 : 0,
-  },
+  container: { flex: 1, paddingTop: Platform.OS === "android" ? 20 : 0 },
   notification: {
     position: "absolute",
     top: 50,
@@ -2349,10 +2457,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(250, 200, 152, 0.1)",
     zIndex: 10,
   },
-  headerTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  headerTitleContainer: { flexDirection: "row", alignItems: "center" },
   headerTitle: {
     fontSize: 36,
     fontWeight: "300",
@@ -2360,10 +2465,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginRight: 10,
   },
-  headerFilterIndicator: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  headerFilterIndicator: { alignItems: "center", justifyContent: "center" },
   filterDropdown: {
     position: "absolute",
     left: 15,
@@ -2380,27 +2482,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
-  filterOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-  },
-  activeFilterOption: {
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
-  },
-  filterOptionText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  activeFilterOptionText: {
-    color: "#FAC898",
-    fontWeight: "600",
-  },
-  intentionList: {
-    padding: 15,
-    paddingBottom: 100,
-  },
+  filterOption: { paddingVertical: 12, paddingHorizontal: 15, borderRadius: 8 },
+  activeFilterOption: { backgroundColor: "rgba(250, 200, 152, 0.2)" },
+  filterOptionText: { color: "#FFFFFF", fontSize: 16, fontWeight: "500" },
+  activeFilterOptionText: { color: "#FAC898", fontWeight: "600" },
+  intentionList: { padding: 15, paddingBottom: 100 },
   intentionCard: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 15,
@@ -2475,8 +2561,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   actionTextActive: { color: "#E9967A" },
-
-  // Group tag style
   groupTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -2495,22 +2579,14 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontWeight: "600",
   },
-
-  // New styles for comments section inside card
-  commentsSection: {
-    marginTop: 10,
-  },
+  commentsSection: { marginTop: 10 },
   commentsDivider: {
     height: 1,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     marginVertical: 10,
   },
-  commentsList: {
-    paddingVertical: 5,
-  },
-  commentsLoading: {
-    marginVertical: 10,
-  },
+  commentsList: { paddingVertical: 5 },
+  commentsLoading: { marginVertical: 10 },
   commentItem: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 10,
@@ -2598,28 +2674,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(250, 200, 152, 0.4)",
   },
-  emptyStateButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  intentionContent: {
-    paddingVertical: 10,
-  },
-  intentionAuthor: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  emptyStateButtonText: { color: "#FFFFFF", fontWeight: "600" },
+  intentionContent: { paddingVertical: 10 },
+  intentionAuthor: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
   authorTag: {
     color: "rgba(250, 200, 152, 0.9)",
     fontSize: 14,
     fontWeight: "normal",
   },
-  intentionMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
+  intentionMeta: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   intentionTypeTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -2629,15 +2692,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 8,
   },
-  intentionTypeText: {
-    color: "#FAC898",
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  intentionTime: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 12,
-  },
+  intentionTypeText: { color: "#FAC898", fontSize: 12, marginLeft: 4 },
+  intentionTime: { color: "rgba(255, 255, 255, 0.6)", fontSize: 12 },
   friendsSection: { flex: 1, paddingHorizontal: 15 },
   friendsTabs: {
     flexDirection: "row",
@@ -2678,11 +2734,7 @@ const styles = StyleSheet.create({
     minWidth: 20,
     alignItems: "center",
   },
-  tabBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
+  tabBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "bold" },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -2694,12 +2746,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
   searchIcon: { marginRight: 10 },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
+  searchInput: { flex: 1, height: 44, color: "#FFFFFF", fontSize: 16 },
   userList: { paddingBottom: 100 },
   userCard: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
@@ -2879,6 +2926,64 @@ const styles = StyleSheet.create({
     height: 120,
     fontSize: 16,
   },
+  formTextareaFocused: { height: 200 },
+  // Dropdown styles for visibility
+  dropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(41, 37, 36, 0.9)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginBottom: 10,
+  },
+  dropdownText: { color: "#FFFFFF", fontSize: 16 },
+  dropdownContent: { flexDirection: "row", alignItems: "center" },
+  dropdownOptions: {
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    borderRadius: 10,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  dropdownOption: { paddingVertical: 10, paddingHorizontal: 12 },
+  dropdownOptionContent: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dropdownOptionText: { color: "#FFFFFF", fontSize: 16 },
+  // Group selector styles
+  groupSelectorContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "rgba(41, 37, 36, 0.8)",
+    borderRadius: 10,
+  },
+  groupSelectorLabel: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 5,
+  },
+  groupSelectorList: { flexDirection: "row", flexWrap: "wrap" },
+  groupOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  groupOptionSelected: {
+    backgroundColor: "rgba(250, 200, 152, 0.4)",
+    borderColor: "rgba(250, 200, 152, 0.6)",
+  },
+  groupOptionText: { color: "#FFFFFF", fontSize: 14, fontWeight: "500" },
+  // Accessory view for iOS keyboard
+  accessory: { backgroundColor: "#222", padding: 10, alignItems: "flex-end" },
+  accessoryText: { color: "#FFF", fontSize: 16, fontWeight: "600" },
   modalActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -2922,12 +3027,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
-
-  // Styles for floating action button and menu
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 100, // to position above any bottom nav
+    bottom: 100,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -2944,7 +3047,7 @@ const styles = StyleSheet.create({
   fabMenu: {
     position: "absolute",
     right: 20,
-    bottom: 170, // Adjust to appear above the FAB
+    bottom: 170,
     borderRadius: 15,
     backgroundColor: "rgba(41, 37, 36, 0.95)",
     padding: 10,
@@ -2972,12 +3075,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontWeight: "500",
   },
-  fabMenuBadge: {
-    color: "#E9967A",
-    fontWeight: "600",
-  },
-
-  // Back button styles
+  fabMenuBadge: { color: "#E9967A", fontWeight: "600" },
   backButton: {
     flexDirection: "row",
     alignItems: "center",
