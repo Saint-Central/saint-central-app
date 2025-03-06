@@ -613,120 +613,203 @@ export default function CommunityScreen() {
       if (authError) throw authError;
       if (!user) throw new Error("Not authenticated");
 
+      // First, fetch all intentions with their user data
       let query = supabase
         .from("intentions")
-        .select(`*, user:users (*)`)
+        .select(`*, user:users (*), visibility, selected_groups`)
         .order("created_at", { ascending: false });
 
-      if (intentionsFilter === "mine") {
-        query = query.eq("user_id", user.id);
-      } else if (intentionsFilter === "friends") {
-        const { data: sent, error: sentError } = await supabase
-          .from("friends")
-          .select("user_id_2")
-          .eq("user_id_1", user.id)
-          .eq("status", "accepted");
-        if (sentError) throw sentError;
-        const { data: incoming, error: incomingError } = await supabase
-          .from("friends")
-          .select("user_id_1")
-          .eq("user_id_2", user.id)
-          .eq("status", "accepted");
-        if (incomingError) throw incomingError;
-        let friendIds: string[] = [];
-        if (sent)
-          friendIds = friendIds.concat(
-            sent.map((row: { user_id_2: string }) => row.user_id_2)
-          );
-        if (incoming)
-          friendIds = friendIds.concat(
-            incoming.map((row: { user_id_1: string }) => row.user_id_1)
-          );
-        if (friendIds.length === 0) {
-          setIntentions([]);
-          setIsLoading(false);
-          return;
-        }
-        query = query.in("user_id", friendIds);
-      } else if (intentionsFilter === "groups") {
-        if (userGroups.length === 0) {
-          setIntentions([]);
-          setIsLoading(false);
-          return;
-        }
-        const groupIds = userGroups.map((group) => group.id);
-        const { data: groupMembers, error: membersError } = await supabase
-          .from("group_members")
-          .select("user_id")
-          .in("group_id", groupIds);
-        if (membersError) throw membersError;
-        if (!groupMembers || groupMembers.length === 0) {
-          setIntentions([]);
-          setIsLoading(false);
-          return;
-        }
-        const memberIds = [
-          ...new Set(groupMembers.map((member) => member.user_id)),
-        ];
-        query = query.in("user_id", memberIds);
-      } else if (intentionsFilter === "all") {
-        const { data: sent, error: sentError } = await supabase
-          .from("friends")
-          .select("user_id_2")
-          .eq("user_id_1", user.id)
-          .eq("status", "accepted");
-        if (sentError) throw sentError;
-        const { data: incoming, error: incomingError } = await supabase
-          .from("friends")
-          .select("user_id_1")
-          .eq("user_id_2", user.id)
-          .eq("status", "accepted");
-        if (incomingError) throw incomingError;
-        const { data: groupMembers, error: membersError } = await supabase
-          .from("group_members")
-          .select("user_id, group_id")
-          .in(
-            "group_id",
-            userGroups.map((group) => group.id)
-          );
-        if (membersError) throw membersError;
-        let userIds: string[] = [user.id];
-        if (sent) {
-          userIds = userIds.concat(
-            sent.map((row: { user_id_2: string }) => row.user_id_2)
-          );
-        }
-        if (incoming) {
-          userIds = userIds.concat(
-            incoming.map((row: { user_id_1: string }) => row.user_id_1)
-          );
-        }
-        if (groupMembers && groupMembers.length > 0) {
-          const groupMemberIds = groupMembers.map((member) => member.user_id);
-          userIds = [...new Set([...userIds, ...groupMemberIds])];
-        }
-        query = query.in("user_id", userIds);
-      }
-
+      // Apply filter based on current tab
       if (type) query = query.eq("type", type);
 
-      const { data, error } = await query;
+      // Get all intentions first
+      const { data: allIntentions, error } = await query;
       if (error) throw error;
 
+      // Get user's friends
+      const { data: sentFriends, error: sentError } = await supabase
+        .from("friends")
+        .select("user_id_2")
+        .eq("user_id_1", user.id)
+        .eq("status", "accepted");
+      if (sentError) throw sentError;
+
+      const { data: receivedFriends, error: receivedError } = await supabase
+        .from("friends")
+        .select("user_id_1")
+        .eq("user_id_2", user.id)
+        .eq("status", "accepted");
+      if (receivedError) throw receivedError;
+
+      // Create a set of friend IDs
+      const friendIds = new Set<string>();
+      if (sentFriends) {
+        sentFriends.forEach((row: { user_id_2: string }) => {
+          friendIds.add(row.user_id_2);
+        });
+      }
+      if (receivedFriends) {
+        receivedFriends.forEach((row: { user_id_1: string }) => {
+          friendIds.add(row.user_id_1);
+        });
+      }
+
+      // Get user's group memberships and group members
+      const userGroupIds = userGroups.map((group) => group.id);
+      const { data: groupMembers, error: membersError } = await supabase
+        .from("group_members")
+        .select("user_id, group_id")
+        .in("group_id", userGroupIds.length > 0 ? userGroupIds : [""]);
+      if (membersError) throw membersError;
+
+      // Create a map of group ID to member IDs
+      const groupMembersMap = new Map<string, Set<string>>();
+      if (groupMembers) {
+        groupMembers.forEach(
+          (member: { user_id: string; group_id: string }) => {
+            if (!groupMembersMap.has(member.group_id)) {
+              groupMembersMap.set(member.group_id, new Set<string>());
+            }
+            groupMembersMap.get(member.group_id)?.add(member.user_id);
+          }
+        );
+      }
+
+      // Filter intentions based on visibility settings
+      const filteredIntentions = allIntentions?.filter((intention: any) => {
+        // Parse selected groups
+        const selectedGroups = parseSelectedGroups(intention.selected_groups);
+
+        // Current user's own intentions always visible
+        if (intention.user_id === user.id) {
+          return true;
+        }
+
+        // Apply intentionsFilter specific filtering
+        if (intentionsFilter === "mine") {
+          return intention.user_id === user.id;
+        } else if (intentionsFilter === "friends") {
+          // In friends filter, only show posts from friends that are visible to friends
+          return (
+            friendIds.has(intention.user_id) &&
+            (intention.visibility === "Friends" ||
+              intention.visibility === "Friends & Groups")
+          );
+        } else if (intentionsFilter === "groups") {
+          // In groups filter, show only posts from group members that are visible to groups
+          let isInSameGroup = false;
+          // Check if post owner is in any of user's groups
+          for (const groupId of userGroupIds) {
+            const membersOfGroup = groupMembersMap.get(groupId);
+            if (membersOfGroup && membersOfGroup.has(intention.user_id)) {
+              isInSameGroup = true;
+              break;
+            }
+          }
+
+          // For "Certain Groups", check if the current user is in one of the selected groups
+          if (intention.visibility === "Certain Groups") {
+            // If no groups are selected, don't show the post
+            if (!selectedGroups || selectedGroups.length === 0) return false;
+
+            // Convert all to strings for consistent comparison
+            const userGroupIdsStr = userGroupIds.map((id) => String(id));
+            const selectedGroupsStr = selectedGroups.map((id) => String(id));
+
+            // Debug log (remove in production)
+            console.log("User groups:", userGroupIdsStr);
+            console.log("Post selected groups:", selectedGroupsStr);
+
+            // Check if there's any overlap between user's groups and post's selected groups
+            const isInSelectedGroup = selectedGroupsStr.some((groupId) =>
+              userGroupIdsStr.includes(groupId)
+            );
+
+            return isInSelectedGroup;
+          }
+
+          return (
+            isInSameGroup &&
+            (intention.visibility === "Friends & Groups" ||
+              intention.visibility === "Certain Groups")
+          );
+        } else if (intentionsFilter === "all") {
+          // In "all" filter, show:
+          // 1. All of the user's own posts
+          // 2. Posts visible to the user based on visibility settings
+
+          switch (intention.visibility) {
+            case "Just Me":
+              // Only visible to creator
+              return intention.user_id === user.id;
+
+            case "Friends":
+              // Visible to creator and friends
+              return (
+                intention.user_id === user.id ||
+                friendIds.has(intention.user_id)
+              );
+
+            case "Certain Groups":
+              // Visible to creator and members of selected groups
+              if (intention.user_id === user.id) return true;
+
+              // If no groups are selected, only show to creator
+              if (!selectedGroups || selectedGroups.length === 0)
+                return intention.user_id === user.id;
+
+              // Convert all to strings for consistent comparison
+              const userGroupIdsStr = userGroupIds.map((id) => String(id));
+              const selectedGroupsStr = selectedGroups.map((id) => String(id));
+
+              // Check if there's any overlap between user's groups and post's selected groups
+              return selectedGroupsStr.some((groupId) =>
+                userGroupIdsStr.includes(groupId)
+              );
+
+            case "Friends & Groups":
+              // Visible to creator, friends, and group members
+              if (
+                intention.user_id === user.id ||
+                friendIds.has(intention.user_id)
+              ) {
+                return true;
+              }
+
+              // Check if user is in same group as post creator
+              for (const groupId of userGroupIds) {
+                const membersOfGroup = groupMembersMap.get(groupId);
+                if (membersOfGroup && membersOfGroup.has(intention.user_id)) {
+                  return true;
+                }
+              }
+              return false;
+
+            default:
+              return false;
+          }
+        }
+
+        return false;
+      });
+
+      // Get like and comment counts, check if user has liked each intention
       const intentionsWithCounts = await Promise.all(
-        (data || []).map(async (intention: any) => {
+        (filteredIntentions || []).map(async (intention: any) => {
           const { count: likesCount, error: likesError } = await supabase
             .from("likes")
             .select("*", { count: "exact", head: false })
             .eq("likeable_id", intention.id)
             .eq("likeable_type", "intentions");
           if (likesError) throw likesError;
+
           const { count: commentsCount, error: commentsError } = await supabase
             .from("comments")
             .select("*", { count: "exact", head: false })
             .eq("commentable_id", intention.id)
             .eq("commentable_type", "intentions");
           if (commentsError) throw commentsError;
+
           const { data: userLike, error: userLikeError } = await supabase
             .from("likes")
             .select("id")
@@ -784,7 +867,6 @@ export default function CommunityScreen() {
             comments_count: commentsCount,
             is_liked: !!userLike,
             group_info: groupInfo,
-            // NEW: Ensure selectedGroups is a proper array
             selectedGroups: parseSelectedGroups(intention.selected_groups),
           };
         })
