@@ -69,7 +69,7 @@ interface Intention {
   is_liked?: boolean;
   group_info?: Group | null;
   visibility?: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups";
-  selectedGroups?: string[]; // For "Certain Groups" selection
+  selectedGroups?: (number | string)[]; // For "Certain Groups" selection
 }
 
 type IntentionType = "resolution" | "prayer" | "goal";
@@ -157,6 +157,27 @@ const visibilityOptions = [
   },
   { label: "Just Me", icon: <Feather name="user" size={16} color="#FFFFFF" /> },
 ];
+
+// Helper: Convert the returned selected_groups field to a proper array.
+// If it's already an array, return it; if it's a string, try to parse it.
+const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
+  if (Array.isArray(selected_groups)) {
+    return selected_groups;
+  } else if (typeof selected_groups === "string") {
+    try {
+      // Try JSON parsing first
+      return JSON.parse(selected_groups);
+    } catch (e) {
+      // Fallback: remove any brackets and split by comma
+      return selected_groups
+        .replace(/[\[\]]/g, "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+    }
+  }
+  return [];
+};
 
 // Separate IntentionCard component
 const IntentionCard: React.FC<IntentionCardProps> = ({
@@ -379,7 +400,7 @@ export default function CommunityScreen() {
     description: string;
     type: IntentionType;
     visibility: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups";
-    selectedGroups: string[];
+    selectedGroups: (number | string)[];
   }>({
     title: "",
     description: "",
@@ -693,7 +714,7 @@ export default function CommunityScreen() {
       if (error) throw error;
 
       const intentionsWithCounts = await Promise.all(
-        (data || []).map(async (intention: Intention) => {
+        (data || []).map(async (intention: any) => {
           const { count: likesCount, error: likesError } = await supabase
             .from("likes")
             .select("*", { count: "exact", head: false })
@@ -763,6 +784,8 @@ export default function CommunityScreen() {
             comments_count: commentsCount,
             is_liked: !!userLike,
             group_info: groupInfo,
+            // NEW: Ensure selectedGroups is a proper array
+            selectedGroups: parseSelectedGroups(intention.selected_groups),
           };
         })
       );
