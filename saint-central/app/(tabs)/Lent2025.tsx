@@ -31,7 +31,7 @@ import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
 import { supabase } from "../../supabaseClient";
-import { Feather } from "@expo/vector-icons";
+import { Feather, FontAwesome } from "@expo/vector-icons";
 
 // --------------------
 // Data Interfaces
@@ -52,6 +52,8 @@ interface LentTask {
   comments_count?: number;
   liked_by_current_user?: boolean;
   group_info?: Group | null;
+  visibility?: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups";
+  selectedGroups?: (number | string)[];
 }
 
 interface Comment {
@@ -102,6 +104,43 @@ interface LentEvent {
   title: string;
   description: string;
 }
+
+// Define visibility options with icons
+const visibilityOptions = [
+  {
+    label: "Friends",
+    icon: <Feather name="users" size={16} color="#FFFFFF" />,
+  },
+  {
+    label: "Certain Groups",
+    icon: <Feather name="grid" size={16} color="#FFFFFF" />,
+  },
+  {
+    label: "Friends & Groups",
+    icon: <FontAwesome name="globe" size={16} color="#FFFFFF" />,
+  },
+  { label: "Just Me", icon: <Feather name="user" size={16} color="#FFFFFF" /> },
+];
+
+// Helper: Convert the returned selected_groups field to a proper array.
+const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
+  if (Array.isArray(selected_groups)) {
+    return selected_groups;
+  } else if (typeof selected_groups === "string") {
+    try {
+      // Try JSON parsing first
+      return JSON.parse(selected_groups);
+    } catch (e) {
+      // Fallback: remove any brackets and split by comma
+      return selected_groups
+        .replace(/[\[\]]/g, "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+    }
+  }
+  return [];
+};
 
 const lentGuideEvents: LentEvent[] = [
   {
@@ -414,7 +453,7 @@ const formatCommentDate = (dateStr: string): string => {
     const hours = Math.floor(diffTime / (1000 * 60 * 60));
     if (hours === 0) {
       const minutes = Math.floor(diffTime / (1000 * 60));
-      return minutes <= 1 ? "just now" : `${minutes} minutes ago`;
+      return `${minutes <= 1 ? "just now" : `${minutes} minutes ago`}`;
     }
     return `${hours} hours ago`;
   } else if (diffDays === 1) {
@@ -555,6 +594,18 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                         </Text>
                       </View>
                     )}
+                    {task.visibility && (
+                      <View style={styles.visibilityTag}>
+                        {
+                          visibilityOptions.find(
+                            (option) => option.label === task.visibility
+                          )?.icon
+                        }
+                        <Text style={styles.visibilityTagText}>
+                          {task.visibility}
+                        </Text>
+                      </View>
+                    )}
                     <Text style={styles.expandedDayTaskDesc}>
                       {task.description}
                     </Text>
@@ -628,7 +679,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
 // --------------------
 // Lent2025 Screen Component
 // --------------------
-const Lent2025Screen: React.FC = () => {
+const Lent2025: React.FC = () => {
   const { width } = useWindowDimensions();
   const isIpad = width >= 768;
   // On iPad, use almost full width with padding
@@ -649,6 +700,12 @@ const Lent2025Screen: React.FC = () => {
       const day = String(d.getDate()).padStart(2, "0");
       return `${y}-${m}-${day}`;
     })(),
+    visibility: "Friends" as
+      | "Friends"
+      | "Certain Groups"
+      | "Just Me"
+      | "Friends & Groups",
+    selectedGroups: [] as (number | string)[],
   });
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showInlineDatePicker, setShowInlineDatePicker] = useState(false);
@@ -680,6 +737,11 @@ const Lent2025Screen: React.FC = () => {
   const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
   const [headerHeight, setHeaderHeight] = useState<number>(0);
+  // Visibility dropdown states in modals
+  const [showVisibilityDropdownNew, setShowVisibilityDropdownNew] =
+    useState<boolean>(false);
+  const [showVisibilityDropdownEdit, setShowVisibilityDropdownEdit] =
+    useState<boolean>(false);
 
   // Animation refs
   const likeAnimations = useRef<{ [taskId: string]: Animated.Value }>(
@@ -691,6 +753,38 @@ const Lent2025Screen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const headerRef = useRef<View>(null);
   const filterDropdownAnim = useRef(new Animated.Value(0)).current;
+
+  // Helper functions for toggling group selection
+  const toggleNewGroupSelection = (groupId: string) => {
+    const currentSelected = newTask.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setNewTask({
+        ...newTask,
+        selectedGroups: currentSelected.filter((id) => id !== groupId),
+      });
+    } else {
+      setNewTask({
+        ...newTask,
+        selectedGroups: [...currentSelected, groupId],
+      });
+    }
+  };
+
+  const toggleEditGroupSelection = (groupId: string) => {
+    if (!editingTask) return;
+    const currentSelected = editingTask.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setEditingTask({
+        ...editingTask,
+        selectedGroups: currentSelected.filter((id) => id !== groupId),
+      });
+    } else {
+      setEditingTask({
+        ...editingTask,
+        selectedGroups: [...currentSelected, groupId],
+      });
+    }
+  };
 
   // Memoized friend tasks and colors
   const friendTasks = useMemo(
@@ -877,14 +971,14 @@ const Lent2025Screen: React.FC = () => {
         userIdsToFetch = [
           ...new Set(groupMembers.map((member) => member.user_id)),
         ];
-        // Remove current user from "groups" filter if we only want to see others
-        // userIdsToFetch = userIdsToFetch.filter(id => id !== currentUserId);
       }
 
       // Fetch tasks with the applied filter
       const { data, error } = await supabase
         .from("lent_tasks")
-        .select("*, user:users (first_name, last_name, email)")
+        .select(
+          "*, user:users (first_name, last_name, email), visibility, selected_groups"
+        )
         .in("user_id", userIdsToFetch)
         .order("created_at", { ascending: false });
 
@@ -982,17 +1076,61 @@ const Lent2025Screen: React.FC = () => {
             console.error("Error fetching task metadata:", errors.join(", "));
           }
 
+          // Parse selected groups
+          const selectedGroups = parseSelectedGroups(task.selected_groups);
+
+          // Filter tasks based on visibility
+          if (task.user_id !== currentUserId) {
+            switch (task.visibility) {
+              case "Just Me":
+                // Don't include private tasks from others
+                return null;
+              case "Friends":
+                if (!uniqueFriendIds.includes(task.user_id)) {
+                  return null;
+                }
+                break;
+              case "Certain Groups":
+                if (selectedGroups.length === 0) {
+                  return null;
+                }
+                // Check if current user is in any of the selected groups
+                const userGroupIds = userGroups.map((g) => g.id.toString());
+                const selectedGroupsStr = selectedGroups.map((id) =>
+                  id.toString()
+                );
+
+                const isInSelectedGroup = selectedGroupsStr.some((id) =>
+                  userGroupIds.includes(id)
+                );
+                if (!isInSelectedGroup) {
+                  return null;
+                }
+                break;
+              case "Friends & Groups":
+                // Already filtered by userIdsToFetch
+                break;
+              default:
+                // If visibility is undefined, assume it's visible to everyone (backward compatibility)
+                break;
+            }
+          }
+
           return {
             ...task,
             likes_count: likesResponse.count || 0,
             comments_count: commentsResponse.count || 0,
             liked_by_current_user: !!userLikeResponse.data,
             group_info: groupInfo,
+            selectedGroups: selectedGroups,
           };
         })
       );
 
-      setLentTasks(tasksWithMetadata || []);
+      // Filter out null tasks (those hidden by visibility)
+      const filteredTasks = tasksWithMetadata.filter((task) => task !== null);
+
+      setLentTasks(filteredTasks as LentTask[]);
     } catch (error: unknown) {
       console.error("Error fetching tasks:", error);
       const errorMessage =
@@ -1171,6 +1309,11 @@ const Lent2025Screen: React.FC = () => {
           event: newTask.event,
           description: newTask.description,
           date: formattedDate,
+          visibility: newTask.visibility,
+          selected_groups:
+            newTask.visibility === "Certain Groups"
+              ? newTask.selectedGroups
+              : [],
         },
       ]);
       if (error) throw error;
@@ -1188,8 +1331,11 @@ const Lent2025Screen: React.FC = () => {
           const day = String(d.getDate()).padStart(2, "0");
           return `${y}-${m}-${day}`;
         })(),
+        visibility: "Friends",
+        selectedGroups: [],
       });
       setShowInlineDatePicker(false);
+      setShowVisibilityDropdownNew(false);
       fetchTasks();
     } catch (error) {
       console.error("Error creating task:", error);
@@ -1201,7 +1347,12 @@ const Lent2025Screen: React.FC = () => {
 
   const handleEditTask = (task: LentTask) => {
     setSelectedDay(null);
-    const editTask = { ...task, date: task.date.split("T")[0] };
+    const editTask = {
+      ...task,
+      date: task.date.split("T")[0],
+      visibility: task.visibility || "Friends",
+      selectedGroups: task.selectedGroups || [],
+    };
     setEditingTask(editTask);
   };
 
@@ -1223,11 +1374,17 @@ const Lent2025Screen: React.FC = () => {
           event: editingTask.event,
           description: editingTask.description,
           date: formattedDate,
+          visibility: editingTask.visibility || "Friends",
+          selected_groups:
+            editingTask.visibility === "Certain Groups"
+              ? editingTask.selectedGroups
+              : [],
         })
         .eq("id", editingTask.id);
       if (error) throw error;
       showNotification("Task updated successfully!", "success");
       setEditingTask(null);
+      setShowVisibilityDropdownEdit(false);
       fetchTasks();
     } catch (error) {
       console.error("Error updating task:", error);
@@ -1274,9 +1431,14 @@ const Lent2025Screen: React.FC = () => {
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
-          toValue: 1,
+          toValue: 1.5,
           friction: 3,
           tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 3,
           useNativeDriver: true,
         }),
       ]).start();
@@ -1533,6 +1695,16 @@ const Lent2025Screen: React.FC = () => {
             <Text style={styles.groupTagText}>
               Shared group: {task.group_info.name}
             </Text>
+          </View>
+        )}
+        {task.visibility && (
+          <View style={styles.visibilityTag}>
+            {
+              visibilityOptions.find(
+                (option) => option.label === task.visibility
+              )?.icon
+            }
+            <Text style={styles.visibilityTagText}>{task.visibility}</Text>
           </View>
         )}
         <Text style={styles.taskDescription}>{task.description}</Text>
@@ -1915,6 +2087,7 @@ const Lent2025Screen: React.FC = () => {
           onRequestClose={() => {
             setShowTaskModal(false);
             setShowInlineDatePicker(false);
+            setShowVisibilityDropdownNew(false);
           }}
         >
           <KeyboardAvoidingView
@@ -1933,6 +2106,7 @@ const Lent2025Screen: React.FC = () => {
                 ]}
               >
                 <Text style={styles.modalTitle}>Add New Task</Text>
+
                 <Text style={styles.inputLabel}>Event</Text>
                 <TextInput
                   style={styles.textInput}
@@ -1944,6 +2118,7 @@ const Lent2025Screen: React.FC = () => {
                   placeholderTextColor="#9CA3AF"
                   accessibilityLabel="Event name"
                 />
+
                 <Text style={styles.inputLabel}>Date</Text>
                 <TouchableOpacity
                   style={styles.dateButton}
@@ -1976,6 +2151,7 @@ const Lent2025Screen: React.FC = () => {
                     {new Date(newTask.date + "T00:00:00").toLocaleDateString()}
                   </Text>
                 </TouchableOpacity>
+
                 {Platform.OS !== "android" && showInlineDatePicker && (
                   <DateTimePicker
                     value={new Date(newTask.date + "T00:00:00")}
@@ -1994,6 +2170,102 @@ const Lent2025Screen: React.FC = () => {
                     themeVariant="dark"
                   />
                 )}
+
+                <Text style={styles.inputLabel}>Visibility</Text>
+                <TouchableOpacity
+                  style={styles.visibilityButton}
+                  onPress={() =>
+                    setShowVisibilityDropdownNew(!showVisibilityDropdownNew)
+                  }
+                >
+                  <View style={styles.visibilityButtonContent}>
+                    {
+                      visibilityOptions.find(
+                        (option) => option.label === newTask.visibility
+                      )?.icon
+                    }
+                    <Text style={styles.visibilityButtonText}>
+                      {newTask.visibility}
+                    </Text>
+                  </View>
+                  <Feather
+                    name={
+                      showVisibilityDropdownNew ? "chevron-up" : "chevron-down"
+                    }
+                    size={18}
+                    color="#E9967A"
+                  />
+                </TouchableOpacity>
+
+                {showVisibilityDropdownNew && (
+                  <View style={styles.visibilityDropdown}>
+                    {visibilityOptions.map((option) => (
+                      <TouchableOpacity
+                        key={option.label}
+                        style={[
+                          styles.visibilityOption,
+                          option.label === newTask.visibility &&
+                            styles.visibilityOptionSelected,
+                        ]}
+                        onPress={() => {
+                          setNewTask({
+                            ...newTask,
+                            visibility: option.label as
+                              | "Friends"
+                              | "Certain Groups"
+                              | "Just Me"
+                              | "Friends & Groups",
+                            selectedGroups:
+                              option.label === "Certain Groups"
+                                ? newTask.selectedGroups
+                                : [],
+                          });
+                          setShowVisibilityDropdownNew(false);
+                        }}
+                      >
+                        <View style={styles.visibilityOptionContent}>
+                          {option.icon}
+                          <Text style={styles.visibilityOptionText}>
+                            {option.label}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {newTask.visibility === "Certain Groups" && (
+                  <View style={styles.groupSelectorContainer}>
+                    <Text style={styles.groupSelectorLabel}>
+                      Select Groups:
+                    </Text>
+                    <View style={styles.groupSelectorList}>
+                      {userGroups.length === 0 ? (
+                        <Text style={styles.noGroupsText}>
+                          You are not a member of any groups.
+                        </Text>
+                      ) : (
+                        userGroups.map((group) => (
+                          <TouchableOpacity
+                            key={group.id}
+                            style={[
+                              styles.groupOption,
+                              newTask.selectedGroups.includes(group.id)
+                                ? styles.groupOptionSelected
+                                : null,
+                            ]}
+                            onPress={() => toggleNewGroupSelection(group.id)}
+                          >
+                            <Text style={styles.groupOptionText}>
+                              {group.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </View>
+                  </View>
+                )}
+
                 <Text style={styles.inputLabel}>Description</Text>
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
@@ -2007,12 +2279,14 @@ const Lent2025Screen: React.FC = () => {
                   numberOfLines={4}
                   accessibilityLabel="Event description"
                 />
+
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={styles.cancelButton}
                     onPress={() => {
                       setShowTaskModal(false);
                       setShowInlineDatePicker(false);
+                      setShowVisibilityDropdownNew(false);
                     }}
                     accessibilityLabel="Cancel"
                   >
@@ -2036,7 +2310,10 @@ const Lent2025Screen: React.FC = () => {
           visible={!!editingTask}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setEditingTask(null)}
+          onRequestClose={() => {
+            setEditingTask(null);
+            setShowVisibilityDropdownEdit(false);
+          }}
         >
           {editingTask && (
             <KeyboardAvoidingView
@@ -2055,6 +2332,7 @@ const Lent2025Screen: React.FC = () => {
                   ]}
                 >
                   <Text style={styles.modalTitle}>Edit Task</Text>
+
                   <Text style={styles.inputLabel}>Event</Text>
                   <TextInput
                     style={styles.textInput}
@@ -2069,6 +2347,7 @@ const Lent2025Screen: React.FC = () => {
                     placeholderTextColor="#9CA3AF"
                     accessibilityLabel="Event name"
                   />
+
                   <Text style={styles.inputLabel}>Date</Text>
                   <TouchableOpacity
                     style={styles.dateButton}
@@ -2106,6 +2385,7 @@ const Lent2025Screen: React.FC = () => {
                       ).toLocaleDateString()}
                     </Text>
                   </TouchableOpacity>
+
                   {Platform.OS !== "android" && showEditDatePicker && (
                     <DateTimePicker
                       value={new Date(editingTask.date + "T00:00:00")}
@@ -2130,6 +2410,105 @@ const Lent2025Screen: React.FC = () => {
                       themeVariant="dark"
                     />
                   )}
+
+                  <Text style={styles.inputLabel}>Visibility</Text>
+                  <TouchableOpacity
+                    style={styles.visibilityButton}
+                    onPress={() =>
+                      setShowVisibilityDropdownEdit(!showVisibilityDropdownEdit)
+                    }
+                  >
+                    <View style={styles.visibilityButtonContent}>
+                      {
+                        visibilityOptions.find(
+                          (option) => option.label === editingTask.visibility
+                        )?.icon
+                      }
+                      <Text style={styles.visibilityButtonText}>
+                        {editingTask.visibility || "Friends"}
+                      </Text>
+                    </View>
+                    <Feather
+                      name={
+                        showVisibilityDropdownEdit
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={18}
+                      color="#E9967A"
+                    />
+                  </TouchableOpacity>
+
+                  {showVisibilityDropdownEdit && (
+                    <View style={styles.visibilityDropdown}>
+                      {visibilityOptions.map((option) => (
+                        <TouchableOpacity
+                          key={option.label}
+                          style={[
+                            styles.visibilityOption,
+                            option.label === editingTask.visibility &&
+                              styles.visibilityOptionSelected,
+                          ]}
+                          onPress={() => {
+                            setEditingTask({
+                              ...editingTask,
+                              visibility: option.label as
+                                | "Friends"
+                                | "Certain Groups"
+                                | "Just Me"
+                                | "Friends & Groups",
+                              selectedGroups:
+                                option.label === "Certain Groups"
+                                  ? editingTask.selectedGroups || []
+                                  : [],
+                            });
+                            setShowVisibilityDropdownEdit(false);
+                          }}
+                        >
+                          <View style={styles.visibilityOptionContent}>
+                            {option.icon}
+                            <Text style={styles.visibilityOptionText}>
+                              {option.label}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {editingTask.visibility === "Certain Groups" && (
+                    <View style={styles.groupSelectorContainer}>
+                      <Text style={styles.groupSelectorLabel}>
+                        Select Groups:
+                      </Text>
+                      <View style={styles.groupSelectorList}>
+                        {userGroups.length === 0 ? (
+                          <Text style={styles.noGroupsText}>
+                            You are not a member of any groups.
+                          </Text>
+                        ) : (
+                          userGroups.map((group) => (
+                            <TouchableOpacity
+                              key={group.id}
+                              style={[
+                                styles.groupOption,
+                                editingTask.selectedGroups &&
+                                editingTask.selectedGroups.includes(group.id)
+                                  ? styles.groupOptionSelected
+                                  : null,
+                              ]}
+                              onPress={() => toggleEditGroupSelection(group.id)}
+                            >
+                              <Text style={styles.groupOptionText}>
+                                {group.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))
+                        )}
+                      </View>
+                    </View>
+                  )}
+
                   <Text style={styles.inputLabel}>Description</Text>
                   <TextInput
                     style={[styles.textInput, styles.textAreaInput]}
@@ -2146,12 +2525,14 @@ const Lent2025Screen: React.FC = () => {
                     numberOfLines={4}
                     accessibilityLabel="Event description"
                   />
+
                   <View style={styles.modalButtons}>
                     <TouchableOpacity
                       style={styles.cancelButton}
                       onPress={() => {
                         setEditingTask(null);
                         setShowEditDatePicker(false);
+                        setShowVisibilityDropdownEdit(false);
                       }}
                       accessibilityLabel="Cancel"
                     >
@@ -2544,6 +2925,25 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontWeight: "600",
   },
+  // Visibility tag style
+  visibilityTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+  },
+  visibilityTagText: {
+    color: "#E9967A",
+    fontSize: 12,
+    marginLeft: 5,
+    fontWeight: "600",
+  },
   taskDescription: {
     color: "rgba(255, 255, 255, 0.8)",
     marginBottom: 12,
@@ -2736,7 +3136,7 @@ const styles = StyleSheet.create({
   },
   textAreaInput: { height: 120, textAlignVertical: "top" },
   dateButton: {
-    backgroundColor: "rgba(255, 255, 0, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 15,
@@ -2744,6 +3144,96 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   dateButtonText: { color: "#FFFFFF", letterSpacing: 0.5, fontSize: 16 },
+  // Visibility button styles
+  visibilityButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 15,
+    padding: 14,
+    marginBottom: 16,
+  },
+  visibilityButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  visibilityButtonText: {
+    color: "#FFFFFF",
+    marginLeft: 10,
+    letterSpacing: 0.5,
+    fontSize: 16,
+  },
+  visibilityDropdown: {
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    borderRadius: 10,
+    marginTop: -10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
+  },
+  visibilityOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  visibilityOptionSelected: {
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
+  },
+  visibilityOptionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  visibilityOptionText: {
+    color: "#FFFFFF",
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  // Group selector styles
+  groupSelectorContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  groupSelectorLabel: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 10,
+  },
+  groupSelectorList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  groupOption: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginBottom: 8,
+    marginRight: 8,
+  },
+  groupOptionSelected: {
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
+    borderColor: "rgba(233, 150, 122, 0.4)",
+  },
+  groupOptionText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+  },
+  noGroupsText: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontStyle: "italic",
+    padding: 8,
+  },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -3143,4 +3633,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Lent2025Screen;
+export default Lent2025;
