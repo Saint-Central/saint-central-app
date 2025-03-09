@@ -118,7 +118,7 @@ export default function HomeScreen() {
             <View style={styles.iconContainer}>
               <Feather name="sunrise" size={36} color="#FAC898" />
             </View>
-            <Text style={styles.heroTitle}>Saint Central</Text>
+            <Text style={styles.heroTitle}>Steve Central</Text>
             <Text style={styles.heroSubtitle}>
               Let's begin the journey to your spiritual life
             </Text>
