@@ -20,6 +20,7 @@ import lentImage from "../../assets/images/lent.jpg";
 import reflectionImage from "../../assets/images/reflection.jpg";
 import intentionsImage from "../../assets/images/intentions.jpg";
 import heroImage from "../../assets/images/hero-image.jpg";
+import prayerHandsRosaryImage from "../../assets/images/prayer-hands-rosary.jpg";
 // Using require for background
 const backgroundImageRequire = require("../../assets/images/home-image.jpg");
 
@@ -64,11 +65,11 @@ export default function HomeScreen() {
     },
     {
       id: 2,
-      title: "Daily Reflection",
-      description: "Begin your day with prayer and scripture.",
-      icon: "book-open",
-      route: "/reflection",
-      image: reflectionImage,
+    title: "Rosary",
+    description: "A meditative prayer journey embracing divine mysteries.",
+    icon: "book-open",
+    route: "/Rosary",
+    image: prayerHandsRosaryImage,  // Use the imported image here
     },
     {
       id: 3,
@@ -132,49 +133,51 @@ export default function HomeScreen() {
           </View>
 
           {/* Featured Cards Section */}
-          <View style={styles.featuredSection}>
-            <Text style={styles.sectionTitle}>Explore Your Journey</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.featuredScroll}
-            >
-              {featuredCards.map((card) => (
-                <TouchableOpacity
-                  key={card.id}
-                  style={styles.featuredCard}
-                  onPress={() => {
-                    if (card.title === "Daily Reflection") {
-                      Alert.alert("this page is not set up yet");
-                    } else {
-                      router.push(card.route as any);
-                    }
-                  }}
-                >
-                  <View style={styles.cardImageContainer}>
-                    <Image
-                      source={card.image}
-                      style={styles.featuredCardImage}
-                    />
-                    <View style={styles.cardImageOverlay} />
-                  </View>
-                  <View style={styles.featuredCardContent}>
-                    <View style={styles.featuredCardHeader}>
-                      <Feather name={card.icon} size={20} color="#E9967A" />
-                      <Text style={styles.featuredCardTitle}>{card.title}</Text>
-                    </View>
-                    <Text style={styles.featuredCardDescription}>
-                      {card.description}
-                    </Text>
-                    <View style={styles.featuredCardFooter}>
-                      <Text style={styles.featuredCardLink}>Explore</Text>
-                      <Feather name="arrow-right" size={16} color="#E9967A" />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+<View style={styles.featuredSection}>
+  <Text style={styles.sectionTitle}>Explore Your Journey</Text>
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={styles.featuredScroll}
+  >
+    {featuredCards.map((card) => (
+      <TouchableOpacity
+        key={card.id}
+        style={styles.featuredCard}
+        onPress={() => {
+          if (card.title === "Rosary") {
+            // Navigate to the Rosary page instead of showing an alert
+            router.push("/Rosary" as any);
+          } else {
+            router.push(card.route as any);
+          }
+        }}
+      >
+        <View style={styles.cardImageContainer}>
+          <Image
+            source={card.image}
+            style={styles.featuredCardImage}
+          />
+          <View style={styles.cardImageOverlay} />
+        </View>
+        <View style={styles.featuredCardContent}>
+          <View style={styles.featuredCardHeader}>
+            <Feather name={card.icon} size={20} color="#E9967A" />
+            <Text style={styles.featuredCardTitle}>{card.title}</Text>
           </View>
+          <Text style={styles.featuredCardDescription}>
+            {card.description}
+          </Text>
+          <View style={styles.featuredCardFooter}>
+            <Text style={styles.featuredCardLink}>Explore</Text>
+            <Feather name="arrow-right" size={16} color="#E9967A" />
+          </View>
+        </View>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+</View>
+
 
           {/* Quick Links Grid */}
           <View style={styles.quickLinksSection}>
