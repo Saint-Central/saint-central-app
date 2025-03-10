@@ -376,7 +376,7 @@ export default function CommunityScreen() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [users, setUsers] = useState<UserData[]>([]);
   const [intentions, setIntentions] = useState<Intention[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeTab] = useState<TabType>("all");
   const [intentionsFilter, setIntentionsFilter] = useState<
     "all" | "mine" | "friends" | "groups"
