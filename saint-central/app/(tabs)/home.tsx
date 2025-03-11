@@ -188,7 +188,7 @@ export default function HomeScreen() {
                   key={link.id}
                   style={styles.quickLinkCard}
                   onPress={() => {
-                    if (link.route === "/donate") {
+                    if (link.route === "/donate" || link.route === "/Bible") {
                       router.push(link.route as any);
                     } else {
                       Alert.alert("this page is not set up yet");
