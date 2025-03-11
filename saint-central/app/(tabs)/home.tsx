@@ -84,7 +84,7 @@ export default function HomeScreen() {
   const quickLinks: QuickLink[] = [
     { id: 1, title: "Events", icon: "calendar", route: "/events" },
     { id: 2, title: "Sermons", icon: "play", route: "/sermons" },
-    { id: 3, title: "Bible", icon: "book", route: "/bible" },
+    { id: 3, title: "Bible", icon: "book", route: "/Bible" },
     { id: 4, title: "Donations", icon: "heart", route: "/donate" },
   ];
 
