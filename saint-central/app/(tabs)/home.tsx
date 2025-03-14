@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react"; // Added useEffect
 import {
   View,
   Text,
@@ -53,6 +53,62 @@ interface QuickLink {
 export default function HomeScreen() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Animation values for initial load
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(20)).current;
+  const featuredOpacity = useRef(new Animated.Value(0)).current;
+  const featuredTranslateY = useRef(new Animated.Value(20)).current;
+  const quickLinksOpacity = useRef(new Animated.Value(0)).current;
+  const quickLinksTranslateY = useRef(new Animated.Value(20)).current;
+
+  // Animation on component mount
+  useEffect(() => {
+    // Sequence the animations
+    Animated.stagger(250, [
+      // Hero section animation
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroTranslateY, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // Featured section animation
+      Animated.parallel([
+        Animated.timing(featuredOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(featuredTranslateY, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // Quick Links section animation
+      Animated.parallel([
+        Animated.timing(quickLinksOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(quickLinksTranslateY, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
 
   const featuredCards: Card[] = [
     {
@@ -114,12 +170,20 @@ export default function HomeScreen() {
             { useNativeDriver: true }
           )}
         >
-          {/* Enhanced Hero Banner */}
-          <View style={styles.heroSection}>
+          {/* Enhanced Hero Banner with Animation */}
+          <Animated.View
+            style={[
+              styles.heroSection,
+              {
+                opacity: heroOpacity,
+                transform: [{ translateY: heroTranslateY }],
+              },
+            ]}
+          >
             <View style={styles.iconContainer}>
               <Feather name="sunrise" size={36} color="#FAC898" />
             </View>
-            <Text style={styles.heroTitle}>Steve Central</Text>
+            <Text style={styles.heroTitle}>Saint Central</Text>
             <Text style={styles.heroSubtitle}>
               Let's begin the journey to your spiritual life
             </Text>
@@ -130,7 +194,7 @@ export default function HomeScreen() {
               <Text style={styles.heroButtonText}>DISCOVER</Text>
               <Feather name="arrow-right" size={16} color="#513C28" />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* Featured Cards Section */}
 <View style={styles.featuredSection}>
@@ -178,9 +242,16 @@ export default function HomeScreen() {
   </ScrollView>
 </View>
 
-
-          {/* Quick Links Grid */}
-          <View style={styles.quickLinksSection}>
+          {/* Quick Links Grid with Animation */}
+          <Animated.View
+            style={[
+              styles.quickLinksSection,
+              {
+                opacity: quickLinksOpacity,
+                transform: [{ translateY: quickLinksTranslateY }],
+              },
+            ]}
+          >
             <Text style={styles.sectionTitle}>Quick Access</Text>
             <View style={styles.quickLinksGrid}>
               {quickLinks.map((link) => (
@@ -200,7 +271,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </Animated.View>
         </Animated.ScrollView>
       </SafeAreaView>
     </ImageBackground>

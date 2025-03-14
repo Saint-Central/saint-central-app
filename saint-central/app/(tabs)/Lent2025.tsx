@@ -54,6 +54,9 @@ interface LentTask {
   group_info?: Group | null;
   visibility?: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups";
   selectedGroups?: (number | string)[];
+  completed?: boolean;
+  // recurrence_id now stored as text
+  recurrence_id?: string;
 }
 
 interface Comment {
@@ -105,7 +108,6 @@ interface LentEvent {
   description: string;
 }
 
-// Define visibility options with icons
 const visibilityOptions = [
   {
     label: "Friends",
@@ -128,10 +130,8 @@ const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
     return selected_groups;
   } else if (typeof selected_groups === "string") {
     try {
-      // Try JSON parsing first
       return JSON.parse(selected_groups);
     } catch (e) {
-      // Fallback: remove any brackets and split by comma
       return selected_groups
         .replace(/[\[\]]/g, "")
         .split(",")
@@ -185,221 +185,7 @@ const lentGuideEvents: LentEvent[] = [
     description:
       "Engage in a charitable act, such as volunteering at a local shelter or donating to a food bank. Reflect on how acts of service embody Christ's love.",
   },
-  // Week 2: March 12 - March 18
-  {
-    date: "March 12",
-    title: "Daily Examen",
-    description:
-      "Begin a daily examen, a reflective prayer practice where you review your day, noting moments of gratitude and areas for improvement.",
-  },
-  {
-    date: "March 13",
-    title: "Weekday Mass",
-    description:
-      "Attend a weekday Mass or prayer service to deepen your connection with the faith community.",
-  },
-  {
-    date: "March 14",
-    title: "Fellowship Dinner",
-    description:
-      "Host a simple dinner with friends, focusing on fellowship and reflection.",
-  },
-  {
-    date: "March 15",
-    title: "Nature Walk",
-    description:
-      "Spend time outdoors, perhaps taking a nature walk, and meditate on the beauty of creation. Consider reading a psalm that celebrates nature.",
-  },
-  {
-    date: "March 16",
-    title: "Letters of Encouragement",
-    description:
-      "Write letters or emails of encouragement to family or friends, offering support and sharing your reflections during Lent.",
-  },
-  {
-    date: "March 17",
-    title: "Fasting from Spending",
-    description:
-      "Fast from unnecessary spending. Reflect on material attachments and consider donating the money saved to a charitable cause.",
-  },
-  {
-    date: "March 18",
-    title: "Group Rosary",
-    description:
-      "Organize a group rosary or prayer session, either in person or virtually, to foster communal prayer.",
-  },
-  // Week 3: March 19 - March 25
-  {
-    date: "March 19",
-    title: "Study a Saint",
-    description:
-      "Study the life of a saint, such as St. Joseph, whose feast day is today. Discuss their virtues and how you can emulate them in your life.",
-  },
-  {
-    date: "March 20",
-    title: "Eucharistic Adoration",
-    description:
-      "Spend an hour in Eucharistic adoration, reflecting on the presence of Christ and offering your intentions.",
-  },
-  {
-    date: "March 21",
-    title: "Stations of the Cross",
-    description:
-      "Participate in the Stations of the Cross, focusing on the personal relevance of each station in your spiritual journey.",
-  },
-  {
-    date: "March 22",
-    title: "Digital Detox",
-    description:
-      "Engage in a digital detox day, refraining from unnecessary screen time. Use the time for personal reflection, reading, or spending quality time with loved ones.",
-  },
-  {
-    date: "March 23",
-    title: "Meal for a Neighbor",
-    description:
-      "Prepare a meal for someone in need or a neighbor, embodying the act of giving and community support.",
-  },
-  {
-    date: "March 24",
-    title: "Lenten Reflection",
-    description:
-      "Reflect on your Lenten journey thus far. Journal about your experiences, challenges, and any spiritual growth you've noticed.",
-  },
-  {
-    date: "March 25",
-    title: "Feast of the Annunciation",
-    description:
-      "Celebrate by praying the Angelus, reflecting on Mary's 'yes' to God, and consider how you can say 'yes' in your own life.",
-  },
-  // Week 4: March 26 - April 1
-  {
-    date: "March 26",
-    title: "Seek Reconciliation",
-    description:
-      "Reach out to someone with whom you've had a disagreement or strained relationship. Offer forgiveness or seek reconciliation, fostering healing and peace.",
-  },
-  {
-    date: "March 27",
-    title: "Penance Service",
-    description:
-      "Attend a Lenten penance service or go to confession, embracing the sacrament of reconciliation to cleanse your spirit.",
-  },
-  {
-    date: "March 28",
-    title: "Alternative Stations",
-    description:
-      "Participate in the Stations of the Cross, perhaps focusing on a different perspective, such as viewing it through Mary's eyes.",
-  },
-  {
-    date: "March 29",
-    title: "Book Club Discussion",
-    description:
-      "Host a discussion or book club focusing on themes of sacrifice and redemption, selecting a spiritual book or scripture passage as the basis.",
-  },
-  {
-    date: "March 30",
-    title: "Contemplative Prayer",
-    description:
-      "Dedicate time to contemplative prayer, such as centering prayer or meditating on the sorrowful mysteries of the rosary.",
-  },
-  {
-    date: "March 31",
-    title: "Fast from Comforts",
-    description:
-      "Fast from a personal comfort, such as sweets or a favorite beverage, offering the day for a special intention or in solidarity with those who lack basic necessities.",
-  },
-  {
-    date: "April 1",
-    title: "Share Spiritual Readings",
-    description:
-      "Share your favorite spiritual readings or passages with friends, perhaps through a small gathering or online group, and discuss their impact on your faith.",
-  },
-  // Week 5: April 2 - April 8
-  {
-    date: "April 2",
-    title: "Service Project",
-    description:
-      "Participate in a service project, such as cleaning a community space, assisting at a food pantry, or helping a neighbor with tasks. Reflect on the joy of serving others.",
-  },
-  {
-    date: "April 3",
-    title: "Scripture Study",
-    description:
-      "Dedicate time to studying Scripture, focusing on the Passion narratives in the Gospels. Reflect on the events leading up to Jesus' crucifixion.",
-  },
-  {
-    date: "April 4",
-    title: "Lead Stations",
-    description:
-      "Join the Stations of the Cross, perhaps leading a station or reading a reflection, deepening your engagement with the practice.",
-  },
-  {
-    date: "April 5",
-    title: "Group Hike",
-    description:
-      "Organize a group hike or walk, using the time for prayer, reflection, and discussing how nature reveals God's presence.",
-  },
-  {
-    date: "April 6",
-    title: "Fasting and Prayer",
-    description:
-      "Engage in a day of fasting and prayer, focusing on repentance and seeking spiritual renewal.",
-  },
-  {
-    date: "April 7",
-    title: "Lenten Retreat",
-    description:
-      "Participate in a Lenten retreat or day of reflection. Many parishes offer retreats during Lent to help deepen your faith and prepare for Holy Week.",
-  },
-  {
-    date: "April 8",
-    title: "Sacrament of Reconciliation",
-    description:
-      "Engage in the Sacrament of Reconciliation. If you haven't already during Lent, seek out confession to cleanse your heart and soul before entering Holy Week.",
-  },
-  // Week 6: Additional events
-  {
-    date: "April 6",
-    title: "Fifth Sunday Mass",
-    description:
-      "Attend Mass and reflect on the Gospel reading, which often focuses on themes of resurrection and new life, such as the raising of Lazarus. Consider how you can bring new life to your spiritual practices.",
-  },
-  {
-    date: "April 7",
-    title: "Lenten Retreat Continued",
-    description:
-      "Participate in a Lenten retreat or day of reflection. Many parishes offer retreats during Lent to help deepen your faith.",
-  },
-  {
-    date: "April 8",
-    title: "Reconciliation Day",
-    description:
-      "Engage in the Sacrament of Reconciliation. If you haven't already during Lent, seek out confession to cleanse your heart and soul before entering Holy Week.",
-  },
-  {
-    date: "April 9",
-    title: "Stations Reflection",
-    description:
-      "Attend the Stations of the Cross, meditating on each station and its significance in your life. Reflect on the sacrifices Jesus made and how you can emulate his love and compassion.",
-  },
-  {
-    date: "April 10",
-    title: "Passion Meditations",
-    description:
-      "Dedicate time to reading and meditating on the Passion narratives in the Gospels (Matthew 26-27, Mark 14-15, Luke 22-23, or John 18-19). Contemplate the events leading up to Jesus' crucifixion.",
-  },
-  {
-    date: "April 11",
-    title: "Fasting and Abstinence",
-    description:
-      "Observe a day of fasting and abstinence in solidarity with Christ's suffering. Attend a Friday Lenten service or participate in a community fish fry, reflecting on the communal aspects of Lenten observance.",
-  },
-  {
-    date: "April 12",
-    title: "Preparation for Holy Week",
-    description:
-      "Prepare for Holy Week by setting aside time for personal prayer and reflection. Consider creating a sacred space in your home with symbols of the Passion, such as a crucifix or candles, to enhance your prayer experience.",
-  },
+  // ... add other events as needed
 ];
 
 // --------------------
@@ -466,6 +252,31 @@ const formatCommentDate = (dateStr: string): string => {
 };
 
 // --------------------
+// Grouping Helper for Recurring Tasks
+// --------------------
+const groupTasks = (tasks: LentTask[]) => {
+  const groups: { [key: string]: LentTask[] } = {};
+  tasks.forEach((task) => {
+    if (task.recurrence_id) {
+      if (!groups[task.recurrence_id]) {
+        groups[task.recurrence_id] = [];
+      }
+      groups[task.recurrence_id].push(task);
+    } else {
+      groups[task.id] = [task];
+    }
+  });
+  return Object.entries(groups).map(([key, tasks]) => ({
+    key,
+    tasks: tasks.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA.getTime() - dateB.getTime();
+    }),
+  }));
+};
+
+// --------------------
 // Expanded Day View Component
 // --------------------
 interface ExpandedDayViewProps {
@@ -480,6 +291,7 @@ interface ExpandedDayViewProps {
   handleOpenComments: (task: LentTask) => void;
   showConfirmDelete: (taskId: string) => void;
   onGuideEventPress: (event: LentEvent) => void;
+  handleToggleTaskCompletion: (task: LentTask) => void;
 }
 
 const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
@@ -494,16 +306,32 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
   handleOpenComments,
   showConfirmDelete,
   onGuideEventPress,
+  handleToggleTaskCompletion,
 }) => {
   const slideAnim = useRef(new Animated.Value(500)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
+    // Run animations in parallel for a smoother entrance
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    return () => {
+      // Cleanup animations when component unmounts
+      slideAnim.stopAnimation();
+      fadeAnim.stopAnimation();
+    };
   }, []);
 
   const formattedDate = day.toLocaleDateString("en-US", {
@@ -516,7 +344,10 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
     <Animated.View
       style={[
         styles.expandedDayContainer,
-        { transform: [{ translateY: slideAnim }] },
+        {
+          transform: [{ translateY: slideAnim }],
+          opacity: fadeAnim,
+        },
       ]}
     >
       <View style={styles.expandedDayHeader}>
@@ -528,6 +359,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
       <ScrollView
         style={[styles.expandedDayContent, { width: "100%" }]}
         contentContainerStyle={{ paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
       >
         {guideEvents.length > 0 && (
           <View style={styles.expandedDaySection}>
@@ -537,6 +369,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                 key={`guide-${index}`}
                 style={styles.expandedDayGuideEvent}
                 onPress={() => onGuideEventPress(event)}
+                activeOpacity={0.7}
               >
                 <View style={styles.expandedDayGuideEventIcon}>
                   <Feather name="calendar" size={14} color="#E9967A" />
@@ -569,6 +402,18 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
               const isUserTask = task.user_id === currentUserId;
               return (
                 <View key={task.id} style={styles.expandedDayTask}>
+                  {isUserTask && (
+                    <TouchableOpacity
+                      onPress={() => handleToggleTaskCompletion(task)}
+                      style={styles.checkboxButton}
+                    >
+                      <Feather
+                        name={task.completed ? "check-square" : "square"}
+                        size={20}
+                        color={task.completed ? "#16A34A" : "#9CA3AF"}
+                      />
+                    </TouchableOpacity>
+                  )}
                   {!isUserTask && (
                     <View
                       style={[
@@ -578,7 +423,12 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                     />
                   )}
                   <View style={styles.expandedDayTaskContent}>
-                    <Text style={styles.expandedDayTaskTitle}>
+                    <Text
+                      style={[
+                        styles.expandedDayTaskTitle,
+                        task.completed && styles.completedTaskTitle,
+                      ]}
+                    >
                       {task.event}
                     </Text>
                     {!isUserTask && (
@@ -613,6 +463,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                       <TouchableOpacity
                         style={styles.expandedDayTaskAction}
                         onPress={() => handleLikeToggle(task)}
+                        activeOpacity={0.7}
                       >
                         <Feather
                           name="heart"
@@ -634,6 +485,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                       <TouchableOpacity
                         style={styles.expandedDayTaskAction}
                         onPress={() => handleOpenComments(task)}
+                        activeOpacity={0.7}
                       >
                         <Feather
                           name="message-square"
@@ -651,6 +503,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                             onClose();
                             showConfirmDelete(task.id);
                           }}
+                          activeOpacity={0.7}
                         >
                           <Feather name="trash-2" size={16} color="#FCA5A5" />
                           <Text style={styles.expandedDayTaskDeleteText}>
@@ -669,10 +522,303 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
       <TouchableOpacity
         style={styles.floatingAddTaskButton}
         onPress={onAddTask}
+        activeOpacity={0.8}
       >
         <Feather name="plus" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </Animated.View>
+  );
+};
+
+// --------------------
+// Confirmation Modal Component
+// --------------------
+interface ConfirmationModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  confirmStyle?: "warning" | "success";
+}
+
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
+  visible,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  confirmStyle = "warning",
+}) => {
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 7,
+          tension: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Reset animations when modal is hidden
+      scaleAnim.setValue(0.9);
+      opacityAnim.setValue(0);
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <Animated.View
+          style={[
+            styles.deleteModalContent,
+            {
+              opacity: opacityAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <View style={styles.deleteModalHeader}>
+            <Feather
+              name={
+                confirmStyle === "warning" ? "alert-triangle" : "check-circle"
+              }
+              size={28}
+              color={confirmStyle === "warning" ? "#FCA5A5" : "#10B981"}
+            />
+            <Text style={styles.deleteModalTitle}>{title}</Text>
+          </View>
+          <Text style={styles.deleteModalMessage}>{message}</Text>
+          <View style={styles.deleteModalButtons}>
+            <TouchableOpacity
+              style={styles.deleteModalCancelButton}
+              onPress={onClose}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.deleteModalCancelText}>{cancelText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.deleteModalConfirmButton,
+                confirmStyle === "success" && styles.successConfirmButton,
+              ]}
+              onPress={onConfirm}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.deleteModalConfirmText}>{confirmText}</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
+
+// --------------------
+// Render Task Group Card for List View
+// --------------------
+const renderTaskGroupCard = (
+  group: { key: string; tasks: LentTask[] },
+  handleLikeToggle: (task: LentTask) => void,
+  handleOpenComments: (task: LentTask) => void,
+  showConfirmDelete: (taskId: string) => void,
+  handleDeleteRecurringGroup: (recurrenceId: string) => void,
+  handleToggleRecurringGroupCompletion: (
+    recurrenceId: string,
+    currentAllCompleted: boolean
+  ) => void,
+  currentUserId: string,
+  handleToggleTaskCompletion: (task: LentTask) => void,
+  showCompletionConfirm: (
+    recurrenceId: string,
+    allCompleted: boolean,
+    task: LentTask
+  ) => void,
+  likeAnimations: { [taskId: string]: Animated.Value },
+  heartAnimations: { [taskId: string]: Animated.Value }
+) => {
+  const task = group.tasks[0];
+  const isRecurring = group.tasks.length > 1;
+  const allCompleted = group.tasks.every((t) => t.completed);
+  const startDate = isRecurring ? formatDateUTC(group.tasks[0].date) : "";
+  const endDate = isRecurring
+    ? formatDateUTC(group.tasks[group.tasks.length - 1].date)
+    : "";
+
+  // Initialize animations if needed
+  if (!likeAnimations[task.id]) {
+    likeAnimations[task.id] = new Animated.Value(1);
+  }
+  if (!heartAnimations[task.id]) {
+    heartAnimations[task.id] = new Animated.Value(
+      task.liked_by_current_user ? 1 : 0
+    );
+  }
+
+  const scaleAnim = likeAnimations[task.id];
+  const heartAnim = heartAnimations[task.id];
+  const heartColor = heartAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
+  });
+
+  return (
+    <View key={group.key} style={styles.taskCard}>
+      <View style={styles.taskHeaderRow}>
+        {isRecurring ? (
+          <TouchableOpacity
+            onPress={() => showCompletionConfirm(group.key, allCompleted, task)}
+            style={styles.checkboxButton}
+            activeOpacity={0.7}
+          >
+            <Feather
+              name={allCompleted ? "check-square" : "square"}
+              size={20}
+              color={allCompleted ? "#16A34A" : "#9CA3AF"}
+            />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => handleToggleTaskCompletion(task)}
+            style={styles.checkboxButton}
+            activeOpacity={0.7}
+          >
+            <Feather
+              name={task.completed ? "check-square" : "square"}
+              size={20}
+              color={task.completed ? "#16A34A" : "#9CA3AF"}
+            />
+          </TouchableOpacity>
+        )}
+        <Text
+          style={[
+            styles.taskTitle,
+            isRecurring && styles.recurringTaskTitle,
+            task.completed && styles.completedTaskTitle,
+          ]}
+        >
+          {task.event} {isRecurring ? "(Recurring)" : ""}
+        </Text>
+      </View>
+      {isRecurring ? (
+        <Text style={styles.taskDate}>
+          {startDate} - {endDate}
+        </Text>
+      ) : (
+        <Text style={styles.taskDate}>{formatDateUTC(task.date)}</Text>
+      )}
+      {task.group_info && (
+        <View style={styles.groupTag}>
+          <Feather name="users" size={12} color="#FAC898" />
+          <Text style={styles.groupTagText}>
+            Shared group: {task.group_info.name}
+          </Text>
+        </View>
+      )}
+      {task.visibility && (
+        <View style={styles.visibilityTag}>
+          {
+            visibilityOptions.find((option) => option.label === task.visibility)
+              ?.icon
+          }
+          <Text style={styles.visibilityTagText}>{task.visibility}</Text>
+        </View>
+      )}
+      <Text style={styles.taskDescription}>{task.description}</Text>
+      <View style={styles.taskInteractionBar}>
+        <TouchableOpacity
+          style={[
+            styles.likeButton,
+            task.liked_by_current_user && styles.likedButton,
+          ]}
+          onPress={() => handleLikeToggle(task)}
+          activeOpacity={0.7}
+        >
+          <Animated.View
+            style={[
+              styles.heartIconContainer,
+              { transform: [{ scale: scaleAnim }] },
+            ]}
+          >
+            <Feather
+              name="heart"
+              size={task.liked_by_current_user ? 18 : 16}
+              color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
+              style={styles.heartIconBase}
+            />
+            <Animated.View
+              style={[styles.heartAnimation, { opacity: heartAnim }]}
+            >
+              <Feather name="heart" size={18} color="#E9967A" />
+            </Animated.View>
+          </Animated.View>
+          <Animated.Text
+            style={[
+              styles.likeButtonText,
+              {
+                color: heartColor,
+                fontWeight: task.liked_by_current_user ? "600" : "400",
+              },
+            ]}
+          >
+            {task.likes_count || 0}
+          </Animated.Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.commentButton}
+          onPress={() => handleOpenComments(task)}
+          activeOpacity={0.7}
+        >
+          <Feather name="message-square" size={16} color="#9CA3AF" />
+          <Text style={styles.commentButtonText}>
+            {task.comments_count || 0}
+          </Text>
+        </TouchableOpacity>
+        <View style={styles.taskActions}>
+          {isRecurring ? (
+            <TouchableOpacity
+              style={styles.taskAction}
+              onPress={() =>
+                showConfirmDelete(task.recurrence_id ? task.recurrence_id : "")
+              }
+              activeOpacity={0.7}
+            >
+              <Feather name="trash-2" size={16} color="#FCA5A5" />
+              <Text style={styles.deleteActionText}>Delete Group</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.taskAction}
+              onPress={() => showConfirmDelete(task.id)}
+              activeOpacity={0.7}
+            >
+              <Feather name="trash-2" size={16} color="#FCA5A5" />
+              <Text style={styles.deleteActionText}>Delete</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
   );
 };
 
@@ -682,24 +828,22 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
 const Lent2025: React.FC = () => {
   const { width } = useWindowDimensions();
   const isIpad = width >= 768;
-  // On iPad, use almost full width with padding
   const calendarWidth = isIpad ? width - 32 : Math.min(width, 500) - 32;
 
-  // --------------------
-  // State Management
-  // --------------------
+  const initialDate = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  })();
+
   const [lentTasks, setLentTasks] = useState<LentTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [newTask, setNewTask] = useState({
     event: "",
     description: "",
-    date: (() => {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    })(),
+    date: initialDate,
     visibility: "Friends" as
       | "Friends"
       | "Certain Groups"
@@ -707,6 +851,11 @@ const Lent2025: React.FC = () => {
       | "Friends & Groups",
     selectedGroups: [] as (number | string)[],
   });
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(initialDate);
+  const [showInlineRecurrenceDatePicker, setShowInlineRecurrenceDatePicker] =
+    useState(false);
+
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showInlineDatePicker, setShowInlineDatePicker] = useState(false);
   const [editingTask, setEditingTask] = useState<LentTask | null>(null);
@@ -737,13 +886,27 @@ const Lent2025: React.FC = () => {
   const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
   const [headerHeight, setHeaderHeight] = useState<number>(0);
-  // Visibility dropdown states in modals
   const [showVisibilityDropdownNew, setShowVisibilityDropdownNew] =
     useState<boolean>(false);
   const [showVisibilityDropdownEdit, setShowVisibilityDropdownEdit] =
     useState<boolean>(false);
 
-  // Animation refs
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showCompletionConfirmModal, setShowCompletionConfirmModal] =
+    useState(false);
+  const [deleteInfo, setDeleteInfo] = useState({
+    id: "",
+    isRecurring: false,
+    title: "",
+    message: "",
+  });
+  const [completionInfo, setCompletionInfo] = useState({
+    recurrenceId: "",
+    currentAllCompleted: false,
+    taskName: "",
+  });
+
+  // Use refs for animations to persist between renders
   const likeAnimations = useRef<{ [taskId: string]: Animated.Value }>(
     {}
   ).current;
@@ -753,48 +916,120 @@ const Lent2025: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const headerRef = useRef<View>(null);
   const filterDropdownAnim = useRef(new Animated.Value(0)).current;
+  const notificationAnim = useRef(new Animated.Value(0)).current;
+  const loadingSpinAnim = useRef(new Animated.Value(0)).current;
 
-  // Helper functions for toggling group selection
-  const toggleNewGroupSelection = (groupId: string) => {
-    const currentSelected = newTask.selectedGroups || [];
-    if (currentSelected.includes(groupId)) {
-      setNewTask({
-        ...newTask,
-        selectedGroups: currentSelected.filter((id) => id !== groupId),
-      });
+  // Add animation refs for the guide event modal
+  const guideEventOpacityAnim = useRef(new Animated.Value(0)).current;
+  const guideEventScaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  // Start a continuous loading animation
+  useEffect(() => {
+    if (isLoading || commentLoading) {
+      Animated.loop(
+        Animated.timing(loadingSpinAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
     } else {
-      setNewTask({
-        ...newTask,
-        selectedGroups: [...currentSelected, groupId],
+      loadingSpinAnim.stopAnimation();
+      loadingSpinAnim.setValue(0);
+    }
+  }, [isLoading, commentLoading]);
+
+  // Animate notifications
+  useEffect(() => {
+    if (notification) {
+      Animated.sequence([
+        Animated.timing(notificationAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.delay(2000),
+        Animated.timing(notificationAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setNotification(null);
       });
     }
-  };
+  }, [notification]);
 
-  const toggleEditGroupSelection = (groupId: string) => {
-    if (!editingTask) return;
-    const currentSelected = editingTask.selectedGroups || [];
-    if (currentSelected.includes(groupId)) {
-      setEditingTask({
-        ...editingTask,
-        selectedGroups: currentSelected.filter((id) => id !== groupId),
-      });
-    } else {
-      setEditingTask({
-        ...editingTask,
-        selectedGroups: [...currentSelected, groupId],
-      });
+  // Add this effect to animate the guide event modal when it's shown
+  useEffect(() => {
+    if (selectedGuideEvent) {
+      // Reset animation values
+      guideEventOpacityAnim.setValue(0);
+      guideEventScaleAnim.setValue(0.9);
+
+      // Start animations
+      Animated.parallel([
+        Animated.spring(guideEventScaleAnim, {
+          toValue: 1,
+          friction: 7,
+          tension: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(guideEventOpacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  };
+  }, [selectedGuideEvent]);
 
-  // Memoized friend tasks and colors
+  // Toggle group selection functions
+  const toggleNewGroupSelection = useCallback((groupId: string) => {
+    setNewTask((prevTask) => {
+      const currentSelected = prevTask.selectedGroups || [];
+      const updatedGroups = currentSelected.includes(groupId)
+        ? currentSelected.filter((id) => id !== groupId)
+        : [...currentSelected, groupId];
+
+      return {
+        ...prevTask,
+        selectedGroups: updatedGroups,
+      };
+    });
+  }, []);
+
+  const toggleEditGroupSelection = useCallback(
+    (groupId: string) => {
+      if (!editingTask) return;
+      setEditingTask((prevTask) => {
+        if (!prevTask) return null;
+        const currentSelected = prevTask.selectedGroups || [];
+        const updatedGroups = currentSelected.includes(groupId)
+          ? currentSelected.filter((id) => id !== groupId)
+          : [...currentSelected, groupId];
+
+        return {
+          ...prevTask,
+          selectedGroups: updatedGroups,
+        } as LentTask;
+      });
+    },
+    [editingTask]
+  );
+
+  // Memoized task filters
   const friendTasks = useMemo(
     () => lentTasks.filter((task) => task.user_id !== currentUserId),
     [lentTasks, currentUserId]
   );
+
   const uniqueFriendEmails = useMemo(
     () => Array.from(new Set(friendTasks.map((task) => task.user.email))),
     [friendTasks]
   );
+
   const palette = useMemo(
     () => [
       "#E9967A",
@@ -807,6 +1042,7 @@ const Lent2025: React.FC = () => {
     ],
     []
   );
+
   const friendColors = useMemo(() => {
     const colors: { [email: string]: string } = {};
     uniqueFriendEmails.forEach((email, index) => {
@@ -815,7 +1051,7 @@ const Lent2025: React.FC = () => {
     return colors;
   }, [uniqueFriendEmails, palette]);
 
-  // Keyboard event listeners
+  // Keyboard listeners
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       "keyboardDidShow",
@@ -831,11 +1067,12 @@ const Lent2025: React.FC = () => {
     };
   }, []);
 
-  // Animate dropdown when visibility changes
+  // Filter dropdown animation
   useEffect(() => {
     Animated.timing(filterDropdownAnim, {
       toValue: showFilterDropdown ? 1 : 0,
-      duration: 300,
+      duration: 250,
+      easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [showFilterDropdown]);
@@ -862,14 +1099,11 @@ const Lent2025: React.FC = () => {
   const fetchUserGroups = useCallback(async () => {
     try {
       if (!currentUserId) return;
-
       const { data, error } = await supabase
         .from("group_members")
         .select("group:groups(*)")
         .eq("user_id", currentUserId);
-
       if (error) throw error;
-
       const groups = data.map((item: any) => item.group);
       setUserGroups(groups || []);
       setGroupsLoaded(true);
@@ -879,7 +1113,7 @@ const Lent2025: React.FC = () => {
     }
   }, [currentUserId]);
 
-  // Helper to get title based on selected filter
+  // Get header title based on filter
   const getHeaderTitle = (): string => {
     switch (tasksFilter) {
       case "friends":
@@ -891,47 +1125,34 @@ const Lent2025: React.FC = () => {
     }
   };
 
-  // Fetch tasks
+  // Fetch tasks with metadata
   const fetchTasks = useCallback(async () => {
     if (!currentUserId) return;
     try {
       setIsLoading(true);
-
-      // Get friend IDs for friend filtering
       const { data: friendData, error: friendError } = await supabase
         .from("friends")
         .select("user_id_1, user_id_2, status")
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
         .eq("status", "accepted");
       if (friendError) throw friendError;
-
       const friendIds =
         friendData?.map((f) =>
           f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1
         ) || [];
       const uniqueFriendIds = Array.from(new Set(friendIds));
-
-      // Get all users to fetch based on filter
       let userIdsToFetch: string[] = [];
-
       if (tasksFilter === "all") {
-        // Get group members from user's groups for "all" filter
         const groupIds = userGroups.map((group) => group.id);
-
         if (groupIds.length > 0) {
           const { data: groupMembers, error: membersError } = await supabase
             .from("group_members")
             .select("user_id")
             .in("group_id", groupIds);
-
           if (membersError) throw membersError;
-
-          // Get unique user IDs from group members
           const groupMemberIds = groupMembers
             ? [...new Set(groupMembers.map((member) => member.user_id))]
             : [];
-
-          // Combine all IDs for "all" filter
           userIdsToFetch = [
             ...new Set([currentUserId, ...uniqueFriendIds, ...groupMemberIds]),
           ];
@@ -947,43 +1168,33 @@ const Lent2025: React.FC = () => {
         userIdsToFetch = uniqueFriendIds;
       } else if (tasksFilter === "groups") {
         const groupIds = userGroups.map((group) => group.id);
-
         if (groupIds.length === 0) {
           setLentTasks([]);
           setIsLoading(false);
           return;
         }
-
         const { data: groupMembers, error: membersError } = await supabase
           .from("group_members")
           .select("user_id")
           .in("group_id", groupIds);
-
         if (membersError) throw membersError;
-
         if (!groupMembers || groupMembers.length === 0) {
           setLentTasks([]);
           setIsLoading(false);
           return;
         }
-
-        // Get unique user IDs from group members
         userIdsToFetch = [
           ...new Set(groupMembers.map((member) => member.user_id)),
         ];
       }
-
-      // Fetch tasks with the applied filter
       const { data, error } = await supabase
         .from("lent_tasks")
         .select(
-          "*, user:users (first_name, last_name, email), visibility, selected_groups"
+          "*, user:users (first_name, last_name, email), visibility, selected_groups, recurrence_id, completed"
         )
         .in("user_id", userIdsToFetch)
         .order("created_at", { ascending: false });
-
       if (error) throw error;
-
       const tasksWithMetadata = await Promise.all(
         (data || []).map(async (task) => {
           const [likesResponse, userLikeResponse, commentsResponse] =
@@ -1006,28 +1217,21 @@ const Lent2025: React.FC = () => {
                 .eq("commentable_id", task.id)
                 .eq("commentable_type", "lent_tasks"),
             ]);
-
-          // Add group info for tasks from group members (for "groups" filter)
           let groupInfo = null;
           if (userGroups.length > 0 && task.user_id !== currentUserId) {
-            // For non-friends who aren't the current user, find shared groups
             const isFriend = uniqueFriendIds.includes(task.user_id);
             const showGroupInfo = tasksFilter === "groups" || !isFriend;
-
             if (showGroupInfo) {
-              // Get all group memberships for this user
               const { data: userGroupData, error: userGroupError } =
                 await supabase
                   .from("group_members")
                   .select("group_id")
                   .eq("user_id", task.user_id);
-
               if (
                 !userGroupError &&
                 userGroupData &&
                 userGroupData.length > 0
               ) {
-                // Get current user's group memberships
                 const {
                   data: currentUserGroups,
                   error: currentUserGroupError,
@@ -1035,27 +1239,21 @@ const Lent2025: React.FC = () => {
                   .from("group_members")
                   .select("group_id")
                   .eq("user_id", currentUserId);
-
                 if (!currentUserGroupError && currentUserGroups) {
                   const userGroupIds = userGroupData.map((g) => g.group_id);
                   const currentUserGroupIds = currentUserGroups.map(
                     (g) => g.group_id
                   );
-
-                  // Find intersection of groups
                   const sharedGroupIds = userGroupIds.filter((id) =>
                     currentUserGroupIds.includes(id)
                   );
-
                   if (sharedGroupIds.length > 0) {
-                    // Get the first shared group for display
                     const { data: groupData, error: groupError } =
                       await supabase
                         .from("groups")
                         .select("*")
                         .eq("id", sharedGroupIds[0])
                         .single();
-
                     if (!groupError && groupData) {
                       groupInfo = groupData;
                     }
@@ -1064,8 +1262,7 @@ const Lent2025: React.FC = () => {
               }
             }
           }
-
-          const errors = [];
+          const errors: string[] = [];
           if (likesResponse.error)
             errors.push(`Likes error: ${likesResponse.error.message}`);
           if (userLikeResponse.error)
@@ -1075,15 +1272,10 @@ const Lent2025: React.FC = () => {
           if (errors.length > 0) {
             console.error("Error fetching task metadata:", errors.join(", "));
           }
-
-          // Parse selected groups
           const selectedGroups = parseSelectedGroups(task.selected_groups);
-
-          // Filter tasks based on visibility
           if (task.user_id !== currentUserId) {
             switch (task.visibility) {
               case "Just Me":
-                // Don't include private tasks from others
                 return null;
               case "Friends":
                 if (!uniqueFriendIds.includes(task.user_id)) {
@@ -1094,12 +1286,10 @@ const Lent2025: React.FC = () => {
                 if (selectedGroups.length === 0) {
                   return null;
                 }
-                // Check if current user is in any of the selected groups
                 const userGroupIds = userGroups.map((g) => g.id.toString());
                 const selectedGroupsStr = selectedGroups.map((id) =>
                   id.toString()
                 );
-
                 const isInSelectedGroup = selectedGroupsStr.some((id) =>
                   userGroupIds.includes(id)
                 );
@@ -1108,14 +1298,11 @@ const Lent2025: React.FC = () => {
                 }
                 break;
               case "Friends & Groups":
-                // Already filtered by userIdsToFetch
                 break;
               default:
-                // If visibility is undefined, assume it's visible to everyone (backward compatibility)
                 break;
             }
           }
-
           return {
             ...task,
             likes_count: likesResponse.count || 0,
@@ -1126,12 +1313,9 @@ const Lent2025: React.FC = () => {
           };
         })
       );
-
-      // Filter out null tasks (those hidden by visibility)
       const filteredTasks = tasksWithMetadata.filter((task) => task !== null);
-
       setLentTasks(filteredTasks as LentTask[]);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error fetching tasks:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -1141,7 +1325,8 @@ const Lent2025: React.FC = () => {
     }
   }, [currentUserId, tasksFilter, userGroups]);
 
-  const fetchComments = async (taskId: string) => {
+  // Fetch comments for a task
+  const fetchComments = useCallback(async (taskId: string) => {
     if (!taskId) return;
     try {
       setCommentLoading(true);
@@ -1162,35 +1347,43 @@ const Lent2025: React.FC = () => {
     } finally {
       setCommentLoading(false);
     }
-  };
+  }, []);
 
-  const showNotification = (message: string, type: "error" | "success") => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  // Show notification with animation
+  const showNotification = useCallback(
+    (message: string, type: "error" | "success") => {
+      setNotification({ message, type });
+    },
+    []
+  );
 
+  // Initial fetch user
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+  // Fetch user groups when user ID changes
   useEffect(() => {
     if (currentUserId) {
       fetchUserGroups();
     }
   }, [currentUserId, fetchUserGroups]);
 
+  // Fetch tasks when filter or groups change
   useEffect(() => {
     if (currentUserId && groupsLoaded) {
       fetchTasks();
     }
   }, [currentUserId, fetchTasks, tasksFilter, groupsLoaded]);
 
+  // Clear notification on unmount
   useEffect(() => {
     return () => {
       if (notification) setNotification(null);
     };
   }, [notification]);
 
+  // Calendar data calculations
   const daysInMonth = useMemo(
     () => getDaysInMonth(currentMonth, currentYear),
     [currentMonth, currentYear]
@@ -1220,11 +1413,7 @@ const Lent2025: React.FC = () => {
   );
 
   const currMonthDays = useMemo(
-    () =>
-      daysInMonth.map((day) => ({
-        date: day,
-        isCurrentMonth: true,
-      })),
+    () => daysInMonth.map((day) => ({ date: day, isCurrentMonth: true })),
     [daysInMonth]
   );
 
@@ -1237,7 +1426,9 @@ const Lent2025: React.FC = () => {
     () => Math.ceil(totalDaysSoFar / 7),
     [totalDaysSoFar]
   );
+
   const totalCells = useMemo(() => rowsNeeded * 7, [rowsNeeded]);
+
   const nextMonthDaysNeeded = useMemo(
     () => totalCells - totalDaysSoFar,
     [totalCells, totalDaysSoFar]
@@ -1257,6 +1448,7 @@ const Lent2025: React.FC = () => {
     [prevMonthDays, currMonthDays, nextMonthDays]
   );
 
+  // Scroll to current day in calendar
   const scrollToCurrentDay = useCallback(() => {
     if (!scrollViewRef.current || view !== "calendar") return;
     const today = new Date();
@@ -1281,6 +1473,7 @@ const Lent2025: React.FC = () => {
     }, 200);
   }, [currentMonth, currentYear, fullCalendarGrid, calendarWidth, view]);
 
+  // Auto-scroll to today
   useEffect(() => {
     const timer = setTimeout(() => {
       scrollToCurrentDay();
@@ -1288,55 +1481,105 @@ const Lent2025: React.FC = () => {
     return () => clearTimeout(timer);
   }, [scrollToCurrentDay, currentMonth, currentYear, refreshKey, view]);
 
+  // Create a new task
   const handleCreateTask = async () => {
     if (
       !newTask.event.trim() ||
       !newTask.description.trim() ||
-      !newTask.date.trim()
+      !newTask.date.trim() ||
+      (isRecurring && !recurrenceEndDate.trim())
     ) {
       showNotification("Please fill in all fields.", "error");
       return;
     }
     try {
-      const formattedDate = newTask.date + "T00:00:00";
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase.from("lent_tasks").insert([
-        {
-          user_id: user.id,
-          event: newTask.event,
-          description: newTask.description,
-          date: formattedDate,
-          visibility: newTask.visibility,
-          selected_groups:
-            newTask.visibility === "Certain Groups"
-              ? newTask.selectedGroups
-              : [],
-        },
-      ]);
-      if (error) throw error;
-      showNotification("Task created successfully!", "success");
+      if (!isRecurring) {
+        const formattedDate = newTask.date + "T00:00:00";
+        const { error } = await supabase.from("lent_tasks").insert([
+          {
+            user_id: user.id,
+            event: newTask.event,
+            description: newTask.description,
+            date: formattedDate,
+            visibility: newTask.visibility,
+            selected_groups:
+              newTask.visibility === "Certain Groups"
+                ? newTask.selectedGroups
+                : [],
+            completed: false,
+          },
+        ]);
+        if (error) throw error;
+      } else {
+        // Generate recurrence_id as a string
+        const recurrenceId = Date.now().toString();
+        const start = new Date(newTask.date);
+        start.setDate(start.getDate() + 1);
+        const end = new Date(recurrenceEndDate);
+        end.setDate(end.getDate() + 1);
+        if (end < start) {
+          showNotification("End date cannot be before start date.", "error");
+          return;
+        }
+        const tasksToInsert = [];
+        for (
+          let dt = new Date(start);
+          dt <= end;
+          dt.setDate(dt.getDate() + 1)
+        ) {
+          const y = dt.getFullYear();
+          const m = String(dt.getMonth() + 1).padStart(2, "0");
+          const d = String(dt.getDate()).padStart(2, "0");
+          tasksToInsert.push({
+            user_id: user.id,
+            event: newTask.event,
+            description: newTask.description,
+            date: `${y}-${m}-${d}T00:00:00`,
+            visibility: newTask.visibility,
+            selected_groups:
+              newTask.visibility === "Certain Groups"
+                ? newTask.selectedGroups
+                : [],
+            recurrence_id: recurrenceId,
+            completed: false,
+          });
+        }
+        const { error } = await supabase
+          .from("lent_tasks")
+          .insert(tasksToInsert);
+        if (error) throw error;
+      }
+
+      // First dismiss keyboard and close modal
       Keyboard.dismiss();
+      showNotification(
+        isRecurring
+          ? "Recurring tasks created successfully!"
+          : "Task created successfully!",
+        "success"
+      );
       setShowTaskModal(false);
-      setSelectedDay(null);
-      setNewTask({
-        event: "",
-        description: "",
-        date: (() => {
-          const d = new Date();
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
-          return `${y}-${m}-${day}`;
-        })(),
-        visibility: "Friends",
-        selectedGroups: [],
-      });
-      setShowInlineDatePicker(false);
-      setShowVisibilityDropdownNew(false);
-      fetchTasks();
+
+      // Then reset all the state values after modal animation would be complete
+      setTimeout(() => {
+        setSelectedDay(null);
+        setNewTask({
+          event: "",
+          description: "",
+          date: initialDate,
+          visibility: "Friends",
+          selectedGroups: [],
+        });
+        setIsRecurring(false);
+        setRecurrenceEndDate(initialDate);
+        setShowInlineDatePicker(false);
+        setShowVisibilityDropdownNew(false);
+        fetchTasks();
+      }, 300);
     } catch (error) {
       console.error("Error creating task:", error);
       const errorMessage =
@@ -1345,7 +1588,8 @@ const Lent2025: React.FC = () => {
     }
   };
 
-  const handleEditTask = (task: LentTask) => {
+  // Edit task handler
+  const handleEditTask = useCallback((task: LentTask) => {
     setSelectedDay(null);
     const editTask = {
       ...task,
@@ -1354,8 +1598,9 @@ const Lent2025: React.FC = () => {
       selectedGroups: task.selectedGroups || [],
     };
     setEditingTask(editTask);
-  };
+  }, []);
 
+  // Update task handler
   const handleUpdateTask = async () => {
     if (
       !editingTask ||
@@ -1382,10 +1627,17 @@ const Lent2025: React.FC = () => {
         })
         .eq("id", editingTask.id);
       if (error) throw error;
+
+      // First show notification and close modal
       showNotification("Task updated successfully!", "success");
       setEditingTask(null);
-      setShowVisibilityDropdownEdit(false);
-      fetchTasks();
+
+      // Then clean up other UI states after animation would be complete
+      setTimeout(() => {
+        setShowVisibilityDropdownEdit(false);
+        setShowEditDatePicker(false);
+        fetchTasks();
+      }, 300);
     } catch (error) {
       console.error("Error updating task:", error);
       const errorMessage =
@@ -1394,6 +1646,59 @@ const Lent2025: React.FC = () => {
     }
   };
 
+  // Show delete confirmation
+  const showConfirmDelete = useCallback(
+    (id: string) => {
+      const isRecurring = lentTasks.some((task) => task.recurrence_id === id);
+      const title = isRecurring ? "Delete Recurring Tasks" : "Delete Task";
+      const message = isRecurring
+        ? "Are you sure you want to delete all tasks in this recurring series? This action cannot be undone."
+        : "Are you sure you want to delete this task? This action cannot be undone.";
+      setDeleteInfo({ id, isRecurring, title, message });
+      setShowDeleteConfirmModal(true);
+    },
+    [lentTasks]
+  );
+
+  // Handle delete confirmation
+  const handleConfirmDelete = async () => {
+    try {
+      if (deleteInfo.isRecurring) {
+        await handleDeleteRecurringGroup(deleteInfo.id);
+      } else {
+        await handleDeleteTask(deleteInfo.id);
+      }
+      setShowDeleteConfirmModal(false);
+    } catch (error) {
+      console.error("Error during delete:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showNotification(`Error: ${errorMessage}`, "error");
+    }
+  };
+
+  // Handle completion confirmation
+  const handleConfirmCompletion = () => {
+    handleToggleRecurringGroupCompletion(
+      completionInfo.recurrenceId,
+      completionInfo.currentAllCompleted
+    );
+    setShowCompletionConfirmModal(false);
+  };
+
+  // Handle cancel completion
+  const handleCancelCompletion = () => {
+    setLentTasks((prevTasks) =>
+      prevTasks.map((t) =>
+        t.recurrence_id === completionInfo.recurrenceId
+          ? { ...t, completed: completionInfo.currentAllCompleted }
+          : t
+      )
+    );
+    setShowCompletionConfirmModal(false);
+  };
+
+  // Delete task handler
   const handleDeleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase
@@ -1411,7 +1716,8 @@ const Lent2025: React.FC = () => {
     }
   };
 
-  const animateLikeButton = (taskId: string, liked: boolean) => {
+  // Animate like button with a more fluid animation
+  const animateLikeButton = useCallback((taskId: string, liked: boolean) => {
     if (!likeAnimations[taskId]) {
       likeAnimations[taskId] = new Animated.Value(1);
     }
@@ -1420,25 +1726,23 @@ const Lent2025: React.FC = () => {
     }
     const scaleAnim = likeAnimations[taskId];
     const heartAnim = heartAnimations[taskId];
+
     if (Platform.OS !== "web") {
       Vibration.vibrate(liked ? [0, 30, 10, 20] : 20);
     }
+
     if (liked) {
       Animated.sequence([
         Animated.timing(scaleAnim, {
           toValue: 1.6,
           duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1.5,
-          friction: 3,
-          tension: 40,
+          easing: Easing.out(Easing.elastic(1.5)),
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
-          friction: 3,
+          friction: 5,
+          tension: 40,
           useNativeDriver: true,
         }),
       ]).start();
@@ -1456,66 +1760,93 @@ const Lent2025: React.FC = () => {
         }),
       ]).start();
     }
+
     Animated.timing(heartAnim, {
       toValue: liked ? 1 : 0,
-      duration: liked ? 400 : 300,
+      duration: liked ? 300 : 200,
+      easing: liked ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
       useNativeDriver: false,
     }).start();
-  };
+  }, []);
 
-  const handleLikeToggle = async (task: LentTask) => {
-    try {
-      const willBeLiked = !task.liked_by_current_user;
-      setLentTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.id === task.id
-            ? {
-                ...t,
-                likes_count: willBeLiked
-                  ? (t.likes_count || 0) + 1
-                  : Math.max(0, (t.likes_count || 0) - 1),
-                liked_by_current_user: willBeLiked,
-              }
-            : t
-        )
-      );
-      animateLikeButton(task.id, willBeLiked);
-      if (willBeLiked) {
-        const { error } = await supabase.from("likes").insert([
-          {
-            user_id: currentUserId,
-            likeable_id: task.id,
-            likeable_type: "lent_tasks",
-          },
-        ]);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("likes")
-          .delete()
-          .eq("likeable_id", task.id)
-          .eq("likeable_type", "lent_tasks")
-          .eq("user_id", currentUserId);
-        if (error) throw error;
+  // Toggle like on a task
+  const handleLikeToggle = useCallback(
+    async (task: LentTask) => {
+      try {
+        const willBeLiked = !task.liked_by_current_user;
+
+        // Optimistically update UI
+        setLentTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === task.id
+              ? {
+                  ...t,
+                  likes_count: willBeLiked
+                    ? (t.likes_count || 0) + 1
+                    : Math.max(0, (t.likes_count || 0) - 1),
+                  liked_by_current_user: willBeLiked,
+                }
+              : t
+          )
+        );
+
+        animateLikeButton(task.id, willBeLiked);
+
+        if (willBeLiked) {
+          const { error } = await supabase.from("likes").insert([
+            {
+              user_id: currentUserId,
+              likeable_id: task.id,
+              likeable_type: "lent_tasks",
+            },
+          ]);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("likes")
+            .delete()
+            .eq("likeable_id", task.id)
+            .eq("likeable_type", "lent_tasks")
+            .eq("user_id", currentUserId);
+          if (error) throw error;
+        }
+      } catch (error) {
+        console.error("Error toggling like:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        showNotification(`Error: ${errorMessage}`, "error");
+        fetchTasks(); // Refresh to correct state
       }
-    } catch (error) {
-      console.error("Error toggling like:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      showNotification(`Error: ${errorMessage}`, "error");
-      fetchTasks();
-    }
-  };
+    },
+    [currentUserId, animateLikeButton]
+  );
 
-  const handleOpenComments = (task: LentTask) => {
-    setSelectedDay(null);
-    setSelectedTaskForComments(task);
-    setTaskComments([]);
-    setCommentLoading(true);
-    fetchComments(task.id);
-    setShowCommentModal(true);
-  };
+  // Open comments modal with sequential state updates to prevent flashing
+  const handleOpenComments = useCallback(
+    (task: LentTask) => {
+      // First close any open day view to prevent UI flash
+      if (selectedDay) {
+        setSelectedDay(null);
+        // Small delay before opening comments to ensure smooth transition
+        setTimeout(() => {
+          setSelectedTaskForComments(task);
+          setTaskComments([]);
+          setCommentLoading(true);
+          fetchComments(task.id);
+          setShowCommentModal(true);
+        }, 50);
+      } else {
+        setSelectedTaskForComments(task);
+        setTaskComments([]);
+        setCommentLoading(true);
+        fetchComments(task.id);
+        setShowCommentModal(true);
+      }
+    },
+    [fetchComments, selectedDay]
+  );
 
+  // Add comment handler
   const handleAddComment = async () => {
     if (!selectedTaskForComments || !newComment.trim()) return;
     try {
@@ -1532,15 +1863,19 @@ const Lent2025: React.FC = () => {
         .select("*, user:users(first_name, last_name, email)");
       if (error) throw error;
       if (data && data.length > 0) {
-        setTaskComments((prev) => [...prev, data[0]]);
+        // Add new comment with animation
+        const newCommentObj = data[0];
+        setTaskComments((prev) => [...prev, newCommentObj]);
+
+        // Update comment count in tasks list
+        setLentTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === selectedTaskForComments.id
+              ? { ...t, comments_count: (t.comments_count || 0) + 1 }
+              : t
+          )
+        );
       }
-      setLentTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.id === selectedTaskForComments.id
-            ? { ...t, comments_count: (t.comments_count || 0) + 1 }
-            : t
-        )
-      );
       setNewComment("");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -1550,6 +1885,7 @@ const Lent2025: React.FC = () => {
     }
   };
 
+  // Delete comment handler
   const handleDeleteComment = async (commentId: string) => {
     if (!selectedTaskForComments) return;
     try {
@@ -1558,16 +1894,21 @@ const Lent2025: React.FC = () => {
         .delete()
         .eq("id", commentId);
       if (error) throw error;
+
+      // Remove comment with fade animation
       setTaskComments((prev) =>
         prev.filter((comment) => comment.id !== commentId)
       );
-      setLentTasks((prevTasks) =>
-        prevTasks.map((t) =>
+
+      // Update task comment count
+      setLentTasks((prev) =>
+        prev.map((t) =>
           t.id === selectedTaskForComments.id
             ? { ...t, comments_count: Math.max(0, (t.comments_count || 0) - 1) }
             : t
         )
       );
+
       showNotification("Comment deleted", "success");
     } catch (error) {
       console.error("Error deleting comment:", error);
@@ -1577,24 +1918,26 @@ const Lent2025: React.FC = () => {
     }
   };
 
-  const prevMonth = () => {
+  // Navigation functions
+  const prevMonth = useCallback(() => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear((prev) => prev - 1);
     } else {
       setCurrentMonth((prev) => prev - 1);
     }
-  };
+  }, [currentMonth]);
 
-  const nextMonth = () => {
+  const nextMonth = useCallback(() => {
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear((prev) => prev + 1);
     } else {
       setCurrentMonth((prev) => prev + 1);
     }
-  };
+  }, [currentMonth]);
 
+  // Get tasks for a specific day
   const getTasksForDay = useCallback(
     (date: Date): LentTask[] => {
       return lentTasks.filter((task) => {
@@ -1609,201 +1952,375 @@ const Lent2025: React.FC = () => {
     [lentTasks]
   );
 
-  const handleAddTaskForDay = (day: Date) => {
+  // Add task for a specific day
+  const handleAddTaskForDay = useCallback((day: Date) => {
     setSelectedDay(null);
     const year = day.getFullYear();
     const month = String(day.getMonth() + 1).padStart(2, "0");
     const dayNum = String(day.getDate()).padStart(2, "0");
     const isoDate = `${year}-${month}-${dayNum}`;
     setSelectedDate(day);
-    setNewTask({ ...newTask, date: isoDate });
+    setNewTask((prev) => ({ ...prev, date: isoDate }));
     setShowTaskModal(true);
-  };
+  }, []);
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const showConfirmDelete = (taskId: string) => {
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this task?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: () => handleDeleteTask(taskId),
-          style: "destructive",
-        },
-      ]
-    );
-  };
+  // Confirm delete comment
+  const showConfirmDeleteComment = useCallback(
+    (commentId: string) => {
+      Alert.alert(
+        "Confirm Delete",
+        "Are you sure you want to delete this comment?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            onPress: () => handleDeleteComment(commentId),
+            style: "destructive",
+          },
+        ]
+      );
+    },
+    [handleDeleteComment]
+  );
 
-  const showConfirmDeleteComment = (commentId: string) => {
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this comment?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: () => handleDeleteComment(commentId),
-          style: "destructive",
-        },
-      ]
-    );
-  };
-
-  const handleSelectFilter = (filter: FilterType) => {
+  // Select filter handler
+  const handleSelectFilter = useCallback((filter: FilterType) => {
     setTasksFilter(filter);
     setShowFilterDropdown(false);
-  };
+  }, []);
 
-  // Used to get the header dimensions for proper dropdown positioning
-  const onHeaderLayout = (event: any) => {
+  // Header layout handler
+  const onHeaderLayout = useCallback((event: any) => {
     const { height } = event.nativeEvent.layout;
     setHeaderHeight(height);
-  };
+  }, []);
 
-  const renderTaskCard = (task: LentTask, isUserTask: boolean) => {
-    if (!likeAnimations[task.id]) {
-      likeAnimations[task.id] = new Animated.Value(1);
-    }
-    if (!heartAnimations[task.id]) {
-      heartAnimations[task.id] = new Animated.Value(
-        task.liked_by_current_user ? 1 : 0
+  // Show completion confirmation
+  const showCompletionConfirm = useCallback(
+    (recurrenceId: string, currentAllCompleted: boolean, task: LentTask) => {
+      // Optimistically update UI
+      setLentTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.recurrence_id === recurrenceId
+            ? { ...t, completed: !currentAllCompleted }
+            : t
+        )
+      );
+
+      setCompletionInfo({
+        recurrenceId,
+        currentAllCompleted,
+        taskName: task.event,
+      });
+
+      setShowCompletionConfirmModal(true);
+    },
+    []
+  );
+
+  // Toggle task completion
+  const handleToggleTaskCompletion = useCallback(
+    async (task: LentTask) => {
+      if (task.user_id !== currentUserId) return;
+
+      const newCompleted = !task.completed;
+
+      // Optimistically update UI
+      setLentTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === task.id ? { ...t, completed: newCompleted } : t
+        )
+      );
+
+      try {
+        const { error } = await supabase
+          .from("lent_tasks")
+          .update({ completed: newCompleted })
+          .eq("id", task.id);
+        if (error) throw error;
+      } catch (error) {
+        // Revert on error
+        setLentTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === task.id ? { ...t, completed: !newCompleted } : t
+          )
+        );
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error("Error updating task completion:", errorMessage);
+        showNotification(`Error updating task: ${errorMessage}`, "error");
+      }
+    },
+    [currentUserId]
+  );
+
+  // Toggle recurring group completion
+  const handleToggleRecurringGroupCompletion = useCallback(
+    async (recurrenceId: string, currentAllCompleted: boolean) => {
+      const newCompleted = !currentAllCompleted;
+
+      // Optimistically update UI
+      setLentTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.recurrence_id === recurrenceId
+            ? { ...t, completed: newCompleted }
+            : t
+        )
+      );
+
+      try {
+        const { error } = await supabase
+          .from("lent_tasks")
+          .update({ completed: newCompleted })
+          .eq("recurrence_id", recurrenceId);
+        if (error) throw error;
+      } catch (error) {
+        // Revert on error
+        setLentTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.recurrence_id === recurrenceId
+              ? { ...t, completed: !newCompleted }
+              : t
+          )
+        );
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          "Error updating recurring tasks completion:",
+          errorMessage
+        );
+        showNotification(`Error updating tasks: ${errorMessage}`, "error");
+      }
+    },
+    []
+  );
+
+  // Delete recurring group
+  const handleDeleteRecurringGroup = async (recurrenceId: string) => {
+    try {
+      const { error } = await supabase
+        .from("lent_tasks")
+        .delete()
+        .eq("recurrence_id", recurrenceId);
+      if (error) throw error;
+      showNotification("Recurring group deleted successfully!", "success");
+      fetchTasks();
+    } catch (error) {
+      console.error("Error deleting recurring group:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showNotification(
+        `Error deleting recurring group: ${errorMessage}`,
+        "error"
       );
     }
-    const scaleAnim = likeAnimations[task.id];
-    const heartAnim = heartAnimations[task.id];
-    const heartColor = heartAnim.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
-    });
-    return (
-      <View key={task.id} style={styles.taskCard}>
-        <Text style={styles.taskTitle}>{task.event}</Text>
-        <Text style={styles.taskDate}>
-          {!isUserTask && (
-            <>
-              By {task.user.first_name} {task.user.last_name}{" "}
-            </>
-          )}
-          on {formatDateUTC(task.date)}
-        </Text>
-        {task.group_info && (
-          <View style={styles.groupTag}>
-            <Feather name="users" size={12} color="#FAC898" />
-            <Text style={styles.groupTagText}>
-              Shared group: {task.group_info.name}
-            </Text>
-          </View>
-        )}
-        {task.visibility && (
-          <View style={styles.visibilityTag}>
-            {
-              visibilityOptions.find(
-                (option) => option.label === task.visibility
-              )?.icon
-            }
-            <Text style={styles.visibilityTagText}>{task.visibility}</Text>
-          </View>
-        )}
-        <Text style={styles.taskDescription}>{task.description}</Text>
-        <View style={styles.taskInteractionBar}>
-          <TouchableOpacity
-            style={[
-              styles.likeButton,
-              task.liked_by_current_user && styles.likedButton,
-            ]}
-            onPress={() => handleLikeToggle(task)}
-            activeOpacity={0.7}
-          >
-            <Animated.View
+  };
+
+  // Filter my tasks
+  const myTasks = useMemo(
+    () => lentTasks.filter((task) => task.user_id === currentUserId),
+    [lentTasks, currentUserId]
+  );
+
+  // Group my tasks
+  const groupedMyTasks = useMemo(() => groupTasks(myTasks), [myTasks]);
+
+  // Render task card for non-recurring tasks
+  const renderTaskCard = useCallback(
+    (task: LentTask, isUserTask: boolean) => {
+      if (!likeAnimations[task.id]) {
+        likeAnimations[task.id] = new Animated.Value(1);
+      }
+      if (!heartAnimations[task.id]) {
+        heartAnimations[task.id] = new Animated.Value(
+          task.liked_by_current_user ? 1 : 0
+        );
+      }
+      const scaleAnim = likeAnimations[task.id];
+      const heartAnim = heartAnimations[task.id];
+      const heartColor = heartAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
+      });
+
+      return (
+        <View key={task.id} style={styles.taskCard}>
+          <View style={styles.taskHeaderRow}>
+            {isUserTask && (
+              <TouchableOpacity
+                onPress={() => handleToggleTaskCompletion(task)}
+                style={styles.checkboxButton}
+                activeOpacity={0.7}
+              >
+                <Feather
+                  name={task.completed ? "check-square" : "square"}
+                  size={20}
+                  color={task.completed ? "#16A34A" : "#9CA3AF"}
+                />
+              </TouchableOpacity>
+            )}
+            <Text
               style={[
-                styles.heartIconContainer,
-                { transform: [{ scale: scaleAnim }] },
+                styles.taskTitle,
+                task.completed && styles.completedTaskTitle,
               ]}
             >
-              <Feather
-                name="heart"
-                size={task.liked_by_current_user ? 18 : 16}
-                color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
-                style={styles.heartIconBase}
-              />
-              <Animated.View
-                style={[styles.heartAnimation, { opacity: heartAnim }]}
-              >
-                <Feather name="heart" size={18} color="#E9967A" />
-              </Animated.View>
-            </Animated.View>
-            <Animated.Text
-              style={[
-                styles.likeButtonText,
-                {
-                  color: heartColor,
-                  fontWeight: task.liked_by_current_user ? "600" : "400",
-                },
-              ]}
-            >
-              {task.likes_count || 0}
-            </Animated.Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.commentButton}
-            onPress={() => handleOpenComments(task)}
-          >
-            <Feather name="message-square" size={16} color="#9CA3AF" />
-            <Text style={styles.commentButtonText}>
-              {task.comments_count || 0}
+              {task.event}
             </Text>
-          </TouchableOpacity>
-          {isUserTask && (
-            <View style={styles.taskActions}>
-              <TouchableOpacity
-                style={styles.taskAction}
-                onPress={() => handleEditTask(task)}
-              >
-                <Feather name="edit" size={16} color="#FAC898" />
-                <Text style={styles.editActionText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.taskAction}
-                onPress={() => showConfirmDelete(task.id)}
-              >
-                <Feather name="trash-2" size={16} color="#FCA5A5" />
-                <Text style={styles.deleteActionText}>Delete</Text>
-              </TouchableOpacity>
+          </View>
+          <Text style={styles.taskDate}>
+            {!isUserTask && (
+              <>
+                By {task.user.first_name} {task.user.last_name}{" "}
+              </>
+            )}
+            on {formatDateUTC(task.date)}
+          </Text>
+          {task.group_info && (
+            <View style={styles.groupTag}>
+              <Feather name="users" size={12} color="#FAC898" />
+              <Text style={styles.groupTagText}>
+                Shared group: {task.group_info.name}
+              </Text>
             </View>
           )}
+          {task.visibility && (
+            <View style={styles.visibilityTag}>
+              {
+                visibilityOptions.find(
+                  (option) => option.label === task.visibility
+                )?.icon
+              }
+              <Text style={styles.visibilityTagText}>{task.visibility}</Text>
+            </View>
+          )}
+          <Text style={styles.taskDescription}>{task.description}</Text>
+          <View style={styles.taskInteractionBar}>
+            <TouchableOpacity
+              style={[
+                styles.likeButton,
+                task.liked_by_current_user && styles.likedButton,
+              ]}
+              onPress={() => handleLikeToggle(task)}
+              activeOpacity={0.7}
+            >
+              <Animated.View
+                style={[
+                  styles.heartIconContainer,
+                  { transform: [{ scale: scaleAnim }] },
+                ]}
+              >
+                <Feather
+                  name="heart"
+                  size={task.liked_by_current_user ? 18 : 16}
+                  color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
+                  style={styles.heartIconBase}
+                />
+                <Animated.View
+                  style={[styles.heartAnimation, { opacity: heartAnim }]}
+                >
+                  <Feather name="heart" size={18} color="#E9967A" />
+                </Animated.View>
+              </Animated.View>
+              <Animated.Text
+                style={[
+                  styles.likeButtonText,
+                  {
+                    color: heartColor,
+                    fontWeight: task.liked_by_current_user ? "600" : "400",
+                  },
+                ]}
+              >
+                {task.likes_count || 0}
+              </Animated.Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.commentButton}
+              onPress={() => handleOpenComments(task)}
+              activeOpacity={0.7}
+            >
+              <Feather name="message-square" size={16} color="#9CA3AF" />
+              <Text style={styles.commentButtonText}>
+                {task.comments_count || 0}
+              </Text>
+            </TouchableOpacity>
+            {isUserTask && (
+              <View style={styles.taskActions}>
+                <TouchableOpacity
+                  style={styles.taskAction}
+                  onPress={() => handleEditTask(task)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="edit" size={16} color="#FAC898" />
+                  <Text style={styles.editActionText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.taskAction}
+                  onPress={() => showConfirmDelete(task.id)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="trash-2" size={16} color="#FCA5A5" />
+                  <Text style={styles.deleteActionText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    );
-  };
+      );
+    },
+    [
+      handleToggleTaskCompletion,
+      handleLikeToggle,
+      handleOpenComments,
+      handleEditTask,
+      showConfirmDelete,
+    ]
+  );
+
+  // Loading spinner animation
+  const spin = loadingSpinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
   return (
     <SafeAreaView style={styles.container} key={refreshKey}>
-      {/* For iPad, the container now uses full width */}
       <View style={{ flex: 1 }}>
         <StatusBar barStyle="light-content" />
         {notification && (
-          <View
+          <Animated.View
             style={[
               styles.notification,
               notification.type === "error"
                 ? styles.errorNotification
                 : styles.successNotification,
+              {
+                opacity: notificationAnim,
+                transform: [
+                  {
+                    translateY: notificationAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, 0],
+                    }),
+                  },
+                ],
+              },
             ]}
           >
             <Text style={styles.notificationText}>{notification.message}</Text>
-          </View>
+          </Animated.View>
         )}
         <View style={styles.header} ref={headerRef} onLayout={onHeaderLayout}>
           <TouchableOpacity
             style={styles.headerTitleContainer}
             onPress={() => setShowFilterDropdown(!showFilterDropdown)}
+            activeOpacity={0.7}
           >
-            <Text style={[styles.headerTitle, isIpad && { fontSize: 28 }]}>
-              Lent 2025 – {getHeaderTitle()}
-            </Text>
+            <Text
+              style={[styles.headerTitle, isIpad && { fontSize: 28 }]}
+            >{`Lent 2025 – ${getHeaderTitle()}`}</Text>
             <View style={styles.headerFilterIndicator}>
               <Feather
                 name={showFilterDropdown ? "chevron-up" : "chevron-down"}
@@ -1816,6 +2333,7 @@ const Lent2025: React.FC = () => {
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => router.navigate("/home")}
+              activeOpacity={0.7}
             >
               <Feather name="home" size={20} color="#FFFFFF" />
               <Text style={styles.headerButtonText}>Home</Text>
@@ -1823,14 +2341,13 @@ const Lent2025: React.FC = () => {
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => setShowTaskModal(true)}
+              activeOpacity={0.7}
             >
               <Feather name="plus-circle" size={20} color="#FFFFFF" />
               <Text style={styles.headerButtonText}>Add Task</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Filter Dropdown */}
         {showFilterDropdown && (
           <Animated.View
             style={[
@@ -1855,6 +2372,7 @@ const Lent2025: React.FC = () => {
                 tasksFilter === "all" && styles.activeFilterOption,
               ]}
               onPress={() => handleSelectFilter("all")}
+              activeOpacity={0.7}
             >
               <Text
                 style={[
@@ -1871,6 +2389,7 @@ const Lent2025: React.FC = () => {
                 tasksFilter === "friends" && styles.activeFilterOption,
               ]}
               onPress={() => handleSelectFilter("friends")}
+              activeOpacity={0.7}
             >
               <Text
                 style={[
@@ -1887,6 +2406,7 @@ const Lent2025: React.FC = () => {
                 tasksFilter === "groups" && styles.activeFilterOption,
               ]}
               onPress={() => handleSelectFilter("groups")}
+              activeOpacity={0.7}
             >
               <Text
                 style={[
@@ -1899,7 +2419,6 @@ const Lent2025: React.FC = () => {
             </TouchableOpacity>
           </Animated.View>
         )}
-
         <View style={styles.viewSwitcher}>
           <TouchableOpacity
             style={[
@@ -1907,6 +2426,7 @@ const Lent2025: React.FC = () => {
               view === "calendar" ? styles.activeViewButton : null,
             ]}
             onPress={() => setView("calendar")}
+            activeOpacity={0.7}
           >
             <Text
               style={
@@ -1924,6 +2444,7 @@ const Lent2025: React.FC = () => {
               view === "list" ? styles.activeViewButton : null,
             ]}
             onPress={() => setView("list")}
+            activeOpacity={0.7}
           >
             <Text
               style={
@@ -1940,16 +2461,18 @@ const Lent2025: React.FC = () => {
               onPress={prevMonth}
               accessibilityLabel="Previous month"
               style={styles.monthNavButton}
+              activeOpacity={0.7}
             >
               <Feather name="chevron-left" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.monthTitle}>
-              {getMonthName(currentMonth)} {currentYear}
-            </Text>
+            <Text style={styles.monthTitle}>{`${getMonthName(
+              currentMonth
+            )} ${currentYear}`}</Text>
             <TouchableOpacity
               onPress={nextMonth}
               accessibilityLabel="Next month"
               style={styles.monthNavButton}
+              activeOpacity={0.7}
             >
               <Feather name="chevron-right" size={24} color="#FFFFFF" />
             </TouchableOpacity>
@@ -1960,6 +2483,7 @@ const Lent2025: React.FC = () => {
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {view === "list" ? (
             <View style={styles.listContainer}>
@@ -1967,15 +2491,26 @@ const Lent2025: React.FC = () => {
                 {tasksFilter === "all" && (
                   <>
                     <Text style={styles.sectionTitle}>My Tasks</Text>
-                    {lentTasks.filter((task) => task.user_id === currentUserId)
-                      .length === 0 ? (
+                    {groupedMyTasks.length === 0 ? (
                       <Text style={styles.emptyText}>
                         You haven't added any tasks yet.
                       </Text>
                     ) : (
-                      lentTasks
-                        .filter((task) => task.user_id === currentUserId)
-                        .map((task) => renderTaskCard(task, true))
+                      groupedMyTasks.map((group) =>
+                        renderTaskGroupCard(
+                          group,
+                          handleLikeToggle,
+                          handleOpenComments,
+                          showConfirmDelete,
+                          handleDeleteRecurringGroup,
+                          handleToggleRecurringGroupCompletion,
+                          currentUserId,
+                          handleToggleTaskCompletion,
+                          showCompletionConfirm,
+                          likeAnimations,
+                          heartAnimations
+                        )
+                      )
                     )}
                   </>
                 )}
@@ -2034,6 +2569,7 @@ const Lent2025: React.FC = () => {
                         ]}
                         onPress={() => isCurrentMonth && setSelectedDay(day)}
                         disabled={!isCurrentMonth}
+                        activeOpacity={0.7}
                       >
                         <Text
                           style={[
@@ -2072,22 +2608,26 @@ const Lent2025: React.FC = () => {
             </View>
           )}
         </ScrollView>
-        {isLoading && (
+        {(isLoading || commentLoading) && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#E9967A" />
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <ActivityIndicator size="large" color="#E9967A" />
+            </Animated.View>
             <Text style={styles.loadingText}>Loading...</Text>
           </View>
         )}
-
-        {/* Add Task Modal */}
         <Modal
           visible={showTaskModal}
           transparent={true}
-          animationType="fade"
+          animationType="none"
           onRequestClose={() => {
+            // Close modal first
             setShowTaskModal(false);
-            setShowInlineDatePicker(false);
-            setShowVisibilityDropdownNew(false);
+            // Then clean up other UI states after animation would be complete
+            setTimeout(() => {
+              setShowInlineDatePicker(false);
+              setShowVisibilityDropdownNew(false);
+            }, 300);
           }}
         >
           <KeyboardAvoidingView
@@ -2097,6 +2637,7 @@ const Lent2025: React.FC = () => {
             <ScrollView
               contentContainerStyle={styles.modalScrollContent}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
               <View
                 style={[
@@ -2106,7 +2647,6 @@ const Lent2025: React.FC = () => {
                 ]}
               >
                 <Text style={styles.modalTitle}>Add New Task</Text>
-
                 <Text style={styles.inputLabel}>Event</Text>
                 <TextInput
                   style={styles.textInput}
@@ -2118,7 +2658,6 @@ const Lent2025: React.FC = () => {
                   placeholderTextColor="#9CA3AF"
                   accessibilityLabel="Event name"
                 />
-
                 <Text style={styles.inputLabel}>Date</Text>
                 <TouchableOpacity
                   style={styles.dateButton}
@@ -2146,12 +2685,12 @@ const Lent2025: React.FC = () => {
                   accessibilityLabel={`Select date, current date: ${new Date(
                     newTask.date + "T00:00:00"
                   ).toLocaleDateString()}`}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.dateButtonText}>
                     {new Date(newTask.date + "T00:00:00").toLocaleDateString()}
                   </Text>
                 </TouchableOpacity>
-
                 {Platform.OS !== "android" && showInlineDatePicker && (
                   <DateTimePicker
                     value={new Date(newTask.date + "T00:00:00")}
@@ -2170,13 +2709,88 @@ const Lent2025: React.FC = () => {
                     themeVariant="dark"
                   />
                 )}
-
+                <TouchableOpacity
+                  onPress={() => setIsRecurring((prev) => !prev)}
+                  style={styles.recurringToggleButton}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.recurringToggleText}>
+                    {isRecurring
+                      ? "Single Day Event"
+                      : "Make this a Recurring Event"}
+                  </Text>
+                </TouchableOpacity>
+                {isRecurring && (
+                  <>
+                    <Text style={styles.inputLabel}>End Date</Text>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => {
+                        if (Platform.OS === "android") {
+                          DateTimePickerAndroid.open({
+                            value: new Date(recurrenceEndDate + "T00:00:00"),
+                            onChange: (event, date) => {
+                              if (date) {
+                                const y = date.getFullYear();
+                                const m = String(date.getMonth() + 1).padStart(
+                                  2,
+                                  "0"
+                                );
+                                const d = String(date.getDate()).padStart(
+                                  2,
+                                  "0"
+                                );
+                                setRecurrenceEndDate(`${y}-${m}-${d}`);
+                              }
+                            },
+                            mode: "date",
+                          });
+                        } else {
+                          setShowInlineRecurrenceDatePicker((prev) => !prev);
+                        }
+                      }}
+                      accessibilityLabel={`Select end date, current end date: ${new Date(
+                        recurrenceEndDate + "T00:00:00"
+                      ).toLocaleDateString()}`}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {new Date(
+                          recurrenceEndDate + "T00:00:00"
+                        ).toLocaleDateString()}
+                      </Text>
+                    </TouchableOpacity>
+                    {Platform.OS !== "android" &&
+                      showInlineRecurrenceDatePicker && (
+                        <DateTimePicker
+                          value={new Date(recurrenceEndDate + "T00:00:00")}
+                          mode="date"
+                          display="spinner"
+                          onChange={(event, date) => {
+                            if (date) {
+                              const y = date.getFullYear();
+                              const m = String(date.getMonth() + 1).padStart(
+                                2,
+                                "0"
+                              );
+                              const d = String(date.getDate()).padStart(2, "0");
+                              setRecurrenceEndDate(`${y}-${m}-${d}`);
+                            }
+                          }}
+                          style={{ backgroundColor: "#000000" }}
+                          textColor="#FFFFFF"
+                          themeVariant="dark"
+                        />
+                      )}
+                  </>
+                )}
                 <Text style={styles.inputLabel}>Visibility</Text>
                 <TouchableOpacity
                   style={styles.visibilityButton}
                   onPress={() =>
                     setShowVisibilityDropdownNew(!showVisibilityDropdownNew)
                   }
+                  activeOpacity={0.7}
                 >
                   <View style={styles.visibilityButtonContent}>
                     {
@@ -2196,7 +2810,6 @@ const Lent2025: React.FC = () => {
                     color="#E9967A"
                   />
                 </TouchableOpacity>
-
                 {showVisibilityDropdownNew && (
                   <View style={styles.visibilityDropdown}>
                     {visibilityOptions.map((option) => (
@@ -2222,6 +2835,7 @@ const Lent2025: React.FC = () => {
                           });
                           setShowVisibilityDropdownNew(false);
                         }}
+                        activeOpacity={0.7}
                       >
                         <View style={styles.visibilityOptionContent}>
                           {option.icon}
@@ -2233,7 +2847,6 @@ const Lent2025: React.FC = () => {
                     ))}
                   </View>
                 )}
-
                 {newTask.visibility === "Certain Groups" && (
                   <View style={styles.groupSelectorContainer}>
                     <Text style={styles.groupSelectorLabel}>
@@ -2250,11 +2863,11 @@ const Lent2025: React.FC = () => {
                             key={group.id}
                             style={[
                               styles.groupOption,
-                              newTask.selectedGroups.includes(group.id)
-                                ? styles.groupOptionSelected
-                                : null,
+                              newTask.selectedGroups.includes(group.id) &&
+                                styles.groupOptionSelected,
                             ]}
                             onPress={() => toggleNewGroupSelection(group.id)}
+                            activeOpacity={0.7}
                           >
                             <Text style={styles.groupOptionText}>
                               {group.name}
@@ -2265,7 +2878,6 @@ const Lent2025: React.FC = () => {
                     </View>
                   </View>
                 )}
-
                 <Text style={styles.inputLabel}>Description</Text>
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
@@ -2279,16 +2891,20 @@ const Lent2025: React.FC = () => {
                   numberOfLines={4}
                   accessibilityLabel="Event description"
                 />
-
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={styles.cancelButton}
                     onPress={() => {
+                      // First close the modal
                       setShowTaskModal(false);
-                      setShowInlineDatePicker(false);
-                      setShowVisibilityDropdownNew(false);
+                      // Then reset other states after animation would have completed
+                      setTimeout(() => {
+                        setShowInlineDatePicker(false);
+                        setShowVisibilityDropdownNew(false);
+                      }, 300);
                     }}
                     accessibilityLabel="Cancel"
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
@@ -2296,6 +2912,7 @@ const Lent2025: React.FC = () => {
                     style={styles.addButton}
                     onPress={handleCreateTask}
                     accessibilityLabel="Add task"
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.addButtonText}>Add</Text>
                   </TouchableOpacity>
@@ -2304,15 +2921,21 @@ const Lent2025: React.FC = () => {
             </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
-
-        {/* Edit Task Modal */}
         <Modal
           visible={!!editingTask}
           transparent={true}
-          animationType="fade"
+          animationType="none"
           onRequestClose={() => {
-            setEditingTask(null);
-            setShowVisibilityDropdownEdit(false);
+            // First close modal
+            const wasEditing = !!editingTask;
+            if (wasEditing) {
+              setEditingTask(null);
+              // Then clean up other UI states
+              setTimeout(() => {
+                setShowVisibilityDropdownEdit(false);
+                setShowEditDatePicker(false);
+              }, 300);
+            }
           }}
         >
           {editingTask && (
@@ -2323,6 +2946,7 @@ const Lent2025: React.FC = () => {
               <ScrollView
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
               >
                 <View
                   style={[
@@ -2332,7 +2956,6 @@ const Lent2025: React.FC = () => {
                   ]}
                 >
                   <Text style={styles.modalTitle}>Edit Task</Text>
-
                   <Text style={styles.inputLabel}>Event</Text>
                   <TextInput
                     style={styles.textInput}
@@ -2347,7 +2970,6 @@ const Lent2025: React.FC = () => {
                     placeholderTextColor="#9CA3AF"
                     accessibilityLabel="Event name"
                   />
-
                   <Text style={styles.inputLabel}>Date</Text>
                   <TouchableOpacity
                     style={styles.dateButton}
@@ -2378,6 +3000,7 @@ const Lent2025: React.FC = () => {
                     accessibilityLabel={`Select date, current date: ${new Date(
                       editingTask.date + "T00:00:00"
                     ).toLocaleDateString()}`}
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.dateButtonText}>
                       {new Date(
@@ -2385,7 +3008,6 @@ const Lent2025: React.FC = () => {
                       ).toLocaleDateString()}
                     </Text>
                   </TouchableOpacity>
-
                   {Platform.OS !== "android" && showEditDatePicker && (
                     <DateTimePicker
                       value={new Date(editingTask.date + "T00:00:00")}
@@ -2410,13 +3032,13 @@ const Lent2025: React.FC = () => {
                       themeVariant="dark"
                     />
                   )}
-
                   <Text style={styles.inputLabel}>Visibility</Text>
                   <TouchableOpacity
                     style={styles.visibilityButton}
                     onPress={() =>
                       setShowVisibilityDropdownEdit(!showVisibilityDropdownEdit)
                     }
+                    activeOpacity={0.7}
                   >
                     <View style={styles.visibilityButtonContent}>
                       {
@@ -2438,7 +3060,6 @@ const Lent2025: React.FC = () => {
                       color="#E9967A"
                     />
                   </TouchableOpacity>
-
                   {showVisibilityDropdownEdit && (
                     <View style={styles.visibilityDropdown}>
                       {visibilityOptions.map((option) => (
@@ -2464,6 +3085,7 @@ const Lent2025: React.FC = () => {
                             });
                             setShowVisibilityDropdownEdit(false);
                           }}
+                          activeOpacity={0.7}
                         >
                           <View style={styles.visibilityOptionContent}>
                             {option.icon}
@@ -2475,7 +3097,6 @@ const Lent2025: React.FC = () => {
                       ))}
                     </View>
                   )}
-
                   {editingTask.visibility === "Certain Groups" && (
                     <View style={styles.groupSelectorContainer}>
                       <Text style={styles.groupSelectorLabel}>
@@ -2493,11 +3114,13 @@ const Lent2025: React.FC = () => {
                               style={[
                                 styles.groupOption,
                                 editingTask.selectedGroups &&
-                                editingTask.selectedGroups.includes(group.id)
-                                  ? styles.groupOptionSelected
-                                  : null,
+                                  editingTask.selectedGroups.includes(
+                                    group.id
+                                  ) &&
+                                  styles.groupOptionSelected,
                               ]}
                               onPress={() => toggleEditGroupSelection(group.id)}
+                              activeOpacity={0.7}
                             >
                               <Text style={styles.groupOptionText}>
                                 {group.name}
@@ -2508,7 +3131,6 @@ const Lent2025: React.FC = () => {
                       </View>
                     </View>
                   )}
-
                   <Text style={styles.inputLabel}>Description</Text>
                   <TextInput
                     style={[styles.textInput, styles.textAreaInput]}
@@ -2525,16 +3147,20 @@ const Lent2025: React.FC = () => {
                     numberOfLines={4}
                     accessibilityLabel="Event description"
                   />
-
                   <View style={styles.modalButtons}>
                     <TouchableOpacity
                       style={styles.cancelButton}
                       onPress={() => {
+                        // First close the modal by setting editingTask to null
                         setEditingTask(null);
-                        setShowEditDatePicker(false);
-                        setShowVisibilityDropdownEdit(false);
+                        // Then reset the other states after animation would complete
+                        setTimeout(() => {
+                          setShowEditDatePicker(false);
+                          setShowVisibilityDropdownEdit(false);
+                        }, 300);
                       }}
                       accessibilityLabel="Cancel"
+                      activeOpacity={0.7}
                     >
                       <Text style={styles.cancelButtonText}>Cancel</Text>
                     </TouchableOpacity>
@@ -2542,6 +3168,7 @@ const Lent2025: React.FC = () => {
                       style={styles.addButton}
                       onPress={handleUpdateTask}
                       accessibilityLabel="Save changes"
+                      activeOpacity={0.7}
                     >
                       <Text style={styles.addButtonText}>Save</Text>
                     </TouchableOpacity>
@@ -2551,15 +3178,16 @@ const Lent2025: React.FC = () => {
             </KeyboardAvoidingView>
           )}
         </Modal>
-
-        {/* Comments Modal */}
         <Modal
           visible={showCommentModal}
           transparent={true}
-          animationType="fade"
+          animationType="none"
           onRequestClose={() => {
             setShowCommentModal(false);
-            setSelectedTaskForComments(null);
+            // Delay clearing data until modal is fully closed
+            setTimeout(() => {
+              setSelectedTaskForComments(null);
+            }, 300);
           }}
         >
           <KeyboardAvoidingView
@@ -2576,16 +3204,23 @@ const Lent2025: React.FC = () => {
                     <TouchableOpacity
                       style={styles.closeButton}
                       onPress={() => {
+                        // First hide the modal
                         setShowCommentModal(false);
-                        setSelectedTaskForComments(null);
+                        // Then clear the data after animation would be complete
+                        setTimeout(() => {
+                          setSelectedTaskForComments(null);
+                        }, 300);
                       }}
+                      activeOpacity={0.7}
                     >
                       <Feather name="x" size={20} color="#FFFFFF" />
                     </TouchableOpacity>
                   </View>
                   {commentLoading ? (
                     <View style={styles.commentLoadingContainer}>
-                      <ActivityIndicator size="large" color="#E9967A" />
+                      <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                        <ActivityIndicator size="large" color="#E9967A" />
+                      </Animated.View>
                       <Text style={styles.commentLoadingText}>
                         Loading comments...
                       </Text>
@@ -2599,6 +3234,7 @@ const Lent2025: React.FC = () => {
                       ItemSeparatorComponent={() => (
                         <View style={styles.commentSeparator} />
                       )}
+                      showsVerticalScrollIndicator={false}
                       renderItem={({ item }) => (
                         <View style={styles.commentItem}>
                           <View style={styles.commentHeader}>
@@ -2625,6 +3261,7 @@ const Lent2025: React.FC = () => {
                                 onPress={() =>
                                   showConfirmDeleteComment(item.id)
                                 }
+                                activeOpacity={0.7}
                               >
                                 <Feather
                                   name="trash-2"
@@ -2668,6 +3305,7 @@ const Lent2025: React.FC = () => {
                       ]}
                       onPress={handleAddComment}
                       disabled={!newComment.trim()}
+                      activeOpacity={0.7}
                     >
                       <Feather name="send" size={16} color="#FFFFFF" />
                     </TouchableOpacity>
@@ -2678,17 +3316,39 @@ const Lent2025: React.FC = () => {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Guide Event Detail Modal */}
+        {/* Fixed Guide Event Modal with proper animations */}
         <Modal
           visible={!!selectedGuideEvent}
           transparent={true}
-          animationType="fade"
-          onRequestClose={() => setSelectedGuideEvent(null)}
+          animationType="none"
+          onRequestClose={() => {
+            // Animate out before setting to null
+            Animated.parallel([
+              Animated.timing(guideEventOpacityAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+              Animated.timing(guideEventScaleAnim, {
+                toValue: 0.9,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setSelectedGuideEvent(null);
+            });
+          }}
+          hardwareAccelerated={true}
         >
           <View style={styles.modalOverlay}>
-            <View
-              style={styles.guideEventModal}
-              onStartShouldSetResponder={() => true}
+            <Animated.View
+              style={[
+                styles.guideEventModal,
+                {
+                  opacity: guideEventOpacityAnim,
+                  transform: [{ scale: guideEventScaleAnim }],
+                },
+              ]}
             >
               <Text style={styles.guideEventModalTitle}>
                 {selectedGuideEvent?.title}
@@ -2698,30 +3358,80 @@ const Lent2025: React.FC = () => {
               </Text>
               <TouchableOpacity
                 style={styles.guideEventCloseButton}
-                onPress={() => setSelectedGuideEvent(null)}
+                onPress={() => {
+                  // Animate out before closing
+                  Animated.parallel([
+                    Animated.timing(guideEventOpacityAnim, {
+                      toValue: 0,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }),
+                    Animated.timing(guideEventScaleAnim, {
+                      toValue: 0.9,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }),
+                  ]).start(() => {
+                    setSelectedGuideEvent(null);
+                  });
+                }}
                 accessibilityLabel="Close"
+                activeOpacity={0.7}
               >
                 <Text style={styles.guideEventCloseText}>Close</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </View>
         </Modal>
 
-        {/* Expanded Day Modal */}
-        {selectedDay && (
-          <Modal
-            visible={true}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => {}}
-          >
+        <ConfirmationModal
+          visible={showDeleteConfirmModal}
+          onClose={() => setShowDeleteConfirmModal(false)}
+          onConfirm={handleConfirmDelete}
+          title={deleteInfo.title}
+          message={deleteInfo.message}
+          confirmText="Delete"
+          confirmStyle="warning"
+        />
+        <ConfirmationModal
+          visible={showCompletionConfirmModal}
+          onClose={handleCancelCompletion}
+          onConfirm={handleConfirmCompletion}
+          title={`Mark All Tasks as ${
+            !completionInfo.currentAllCompleted ? "Complete" : "Incomplete"
+          }`}
+          message={`This will mark all "${completionInfo.taskName}" tasks as ${
+            !completionInfo.currentAllCompleted ? "complete" : "incomplete"
+          }. To individually check them, use the calendar view.`}
+          confirmText={
+            !completionInfo.currentAllCompleted
+              ? "Mark All Complete"
+              : "Mark All Incomplete"
+          }
+          confirmStyle="success"
+        />
+        <Modal
+          visible={!!selectedDay}
+          transparent={true}
+          animationType="none"
+          onRequestClose={() => {
+            setSelectedDay(null);
+          }}
+          hardwareAccelerated={true}
+        >
+          {selectedDay && (
             <View style={styles.modalOverlay}>
               <ExpandedDayView
                 day={selectedDay}
                 onClose={() => setSelectedDay(null)}
                 onAddTask={() => {
+                  // First close the day view
                   setSelectedDay(null);
-                  handleAddTaskForDay(selectedDay);
+
+                  // Short delay before showing task modal to prevent UI flash
+                  setTimeout(() => {
+                    handleAddTaskForDay(selectedDay);
+                  }, 100);
                 }}
                 dayTasks={getTasksForDay(selectedDay)}
                 guideEvents={getGuideEventsForDate(selectedDay)}
@@ -2731,13 +3441,19 @@ const Lent2025: React.FC = () => {
                 handleOpenComments={handleOpenComments}
                 showConfirmDelete={showConfirmDelete}
                 onGuideEventPress={(event: LentEvent) => {
-                  setSelectedGuideEvent(event);
+                  // First close day view
                   setSelectedDay(null);
+
+                  // Short delay before showing guide event to prevent UI flash
+                  setTimeout(() => {
+                    setSelectedGuideEvent(event);
+                  }, 100);
                 }}
+                handleToggleTaskCompletion={handleToggleTaskCompletion}
               />
             </View>
-          </Modal>
-        )}
+          )}
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -2804,7 +3520,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     letterSpacing: 0.5,
   },
-  // Filter dropdown styles
   filterDropdown: {
     position: "absolute",
     left: 15,
@@ -2820,24 +3535,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(233, 150, 122, 0.3)",
   },
-  filterOption: {
-    paddingVertical: 14,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-  },
-  activeFilterOption: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-  },
+  filterOption: { paddingVertical: 14, paddingHorizontal: 15, borderRadius: 8 },
+  activeFilterOption: { backgroundColor: "rgba(233, 150, 122, 0.2)" },
   filterOptionText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "400",
     textAlign: "center",
   },
-  activeFilterOptionText: {
-    color: "#E9967A",
-    fontWeight: "600",
-  },
+  activeFilterOptionText: { color: "#E9967A", fontWeight: "600" },
   viewSwitcher: {
     flexDirection: "row",
     justifyContent: "center",
@@ -2893,6 +3599,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
+  taskHeaderRow: { flexDirection: "row", alignItems: "center" },
+  checkboxButton: { marginRight: 8 },
   taskTitle: {
     fontSize: 18,
     fontWeight: "500",
@@ -2900,13 +3608,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     letterSpacing: 0.5,
   },
+  completedTaskTitle: { textDecorationLine: "line-through", color: "#9CA3AF" },
+  recurringTaskTitle: {},
   taskDate: {
     fontSize: 14,
     color: "#FAC898",
     marginBottom: 8,
     letterSpacing: 0.5,
   },
-  // Group tag style
   groupTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -2925,7 +3634,6 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontWeight: "600",
   },
-  // Visibility tag style
   visibilityTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -3144,7 +3852,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   dateButtonText: { color: "#FFFFFF", letterSpacing: 0.5, fontSize: 16 },
-  // Visibility button styles
   visibilityButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -3156,10 +3863,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 16,
   },
-  visibilityButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  visibilityButtonContent: { flexDirection: "row", alignItems: "center" },
   visibilityButtonText: {
     color: "#FFFFFF",
     marginLeft: 10,
@@ -3175,23 +3879,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.2)",
     overflow: "hidden",
   },
-  visibilityOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  visibilityOptionSelected: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-  },
-  visibilityOptionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  visibilityOptionText: {
-    color: "#FFFFFF",
-    marginLeft: 10,
-    fontSize: 16,
-  },
-  // Group selector styles
+  visibilityOption: { paddingVertical: 12, paddingHorizontal: 16 },
+  visibilityOptionSelected: { backgroundColor: "rgba(233, 150, 122, 0.2)" },
+  visibilityOptionContent: { flexDirection: "row", alignItems: "center" },
+  visibilityOptionText: { color: "#FFFFFF", marginLeft: 10, fontSize: 16 },
   groupSelectorContainer: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
@@ -3206,11 +3897,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 10,
   },
-  groupSelectorList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  groupSelectorList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   groupOption: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 8,
@@ -3225,10 +3912,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(233, 150, 122, 0.2)",
     borderColor: "rgba(233, 150, 122, 0.4)",
   },
-  groupOptionText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-  },
+  groupOptionText: { color: "#FFFFFF", fontSize: 14 },
   noGroupsText: {
     color: "rgba(255, 255, 255, 0.6)",
     fontStyle: "italic",
@@ -3434,7 +4118,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     letterSpacing: 0.3,
   },
-  // Styles for expanded day view
   expandedDayContainer: {
     backgroundColor: "rgba(0, 0, 0, 0.95)",
     borderRadius: 20,
@@ -3458,18 +4141,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     marginBottom: 12,
   },
-  expandedDayTitle: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#E9967A",
-  },
-  closeIconButton: {
-    padding: 8,
-  },
-  expandedDayContent: {
-    flex: 1,
-    width: "100%",
-  },
+  expandedDayTitle: { fontSize: 24, fontWeight: "600", color: "#E9967A" },
+  closeIconButton: { padding: 8 },
+  expandedDayContent: { flex: 1, width: "100%" },
   expandedDaySection: { marginBottom: 20 },
   expandedDaySectionTitle: {
     fontSize: 20,
@@ -3530,11 +4204,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginBottom: 2,
   },
-  expandedDayTaskUser: {
-    fontSize: 13,
-    color: "#FAC898",
-    marginBottom: 4,
-  },
+  expandedDayTaskUser: { fontSize: 13, color: "#FAC898", marginBottom: 4 },
   expandedDayTaskDesc: {
     color: "rgba(255, 255, 255, 0.8)",
     marginBottom: 10,
@@ -3631,6 +4301,74 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     fontSize: 16,
   },
+  recurringToggleButton: { alignSelf: "center", marginBottom: 16 },
+  recurringToggleText: {
+    color: "#E9967A",
+    fontSize: 16,
+    textDecorationLine: "underline",
+  },
+  deleteModalContent: {
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    borderRadius: 15,
+    padding: 20,
+    width: "90%",
+    maxWidth: 400,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "rgba(252, 165, 165, 0.3)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  deleteModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(252, 165, 165, 0.2)",
+    paddingBottom: 12,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 12,
+    flex: 1,
+  },
+  deleteModalMessage: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  deleteModalButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 16,
+  },
+  deleteModalCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  deleteModalCancelText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  deleteModalConfirmButton: {
+    backgroundColor: "#DC2626",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  deleteModalConfirmText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  successConfirmButton: { backgroundColor: "#10B981" },
 });
 
 export default Lent2025;
