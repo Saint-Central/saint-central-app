@@ -919,6 +919,10 @@ const Lent2025: React.FC = () => {
   const notificationAnim = useRef(new Animated.Value(0)).current;
   const loadingSpinAnim = useRef(new Animated.Value(0)).current;
 
+  // Add animation refs for the guide event modal
+  const guideEventOpacityAnim = useRef(new Animated.Value(0)).current;
+  const guideEventScaleAnim = useRef(new Animated.Value(0.9)).current;
+
   // Start a continuous loading animation
   useEffect(() => {
     if (isLoading || commentLoading) {
@@ -956,6 +960,30 @@ const Lent2025: React.FC = () => {
       });
     }
   }, [notification]);
+
+  // Add this effect to animate the guide event modal when it's shown
+  useEffect(() => {
+    if (selectedGuideEvent) {
+      // Reset animation values
+      guideEventOpacityAnim.setValue(0);
+      guideEventScaleAnim.setValue(0.9);
+
+      // Start animations
+      Animated.parallel([
+        Animated.spring(guideEventScaleAnim, {
+          toValue: 1,
+          friction: 7,
+          tension: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(guideEventOpacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [selectedGuideEvent]);
 
   // Toggle group selection functions
   const toggleNewGroupSelection = useCallback((groupId: string) => {
@@ -3287,11 +3315,29 @@ const Lent2025: React.FC = () => {
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Fixed Guide Event Modal with proper animations */}
         <Modal
           visible={!!selectedGuideEvent}
           transparent={true}
           animationType="none"
-          onRequestClose={() => setSelectedGuideEvent(null)}
+          onRequestClose={() => {
+            // Animate out before setting to null
+            Animated.parallel([
+              Animated.timing(guideEventOpacityAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+              Animated.timing(guideEventScaleAnim, {
+                toValue: 0.9,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setSelectedGuideEvent(null);
+            });
+          }}
           hardwareAccelerated={true}
         >
           <View style={styles.modalOverlay}>
@@ -3299,23 +3345,10 @@ const Lent2025: React.FC = () => {
               style={[
                 styles.guideEventModal,
                 {
-                  opacity: useRef(new Animated.Value(0)).current.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 1],
-                  }),
-                  transform: [
-                    {
-                      scale: useRef(
-                        new Animated.Value(0.9)
-                      ).current.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.9, 1],
-                      }),
-                    },
-                  ],
+                  opacity: guideEventOpacityAnim,
+                  transform: [{ scale: guideEventScaleAnim }],
                 },
               ]}
-              onStartShouldSetResponder={() => true}
             >
               <Text style={styles.guideEventModalTitle}>
                 {selectedGuideEvent?.title}
@@ -3326,12 +3359,19 @@ const Lent2025: React.FC = () => {
               <TouchableOpacity
                 style={styles.guideEventCloseButton}
                 onPress={() => {
-                  // Add a small fade-out effect when closing
-                  Animated.timing(useRef(new Animated.Value(1)).current, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                  }).start(() => {
+                  // Animate out before closing
+                  Animated.parallel([
+                    Animated.timing(guideEventOpacityAnim, {
+                      toValue: 0,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }),
+                    Animated.timing(guideEventScaleAnim, {
+                      toValue: 0.9,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }),
+                  ]).start(() => {
                     setSelectedGuideEvent(null);
                   });
                 }}
@@ -3343,6 +3383,7 @@ const Lent2025: React.FC = () => {
             </Animated.View>
           </View>
         </Modal>
+
         <ConfirmationModal
           visible={showDeleteConfirmModal}
           onClose={() => setShowDeleteConfirmModal(false)}
