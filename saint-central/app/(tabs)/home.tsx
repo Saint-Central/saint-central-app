@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react"; // Added useEffect
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -21,13 +21,15 @@ import reflectionImage from "../../assets/images/reflection.jpg";
 import intentionsImage from "../../assets/images/intentions.jpg";
 import heroImage from "../../assets/images/hero-image.jpg";
 import prayerHandsRosaryImage from "../../assets/images/prayer-hands-rosary.jpg";
+import churchMapImage from "../../assets/images/church-map.jpg";
+import dailyReflectionImage from "../../assets/images/daily-reflection.jpg";
 // Using require for background
 const backgroundImageRequire = require("../../assets/images/home-image.jpg");
 
 const { width } = Dimensions.get("window");
 
 // Define allowed Feather icon names for the featured cards.
-type FeatherIconName = "heart" | "book-open" | "globe";
+type FeatherIconName = "heart" | "book-open" | "globe" | "sun" | "map-pin";
 
 // Define the type for the featured cards.
 interface Card {
@@ -54,62 +56,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Animation values for initial load
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-  const heroTranslateY = useRef(new Animated.Value(20)).current;
-  const featuredOpacity = useRef(new Animated.Value(0)).current;
-  const featuredTranslateY = useRef(new Animated.Value(20)).current;
-  const quickLinksOpacity = useRef(new Animated.Value(0)).current;
-  const quickLinksTranslateY = useRef(new Animated.Value(20)).current;
-
-  // Animation on component mount
-  useEffect(() => {
-    // Sequence the animations
-    Animated.stagger(250, [
-      // Hero section animation
-      Animated.parallel([
-        Animated.timing(heroOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(heroTranslateY, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // Featured section animation
-      Animated.parallel([
-        Animated.timing(featuredOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(featuredTranslateY, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // Quick Links section animation
-      Animated.parallel([
-        Animated.timing(quickLinksOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(quickLinksTranslateY, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, []);
-
   const featuredCards: Card[] = [
     {
       id: 1,
@@ -121,14 +67,30 @@ export default function HomeScreen() {
     },
     {
       id: 2,
-    title: "Rosary",
-    description: "A meditative prayer journey embracing divine mysteries.",
-    icon: "book-open",
-    route: "/Rosary",
-    image: prayerHandsRosaryImage,  // Use the imported image here
+      title: "Rosary",
+      description: "A meditative prayer journey embracing divine mysteries.",
+      icon: "book-open",
+      route: "/Rosary",
+      image: prayerHandsRosaryImage,
     },
     {
       id: 3,
+      title: "Daily Reflections",
+      description: "Start your day with spiritual wisdom and guidance.",
+      icon: "sun",
+      route: "/Reflections",
+      image: dailyReflectionImage,
+    },
+    {
+      id: 4,
+      title: "Church Directory",
+      description: "Find services, events, and locations at your parish.",
+      icon: "map-pin",
+      route: "/ChurchMap",
+      image: churchMapImage,
+    },
+    {
+      id: 5,
       title: "Intentions",
       description: "Add your friends on Saint Central and share goals.",
       icon: "globe",
@@ -170,16 +132,8 @@ export default function HomeScreen() {
             { useNativeDriver: true }
           )}
         >
-          {/* Enhanced Hero Banner with Animation */}
-          <Animated.View
-            style={[
-              styles.heroSection,
-              {
-                opacity: heroOpacity,
-                transform: [{ translateY: heroTranslateY }],
-              },
-            ]}
-          >
+          {/* Enhanced Hero Banner */}
+          <View style={styles.heroSection}>
             <View style={styles.iconContainer}>
               <Feather name="sunrise" size={36} color="#FAC898" />
             </View>
@@ -194,64 +148,59 @@ export default function HomeScreen() {
               <Text style={styles.heroButtonText}>DISCOVER</Text>
               <Feather name="arrow-right" size={16} color="#513C28" />
             </TouchableOpacity>
-          </Animated.View>
+          </View>
 
           {/* Featured Cards Section */}
-<View style={styles.featuredSection}>
-  <Text style={styles.sectionTitle}>Explore Your Journey</Text>
-  <ScrollView
-    horizontal
-    showsHorizontalScrollIndicator={false}
-    contentContainerStyle={styles.featuredScroll}
-  >
-    {featuredCards.map((card) => (
-      <TouchableOpacity
-        key={card.id}
-        style={styles.featuredCard}
-        onPress={() => {
-          if (card.title === "Rosary") {
-            // Navigate to the Rosary page instead of showing an alert
-            router.push("/Rosary" as any);
-          } else {
-            router.push(card.route as any);
-          }
-        }}
-      >
-        <View style={styles.cardImageContainer}>
-          <Image
-            source={card.image}
-            style={styles.featuredCardImage}
-          />
-          <View style={styles.cardImageOverlay} />
-        </View>
-        <View style={styles.featuredCardContent}>
-          <View style={styles.featuredCardHeader}>
-            <Feather name={card.icon} size={20} color="#E9967A" />
-            <Text style={styles.featuredCardTitle}>{card.title}</Text>
+          <View style={styles.featuredSection}>
+            <Text style={styles.sectionTitle}>Explore Your Journey</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredScroll}
+            >
+              {featuredCards.map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.featuredCard}
+                  onPress={() => {
+                    if (card.title === "Rosary") {
+                      // Navigate to the Rosary page
+                      router.push("/Rosary" as any);
+                    } else if (card.title === "Daily Reflections" || card.title === "Church Directory") {
+                      // For new pages that aren't set up yet
+                      Alert.alert("Coming Soon", `The ${card.title} feature will be available soon!`);
+                    } else {
+                      router.push(card.route as any);
+                    }
+                  }}
+                >
+                  <View style={styles.cardImageContainer}>
+                    <Image
+                      source={card.image}
+                      style={styles.featuredCardImage}
+                    />
+                    <View style={styles.cardImageOverlay} />
+                  </View>
+                  <View style={styles.featuredCardContent}>
+                    <View style={styles.featuredCardHeader}>
+                      <Feather name={card.icon} size={20} color="#E9967A" />
+                      <Text style={styles.featuredCardTitle}>{card.title}</Text>
+                    </View>
+                    <Text style={styles.featuredCardDescription}>
+                      {card.description}
+                    </Text>
+                    <View style={styles.featuredCardFooter}>
+                      <Text style={styles.featuredCardLink}>Explore</Text>
+                      <Feather name="arrow-right" size={16} color="#E9967A" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-          <Text style={styles.featuredCardDescription}>
-            {card.description}
-          </Text>
-          <View style={styles.featuredCardFooter}>
-            <Text style={styles.featuredCardLink}>Explore</Text>
-            <Feather name="arrow-right" size={16} color="#E9967A" />
-          </View>
-        </View>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
-</View>
 
-          {/* Quick Links Grid with Animation */}
-          <Animated.View
-            style={[
-              styles.quickLinksSection,
-              {
-                opacity: quickLinksOpacity,
-                transform: [{ translateY: quickLinksTranslateY }],
-              },
-            ]}
-          >
+          {/* Quick Links Grid */}
+          <View style={styles.quickLinksSection}>
             <Text style={styles.sectionTitle}>Quick Access</Text>
             <View style={styles.quickLinksGrid}>
               {quickLinks.map((link) => (
@@ -259,7 +208,7 @@ export default function HomeScreen() {
                   key={link.id}
                   style={styles.quickLinkCard}
                   onPress={() => {
-                    if (link.route === "/donate" || link.route === "/Bible") {
+                    if (link.route === "/donate" || link.route === "/bible" || link.route === "/events") {
                       router.push(link.route as any);
                     } else {
                       Alert.alert("this page is not set up yet");
@@ -271,7 +220,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </Animated.View>
+          </View>
         </Animated.ScrollView>
       </SafeAreaView>
     </ImageBackground>

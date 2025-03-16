@@ -220,7 +220,8 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
             {state.routes.map((route: any, index: number) => {
               // Skip hidden tabs
               if (
-                route.name === "Bible" || 
+                route.name === "bible" || 
+                route.name === "events" || 
                 route.name === "Rosary" || 
                 route.name === "RosaryPrayer" ||
                 route.name === "Lent2025" ||
@@ -282,7 +283,8 @@ export default function TabLayout() {
       {/* Hidden screens */}
       <Tabs.Screen
       name="RosaryPrayer" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="Bible" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="bible" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/[id]" options={{ tabBarButton: () => null }} />
