@@ -1,5 +1,5 @@
 // app/Events.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -15,15 +15,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  ScrollView
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../supabaseClient';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
+  ScrollView,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { supabase } from "../../supabaseClient";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 // Updated Event Interface
 interface Event {
@@ -36,81 +37,79 @@ interface Event {
   video_link: string;
   author_name: string;
   is_recurring: boolean;
-  recurrence_type?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrence_type?: "daily" | "weekly" | "monthly" | "yearly";
   recurrence_interval?: number;
   recurrence_end_date?: string;
   recurrence_days_of_week?: number[];
 }
 
-
-// Additional styles for recurring event UI
 // Additional styles for recurring event UI
 const recurringStyles = StyleSheet.create({
   recurringSection: {
     marginBottom: 20,
   },
   recurringToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   pickerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
   pickerOption: {
     flex: 1,
     padding: 10,
     marginHorizontal: 5,
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   selectedPickerOption: {
-    backgroundColor: '#FAC898',
+    backgroundColor: "#FAC898",
   },
   pickerOptionText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   intervalContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   intervalInput: {
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     borderRadius: 8,
     padding: 10,
     width: 60,
     marginRight: 10,
-    color: '#FFFFFF',
-    textAlign: 'center',
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   intervalText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
   },
   daysContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
   dayButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#333",
+    justifyContent: "center",
+    alignItems: "center",
   },
   selectedDayButton: {
-    backgroundColor: '#FAC898',
+    backgroundColor: "#FAC898",
   },
   dayButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });
 
@@ -128,14 +127,14 @@ function EventsComponent() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  
+
   // Form states - updated to match the schema
-  const [formTitle, setFormTitle] = useState('');
-  const [formExcerpt, setFormExcerpt] = useState(''); // instead of description
+  const [formTitle, setFormTitle] = useState("");
+  const [formExcerpt, setFormExcerpt] = useState(""); // instead of description
   const [formTime, setFormTime] = useState(new Date());
-  const [formImageUrl, setFormImageUrl] = useState('');
-  const [formVideoLink, setFormVideoLink] = useState(''); // new field
-  const [formAuthorName, setFormAuthorName] = useState(''); // new field
+  const [formImageUrl, setFormImageUrl] = useState("");
+  const [formVideoLink, setFormVideoLink] = useState(""); // new field
+  const [formAuthorName, setFormAuthorName] = useState(""); // new field
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [formImageLoading, setFormImageLoading] = useState(false);
 
@@ -147,48 +146,50 @@ function EventsComponent() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      
+
       // Check if user is authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       // If not authenticated, may need to handle public access differently
       // depending on your RLS policies
-      
+
       const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('time', { ascending: true });
-      
+        .from("events")
+        .select("*")
+        .order("time", { ascending: true });
+
       if (error) {
         // Handle RLS read restrictions if any
-        if (error.code === '42501') {
+        if (error.code === "42501") {
           Alert.alert(
-            'Access Restricted', 
-            'You do not have permission to view events.',
-            [{ text: 'OK' }]
+            "Access Restricted",
+            "You do not have permission to view events.",
+            [{ text: "OK" }]
           );
           setEvents([]);
           return;
         }
         throw error;
       }
-      
+
       setEvents(data || []);
     } catch (error) {
-      console.error('Error fetching events:', error);
-      Alert.alert('Error', 'Failed to load events. Please try again later.');
+      console.error("Error fetching events:", error);
+      Alert.alert("Error", "Failed to load events. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
   const resetForm = () => {
-    setFormTitle('');
-    setFormExcerpt('');
+    setFormTitle("");
+    setFormExcerpt("");
     setFormTime(new Date());
-    setFormImageUrl('');
-    setFormVideoLink('');
-    setFormAuthorName('');
+    setFormImageUrl("");
+    setFormVideoLink("");
+    setFormAuthorName("");
   };
 
   const openAddModal = () => {
@@ -200,91 +201,91 @@ function EventsComponent() {
     setSelectedEvent(event);
     setFormTitle(event.title);
     setFormExcerpt(event.excerpt);
-    
+
     // Parse time - assuming it's stored as ISO string in the DB
     const eventTime = new Date(event.time);
     setFormTime(eventTime);
-    
-    setFormImageUrl(event.image_url || '');
-    setFormVideoLink(event.video_link || '');
-    setFormAuthorName(event.author_name || '');
-    
+
+    setFormImageUrl(event.image_url || "");
+    setFormVideoLink(event.video_link || "");
+    setFormAuthorName(event.author_name || "");
+
     setShowEditModal(true);
   };
 
   const handleAddEvent = async () => {
     try {
       if (!formTitle || !formExcerpt) {
-        Alert.alert('Error', 'Please fill in all required fields');
+        Alert.alert("Error", "Please fill in all required fields");
         return;
       }
-      
+
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        Alert.alert('Error', 'You must be logged in to add events');
+        Alert.alert("Error", "You must be logged in to add events");
         return;
       }
-      
+
       // Using RLS bypass with service role if available, otherwise try normal insert
-      const { data, error } = await supabase
-        .from('events')
-        .insert([
-          {
-            title: formTitle,
-            excerpt: formExcerpt,
-            time: formTime.toISOString(),
-            user_id: user.id,
-            image_url: formImageUrl,
-            video_link: formVideoLink,
-            author_name: formAuthorName || user.email, // Default to user email if no author name
-          }
-        ]);
-      
+      const { data, error } = await supabase.from("events").insert([
+        {
+          title: formTitle,
+          excerpt: formExcerpt,
+          time: formTime.toISOString(),
+          user_id: user.id,
+          image_url: formImageUrl,
+          video_link: formVideoLink,
+          author_name: formAuthorName || user.email, // Default to user email if no author name
+        },
+      ]);
+
       if (error) {
         // If this is an RLS error, show more helpful message
-        if (error.code === '42501') {
+        if (error.code === "42501") {
           Alert.alert(
-            'Permission Error', 
-            'You do not have permission to add events. Please contact an administrator.',
-            [
-              { text: 'OK' }
-            ]
+            "Permission Error",
+            "You do not have permission to add events. Please contact an administrator.",
+            [{ text: "OK" }]
           );
           return;
         }
         throw error;
       }
-      
-      Alert.alert('Success', 'Event added successfully!');
+
+      Alert.alert("Success", "Event added successfully!");
       setShowAddModal(false);
       fetchEvents();
     } catch (error) {
-      console.error('Error adding event:', error);
-      Alert.alert('Error', 'Failed to add event. Please try again.');
+      console.error("Error adding event:", error);
+      Alert.alert("Error", "Failed to add event. Please try again.");
     }
   };
 
   const handleEditEvent = async () => {
     try {
       if (!selectedEvent) return;
-      
+
       if (!formTitle || !formExcerpt) {
-        Alert.alert('Error', 'Please fill in all required fields');
+        Alert.alert("Error", "Please fill in all required fields");
         return;
       }
-      
+
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        Alert.alert('Error', 'You must be logged in to edit events');
+        Alert.alert("Error", "You must be logged in to edit events");
         return;
       }
-      
+
       const { error } = await supabase
-        .from('events')
+        .from("events")
         .update({
           title: formTitle,
           excerpt: formExcerpt,
@@ -293,104 +294,150 @@ function EventsComponent() {
           video_link: formVideoLink,
           author_name: formAuthorName || user.email, // Default to user email if no author name
         })
-        .eq('id', selectedEvent.id);
-      
+        .eq("id", selectedEvent.id);
+
       if (error) {
         // If this is an RLS error, show more helpful message
-        if (error.code === '42501') {
+        if (error.code === "42501") {
           Alert.alert(
-            'Permission Error', 
-            'You do not have permission to edit this event. You may only edit events you created.',
-            [
-              { text: 'OK' }
-            ]
+            "Permission Error",
+            "You do not have permission to edit this event. You may only edit events you created.",
+            [{ text: "OK" }]
           );
           return;
         }
         throw error;
       }
-      
-      Alert.alert('Success', 'Event updated successfully!');
+
+      Alert.alert("Success", "Event updated successfully!");
       setShowEditModal(false);
       fetchEvents();
     } catch (error) {
-      console.error('Error updating event:', error);
-      Alert.alert('Error', 'Failed to update event. Please try again.');
+      console.error("Error updating event:", error);
+      Alert.alert("Error", "Failed to update event. Please try again.");
     }
   };
 
   const handleDeleteEvent = async (eventId: number) => {
     try {
       Alert.alert(
-        'Confirm Deletion',
-        'Are you sure you want to delete this event?',
+        "Confirm Deletion",
+        "Are you sure you want to delete this event?",
         [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Delete', 
-            style: 'destructive',
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
             onPress: async () => {
               const { error } = await supabase
-                .from('events')
+                .from("events")
                 .delete()
-                .eq('id', eventId);
-              
+                .eq("id", eventId);
+
               if (error) {
                 // If this is an RLS error, show more helpful message
-                if (error.code === '42501') {
+                if (error.code === "42501") {
                   Alert.alert(
-                    'Permission Error', 
-                    'You do not have permission to delete this event. You may only delete events you created.',
-                    [
-                      { text: 'OK' }
-                    ]
+                    "Permission Error",
+                    "You do not have permission to delete this event. You may only delete events you created.",
+                    [{ text: "OK" }]
                   );
                   return;
                 }
                 throw error;
               }
-              
-              Alert.alert('Success', 'Event deleted successfully!');
+
+              Alert.alert("Success", "Event deleted successfully!");
               fetchEvents();
-            }
-          }
+            },
+          },
         ]
       );
     } catch (error) {
-      console.error('Error deleting event:', error);
-      Alert.alert('Error', 'Failed to delete event. Please try again.');
+      console.error("Error deleting event:", error);
+      Alert.alert("Error", "Failed to delete event. Please try again.");
     }
   };
 
   const pickImage = async () => {
     try {
       setFormImageLoading(true);
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.8,
+        quality: 0.7,
       });
 
-      if (!result.canceled) {
-        setFormImageUrl(result.assets[0].uri);
+      if (result.canceled) {
+        setFormImageLoading(false);
+        return;
+      }
+
+      const localUri = result.assets[0].uri;
+      console.log("Selected image URI:", localUri);
+
+      // Set local URI for immediate preview
+      setFormImageUrl(localUri);
+
+      try {
+        // Get auth session
+        const { data: sessionData } = await supabase.auth.getSession();
+
+        if (!sessionData.session) {
+          throw new Error("Not authenticated");
+        }
+
+        // Try direct upload using the SDK
+        const fileName = `${Date.now()}.jpg`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("event-images")
+          .upload(fileName, {
+            uri: localUri,
+            type: "image/jpeg",
+            name: fileName,
+          } as any);
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw uploadError;
+        }
+
+        console.log("Upload successful");
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from("event-images")
+          .getPublicUrl(fileName);
+
+        console.log("Public URL:", urlData?.publicUrl);
+
+        if (urlData?.publicUrl) {
+          setFormImageUrl(urlData.publicUrl);
+          Alert.alert("Success", "Image uploaded successfully!");
+        }
+      } catch (uploadError) {
+        console.error("Upload error:", uploadError);
+        Alert.alert("Upload Notice", "Using local image only.");
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      console.error("Error in image picker:", error);
+      Alert.alert("Error", "Failed to select image");
     } finally {
       setFormImageLoading(false);
     }
   };
 
   const formatDateTime = (dateTimeString: string) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     };
     return new Date(dateTimeString).toLocaleDateString(undefined, options);
   };
@@ -398,17 +445,14 @@ function EventsComponent() {
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 100],
     outputRange: [0, 1],
-    extrapolate: 'clamp',
+    extrapolate: "clamp",
   });
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Animated Header */}
-      <Animated.View 
-        style={[
-          styles.animatedHeader,
-          { opacity: headerOpacity }
-        ]}
+      <Animated.View
+        style={[styles.animatedHeader, { opacity: headerOpacity }]}
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -418,10 +462,7 @@ function EventsComponent() {
             <Feather name="arrow-left" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Events</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={openAddModal}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
             <Feather name="plus" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -459,19 +500,25 @@ function EventsComponent() {
           <Text style={styles.sectionTitle}>Upcoming Events</Text>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#FAC898" style={styles.loader} />
+            <ActivityIndicator
+              size="large"
+              color="#FAC898"
+              style={styles.loader}
+            />
           ) : events.length === 0 ? (
             <View style={styles.emptyState}>
               <Feather name="calendar" size={50} color="#666" />
               <Text style={styles.emptyStateText}>No events found</Text>
-              <Text style={styles.emptyStateSubtext}>Be the first to add an event!</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Be the first to add an event!
+              </Text>
             </View>
           ) : (
             events.map((event) => (
               <View key={event.id} style={styles.eventCard}>
                 {event.image_url ? (
-                  <Image 
-                    source={{ uri: event.image_url }} 
+                  <Image
+                    source={{ uri: event.image_url }}
                     style={styles.eventImage}
                     resizeMode="cover"
                   />
@@ -480,18 +527,18 @@ function EventsComponent() {
                     <Feather name="image" size={40} color="#AAA" />
                   </View>
                 )}
-                
+
                 <View style={styles.eventContent}>
                   <View style={styles.eventHeader}>
                     <Text style={styles.eventTitle}>{event.title}</Text>
                     <View style={styles.eventActions}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.eventAction}
                         onPress={() => openEditModal(event)}
                       >
                         <Feather name="edit-2" size={18} color="#FAC898" />
                       </TouchableOpacity>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.eventAction}
                         onPress={() => handleDeleteEvent(event.id)}
                       >
@@ -499,21 +546,21 @@ function EventsComponent() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  
+
                   <Text style={styles.eventDate}>
                     {formatDateTime(event.time)}
                   </Text>
-                  
+
                   {event.author_name && (
                     <Text style={styles.eventAuthor}>
                       By {event.author_name}
                     </Text>
                   )}
-                  
+
                   <Text style={styles.eventDescription}>{event.excerpt}</Text>
-                  
+
                   {event.video_link && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.videoLinkButton}
                       // You could implement a video player here
                     >
@@ -546,7 +593,7 @@ function EventsComponent() {
                 <Feather name="x" size={24} color="#FFF" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalForm}>
               <Text style={styles.inputLabel}>Title*</Text>
               <TextInput
@@ -556,7 +603,7 @@ function EventsComponent() {
                 placeholder="Event title"
                 placeholderTextColor="#999"
               />
-              
+
               <Text style={styles.inputLabel}>Description*</Text>
               <TextInput
                 style={[styles.textInput, styles.textAreaInput]}
@@ -567,17 +614,17 @@ function EventsComponent() {
                 multiline
                 numberOfLines={4}
               />
-              
+
               <Text style={styles.inputLabel}>Date & Time*</Text>
-              <TouchableOpacity 
-                style={styles.textInput} 
+              <TouchableOpacity
+                style={styles.textInput}
                 onPress={() => setShowTimePicker(true)}
               >
                 <Text style={styles.dateTimeText}>
                   {formTime.toLocaleString()}
                 </Text>
               </TouchableOpacity>
-              
+
               {showTimePicker && (
                 <DateTimePicker
                   value={formTime}
@@ -591,7 +638,7 @@ function EventsComponent() {
                   }}
                 />
               )}
-              
+
               <Text style={styles.inputLabel}>Author Name</Text>
               <TextInput
                 style={styles.textInput}
@@ -600,7 +647,7 @@ function EventsComponent() {
                 placeholder="Author name (optional)"
                 placeholderTextColor="#999"
               />
-              
+
               <Text style={styles.inputLabel}>Video Link</Text>
               <TextInput
                 style={styles.textInput}
@@ -609,9 +656,9 @@ function EventsComponent() {
                 placeholder="Video link (optional)"
                 placeholderTextColor="#999"
               />
-              
+
               <Text style={styles.inputLabel}>Image</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.imagePickerButton}
                 onPress={pickImage}
                 disabled={formImageLoading}
@@ -622,21 +669,21 @@ function EventsComponent() {
                   <>
                     <Feather name="image" size={24} color="#FAC898" />
                     <Text style={styles.imagePickerText}>
-                      {formImageUrl ? 'Change Image' : 'Select Image'}
+                      {formImageUrl ? "Change Image" : "Select Image"}
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
-              
+
               {formImageUrl ? (
-                <Image 
-                  source={{ uri: formImageUrl }} 
+                <Image
+                  source={{ uri: formImageUrl }}
                   style={styles.previewImage}
                   resizeMode="cover"
                 />
               ) : null}
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.submitButton}
                 onPress={handleAddEvent}
               >
@@ -665,7 +712,7 @@ function EventsComponent() {
                 <Feather name="x" size={24} color="#FFF" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalForm}>
               <Text style={styles.inputLabel}>Title*</Text>
               <TextInput
@@ -675,7 +722,7 @@ function EventsComponent() {
                 placeholder="Event title"
                 placeholderTextColor="#999"
               />
-              
+
               <Text style={styles.inputLabel}>Description*</Text>
               <TextInput
                 style={[styles.textInput, styles.textAreaInput]}
@@ -686,17 +733,17 @@ function EventsComponent() {
                 multiline
                 numberOfLines={4}
               />
-              
+
               <Text style={styles.inputLabel}>Date & Time*</Text>
-              <TouchableOpacity 
-                style={styles.textInput} 
+              <TouchableOpacity
+                style={styles.textInput}
                 onPress={() => setShowTimePicker(true)}
               >
                 <Text style={styles.dateTimeText}>
                   {formTime.toLocaleString()}
                 </Text>
               </TouchableOpacity>
-              
+
               {showTimePicker && (
                 <DateTimePicker
                   value={formTime}
@@ -710,7 +757,7 @@ function EventsComponent() {
                   }}
                 />
               )}
-              
+
               <Text style={styles.inputLabel}>Author Name</Text>
               <TextInput
                 style={styles.textInput}
@@ -719,7 +766,7 @@ function EventsComponent() {
                 placeholder="Author name (optional)"
                 placeholderTextColor="#999"
               />
-              
+
               <Text style={styles.inputLabel}>Video Link</Text>
               <TextInput
                 style={styles.textInput}
@@ -728,9 +775,9 @@ function EventsComponent() {
                 placeholder="Video link (optional)"
                 placeholderTextColor="#999"
               />
-              
+
               <Text style={styles.inputLabel}>Image</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.imagePickerButton}
                 onPress={pickImage}
                 disabled={formImageLoading}
@@ -741,21 +788,21 @@ function EventsComponent() {
                   <>
                     <Feather name="image" size={24} color="#FAC898" />
                     <Text style={styles.imagePickerText}>
-                      {formImageUrl ? 'Change Image' : 'Select Image'}
+                      {formImageUrl ? "Change Image" : "Select Image"}
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
-              
+
               {formImageUrl ? (
-                <Image 
-                  source={{ uri: formImageUrl }} 
+                <Image
+                  source={{ uri: formImageUrl }}
                   style={styles.previewImage}
                   resizeMode="cover"
                 />
               ) : null}
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.submitButton}
                 onPress={handleEditEvent}
               >
@@ -772,95 +819,95 @@ function EventsComponent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: "#121212",
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
   },
   animatedHeader: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(18, 18, 18, 0.95)',
+    backgroundColor: "rgba(18, 18, 18, 0.95)",
     zIndex: 100,
-    paddingTop: Platform.OS === 'android' ? 25 : 0,
+    paddingTop: Platform.OS === "android" ? 25 : 0,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   heroSection: {
     height: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 20,
   },
   iconContainer: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   heroTitle: {
     fontSize: 36,
-    fontWeight: '300',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: "300",
+    color: "#FFFFFF",
+    textAlign: "center",
     marginBottom: 10,
     letterSpacing: 1,
   },
   heroSubtitle: {
     fontSize: 18,
-    color: '#FFF',
-    textAlign: 'center',
+    color: "#FFF",
+    textAlign: "center",
     marginBottom: 30,
     opacity: 0.9,
     letterSpacing: 0.5,
     maxWidth: 280,
   },
   addEventButton: {
-    flexDirection: 'row',
-    backgroundColor: '#FAC898',
+    flexDirection: "row",
+    backgroundColor: "#FAC898",
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   addEventButtonText: {
     fontSize: 16,
-    color: '#513C28',
-    fontWeight: '600',
+    color: "#513C28",
+    fontWeight: "600",
     marginRight: 8,
   },
   eventsSection: {
@@ -868,175 +915,175 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: '500',
-    color: '#FFFFFF',
+    fontWeight: "500",
+    color: "#FFFFFF",
     marginBottom: 20,
   },
   loader: {
     marginTop: 40,
   },
   emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 50,
   },
   emptyStateText: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     marginTop: 16,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: "#999",
     marginTop: 8,
   },
   eventCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   eventImage: {
-    width: '100%',
+    width: "100%",
     height: 180,
   },
   placeholderImage: {
-    width: '100%',
+    width: "100%",
     height: 180,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#333",
+    justifyContent: "center",
+    alignItems: "center",
   },
   eventContent: {
     padding: 16,
   },
   eventHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   eventTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
     flex: 1,
   },
   eventActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   eventAction: {
     marginLeft: 16,
   },
   eventDate: {
     fontSize: 14,
-    color: '#FAC898',
+    color: "#FAC898",
     marginBottom: 8,
   },
   eventAuthor: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: "#CCCCCC",
     marginBottom: 8,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   eventDescription: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     lineHeight: 24,
     marginBottom: 12,
   },
   videoLinkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 8,
   },
   videoLinkText: {
-    color: '#FAC898',
+    color: "#FAC898",
     fontSize: 14,
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    backgroundColor: '#232323',
+    backgroundColor: "#232323",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 30,
     maxHeight: height * 0.9,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
   },
   modalForm: {
     padding: 20,
   },
   inputLabel: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     borderRadius: 8,
     padding: 15,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   textAreaInput: {
     minHeight: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   dateTimeText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   imagePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 15,
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     borderRadius: 8,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#FAC898',
+    borderStyle: "dashed",
+    borderColor: "#FAC898",
     marginBottom: 20,
   },
   imagePickerText: {
-    color: '#FAC898',
+    color: "#FAC898",
     marginLeft: 10,
     fontSize: 16,
   },
   previewImage: {
-    width: '100%',
+    width: "100%",
     height: 180,
     borderRadius: 8,
     marginBottom: 20,
   },
   submitButton: {
-    backgroundColor: '#FAC898',
+    backgroundColor: "#FAC898",
     borderRadius: 8,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
   },
   submitButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#513C28',
+    fontWeight: "bold",
+    color: "#513C28",
   },
 });
