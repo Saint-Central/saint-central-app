@@ -672,7 +672,7 @@ export default function RosaryScreen() {
               keyExtractor={(item) => item.id.toString()}
               contentContainerStyle={styles.modalList}
               renderItem={({ item }) => (
-                                  <TouchableOpacity
+                <TouchableOpacity
                   style={[
                     styles.modalItem,
                     selectedGuide.id === item.id && [
@@ -680,16 +680,31 @@ export default function RosaryScreen() {
                       { backgroundColor: theme.accent }
                     ]
                   ]}
-                  onPress={() => {
-                    setSelectedGuide(item);
-                    setShowGuidePicker(false);
-                    // Stop current audio if playing
+                  onPress={async () => {
+                    // Store whether audio was playing before change
+                    const wasPlaying = isPlaying;
+                    
+                    // Stop current audio
                     if (isPlaying) {
-                      audioManager.stopAudio();
+                      await audioManager.stopAudio();
                       setIsPlaying(false);
                     }
-                    // Display guide change notification
-                    alert(`Guide changed to ${item.name}`);
+                    
+                    // Set new guide
+                    setSelectedGuide(item);
+                    audioManager.setGuide(item);
+                    
+                    // If audio was playing, restart with new guide
+                    if (wasPlaying) {
+                      // Small delay to ensure audio manager updates
+                      setTimeout(async () => {
+                        await audioManager.playMystery(currentMysteryKey, currentMysteryIndex);
+                        setIsPlaying(true);
+                      }, 100);
+                    }
+                    
+                    // Close modal
+                    setShowGuidePicker(false);
                   }}
                 >
                   <View style={[
@@ -757,14 +772,31 @@ export default function RosaryScreen() {
                       { backgroundColor: theme.accent }
                     ]
                   ]}
-                  onPress={() => {
-                    setSelectedDuration(item);
-                    setShowDurationPicker(false);
-                    // Stop current audio if playing as duration change will affect playback
+                  onPress={async () => {
+                    // Store whether audio was playing before change
+                    const wasPlaying = isPlaying;
+                    
+                    // Stop current audio
                     if (isPlaying) {
-                      audioManager.stopAudio();
+                      await audioManager.stopAudio();
                       setIsPlaying(false);
                     }
+                    
+                    // Set new duration
+                    setSelectedDuration(item);
+                    audioManager.setDuration(item);
+                    
+                    // If audio was playing, restart with new duration
+                    if (wasPlaying) {
+                      // Small delay to ensure audio manager updates
+                      setTimeout(async () => {
+                        await audioManager.playMystery(currentMysteryKey, currentMysteryIndex);
+                        setIsPlaying(true);
+                      }, 100);
+                    }
+                    
+                    // Close modal
+                    setShowDurationPicker(false);
                   }}
                 >
                   <View style={[
