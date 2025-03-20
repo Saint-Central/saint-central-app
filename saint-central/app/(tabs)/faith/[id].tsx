@@ -13,13 +13,13 @@ import {
   Platform,
   useWindowDimensions,
   SafeAreaView,
-  Pressable,
   StatusBar,
   TextInput,
   KeyboardAvoidingView,
   Alert,
   Linking,
   AppState,
+  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../../../supabaseClient";
@@ -52,7 +52,7 @@ const PostPage = () => {
     Platform.OS === "ios" ? StatusBar.currentHeight || 44 : 0;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const [webViewHeight, setWebViewHeight] = useState<number>(300);
 
   const [post, setPost] = useState<Post | null>(null);
@@ -61,9 +61,9 @@ const PostPage = () => {
   const [fontSize, setFontSize] = useState(16);
   const [forceUpdate, setForceUpdate] = useState(0);
   const appState = useRef(AppState.currentState);
-  // Share state no longer needed
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [pointerEventsEnabled, setPointerEventsEnabled] = useState(false);
 
   // Likes and comments state
   const [isLiked, setIsLiked] = useState(false);
@@ -80,6 +80,17 @@ const PostPage = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
   const commentsRef = useRef<View>(null);
+
+  // Add listener for scroll position to control pointer events
+  useEffect(() => {
+    const listener = scrollY.addListener(({ value }) => {
+      setPointerEventsEnabled(value > 100);
+    });
+    
+    return () => {
+      scrollY.removeListener(listener);
+    };
+  }, [scrollY]);
 
   useEffect(() => {
     // Fade in animation
@@ -175,6 +186,49 @@ const PostPage = () => {
 
     initialize();
   }, [id]);
+
+  // Handle app state changes and keyboard appearance
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      // When app returns to active state from background
+      if (appState.current === 'background' && nextAppState === 'active') {
+        // Force layout update with slight delay
+        setTimeout(() => {
+          setForceUpdate(prev => prev + 1);
+        }, 300);
+      }
+      
+      appState.current = nextAppState;
+    });
+    
+    // Add keyboard listeners to adjust layout
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setForceUpdate(prev => prev + 1);
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setForceUpdate(prev => prev + 1);
+      }
+    );
+
+    return () => {
+      subscription.remove();
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  // Add effect to scroll to top when post is loaded
+  useEffect(() => {
+    if (!isLoading && post && scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: false });
+    }
+  }, [isLoading, post]);
 
   // Fetch likes for the post
   const fetchLikes = async (postId: number, userId: string | null) => {
@@ -317,6 +371,7 @@ const PostPage = () => {
     }
 
     try {
+      Keyboard.dismiss();
       setIsSubmittingComment(true);
 
       const { data, error } = await supabase.from("comments").insert({
@@ -345,6 +400,11 @@ const PostPage = () => {
       setComments([newCommentObj, ...comments]);
       setNewComment("");
       setIsCommenting(false);
+      
+      // Force layout update after comment submission
+      setTimeout(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 100);
     } catch (err) {
       console.error("Error submitting comment:", err);
       Alert.alert("Error", "Failed to submit your comment.");
@@ -387,32 +447,6 @@ const PostPage = () => {
       }, 100);
     }
   };
-
-  // Add effect to scroll to top when post is loaded
-  useEffect(() => {
-    if (!isLoading && post && scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: 0, animated: false });
-    }
-  }, [isLoading, post]);
-
-  // Handle app state changes (when returning from sharing)
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      // When app returns to active state from background
-      if (appState.current === 'background' && nextAppState === 'active') {
-        // Force layout update with slight delay
-        setTimeout(() => {
-          setForceUpdate(prev => prev + 1);
-        }, 300);
-      }
-      
-      appState.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
 
   // Direct share function without modal
   const onShare = async () => {
@@ -648,18 +682,21 @@ const PostPage = () => {
     );
   }
 
+  // Calculate header opacity for animation
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 150],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
+  // Calculate image scale effect
   const imageScale = scrollY.interpolate({
     inputRange: [-100, 0],
     outputRange: [1.2, 1],
     extrapolate: "clamp",
   });
 
+  // Setup scroll event handler
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: false }
@@ -668,8 +705,8 @@ const PostPage = () => {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 20}
     >
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
@@ -717,6 +754,113 @@ const PostPage = () => {
           ]}
         />
 
+        {/* Sticky Action Bar - Now with fixed animation */}
+        <Animated.View
+          style={[
+            styles.stickyActionBar,
+            {
+              opacity: headerOpacity,
+              transform: [
+                {
+                  translateY: headerOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-50, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+          pointerEvents={pointerEventsEnabled ? "auto" : "none"}
+          key={`sticky-bar-${forceUpdate}`}
+        >
+          <View style={styles.actionBarContent}>
+            <View style={styles.mainActionButtons}>
+              {/* Like button */}
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  isLiked ? styles.likeButtonActive : styles.likeButtonInactive,
+                ]}
+                onPress={toggleLike}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="heart"
+                  size={14}
+                  color={isLiked ? "#FFFFFF" : "#1C1917"}
+                />
+                {likeCount > 0 && (
+                  <Text
+                    style={[
+                      styles.counterText,
+                      isLiked ? styles.likeButtonActiveText : styles.likeButtonInactiveText,
+                    ]}
+                  >
+                    {likeCount}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Comment button */}
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  showComments ? styles.commentButtonActive : styles.commentButtonInactive,
+                ]}
+                onPress={scrollToComments}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="message-square"
+                  size={14}
+                  color={showComments ? "#FFFFFF" : "#1C1917"}
+                />
+                {comments.length > 0 && (
+                  <Text
+                    style={[
+                      styles.counterText,
+                      showComments ? styles.commentButtonActiveText : styles.commentButtonInactiveText,
+                    ]}
+                  >
+                    {comments.length}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Share button */}
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={onShare}
+                activeOpacity={0.8}
+              >
+                <Feather name="share-2" size={14} color="#1C1917" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.fontSizeControls}>
+              <TouchableOpacity
+                style={styles.fontSizeButton}
+                onPress={decreaseFontSize}
+                activeOpacity={0.8}
+              >
+                <Feather name="minus" size={12} color="#1C1917" />
+              </TouchableOpacity>
+
+              <View style={styles.fontSizeDisplay}>
+                <Text style={styles.fontSizeText}>{fontSize}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.fontSizeButton}
+                onPress={increaseFontSize}
+                activeOpacity={0.8}
+              >
+                <Feather name="plus" size={12} color="#1C1917" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+
         <Animated.ScrollView
           ref={scrollViewRef}
           style={[styles.scrollView, { opacity: fadeAnim }]}
@@ -724,7 +868,7 @@ const PostPage = () => {
           scrollEventThrottle={16}
           contentContainerStyle={[
             styles.scrollViewContent,
-            { paddingBottom: Platform.OS === 'ios' ? 160 : 140 } // Extra padding to account for sticky controls above nav bar
+            { paddingBottom: Platform.OS === 'ios' ? 160 : 140 } // Extra padding for controls
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -813,7 +957,7 @@ const PostPage = () => {
               </View>
             </View>
 
-            {/* Comments section - UPDATED */}
+            {/* Comments section */}
             {showComments && (
               <View style={styles.commentsSection} ref={commentsRef}>
                 <View style={styles.commentsSectionHeader}>
@@ -935,98 +1079,6 @@ const PostPage = () => {
             )}
           </View>
         </Animated.ScrollView>
-
-        {/* Sticky Action Bar at Bottom - FIXED */}
-        <View style={styles.stickyActionBar} pointerEvents="box-none" key={`sticky-bar-${forceUpdate}`}>
-          <View style={styles.actionBarContent} pointerEvents="auto">
-            <View style={styles.mainActionButtons}>
-              {/* Like button - UPDATED without text */}
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  isLiked ? styles.likeButtonActive : styles.likeButtonInactive,
-                ]}
-                onPress={toggleLike}
-                activeOpacity={0.8}
-              >
-                <Feather
-                  name="heart"
-                  size={18}
-                  color={isLiked ? "#FFFFFF" : "#1C1917"}
-                />
-                {likeCount > 0 && (
-                  <Text
-                    style={[
-                      styles.counterText,
-                      isLiked ? styles.likeButtonActiveText : styles.likeButtonInactiveText,
-                    ]}
-                  >
-                    {likeCount}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Comment button - UPDATED without text */}
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  showComments ? styles.commentButtonActive : styles.commentButtonInactive,
-                ]}
-                onPress={scrollToComments}
-                activeOpacity={0.8}
-              >
-                <Feather
-                  name="message-square"
-                  size={18}
-                  color={showComments ? "#FFFFFF" : "#1C1917"}
-                />
-                {comments.length > 0 && (
-                  <Text
-                    style={[
-                      styles.counterText,
-                      showComments ? styles.commentButtonActiveText : styles.commentButtonInactiveText,
-                    ]}
-                  >
-                    {comments.length}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Share button - icon only - now opens native share directly */}
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={onShare}
-                activeOpacity={0.8}
-              >
-                <Feather name="share-2" size={18} color="#1C1917" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.fontSizeControls}>
-              <TouchableOpacity
-                style={styles.fontSizeButton}
-                onPress={decreaseFontSize}
-                activeOpacity={0.8}
-              >
-                <Feather name="minus" size={16} color="#1C1917" />
-              </TouchableOpacity>
-
-              <View style={styles.fontSizeDisplay}>
-                <Text style={styles.fontSizeText}>{fontSize}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.fontSizeButton}
-                onPress={increaseFontSize}
-                activeOpacity={0.8}
-              >
-                <Feather name="plus" size={16} color="#1C1917" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Custom share modal removed */}
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
@@ -1169,58 +1221,56 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   
-  // Fixed Sticky Action Bar Styles
+  // Sticky Action Bar Styles - UPDATED
   stickyActionBar: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 90 : 70,
-    left: 10,
-    right: 10,
+    top: Platform.OS === 'ios' ? (StatusBar.currentHeight || 44) + 60 : 60, // Position below header
+    left: 0,
+    right: 0,
     backgroundColor: 'rgba(28, 25, 23, 0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.3)',
-    paddingTop: 12,
-    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingVertical: 6, // Reduced padding
+    paddingHorizontal: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
-    zIndex: 1000,
-    borderRadius: 20,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 5,
+    zIndex: 9, // Below the header (which has zIndex 10)
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 215, 0, 0.2)',
   },
+  
+  // Action Bar Content - UPDATED
   actionBarContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingHorizontal: 16,
   },
   mainActionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   
-  // UPDATED: Action button styles to be more compact with just icons
+  // Action button styles - UPDATED
   actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32, // Reduced from 44
+    height: 32, // Reduced from 44
+    borderRadius: 16, // Reduced from 22
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    marginLeft: 8, // Changed from marginRight
     backgroundColor: "#FFD700",
   },
   
-  // Count displays next to icon
+  // Count displays next to icon - UPDATED
   counterText: {
-    fontSize: 14,
+    fontSize: 11, // Reduced from 14
     fontWeight: "700",
-    marginLeft: 5,
+    marginLeft: 3, // Reduced from 5
   },
   
   // Like button specific styles
@@ -1259,31 +1309,34 @@ const styles = StyleSheet.create({
     color: "#1C1917",
   },
   
+  // Font size controls - UPDATED
   fontSizeControls: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderRadius: 20,
-    padding: 4,
+    borderRadius: 16,
+    padding: 2, // Reduced from 4
+    marginLeft: 8,
     borderColor: "rgba(255, 215, 0, 0.3)",
     borderWidth: 1,
   },
   fontSizeButton: {
     backgroundColor: "rgba(255, 215, 0, 0.9)",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24, // Reduced from 32
+    height: 24, // Reduced from 32
+    borderRadius: 12, // Reduced from 16
     alignItems: "center",
     justifyContent: "center",
   },
   fontSizeDisplay: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 6, // Reduced from 12
   },
   fontSizeText: {
     color: "#FFD700",
     fontWeight: "bold",
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14
   },
+  
   backButtonAbsolute: {
     position: "absolute",
     top: 16,
@@ -1345,7 +1398,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  // Share modal styles removed
   
   // Comments section styles
   commentsSection: {

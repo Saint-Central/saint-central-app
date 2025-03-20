@@ -452,13 +452,13 @@ const PostPage = () => {
       if (!post) return;
       
       // Create a deep link URL for the app
-      const appDeepLink = `yourapp://culture/post/${post.id}`;
-      const webFallbackUrl = `https://yourapp.com/culture/post/${post.id}`;
+      const appDeepLink = `saintcentral://culture/posts/${post.id}?title=${encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, '-'))}`;
+const webFallbackUrl = `https://www.saint-central.com/culture/posts/${post.id}?title=${encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, '-'))}`;
       
       const excerpt = post.excerpt.replace(/<[^>]*>?/gm, "");
       
       await Share.share({
-        message: `${post.title}\n\n${excerpt.substring(0, 100)}...\n\nRead more: ${appDeepLink}`,
+        message: `${post.title}`,
         url: webFallbackUrl, // iOS only
         title: post.title, // Android only
       });
