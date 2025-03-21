@@ -814,6 +814,26 @@ export default function RosaryScreen() {
     });
   };
   
+  // Navigate to introduction screen
+  const openIntroductionScreen = () => {
+    // Stop current audio before navigating
+    audioManager.stopAudio();
+    setIsPlaying(false);
+    
+    // Navigate to prayer screen with introduction params
+    router.push({
+      pathname: "/RosaryPrayer",
+      params: {
+        mysteryType: "INTRODUCTION",
+        mysteryKey: currentMysteryKey,
+        mysteryIndex: 0,
+        mysteryTitle: "Introduction",
+        mysteryDescription: `Introduction to the ${currentMysteryType}`,
+        guideName: selectedGuide.name
+      }
+    });
+  };
+  
   // Get today's day name
   const getDayName = () => {
     return new Date().toLocaleString('default', { weekday: 'long' });
@@ -1097,7 +1117,9 @@ export default function RosaryScreen() {
                   styles.mysteryCard,
                   { borderColor: theme.primary, borderWidth: 2 }
                 ]}
+                onPress={openIntroductionScreen}
                 activeOpacity={0.9}
+                disabled={isTransitioning}
               >
                 <View style={[
                   styles.mysteryCardHeader,

@@ -41,24 +41,28 @@ const AUDIO_DURATIONS = [
 // Guide Audio Mapping
 const GUIDE_AUDIO_FILES = {
   "Francis": {
+    INTRODUCTION: require('../../assets/audio/rosary1.mp3'),
     JOYFUL: require('../../assets/audio/rosary1.mp3'),
     SORROWFUL: require('../../assets/audio/rosary1.mp3'),
     GLORIOUS: require('../../assets/audio/rosary1.mp3'),
     LUMINOUS: require('../../assets/audio/rosary1.mp3'),
   },
   "Claire": {
+    INTRODUCTION: require('../../assets/audio/rosary2.mp3'),
     JOYFUL: require('../../assets/audio/rosary2.mp3'),
     SORROWFUL: require('../../assets/audio/rosary2.mp3'),
     GLORIOUS: require('../../assets/audio/rosary2.mp3'),
     LUMINOUS: require('../../assets/audio/rosary2.mp3'),
   },
   "Thomas": {
+    INTRODUCTION: require('../../assets/audio/rosary1.mp3'),
     JOYFUL: require('../../assets/audio/rosary1.mp3'),
     SORROWFUL: require('../../assets/audio/rosary1.mp3'),
     GLORIOUS: require('../../assets/audio/rosary1.mp3'),
     LUMINOUS: require('../../assets/audio/rosary1.mp3'),
   },
   "Maria": {
+    INTRODUCTION: require('../../assets/audio/rosary1.mp3'),
     JOYFUL: require('../../assets/audio/rosary1.mp3'),
     SORROWFUL: require('../../assets/audio/rosary1.mp3'),
     GLORIOUS: require('../../assets/audio/rosary1.mp3'),
@@ -466,6 +470,15 @@ const audioManager = new AudioManager();
 // Get mystery theme color
 const getMysteryTheme = (mysteryKey: string) => {
   switch (mysteryKey) {
+    case "INTRODUCTION":
+      return {
+        primary: "#4A90E2",
+        secondary: "#2E78CD",
+        accent: "#E8F4FF",
+        gradientStart: "#4A90E2",
+        gradientEnd: "#2E78CD",
+        icon: "info-circle",
+      };
     case "JOYFUL":
       return {
         primary: "#0ACF83",
@@ -577,20 +590,38 @@ export default function RosaryPrayerScreen() {
   }, []);
   
   // Define prayers for the rosary (shortened versions for card display)
-  const prayers = [
-    { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
-    { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
-    { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-    { id: 3, title: "Hail Mary (3x)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 4, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-    { id: 5, title: `First Mystery: ${mysteryTitle || "The Mystery"}`, text: mysteryDescription || "Meditate on this mystery..." },
-    { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-    { id: 7, title: "Hail Mary (10x)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 8, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-    { id: 9, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
-    { id: 10, title: "Closing Prayers", text: "Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope..." },
-    { id: 11, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
-  ];
+  const prayers = mysteryType === "INTRODUCTION" 
+    ? [
+        { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
+        { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
+        { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
+        { id: 3, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 4, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 5, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 6, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
+        { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
+      ]
+    : [
+        { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
+        { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
+        { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
+        { id: 3, title: "Hail Mary (3x)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 4, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
+        { id: 5, title: `First Mystery: ${mysteryTitle || "The Mystery"}`, text: mysteryDescription || "Meditate on this mystery..." },
+        { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
+        { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 9, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 10, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 11, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 12, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 13, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 14, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 15, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 16, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
+        { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
+      ];
   
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
@@ -776,20 +807,38 @@ export default function RosaryPrayerScreen() {
   };
   
   // Prayer key phrase based timestamps mapping
-  const prayerKeyPhrases = [
-    { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
-    { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
-    { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
-    { phrase: "Hail Mary, full of grace", timestamp: 80000 },         // Hail Mary (3x)
-    { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
-    { phrase: `${mysteryTitle || "The Mystery"}`, timestamp: 170000 },// First Mystery
-    { phrase: "Our Father, who art in heaven", timestamp: 210000 },   // Our Father (after mystery)
-    { phrase: "Hail Mary, full of grace", timestamp: 240000 },        // Hail Mary (10x)
-    { phrase: "Glory be to the Father", timestamp: 430000 },          // Glory Be
-    { phrase: "O my Jesus, forgive us our sins", timestamp: 460000 }, // Fatima Prayer
-    { phrase: "Hail, Holy Queen", timestamp: 480000 },                // Closing Prayers
-    { phrase: "In the name of the Father", timestamp: 560000 }        // Sign of the Cross
-  ];
+  const prayerKeyPhrases = mysteryType === "INTRODUCTION"
+    ? [
+        { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
+        { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
+        { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
+        { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
+        { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
+        { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
+        { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
+        { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
+      ]
+    : [
+        { phrase: "In the name of the Father", timestamp: 0 },                // Sign of the Cross
+        { phrase: "I believe in God", timestamp: 12000 },                     // Apostles' Creed
+        { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
+        { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
+        { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
+        { phrase: `${mysteryTitle || "First Mystery:"}`, timestamp: 170000 }, // Announce Mystery
+        { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
+        { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
+        { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
+        { phrase: "Hail Mary (3)", timestamp: 270000 },                       // Hail Mary 3
+        { phrase: "Hail Mary (4)", timestamp: 285000 },                       // Hail Mary 4
+        { phrase: "Hail Mary (5)", timestamp: 300000 },                       // Hail Mary 5
+        { phrase: "Hail Mary (6)", timestamp: 315000 },                       // Hail Mary 6
+        { phrase: "Hail Mary (7)", timestamp: 330000 },                       // Hail Mary 7
+        { phrase: "Hail Mary (8)", timestamp: 345000 },                       // Hail Mary 8
+        { phrase: "Hail Mary (9)", timestamp: 360000 },                       // Hail Mary 9
+        { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
+        { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
+        { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
+      ];
   
   // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
   const skipToCurrentPrayer = async (index: number) => {
@@ -966,9 +1015,13 @@ export default function RosaryPrayerScreen() {
                   key={index}
                   style={[
                     styles.bead,
-                    currentPrayerStep >= 7 && index < currentPrayerStep - 6 
-                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                      : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' }
+                    mysteryType === "INTRODUCTION" 
+                      ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
+                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
+                      : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
+                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
                   ]}
                 />
               ))}
@@ -1372,30 +1425,32 @@ export default function RosaryPrayerScreen() {
             <ScrollView style={styles.fullPrayerScrollView}>
               <View style={styles.fullPrayerContent}>
                 <Text style={styles.fullPrayerText}>
-                  {/* Replace short text with full prayer text */}
-                  {currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."}
-                  
-                  {currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."}
-                  
-                  {currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."}
-                  
-                  {currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 3 times)"}
-                  
-                  {currentPrayerStep === 4 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."}
-                  
-                  {currentPrayerStep === 5 && `${mysteryTitle || "The Mystery"}\n\n${mysteryDescription || "Meditate on this mystery..."}`}
-                  
-                  {currentPrayerStep === 6 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."}
-                  
-                  {currentPrayerStep === 7 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 10 times)"}
-                  
-                  {currentPrayerStep === 8 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."}
-                  
-                  {currentPrayerStep === 9 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."}
-                  
-                  {currentPrayerStep === 10 && "Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope! To thee do we cry, poor banished children of Eve. To thee do we send up our sighs, mourning and weeping in this valley of tears. Turn, then, most gracious Advocate, thine eyes of mercy toward us, and after this, our exile, show unto us the blessed fruit of thy womb, Jesus. O clement, O loving, O sweet Virgin Mary.\n\nPray for us, O holy Mother of God.\nThat we may be made worthy of the promises of Christ.\n\nLet us pray: O God, whose only-begotten Son, by His life, death and resurrection, has purchased for us the rewards of eternal salvation; grant, we beseech Thee, that meditating upon these mysteries of the most holy Rosary of the Blessed Virgin Mary, we may imitate what they contain and obtain what they promise, through the same Christ our Lord. Amen."}
-                  
-                  {currentPrayerStep === 11 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."}
+                  {mysteryType === "INTRODUCTION" 
+                    ? (
+                      // Introduction prayers
+                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
+                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
+                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 4 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 5 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 6 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                      || currentPrayerStep === 7 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
+                    )
+                    : (
+                      // Regular mystery prayers with individual Hail Marys
+                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
+                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
+                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 3 times)"
+                      || currentPrayerStep === 4 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                      || currentPrayerStep === 5 && `${mysteryTitle || "The Mystery"}\n\n${mysteryDescription || "Meditate on this mystery..."}`
+                      || currentPrayerStep === 6 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                      || (currentPrayerStep >= 7 && currentPrayerStep <= 16) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 17 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                      || currentPrayerStep === 18 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
+                    )
+                  }
                 </Text>
               </View>
             </ScrollView>
