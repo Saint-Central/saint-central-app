@@ -1085,6 +1085,53 @@ export default function RosaryScreen() {
               <Text style={styles.sectionTitle}>Today's Mysteries</Text>
             </View>
             
+            {/* Introduction card */}
+            <Animated.View 
+              style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }}
+            >
+              <TouchableOpacity 
+                style={[
+                  styles.mysteryCard,
+                  { borderColor: theme.primary, borderWidth: 2 }
+                ]}
+                activeOpacity={0.9}
+              >
+                <View style={[
+                  styles.mysteryCardHeader,
+                  { backgroundColor: theme.primary }
+                ]}>
+                  <Text style={[
+                    styles.mysteryNumber,
+                    { color: '#FFFFFF' }
+                  ]}>
+                    Intro
+                  </Text>
+                </View>
+                
+                <View style={styles.mysteryCardBody}>
+                  <Text style={styles.mysteryCardTitle}>Introduction</Text>
+                  <Text style={styles.mysteryCardDescription} numberOfLines={2}>
+                    Introduction to the {currentMysteryType}
+                  </Text>
+                </View>
+                
+                <View style={[
+                  styles.mysteryCardAction,
+                  { backgroundColor: theme.accent }
+                ]}>
+                  <Text style={[
+                    styles.mysteryCardActionText,
+                    { color: theme.primary }
+                  ]}>
+                    START HERE
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+            
             {MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES].map((mystery, index) => (
               <Animated.View 
                 key={mystery.id}
@@ -1144,6 +1191,53 @@ export default function RosaryScreen() {
                 </TouchableOpacity>
               </Animated.View>
             ))}
+            
+            {/* Conclusion card */}
+            <Animated.View 
+              style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }}
+            >
+              <TouchableOpacity 
+                style={[
+                  styles.mysteryCard,
+                  { borderColor: theme.primary, borderWidth: 2 }
+                ]}
+                activeOpacity={0.9}
+              >
+                <View style={[
+                  styles.mysteryCardHeader,
+                  { backgroundColor: theme.primary }
+                ]}>
+                  <Text style={[
+                    styles.mysteryNumber,
+                    { color: '#FFFFFF' }
+                  ]}>
+                    End
+                  </Text>
+                </View>
+                
+                <View style={styles.mysteryCardBody}>
+                  <Text style={styles.mysteryCardTitle}>Conclusion</Text>
+                  <Text style={styles.mysteryCardDescription} numberOfLines={2}>
+                    Concluding prayers for the {currentMysteryType}
+                  </Text>
+                </View>
+                
+                <View style={[
+                  styles.mysteryCardAction,
+                  { backgroundColor: theme.accent }
+                ]}>
+                  <Text style={[
+                    styles.mysteryCardActionText,
+                    { color: theme.primary }
+                  ]}>
+                    FINISH HERE
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
           
           {/* Intention Button */}
