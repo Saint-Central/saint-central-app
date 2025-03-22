@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  Text,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -20,20 +19,39 @@ import Animated, {
 import { BlurView } from "expo-blur";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
-// Animated tab icon with smooth transitions
-const AnimatedTabIcon = ({
-  name,
-  focused,
-  index,
-  activeIndex,
-}: {
+interface Route {
+  key: string;
+  name: string;
+}
+
+interface TabState {
+  index: number;
+  routes: Route[];
+}
+
+interface TabBarProps {
+  state: TabState;
+  descriptors: Record<string, any>;
+  navigation: any;
+}
+
+interface AnimatedTabIconProps {
   name: string;
   focused: boolean;
   index: number;
   activeIndex: number;
+}
+
+// Animated tab icon with smooth transitions
+const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
+  name,
+  focused,
+  index,
+  activeIndex,
 }) => {
   // Animation values with improved configurations
   const scale = useSharedValue(1);
@@ -184,7 +202,34 @@ const AnimatedTabIcon = ({
 };
 
 // Custom tab bar with seamless design and improved visual aesthetics
-const CustomTabBar = ({ state, descriptors, navigation }: any) => {
+const CustomTabBar: React.FC<TabBarProps> = ({
+  state,
+  descriptors,
+  navigation,
+}) => {
+  const router = useRouter();
+
+  // Only show these tabs in the tab bar
+  const visibleTabs = ["home", "discover", "community", "me"];
+
+  // Track if Home tab should appear selected (even when we're on the social screen)
+  const socialRouteExists = state.routes.some(
+    (route: Route) => route.name === "social/screens/FeedScreen"
+  );
+  const socialRouteIndex = state.routes.findIndex(
+    (route: Route) => route.name === "social/screens/FeedScreen"
+  );
+
+  // Check if the current route path includes the FeedScreen
+  const currentRoute = descriptors[state.routes[state.index].key]?.route;
+  const isSocialScreen = currentRoute?.path?.includes(
+    "/social/screens/FeedScreen"
+  );
+
+  // Update this to consider both conditions
+  const isSocialActive =
+    (socialRouteExists && state.index === socialRouteIndex) || isSocialScreen;
+
   return (
     <View style={styles.tabBarContainer}>
       <View style={styles.tabBarShadow}>
@@ -217,28 +262,31 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
 
           {/* Tab buttons with improved spacing */}
           <View style={styles.tabButtonsRow}>
-            {state.routes.map((route: any, index: number) => {
-              // Skip hidden tabs
-              if (
-                route.name === "bible" ||
-                route.name === "events" ||
-                route.name === "Rosary" ||
-                route.name === "RosaryPrayer" ||
-                route.name === "Lent2025" ||
-                route.name.includes("faith/") ||
-                route.name.includes("womens-ministry/") ||
-                route.name.includes("culture-and-testimonies/") ||
-                route.name.includes("news/") ||
-                route.name === "donate" ||
-                route.name === "groups"
-              ) {
+            {state.routes.map((route: Route, index: number) => {
+              if (!visibleTabs.includes(route.name)) {
                 return null;
               }
 
-              const isFocused = state.index === index;
+              const { options } = descriptors[route.key];
+              // Check if this tab is focused OR if it's home and social is active
+              const isFocused =
+                state.index === index ||
+                (route.name === "home" && isSocialActive);
 
               const onPress = () => {
-                navigation.navigate(route.name);
+                const event = navigation.emit({
+                  type: "tabPress",
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+
+                if (!event.defaultPrevented) {
+                  if (route.name === "home") {
+                    router.push("/social/screens/FeedScreen");
+                  } else {
+                    navigation.navigate(route.name);
+                  }
+                }
               };
 
               return (
@@ -272,6 +320,7 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
+      {/* Main visible tabs */}
       <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
       <Tabs.Screen name="community" options={{ title: "Community" }} />
@@ -303,6 +352,7 @@ export default function TabLayout() {
       <Tabs.Screen name="news/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="donate" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="groups" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="social" options={{ tabBarButton: () => null }} />
     </Tabs>
   );
 }
@@ -317,7 +367,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tabBarShadow: {
-    // Shadow only on top for a solid bottom bar
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.2,
@@ -327,7 +376,7 @@ const styles = StyleSheet.create({
   },
   tabBarWrapper: {
     width: "100%",
-    height: Platform.OS === "ios" ? 85 : 65, // Adjust height for iOS safe area
+    height: Platform.OS === "ios" ? 85 : 65,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
     borderBottomLeftRadius: 0,
@@ -369,7 +418,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
     paddingHorizontal: 12,
-    paddingBottom: Platform.OS === "ios" ? 20 : 0, // Add padding for iOS safe area
+    paddingBottom: Platform.OS === "ios" ? 20 : 0,
   },
   tabButton: {
     flex: 1,
