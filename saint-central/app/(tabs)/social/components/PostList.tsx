@@ -3,18 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Animated,
   RefreshControl,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Post } from "../types";
 import PostCard from "./PostCard";
-import { supabase } from "../../../../supabaseClient";
 
 interface PostListProps {
   posts: Post[];
@@ -23,7 +20,6 @@ interface PostListProps {
   onEdit?: (post: Post) => void;
   isLoading: boolean;
   scrollY?: Animated.Value;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
 const PostList: React.FC<PostListProps> = ({
@@ -33,9 +29,9 @@ const PostList: React.FC<PostListProps> = ({
   onEdit,
   isLoading,
   scrollY = new Animated.Value(0),
-  onScroll,
 }) => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const insets = useSafeAreaInsets();
 
   // Animation references for like button
   const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
@@ -57,7 +53,7 @@ const PostList: React.FC<PostListProps> = ({
 
   // Dummy function to pass to PostCard for onComment
   const handleCommentAction = (postId: string) => {
-    // This is now handled by navigation in the PostCard component
+    // Handled by navigation in the PostCard component
   };
 
   const onRefresh = React.useCallback(() => {
@@ -71,16 +67,13 @@ const PostList: React.FC<PostListProps> = ({
   // Set up the animated scroll event
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    {
-      useNativeDriver: false,
-      listener: onScroll, // Pass through the optional scroll listener
-    }
+    { useNativeDriver: false }
   );
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1DA1F2" />
+        <ActivityIndicator size="large" color="#3182CE" />
       </View>
     );
   }
@@ -88,8 +81,13 @@ const PostList: React.FC<PostListProps> = ({
   if (posts.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Feather name="file-text" size={36} color="#657786" />
-        <Text style={styles.emptyStateText}>No posts yet</Text>
+        <View style={styles.emptyStateIcon}>
+          <Feather name="inbox" size={36} color="#A0AEC0" />
+        </View>
+        <Text style={styles.emptyStateTitle}>No Posts Yet</Text>
+        <Text style={styles.emptyStateMessage}>
+          Be the first to share something with your community
+        </Text>
         <TouchableOpacity style={styles.emptyStateButton}>
           <Text style={styles.emptyStateButtonText}>Create New Post</Text>
         </TouchableOpacity>
@@ -112,16 +110,19 @@ const PostList: React.FC<PostListProps> = ({
         />
       )}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.listContainer}
+      contentContainerStyle={[
+        styles.listContainer,
+        { paddingBottom: 80 + (insets.bottom || 0) },
+      ]}
       showsVerticalScrollIndicator={false}
       onScroll={handleScroll}
-      scrollEventThrottle={16} // Ensure smooth animation by throttling correctly
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#1DA1F2"
-          colors={["#1DA1F2"]}
+          tintColor="#3182CE"
+          colors={["#3182CE"]}
         />
       }
     />
@@ -130,40 +131,52 @@ const PostList: React.FC<PostListProps> = ({
 
 const styles = StyleSheet.create({
   listContainer: {
-    paddingBottom: 100,
-    backgroundColor: "#FFFFFF",
+    paddingTop: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    backgroundColor: "#FFFFFF",
   },
   emptyState: {
-    alignItems: "center",
+    flex: 1,
     justifyContent: "center",
-    padding: 40,
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
-    marginTop: 20,
-    marginHorizontal: 16,
+    padding: 20,
   },
-  emptyStateText: {
-    color: "#657786",
+  emptyStateIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F7FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 8,
+  },
+  emptyStateMessage: {
     fontSize: 16,
+    color: "#718096",
     textAlign: "center",
-    marginTop: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   emptyStateButton: {
-    backgroundColor: "#1DA1F2",
-    borderRadius: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor: "#3182CE",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
   },
   emptyStateButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: 16,
   },
 });
 

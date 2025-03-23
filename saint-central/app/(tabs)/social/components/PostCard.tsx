@@ -103,18 +103,21 @@ const PostCard: React.FC<PostCardProps> = ({
     }
   }, [post.is_liked, likeScaleAnim, likeOpacityAnim]);
 
-  const postTypeIcon = () => {
+  const getPostTypeIcon = () => {
     switch (post.type) {
       case "prayer":
-        return <FontAwesome name="hand-peace-o" size={14} color="#1DA1F2" />;
+        return <FontAwesome name="hand-peace-o" size={14} color="#4299E1" />;
       case "resolution":
-        return <Feather name="book-open" size={14} color="#1DA1F2" />;
+        return <Feather name="book-open" size={14} color="#4299E1" />;
       case "goal":
-        return <Feather name="target" size={14} color="#1DA1F2" />;
+        return <Feather name="target" size={14} color="#4299E1" />;
+      default:
+        return <Feather name="message-circle" size={14} color="#4299E1" />;
     }
   };
 
   const formattedDate = formatDateTime(post.created_at).split("•")[0].trim();
+  const formattedTime = formatDateTime(post.created_at).split("•")[1].trim();
 
   const handleCommentPress = () => {
     // Navigate to comments screen using Expo Router with params as path segments
@@ -148,220 +151,223 @@ const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={1}
-      style={styles.postCard}
-      onPress={handleDoubleTap}
-    >
-      {/* Header with user info */}
+    <View style={styles.container}>
       <View style={styles.postHeader}>
         <Avatar size="md" />
-        <View style={styles.postHeaderText}>
-          <View style={styles.nameContainer}>
-            <Text style={styles.postAuthor}>
+
+        <View style={styles.headerContent}>
+          <View style={styles.nameRow}>
+            <Text style={styles.authorName}>
               {post.user.first_name} {post.user.last_name}
-              {post.user_id === currentUserId && (
-                <Text style={styles.authorTag}> • You</Text>
-              )}
             </Text>
+            {post.user_id === currentUserId && (
+              <View style={styles.authorPill}>
+                <Text style={styles.authorPillText}>You</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.metaRow}>
             <Text style={styles.username}>
               @{post.user.first_name.toLowerCase()}
             </Text>
-            <Text style={styles.dateSeparator}>·</Text>
-            <Text style={styles.postTime}>{formattedDate}</Text>
+            <Text style={styles.metaDot}>•</Text>
+            <Text style={styles.timestamp}>{formattedDate}</Text>
+            <Text style={styles.metaDot}>•</Text>
+            <Text style={styles.timestamp}>{formattedTime}</Text>
           </View>
-
-          {post.group_info && (
-            <View style={styles.groupTag}>
-              <Feather name="users" size={12} color="#1DA1F2" />
-              <Text style={styles.groupTagText}>{post.group_info.name}</Text>
-            </View>
-          )}
         </View>
 
-        <View style={styles.postTypeTag}>
-          {postTypeIcon()}
+        <View style={styles.postTypeContainer}>
+          {getPostTypeIcon()}
           <Text style={styles.postTypeText}>
             {post.type.charAt(0).toUpperCase() + post.type.slice(1)}
           </Text>
         </View>
       </View>
 
-      {/* Post content */}
       <View style={styles.postContent}>
         <Text style={styles.postTitle}>{post.title}</Text>
-        <Text style={styles.postDescription}>{post.description}</Text>
+        <Text style={styles.postBody}>{post.description}</Text>
       </View>
 
-      {/* Actions (like, comment, edit) */}
-      <View style={styles.postActions}>
+      {post.group_info && (
+        <View style={styles.groupContainer}>
+          <Feather name="users" size={14} color="#4299E1" />
+          <Text style={styles.groupName}>{post.group_info.name}</Text>
+        </View>
+      )}
+
+      <View style={styles.actionBar}>
         <TouchableOpacity
-          style={styles.postAction}
+          style={styles.actionButton}
           onPress={handleCommentPress}
           activeOpacity={0.7}
         >
-          <Feather name="message-circle" size={18} color="#6E767D" />
-          <Text style={styles.actionText}>
-            {post.comments_count ? post.comments_count : ""}
-          </Text>
+          <Feather name="message-square" size={18} color="#718096" />
+          {(post.comments_count ?? 0) > 0 && (
+            <Text style={styles.actionCount}>{post.comments_count}</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.postAction, post.is_liked && styles.postActionActive]}
+          style={[styles.actionButton, post.is_liked && styles.likedButton]}
           onPress={handleLikePress}
           activeOpacity={0.7}
         >
           <View style={styles.likeButtonContainer}>
             <Animated.View
-              style={[
-                styles.likeRipple,
-                {
-                  opacity: likeOpacityAnim,
-                  transform: [{ scale: Animated.multiply(likeScaleAnim, 2) }],
-                },
-              ]}
+              style={[styles.likeRipple, { opacity: likeOpacityAnim }]}
             />
             <Animated.View style={{ transform: [{ scale: likeScaleAnim }] }}>
-              <FontAwesome
-                name={post.is_liked ? "heart" : "heart-o"}
+              <Feather
+                name={post.is_liked ? "heart" : "heart"}
                 size={18}
-                color={post.is_liked ? "#E0245E" : "#6E767D"}
+                color={post.is_liked ? "#E53E3E" : "#718096"}
+                solid={post.is_liked}
               />
             </Animated.View>
           </View>
-          <Text
-            style={[
-              styles.actionText,
-              post.is_liked && styles.actionTextActive,
-            ]}
-          >
-            {post.likes_count ? post.likes_count : ""}
-          </Text>
+
+          {(post.likes_count ?? 0) > 0 && (
+            <Text
+              style={[styles.actionCount, post.is_liked && styles.likedCount]}
+            >
+              {post.likes_count}
+            </Text>
+          )}
         </TouchableOpacity>
 
-        {post.user_id === currentUserId && onEdit && (
+        {post.user_id === currentUserId && (
           <TouchableOpacity
-            style={styles.postAction}
+            style={styles.actionButton}
             onPress={() => onEdit && onEdit(post)}
             activeOpacity={0.7}
           >
-            <Feather name="edit-2" size={18} color="#6E767D" />
+            <Feather name="edit-2" size={18} color="#718096" />
           </TouchableOpacity>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  postCard: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+  container: {
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.04)",
+    borderBottomColor: "#EDF2F7",
+    backgroundColor: "#FFFFFF",
   },
   postHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 14,
   },
-  postHeaderText: {
+  headerContent: {
     flex: 1,
     marginLeft: 12,
   },
-  nameContainer: {
+  nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
   },
-  postAuthor: {
-    color: "#1A202C",
+  authorName: {
     fontSize: 15,
     fontWeight: "700",
-    marginRight: 4,
-    letterSpacing: -0.3,
+    color: "#2D3748",
+    marginRight: 6,
+  },
+  authorPill: {
+    backgroundColor: "#EBF8FF",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  authorPillText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#3182CE",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
   },
   username: {
+    fontSize: 13,
     color: "#718096",
-    fontSize: 14,
     marginRight: 4,
   },
-  dateSeparator: {
+  metaDot: {
+    fontSize: 13,
     color: "#A0AEC0",
     marginHorizontal: 4,
   },
-  authorTag: {
-    color: "#1DA1F2",
-    fontWeight: "600",
-  },
-  postTime: {
+  timestamp: {
+    fontSize: 13,
     color: "#718096",
-    fontSize: 14,
   },
-  groupTag: {
+  postTypeContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(29, 161, 242, 0.08)",
-    paddingVertical: 4,
+    backgroundColor: "#EBF8FF",
     paddingHorizontal: 8,
-    borderRadius: 16,
-    marginTop: 6,
-    alignSelf: "flex-start",
-  },
-  groupTagText: {
-    color: "#1DA1F2",
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: "600",
-  },
-  postTypeTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(29, 161, 242, 0.08)",
     paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    borderRadius: 12,
     marginLeft: 8,
   },
   postTypeText: {
-    color: "#1DA1F2",
     fontSize: 12,
-    marginLeft: 4,
     fontWeight: "600",
+    color: "#3182CE",
+    marginLeft: 4,
   },
   postContent: {
-    paddingVertical: 8,
+    marginTop: 12,
+    marginBottom: 14,
   },
   postTitle: {
-    color: "#1A202C",
     fontSize: 17,
     fontWeight: "700",
-    marginBottom: 8,
-    letterSpacing: -0.3,
-    lineHeight: 22,
-  },
-  postDescription: {
-    color: "#2D3748",
-    fontSize: 15,
-    lineHeight: 22,
+    color: "#1A202C",
+    marginBottom: 6,
     letterSpacing: -0.2,
   },
-  postActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.04)",
+  postBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#4A5568",
   },
-  postAction: {
+  groupContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    backgroundColor: "#EBF8FF",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    marginBottom: 14,
   },
-  postActionActive: {
+  groupName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3182CE",
+    marginLeft: 6,
+  },
+  actionBar: {
+    flexDirection: "row",
+    marginTop: 6,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#EDF2F7",
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 24,
+    padding: 6,
+  },
+  likedButton: {
     opacity: 1,
   },
   likeButtonContainer: {
@@ -376,16 +382,16 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "rgba(224, 36, 94, 0.2)",
+    backgroundColor: "rgba(229, 62, 62, 0.2)",
   },
-  actionText: {
-    color: "#718096",
+  actionCount: {
     fontSize: 14,
-    marginLeft: 6,
     fontWeight: "500",
+    color: "#718096",
+    marginLeft: 6,
   },
-  actionTextActive: {
-    color: "#E0245E",
+  likedCount: {
+    color: "#E53E3E",
   },
 });
 

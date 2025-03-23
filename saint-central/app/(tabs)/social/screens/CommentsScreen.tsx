@@ -172,7 +172,7 @@ const CommentsScreen = () => {
   };
 
   const renderPostHeader = () => {
-    const formattedDate = formatDateTime(post.created_at).split("•")[0].trim();
+    const formattedDate = formatDateTime(post.created_at);
     return (
       <View style={styles.postContainer}>
         <View style={styles.postHeader}>
@@ -222,7 +222,7 @@ const CommentsScreen = () => {
             @{item.user.first_name.toLowerCase()}
           </Text>
           <Text style={styles.commentTime}>
-            {formatDateTime(item.created_at).split("•")[0]}
+            {formatDateTime(item.created_at)}
           </Text>
         </View>
         <Text style={styles.commentText}>{item.content}</Text>

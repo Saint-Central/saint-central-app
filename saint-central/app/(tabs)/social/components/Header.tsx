@@ -5,269 +5,175 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
-  Image,
-  ImageSourcePropType,
   Animated,
   Platform,
+  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
-
-interface CategoryItem {
-  name: string;
-  route: string;
-  image: ImageSourcePropType;
-}
 
 interface HeaderProps {
   title: string;
-  currentRoute?: string;
   scrollY?: Animated.Value;
 }
 
 const Header: React.FC<HeaderProps> = ({
   title,
-  currentRoute,
   scrollY = new Animated.Value(0),
 }) => {
   const router = useRouter();
 
-  // Replace these image sources with your actual image assets
-  const categories: CategoryItem[] = [
-    {
-      name: "Lent 2025",
-      route: "/Lent2025",
-      image: require("../../../../assets/images/mountainChurch.webp"),
-    },
-    {
-      name: "Rosary",
-      route: "/Rosary",
-      image: require("../../../../assets/images/hands.webp"),
-    },
-    {
-      name: "Events",
-      route: "/events",
-      image: require("../../../../assets/images/seasideChurch.webp"),
-    },
-    {
-      name: "Bible",
-      route: "/bible",
-      image: require("../../../../assets/images/boatWithCross.webp"),
-    },
-    {
-      name: "Donations",
-      route: "/donate",
-      image: require("../../../../assets/images/desertChurch.webp"),
-    },
-  ];
-
-  const navigateToPage = (route: string) => {
-    router.push(route as any); // Type assertion since we know these routes are valid
-  };
-
   // Animation values for header collapse/expand
   const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [200, 140], // Adjusted to leave room for smaller buttons
+    inputRange: [0, 120],
+    outputRange: [140, 80],
     extrapolate: "clamp",
   });
 
   const headerTitleSize = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [24, 20],
+    inputRange: [0, 120],
+    outputRange: [28, 20],
     extrapolate: "clamp",
   });
 
-  // Scale down category buttons instead of fading them out
-  const categoryButtonHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [100, 60],
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 60, 120],
+    outputRange: [1, 0.8, 1],
     extrapolate: "clamp",
   });
 
-  const categoryButtonWidth = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [150, 90],
+  // Modified to make tabs completely disappear on scroll
+  const tabContainerHeight = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [50, 0],
     extrapolate: "clamp",
   });
 
-  const categoryFontSize = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [14, 12],
+  // Complete fade out of tabs
+  const tabContainerOpacity = scrollY.interpolate({
+    inputRange: [0, 60],
+    outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
   return (
-    <Animated.View style={[styles.container, { height: headerHeight }]}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.headerTopRow}>
-        <Animated.Text
-          style={[styles.headerTitle, { fontSize: headerTitleSize }]}
-        >
-          {title}
-        </Animated.Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Feather name="search" size={20} color="#1DA1F2" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Feather name="bell" size={20} color="#1DA1F2" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesContainer}
+    <SafeAreaView style={styles.safeArea}>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            height: headerHeight,
+            opacity: headerOpacity,
+          },
+        ]}
       >
-        {categories.map((category) => (
-          <Animated.View
-            key={category.name}
-            style={{
-              width: categoryButtonWidth,
-              height: categoryButtonHeight,
-              marginRight: 12,
-            }}
+        <StatusBar barStyle="dark-content" />
+
+        <View style={styles.headerMain}>
+          <Animated.Text
+            style={[styles.headerTitle, { fontSize: headerTitleSize }]}
           >
-            <TouchableOpacity
-              style={[
-                styles.categoryButton,
-                currentRoute === category.route && styles.activeCategoryButton,
-                { width: "100%", height: "100%" },
-              ]}
-              onPress={() => navigateToPage(category.route)}
-            >
-              <Image
-                source={category.image}
-                style={styles.categoryImage}
-                resizeMode="cover"
-              />
-              {Platform.OS === "ios" ? (
-                <BlurView intensity={60} style={styles.textOverlay} tint="dark">
-                  <Animated.Text
-                    style={[
-                      styles.categoryButtonText,
-                      currentRoute === category.route &&
-                        styles.activeCategoryButtonText,
-                      { fontSize: categoryFontSize },
-                    ]}
-                  >
-                    {category.name}
-                  </Animated.Text>
-                </BlurView>
-              ) : (
-                <View style={styles.textOverlay}>
-                  <Animated.Text
-                    style={[
-                      styles.categoryButtonText,
-                      currentRoute === category.route &&
-                        styles.activeCategoryButtonText,
-                      { fontSize: categoryFontSize },
-                    ]}
-                  >
-                    {category.name}
-                  </Animated.Text>
-                </View>
-              )}
+            {title}
+          </Animated.Text>
+
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.iconButton}>
+              <Feather name="search" size={20} color="#4A5568" />
             </TouchableOpacity>
-          </Animated.View>
-        ))}
-      </ScrollView>
-    </Animated.View>
+            <TouchableOpacity style={styles.iconButton}>
+              <Feather name="bell" size={20} color="#4A5568" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Animated.View
+          style={[
+            styles.tabContainer,
+            {
+              height: tabContainerHeight,
+              opacity: tabContainerOpacity,
+              // Hide overflow to prevent tabs from being partially visible
+              overflow: "hidden",
+            },
+          ]}
+        >
+          <TouchableOpacity style={[styles.tab, styles.activeTab]}>
+            <Text style={[styles.tabText, styles.activeTabText]}>For You</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tab}>
+            <Text style={styles.tabText}>Following</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tab}>
+            <Text style={styles.tabText}>Popular</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tab}>
+            <Text style={styles.tabText}>Latest</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
-    borderBottomWidth: 0,
+  safeArea: {
     backgroundColor: "#FFFFFF",
     zIndex: 10,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 3,
   },
-  headerTopRow: {
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "android" ? 30 : 10,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#EDF2F7",
+    zIndex: 10,
+  },
+  headerMain: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    paddingVertical: 8,
+    marginTop: 8,
   },
   headerTitle: {
-    fontWeight: "700",
-    color: "#1A202C",
-    letterSpacing: -0.5,
+    fontWeight: "800",
+    color: "#2D3748",
+    letterSpacing: -0.8,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
   },
   iconButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(29, 161, 242, 0.1)",
-    marginRight: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F7FAFC",
+    marginLeft: 8,
   },
-  notificationButton: {
-    padding: 8,
+  tabContainer: {
+    flexDirection: "row",
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginRight: 10,
     borderRadius: 20,
-    backgroundColor: "rgba(29, 161, 242, 0.1)",
   },
-  categoriesContainer: {
-    paddingVertical: 8,
-    paddingRight: 16,
+  activeTab: {
+    backgroundColor: "#EBF8FF",
   },
-  categoryButton: {
-    borderRadius: 16,
-    overflow: "hidden",
-    position: "relative",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  activeCategoryButton: {
-    borderWidth: 2,
-    borderColor: "#1DA1F2",
-  },
-  categoryImage: {
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  textOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-  },
-  categoryButtonText: {
+  tabText: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#FFFFFF",
-    textAlign: "center",
-    textShadowColor: "rgba(0, 0, 0, 0.75)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: "#718096",
   },
-  activeCategoryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+  activeTabText: {
+    color: "#3182CE",
   },
 });
 
