@@ -137,7 +137,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
   // Refined icon selection with improved naming
   const getIcon = () => {
     switch (name) {
-      case "home":
+      case "social/screens/FeedScreen":
         return (
           <Animated.View style={iconStyle}>
             <Feather name="home" size={22} color="#FFFFFF" />
@@ -169,7 +169,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
   // Refined labels with better naming
   const getLabel = () => {
     switch (name) {
-      case "home":
+      case "social/screens/FeedScreen":
         return "Home";
       case "discover":
         return "Explore";
@@ -210,25 +210,19 @@ const CustomTabBar: React.FC<TabBarProps> = ({
   const router = useRouter();
 
   // Only show these tabs in the tab bar
-  const visibleTabs = ["home", "discover", "community", "me"];
+  const visibleTabs = [
+    "social/screens/FeedScreen",
+    "discover",
+    "community",
+    "me",
+  ];
 
-  // Track if Home tab should appear selected (even when we're on the social screen)
-  const socialRouteExists = state.routes.some(
-    (route: Route) => route.name === "social/screens/FeedScreen"
+  // Track if Comments screen is active to keep Home tab selected
+  const isCommentsScreen = state.routes.some(
+    (route: Route) =>
+      route.name === "social/screens/CommentsScreen" &&
+      state.index === state.routes.indexOf(route)
   );
-  const socialRouteIndex = state.routes.findIndex(
-    (route: Route) => route.name === "social/screens/FeedScreen"
-  );
-
-  // Check if the current route path includes the FeedScreen
-  const currentRoute = descriptors[state.routes[state.index].key]?.route;
-  const isSocialScreen = currentRoute?.path?.includes(
-    "/social/screens/FeedScreen"
-  );
-
-  // Update this to consider both conditions
-  const isSocialActive =
-    (socialRouteExists && state.index === socialRouteIndex) || isSocialScreen;
 
   return (
     <View style={styles.tabBarContainer}>
@@ -268,10 +262,12 @@ const CustomTabBar: React.FC<TabBarProps> = ({
               }
 
               const { options } = descriptors[route.key];
-              // Check if this tab is focused OR if it's home and social is active
+
+              // Check if this tab is focused OR if it's home and comments screen is active
               const isFocused =
                 state.index === index ||
-                (route.name === "home" && isSocialActive);
+                (route.name === "social/screens/FeedScreen" &&
+                  isCommentsScreen);
 
               const onPress = () => {
                 const event = navigation.emit({
@@ -281,11 +277,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({
                 });
 
                 if (!event.defaultPrevented) {
-                  if (route.name === "home") {
-                    router.push("/social/screens/FeedScreen");
-                  } else {
-                    navigation.navigate(route.name);
-                  }
+                  navigation.navigate(route.name);
                 }
               };
 
@@ -320,8 +312,11 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
-      {/* Main visible tabs */}
-      <Tabs.Screen name="home" options={{ title: "Home" }} />
+      {/* Main visible tabs - FeedScreen is directly specified, no need for home */}
+      <Tabs.Screen
+        name="social/screens/FeedScreen"
+        options={{ title: "Home" }}
+      />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
       <Tabs.Screen name="community" options={{ title: "Community" }} />
       <Tabs.Screen name="me" options={{ title: "Me" }} />
@@ -352,7 +347,10 @@ export default function TabLayout() {
       <Tabs.Screen name="news/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="donate" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="groups" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="social" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen
+        name="social/screens/CommentsScreen"
+        options={{ tabBarButton: () => null }}
+      />
     </Tabs>
   );
 }

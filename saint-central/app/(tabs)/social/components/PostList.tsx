@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { Post, Comment } from "../types";
+import { Post } from "../types";
 import PostCard from "./PostCard";
+import { supabase } from "../../../../supabaseClient";
 
 interface PostListProps {
   posts: Post[];
@@ -27,10 +29,7 @@ const PostList: React.FC<PostListProps> = ({
   onEdit,
   isLoading,
 }) => {
-  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState<string>("");
-  const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   // Animation references for like button
   const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
@@ -50,71 +49,23 @@ const PostList: React.FC<PostListProps> = ({
     return likeOpacityAnimations.current.get(postId) as Animated.Value;
   };
 
-  const handleToggleComments = (postId: string): void => {
-    if (expandedPostId === postId) {
-      setExpandedPostId(null);
-    } else {
-      setExpandedPostId(postId);
-      fetchComments(postId);
-    }
+  // Dummy function to pass to PostCard for onComment
+  const handleCommentAction = (postId: string) => {
+    // This is now handled by navigation in the PostCard component
   };
 
-  const fetchComments = async (postId: string): Promise<void> => {
-    // In a real app, this would fetch comments from an API
-    // For now we'll just simulate loading
-    setCommentsLoading(true);
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // In a real app, you would refetch the data here
     setTimeout(() => {
-      // Mock comments data
-      const mockComments: Comment[] = [
-        {
-          id: "1",
-          user_id: "user123",
-          commentable_id: postId,
-          commentable_type: "posts",
-          content: "Great post! Thanks for sharing.",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          user: {
-            id: "user123",
-            first_name: "Jane",
-            last_name: "Smith",
-            created_at: new Date().toISOString(),
-          },
-        },
-      ];
-      setComments(mockComments);
-      setCommentsLoading(false);
-    }, 500);
-  };
-
-  const handleAddComment = (postId: string): void => {
-    if (!newComment.trim()) return;
-
-    // In a real app, this would send the comment to an API
-    const newCommentObject: Comment = {
-      id: `temp-${Date.now()}`,
-      user_id: currentUserId || "",
-      commentable_id: postId,
-      commentable_type: "posts",
-      content: newComment,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      user: {
-        id: currentUserId || "",
-        first_name: "You",
-        last_name: "",
-        created_at: new Date().toISOString(),
-      },
-    };
-
-    setComments([newCommentObject, ...comments]);
-    setNewComment("");
-  };
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FAC898" />
+        <ActivityIndicator size="large" color="#1DA1F2" />
       </View>
     );
   }
@@ -122,7 +73,8 @@ const PostList: React.FC<PostListProps> = ({
   if (posts.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>No posts to show.</Text>
+        <Feather name="file-text" size={36} color="#657786" />
+        <Text style={styles.emptyStateText}>No posts yet</Text>
         <TouchableOpacity style={styles.emptyStateButton}>
           <Text style={styles.emptyStateButtonText}>Create New Post</Text>
         </TouchableOpacity>
@@ -138,28 +90,30 @@ const PostList: React.FC<PostListProps> = ({
           post={item}
           currentUserId={currentUserId}
           onLike={onLike}
-          onComment={handleToggleComments}
+          onComment={handleCommentAction}
           onEdit={onEdit}
           likeScaleAnim={getLikeScaleAnimation(item.id)}
           likeOpacityAnim={getLikeOpacityAnimation(item.id)}
-          isCommentsExpanded={expandedPostId === item.id}
-          comments={comments}
-          newComment={newComment}
-          setNewComment={setNewComment}
-          handleAddComment={handleAddComment}
-          commentsLoading={commentsLoading}
         />
       )}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.listContainer}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#1DA1F2"
+          colors={["#1DA1F2"]}
+        />
+      }
     />
   );
 };
 
 const styles = StyleSheet.create({
   listContainer: {
-    padding: 15,
+    padding: 10,
     paddingBottom: 100,
   },
   loadingContainer: {
@@ -172,30 +126,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     marginTop: 20,
-    marginHorizontal: 15,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   emptyStateText: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "#657786",
     fontSize: 16,
     textAlign: "center",
-    marginBottom: 15,
+    marginTop: 12,
+    marginBottom: 20,
   },
   emptyStateButton: {
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
-    borderRadius: 30,
+    backgroundColor: "#1DA1F2",
+    borderRadius: 24,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: "rgba(250, 200, 152, 0.4)",
   },
   emptyStateButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
+    fontSize: 15,
   },
 });
 

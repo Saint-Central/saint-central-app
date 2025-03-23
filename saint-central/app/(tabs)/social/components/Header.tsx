@@ -9,6 +9,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  StatusBar,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
@@ -40,7 +41,7 @@ const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     Animated.timing(filterDropdownAnim, {
       toValue: showFilterDropdown ? 1 : 0,
-      duration: 300,
+      duration: 250,
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
@@ -52,6 +53,7 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
       <TouchableOpacity
         style={styles.headerTitleContainer}
         onPress={toggleFilterDropdown}
@@ -60,8 +62,8 @@ const Header: React.FC<HeaderProps> = ({
         <View style={styles.headerFilterIndicator}>
           <Feather
             name={showFilterDropdown ? "chevron-up" : "chevron-down"}
-            size={18}
-            color="#FAC898"
+            size={16}
+            color="#1DA1F2"
           />
         </View>
       </TouchableOpacity>
@@ -94,6 +96,11 @@ const Header: React.FC<HeaderProps> = ({
               toggleFilterDropdown();
             }}
           >
+            <Feather
+              name="globe"
+              size={18}
+              color={currentFilter === "all" ? "#1DA1F2" : "#657786"}
+            />
             <Text
               style={[
                 styles.filterOptionText,
@@ -114,6 +121,11 @@ const Header: React.FC<HeaderProps> = ({
               toggleFilterDropdown();
             }}
           >
+            <Feather
+              name="users"
+              size={18}
+              color={currentFilter === "friends" ? "#1DA1F2" : "#657786"}
+            />
             <Text
               style={[
                 styles.filterOptionText,
@@ -134,6 +146,11 @@ const Header: React.FC<HeaderProps> = ({
               toggleFilterDropdown();
             }}
           >
+            <Feather
+              name="users"
+              size={18}
+              color={currentFilter === "groups" ? "#1DA1F2" : "#657786"}
+            />
             <Text
               style={[
                 styles.filterOptionText,
@@ -154,6 +171,11 @@ const Header: React.FC<HeaderProps> = ({
               toggleFilterDropdown();
             }}
           >
+            <Feather
+              name="user"
+              size={18}
+              color={currentFilter === "mine" ? "#1DA1F2" : "#657786"}
+            />
             <Text
               style={[
                 styles.filterOptionText,
@@ -171,10 +193,11 @@ const Header: React.FC<HeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 15,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(250, 200, 152, 0.1)",
+    borderBottomColor: "rgba(0, 0, 0, 0.08)",
+    backgroundColor: "#FFFFFF",
     zIndex: 10,
   },
   headerTitleContainer: {
@@ -182,49 +205,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 36,
-    fontWeight: "300",
-    color: "#FFFFFF",
-    letterSpacing: 1,
-    marginRight: 10,
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#000000",
+    marginRight: 6,
   },
   headerFilterIndicator: {
     alignItems: "center",
     justifyContent: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(29, 161, 242, 0.1)",
   },
   filterDropdown: {
     position: "absolute",
-    left: 15,
-    right: 15,
-    top: 70,
-    backgroundColor: "rgba(41, 37, 36, 0.95)",
-    borderRadius: 10,
-    padding: 5,
+    left: 16,
+    right: 16,
+    top: 60,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 4,
     marginTop: 5,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(0, 0, 0, 0.08)",
     zIndex: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   filterOption: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     borderRadius: 8,
   },
   activeFilterOption: {
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    backgroundColor: "rgba(29, 161, 242, 0.1)",
   },
   filterOptionText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+    color: "#657786",
+    fontSize: 15,
     fontWeight: "500",
+    marginLeft: 12,
   },
   activeFilterOptionText: {
-    color: "#FAC898",
+    color: "#1DA1F2",
     fontWeight: "600",
   },
 });
