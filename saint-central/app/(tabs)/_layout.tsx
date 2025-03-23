@@ -224,6 +224,12 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 route.name === "events" ||
                 route.name === "Rosary" ||
                 route.name === "RosaryPrayer" ||
+                route.name === "RosaryPrayer2" ||
+                route.name === "RosaryPrayer3" ||
+                route.name === "RosaryPrayer4" ||
+                route.name === "RosaryPrayer5" ||
+                route.name === "RosaryPrayer6" ||
+                route.name === "RosaryPrayer7" ||
                 route.name === "Lent2025" ||
                 route.name.includes("faith/") ||
                 route.name.includes("womens-ministry/") ||
@@ -279,6 +285,12 @@ export default function TabLayout() {
 
       {/* Hidden screens */}
       <Tabs.Screen name="RosaryPrayer" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer2" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer3" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer4" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer5" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer6" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer7" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="bible" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />

@@ -590,7 +590,7 @@ export default function RosaryPrayerScreen() {
   }, []);
   
   // Define prayers for the rosary (shortened versions for card display)
-  const prayers = mysteryType === "INTRODUCTION" 
+  const prayers = mysteryType === "The Visitation" 
     ? [
         { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
         { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
@@ -617,6 +617,7 @@ export default function RosaryPrayerScreen() {
         { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
         { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ];
+      
 // Removed duplicate declaration of prayers
   
   // Set audio mode to play in silent mode (iOS)
@@ -805,13 +806,13 @@ export default function RosaryPrayerScreen() {
   // Prayer key phrase based timestamps mapping
   const prayerKeyPhrases = mysteryType === "INTRODUCTION"
     ? [
-    { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
-    { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
-    { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
+        { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
+        { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
+        { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
         { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
         { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
         { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
-    { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
+        { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
         { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
       ]
     : [
@@ -834,7 +835,7 @@ export default function RosaryPrayerScreen() {
         { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
         { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
         { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
-  ];
+      ];
   
   // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
   const skipToCurrentPrayer = async (index: number) => {
@@ -959,9 +960,9 @@ export default function RosaryPrayerScreen() {
               </View>
               
               <View style={styles.prayerProgressIndicator}>
-              <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
+                <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
                   {currentPrayerStep + 1} of {prayers.length}
-</Text>
+                </Text>
               </View>
               
               <View style={styles.readMoreContainer}>
@@ -1013,7 +1014,7 @@ export default function RosaryPrayerScreen() {
                     styles.bead,
                     mysteryType === "INTRODUCTION" 
                       ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
-                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
                           : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
                       : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
                           ? { backgroundColor: theme.primary, borderColor: theme.primary }
@@ -1987,31 +1988,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginLeft: 6,
-  },
-  // Prayer counter styles
-  prayerCounterContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: "#F9F9F9",
-    borderRadius: 12,
-  },
-  prayerCounterLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  prayerCounterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-  },
-  prayerCounterBead: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    margin: 3,
-    borderWidth: 1,
   },
 });

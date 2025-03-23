@@ -794,45 +794,75 @@ export default function RosaryScreen() {
   };
   
   // Navigate to prayer screen
-  const openPrayerScreen = (index: number) => {
-    const mystery = MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES][index];
-    // Stop current audio before navigating
-    audioManager.stopAudio();
-    setIsPlaying(false);
-    
-    // Navigate to prayer screen with params
-    router.push({
-      pathname: "/RosaryPrayer",
-      params: {
-        mysteryType: currentMysteryType,
-        mysteryKey: currentMysteryKey,
-        mysteryIndex: index,
-        mysteryTitle: mystery.title,
-        mysteryDescription: mystery.description,
-        guideName: selectedGuide.name
-      }
-    });
-  };
+  // Updated openPrayerScreen function to navigate to different screens based on mystery index
+const openPrayerScreen = (index: number) => {
+  const mystery = MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES][index];
+  // Stop current audio before navigating
+  audioManager.stopAudio();
+  setIsPlaying(false);
   
-  // Navigate to introduction screen
-  const openIntroductionScreen = () => {
-    // Stop current audio before navigating
-    audioManager.stopAudio();
-    setIsPlaying(false);
-    
-    // Navigate to prayer screen with introduction params
-    router.push({
-      pathname: "/RosaryPrayer",
-      params: {
-        mysteryType: "INTRODUCTION",
-        mysteryKey: currentMysteryKey,
-        mysteryIndex: 0,
-        mysteryTitle: "Introduction",
-        mysteryDescription: `Introduction to the ${currentMysteryType}`,
-        guideName: selectedGuide.name
-      }
-    });
-  };
+  // Determine which RosaryPrayer screen to navigate to based on index
+  let screenPath: "/RosaryPrayer" | "/RosaryPrayer2" | "/RosaryPrayer3" | "/RosaryPrayer4" | "/RosaryPrayer5" | "/RosaryPrayer6" | "/RosaryPrayer7" = "/RosaryPrayer";
+  if (index === 0) screenPath = "/RosaryPrayer2"; // The Annunciation
+  else if (index === 1) screenPath = "/RosaryPrayer3"; // The Visitation
+  else if (index === 2) screenPath = "/RosaryPrayer4"; // The Nativity
+  else if (index === 3) screenPath = "/RosaryPrayer5"; // The Presentation
+  else if (index === 4) screenPath = "/RosaryPrayer6"; // Finding in the Temple
+  else if (index === 5) screenPath = "/RosaryPrayer7"; // Conclusion
+  // Navigate to appropriate prayer screen with params
+  router.push({
+    pathname: screenPath,
+    params: {
+      mysteryType: currentMysteryType,
+      mysteryKey: currentMysteryKey,
+      mysteryIndex: index,
+      mysteryTitle: mystery.title,
+      mysteryDescription: mystery.description,
+      guideName: selectedGuide.name
+    }
+  });
+};
+
+// Updated openIntroductionScreen function to navigate to RosaryPrayer
+const openIntroductionScreen = () => {
+  // Stop current audio before navigating
+  audioManager.stopAudio();
+  setIsPlaying(false);
+  
+  // Navigate to introduction screen (RosaryPrayer)
+  router.push({
+    pathname: "/RosaryPrayer",
+    params: {
+      mysteryType: "INTRODUCTION",
+      mysteryKey: currentMysteryKey,
+      mysteryIndex: 0,
+      mysteryTitle: "Introduction",
+      mysteryDescription: `Introduction to the ${currentMysteryType}`,
+      guideName: selectedGuide.name
+    }
+  });
+};
+
+// Add a new function for the Conclusion card
+const openConclusionScreen = () => {
+  // Stop current audio before navigating
+  audioManager.stopAudio();
+  setIsPlaying(false);
+  
+  // Navigate to conclusion screen (RosaryPrayer7)
+  router.push({
+    pathname: "/RosaryPrayer7",
+    params: {
+      mysteryType: "CONCLUSION",
+      mysteryKey: currentMysteryKey,
+      mysteryIndex: 5, // Index after the 5 mysteries
+      mysteryTitle: "Conclusion",
+      mysteryDescription: `Concluding prayers for the ${currentMysteryType}`,
+      guideName: selectedGuide.name
+    }
+  });
+};
+  
   
   // Get today's day name
   const getDayName = () => {
@@ -1227,6 +1257,7 @@ export default function RosaryScreen() {
                   { borderColor: theme.primary, borderWidth: 2 }
                 ]}
                 activeOpacity={0.9}
+                onPress={openConclusionScreen}
               >
                 <View style={[
                   styles.mysteryCardHeader,

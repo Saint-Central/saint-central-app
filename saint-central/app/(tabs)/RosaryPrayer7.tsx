@@ -592,7 +592,7 @@ export default function RosaryPrayerScreen() {
   // Define prayers for the rosary (shortened versions for card display)
   const prayers = mysteryType === "INTRODUCTION" 
     ? [
-        { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
+        { id: 0, title: "Conclusion: The Annunciation", text: "Concluding Prayers for the Joyful Mysteries: Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope. To thee do we cry, poor banished children of Eve. To thee do we send up our sighs, mourning and weeping in this valley of tears. Turn then, most gracious advocate, thine eyes of mercy toward us, and after this our exile, show unto us the blessed fruit of thy womb, Jesus. O clement, O loving, O sweet Virgin Mary." },
         { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
         { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
         { id: 3, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
@@ -602,21 +602,11 @@ export default function RosaryPrayerScreen() {
         { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ]
     : [
-      { id: 5, title: "First Mystery: The Annunciation", text: "The angel Gabriel was sent from God to a city of Galilee named Nazareth, to a virgin betrothed to a man whose name was Joseph, of the house of David; and the virgin's name was Mary. And he came to her and said, 'Hail, full of grace, the Lord is with you!' (Luke 1:26-28)" },
-        { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-        { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 9, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 10, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 11, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 12, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 13, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 14, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 15, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 16, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-        { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
+      { id: 5, title: "Conclusion: The Annunciation", text: "Concluding Prayers for the Joyful Mysteries: Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope. To thee do we cry, poor banished children of Eve. To thee do we send up our sighs, mourning and weeping in this valley of tears. Turn then, most gracious advocate, thine eyes of mercy toward us, and after this our exile, show unto us the blessed fruit of thy womb, Jesus. O clement, O loving, O sweet Virgin Mary." },
+      { id: 80, title: "HAIL HOLY QUEEN...", text: "Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope. To thee do we cry, poor banished children of Eve. To thee do we send up our sighs, mourning and weeping in this valley of tears. Turn then, most gracious advocate, thine eyes of mercy toward us, and after this our exile, show unto us the blessed fruit of thy womb, Jesus. O clement, O loving, O sweet Virgin Mary." },
+      { id: 81, title: "O GOD, WHOSE...", text: "O God, whose only begotten Son, by His life, death, and resurrection, has purchased for us the rewards of eternal life, grant, we beseech Thee, that meditating upon these mysteries in the most Holy Rosary of the Blessed Virgin Mary, we may imitate what they contain, and obtain what they promise, through the same Christ our Lord. Amen." }
       ];
+      
 // Removed duplicate declaration of prayers
   
   // Set audio mode to play in silent mode (iOS)
@@ -805,13 +795,13 @@ export default function RosaryPrayerScreen() {
   // Prayer key phrase based timestamps mapping
   const prayerKeyPhrases = mysteryType === "INTRODUCTION"
     ? [
-    { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
-    { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
-    { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
+        { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
+        { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
+        { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
         { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
         { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
         { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
-    { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
+        { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
         { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
       ]
     : [
@@ -820,7 +810,7 @@ export default function RosaryPrayerScreen() {
         { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
         { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
         { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
-        { phrase: `${mysteryTitle || "First Mystery:"}`, timestamp: 170000 }, // Announce Mystery
+        { phrase: `${mysteryTitle || "Conclusion:"}`, timestamp: 170000 }, // Announce Mystery
         { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
         { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
         { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
@@ -834,7 +824,7 @@ export default function RosaryPrayerScreen() {
         { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
         { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
         { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
-  ];
+      ];
   
   // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
   const skipToCurrentPrayer = async (index: number) => {
@@ -959,9 +949,9 @@ export default function RosaryPrayerScreen() {
               </View>
               
               <View style={styles.prayerProgressIndicator}>
-              <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
+                <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
                   {currentPrayerStep + 1} of {prayers.length}
-</Text>
+                </Text>
               </View>
               
               <View style={styles.readMoreContainer}>
@@ -1013,7 +1003,7 @@ export default function RosaryPrayerScreen() {
                     styles.bead,
                     mysteryType === "INTRODUCTION" 
                       ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
-                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
                           : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
                       : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
                           ? { backgroundColor: theme.primary, borderColor: theme.primary }
@@ -1987,31 +1977,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginLeft: 6,
-  },
-  // Prayer counter styles
-  prayerCounterContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: "#F9F9F9",
-    borderRadius: 12,
-  },
-  prayerCounterLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  prayerCounterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-  },
-  prayerCounterBead: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    margin: 3,
-    borderWidth: 1,
   },
 });
