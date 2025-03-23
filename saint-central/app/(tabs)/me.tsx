@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   Modal,
+  Image,
 } from "react-native";
 import { supabase } from "../../supabaseClient";
 import { Session } from "@supabase/supabase-js";
@@ -17,6 +18,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 
 interface UserProfile {
   id: string;
@@ -25,6 +27,7 @@ interface UserProfile {
   last_name?: string;
   created_at?: string;
   updated_at?: string;
+  profile_image?: string;
 }
 
 export default function MeScreen() {
@@ -36,6 +39,7 @@ export default function MeScreen() {
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
+    profile_image: "",
   });
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const router = useRouter();
@@ -91,6 +95,7 @@ export default function MeScreen() {
         setEditForm({
           first_name: data.first_name || "",
           last_name: data.last_name || "",
+          profile_image: data.profile_image || "",
         });
       }
     } catch (err: unknown) {
@@ -104,6 +109,124 @@ export default function MeScreen() {
     }
   };
 
+  const pickImage = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Request permission
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "You need to grant access to your photos to upload a profile image."
+        );
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true, // Request base64 data to avoid blob conversion issues
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Show processing indicator
+        setLoading(true);
+
+        try {
+          const imageAsset = result.assets[0];
+          const imageUri = imageAsset.uri;
+          const base64Data = imageAsset.base64;
+
+          // Show selected image immediately for better UX
+          setEditForm((prev) => ({
+            ...prev,
+            profile_image: imageUri,
+          }));
+
+          // Generate a unique file path
+          const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
+          const fileName = `profile-${Date.now()}.${fileExt}`;
+          const filePath = `${session?.user.id}/${fileName}`;
+
+          if (!base64Data) {
+            throw new Error("Failed to get image data");
+          }
+
+          // Upload directly using base64 data
+          const { error: uploadError } = await supabase.storage
+            .from("profile-images")
+            .upload(filePath, decode(base64Data), {
+              contentType: `image/${fileExt}`,
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            throw new Error(`Upload failed: ${uploadError.message}`);
+          }
+
+          // Get the public URL
+          const { data } = supabase.storage
+            .from("profile-images")
+            .getPublicUrl(filePath);
+
+          // Update form with new image URL
+          setEditForm((prev) => ({
+            ...prev,
+            profile_image: data.publicUrl,
+          }));
+
+          // Save the updated profile immediately
+          await supabase
+            .from("users")
+            .update({
+              profile_image: data.publicUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", session?.user.id);
+
+          // Enable editing mode if not already in it
+          if (!isEditing) {
+            setIsEditing(true);
+          }
+
+          Alert.alert(
+            "Image Uploaded",
+            "Your profile image has been uploaded. Click 'Save Changes' to update your profile.",
+            [{ text: "OK" }]
+          );
+        } catch (err) {
+          console.error("Upload process error:", err);
+          Alert.alert("Upload Failed", "Please try again later");
+
+          // Keep the local image for user experience
+          // No need to revert the form state
+        } finally {
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error("Image picker error:", err);
+      Alert.alert("Error", "Failed to select image");
+    }
+  };
+
+  // Helper function to decode base64
+  function decode(base64: string) {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
   const handleSubmit = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -115,6 +238,7 @@ export default function MeScreen() {
         .update({
           first_name: editForm.first_name,
           last_name: editForm.last_name,
+          profile_image: editForm.profile_image,
           updated_at: new Date().toISOString(),
         })
         .eq("id", session.user.id)
@@ -127,6 +251,7 @@ export default function MeScreen() {
         setEditForm({
           first_name: data[0].first_name || "",
           last_name: data[0].last_name || "",
+          profile_image: data[0].profile_image || "",
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -350,7 +475,14 @@ export default function MeScreen() {
 
           <View style={styles.profileHeader}>
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{getInitials()}</Text>
+              {userProfile.profile_image ? (
+                <Image
+                  source={{ uri: userProfile.profile_image }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarText}>{getInitials()}</Text>
+              )}
             </View>
             <Text style={styles.profileName}>
               {userProfile.first_name
@@ -362,6 +494,22 @@ export default function MeScreen() {
 
           {isEditing ? (
             <View style={styles.formContainer}>
+              <TouchableOpacity
+                style={styles.imagePickerButton}
+                onPress={pickImage}
+              >
+                <MaterialCommunityIcons
+                  name="camera"
+                  size={22}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.imagePickerText}>
+                  {editForm.profile_image
+                    ? "Change Profile Photo"
+                    : "Add Profile Photo"}
+                </Text>
+              </TouchableOpacity>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>First Name</Text>
                 <TextInput
@@ -650,6 +798,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
   },
   avatarText: {
     fontSize: 32,
@@ -854,6 +1008,24 @@ const styles = StyleSheet.create({
     color: "#FFCCCC",
     fontWeight: "500",
     fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  imagePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(233, 150, 122, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderRadius: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  imagePickerText: {
+    color: "#FFFFFF",
+    marginLeft: 8,
+    fontWeight: "500",
     letterSpacing: 0.5,
   },
 });
