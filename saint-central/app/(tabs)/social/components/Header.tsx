@@ -1,192 +1,101 @@
-import React, { useRef, useEffect } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
-  Easing,
-  LayoutAnimation,
-  Platform,
-  UIManager,
   StatusBar,
+  ScrollView,
+  Image,
+  ImageSourcePropType,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
-// Enable LayoutAnimation for Android
-if (Platform.OS === "android") {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+interface CategoryItem {
+  name: string;
+  route: string;
+  image: ImageSourcePropType;
 }
 
 interface HeaderProps {
   title: string;
-  showFilterDropdown: boolean;
-  toggleFilterDropdown: () => void;
-  currentFilter: "all" | "mine" | "friends" | "groups";
-  onFilterChange: (filter: "all" | "mine" | "friends" | "groups") => void;
+  currentRoute?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({
-  title,
-  showFilterDropdown,
-  toggleFilterDropdown,
-  currentFilter,
-  onFilterChange,
-}) => {
-  // Animation for dropdown
-  const filterDropdownAnim = useRef(new Animated.Value(0)).current;
+const Header: React.FC<HeaderProps> = ({ title, currentRoute }) => {
+  const router = useRouter();
 
-  useEffect(() => {
-    Animated.timing(filterDropdownAnim, {
-      toValue: showFilterDropdown ? 1 : 0,
-      duration: 250,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+  // Replace these image sources with your actual image assets
+  const categories: CategoryItem[] = [
+    {
+      name: "Lent 2025",
+      route: "/Lent2025",
+      image: require("../../../../assets/images/mountainChurch.webp"),
+    },
+    {
+      name: "Rosary",
+      route: "/Rosary",
+      image: require("../../../../assets/images/hands.webp"),
+    },
+    {
+      name: "Events",
+      route: "/events",
+      image: require("../../../../assets/images/seasideChurch.webp"),
+    },
+    {
+      name: "Bible",
+      route: "/bible",
+      image: require("../../../../assets/images/boatWithCross.webp"),
+    },
+    {
+      name: "Donations",
+      route: "/Donations",
+      image: require("../../../../assets/images/desertChurch.webp"),
+    },
+  ];
 
-    if (showFilterDropdown) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
-  }, [showFilterDropdown]);
+  const navigateToPage = (route: string) => {
+    router.push(route as any); // Type assertion since we know these routes are valid
+  };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <TouchableOpacity
-        style={styles.headerTitleContainer}
-        onPress={toggleFilterDropdown}
+      <Text style={styles.headerTitle}>{title}</Text>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoriesContainer}
       >
-        <Text style={styles.headerTitle}>{title}</Text>
-        <View style={styles.headerFilterIndicator}>
-          <Feather
-            name={showFilterDropdown ? "chevron-up" : "chevron-down"}
-            size={16}
-            color="#1DA1F2"
-          />
-        </View>
-      </TouchableOpacity>
-
-      {/* Animated Filter Dropdown */}
-      {showFilterDropdown && (
-        <Animated.View
-          style={[
-            styles.filterDropdown,
-            {
-              opacity: filterDropdownAnim,
-              transform: [
-                {
-                  translateY: filterDropdownAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-20, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
+        {categories.map((category) => (
           <TouchableOpacity
+            key={category.name}
             style={[
-              styles.filterOption,
-              currentFilter === "all" && styles.activeFilterOption,
+              styles.categoryButton,
+              currentRoute === category.route && styles.activeCategoryButton,
             ]}
-            onPress={() => {
-              onFilterChange("all");
-              toggleFilterDropdown();
-            }}
+            onPress={() => navigateToPage(category.route)}
           >
-            <Feather
-              name="globe"
-              size={18}
-              color={currentFilter === "all" ? "#1DA1F2" : "#657786"}
+            <Image
+              source={category.image}
+              style={styles.categoryImage}
+              resizeMode="cover"
             />
-            <Text
-              style={[
-                styles.filterOptionText,
-                currentFilter === "all" && styles.activeFilterOptionText,
-              ]}
-            >
-              All
-            </Text>
+            <View style={styles.textOverlay}>
+              <Text
+                style={[
+                  styles.categoryButtonText,
+                  currentRoute === category.route &&
+                    styles.activeCategoryButtonText,
+                ]}
+              >
+                {category.name}
+              </Text>
+            </View>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterOption,
-              currentFilter === "friends" && styles.activeFilterOption,
-            ]}
-            onPress={() => {
-              onFilterChange("friends");
-              toggleFilterDropdown();
-            }}
-          >
-            <Feather
-              name="users"
-              size={18}
-              color={currentFilter === "friends" ? "#1DA1F2" : "#657786"}
-            />
-            <Text
-              style={[
-                styles.filterOptionText,
-                currentFilter === "friends" && styles.activeFilterOptionText,
-              ]}
-            >
-              Friends
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterOption,
-              currentFilter === "groups" && styles.activeFilterOption,
-            ]}
-            onPress={() => {
-              onFilterChange("groups");
-              toggleFilterDropdown();
-            }}
-          >
-            <Feather
-              name="users"
-              size={18}
-              color={currentFilter === "groups" ? "#1DA1F2" : "#657786"}
-            />
-            <Text
-              style={[
-                styles.filterOptionText,
-                currentFilter === "groups" && styles.activeFilterOptionText,
-              ]}
-            >
-              Groups
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterOption,
-              currentFilter === "mine" && styles.activeFilterOption,
-            ]}
-            onPress={() => {
-              onFilterChange("mine");
-              toggleFilterDropdown();
-            }}
-          >
-            <Feather
-              name="user"
-              size={18}
-              color={currentFilter === "mine" ? "#1DA1F2" : "#657786"}
-            />
-            <Text
-              style={[
-                styles.filterOptionText,
-                currentFilter === "mine" && styles.activeFilterOptionText,
-              ]}
-            >
-              My Posts
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+        ))}
+      </ScrollView>
     </View>
   );
 };
@@ -194,67 +103,67 @@ const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: 14,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0, 0, 0, 0.08)",
     backgroundColor: "#FFFFFF",
     zIndex: 10,
   },
-  headerTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   headerTitle: {
     fontSize: 19,
     fontWeight: "700",
     color: "#000000",
-    marginRight: 6,
+    marginBottom: 12,
   },
-  headerFilterIndicator: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(29, 161, 242, 0.1)",
+  categoriesContainer: {
+    paddingVertical: 4,
+    paddingRight: 16,
   },
-  filterDropdown: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    top: 60,
-    backgroundColor: "#FFFFFF",
+  categoryButton: {
+    width: 150,
+    height: 100,
+    marginRight: 12,
     borderRadius: 12,
-    padding: 4,
-    marginTop: 5,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.08)",
-    zIndex: 10,
+    overflow: "hidden",
+    position: "relative",
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
-  filterOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  activeCategoryButton: {
+    borderWidth: 2,
+    borderColor: "#1DA1F2",
   },
-  activeFilterOption: {
-    backgroundColor: "rgba(29, 161, 242, 0.1)",
+  categoryImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  filterOptionText: {
-    color: "#657786",
-    fontSize: 15,
-    fontWeight: "500",
-    marginLeft: 12,
+  textOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
-  activeFilterOptionText: {
-    color: "#1DA1F2",
+  categoryButtonText: {
+    fontSize: 14,
     fontWeight: "600",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  activeCategoryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 });
 
