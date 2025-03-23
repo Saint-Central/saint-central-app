@@ -70,6 +70,7 @@ const CommentsScreen = () => {
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const showEvent =
@@ -114,6 +115,29 @@ const CommentsScreen = () => {
     setComments([]);
     fetchComments();
   }, [post.id]);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          const { data } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", userData.user.id)
+            .single();
+
+          if (data) {
+            setCurrentUser(data);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
@@ -176,7 +200,7 @@ const CommentsScreen = () => {
     return (
       <View style={styles.postContainer}>
         <View style={styles.postHeader}>
-          <Avatar size="md" />
+          <Avatar size="md" imageUrl={(post.user as any).profile_image} />
           <View style={styles.postHeaderText}>
             <View style={styles.nameContainer}>
               <Text style={styles.postAuthor}>
@@ -211,7 +235,7 @@ const CommentsScreen = () => {
   const renderCommentItem = ({ item }: { item: Comment }) => (
     <View style={styles.commentItem}>
       <View style={styles.commentAvatar}>
-        <Avatar size="md" />
+        <Avatar size="md" imageUrl={(item.user as any).profile_image} />
       </View>
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
@@ -291,7 +315,7 @@ const CommentsScreen = () => {
             <Feather name="x" size={20} color="#657786" />
           </TouchableOpacity>
         )}
-        <Avatar size="sm" />
+        <Avatar size="sm" imageUrl={(currentUser as any)?.profile_image} />
         <TextInput
           ref={inputRef}
           style={styles.input}

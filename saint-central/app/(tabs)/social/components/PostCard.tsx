@@ -153,7 +153,7 @@ const PostCard: React.FC<PostCardProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.postHeader}>
-        <Avatar size="md" />
+        <Avatar size="md" imageUrl={(post.user as any).profile_image} />
 
         <View style={styles.headerContent}>
           <View style={styles.nameRow}>
