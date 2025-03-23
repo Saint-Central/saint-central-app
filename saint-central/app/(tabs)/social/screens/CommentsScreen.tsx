@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   Animated,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Post, Comment } from "../types";
@@ -28,6 +29,7 @@ const CommentsScreen = () => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList<Comment>>(null);
   const inputRef = useRef(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Add a simple opacity animation for transitions
   const opacity = useRef(new Animated.Value(0)).current;
@@ -224,6 +226,12 @@ const CommentsScreen = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchComments();
+    setRefreshing(false);
+  };
+
   const renderPostHeader = () => {
     const formattedDate = formatDateTime(post.created_at);
     return (
@@ -325,16 +333,11 @@ const CommentsScreen = () => {
             <Feather name="arrow-left" size={24} color="#1DA1F2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Comments</Text>
-          <TouchableOpacity
-            onPress={fetchComments}
-            style={styles.refreshButton}
-          >
-            <Feather name="refresh-cw" size={18} color="#1DA1F2" />
-          </TouchableOpacity>
+          <View style={styles.headerRight} />
         </View>
 
         <View style={styles.content}>
-          {isLoading ? (
+          {isLoading && !refreshing ? (
             <View style={styles.loaderContainer}>
               <ActivityIndicator size="large" color="#1DA1F2" />
             </View>
@@ -352,6 +355,14 @@ const CommentsScreen = () => {
               ]}
               showsVerticalScrollIndicator={true}
               scrollEnabled={true}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  colors={["#1DA1F2"]}
+                  tintColor="#1DA1F2"
+                />
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Feather name="message-circle" size={32} color="#657786" />
@@ -423,13 +434,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(0, 0, 0, 0.08)",
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  refreshButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
