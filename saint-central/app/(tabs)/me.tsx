@@ -445,21 +445,6 @@ export default function MeScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={22}
-              color="#FFFFFF"
-            />
-            <Text style={styles.backButtonText}>Back</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={styles.editButton}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -721,20 +706,6 @@ const styles = StyleSheet.create({
     position: "relative",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  backButton: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  backButtonText: {
-    color: "#FFFFFF",
-    marginLeft: 6,
-    fontWeight: "300",
-    letterSpacing: 0.5,
   },
   editButton: {
     position: "absolute",
