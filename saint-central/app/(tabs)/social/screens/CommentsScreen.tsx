@@ -19,7 +19,7 @@ import { Post, Comment } from "../types";
 import Avatar from "../components/ui/Avatar";
 import { formatDateTime } from "../utils/formatters";
 import { supabase } from "../../../../supabaseClient";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const CommentsScreen = () => {
@@ -28,6 +28,35 @@ const CommentsScreen = () => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList<Comment>>(null);
   const inputRef = useRef(null);
+
+  // Add a simple opacity animation for transitions
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(50)).current;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset animation values and start animation whenever screen comes into focus
+      opacity.setValue(0);
+      translateY.setValue(50);
+
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      return () => {
+        // Optional cleanup if needed
+      };
+    }, [])
+  );
 
   // Reduced navBarOffset to place the comment box right above the Expo nav bar
   const navBarOffset = 50;
@@ -254,99 +283,132 @@ const CommentsScreen = () => {
     </View>
   );
 
+  // Add this function to handle back navigation with animation
+  const handleBackNavigation = () => {
+    // Animate out before navigating back
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 30,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Navigate back after animation completes
+      router.back();
+    });
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          opacity: opacity,
+          transform: [{ translateY: translateY }],
+        },
+      ]}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={24} color="#1DA1F2" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Comments</Text>
-        <TouchableOpacity onPress={fetchComments} style={styles.refreshButton}>
-          <Feather name="refresh-cw" size={18} color="#1DA1F2" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.content}>
-        {isLoading ? (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#1DA1F2" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={comments}
-            renderItem={renderCommentItem}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={renderPostHeader}
-            style={styles.commentsList}
-            contentContainerStyle={[
-              styles.commentsListContent,
-              { paddingBottom: 120 },
-            ]}
-            showsVerticalScrollIndicator={true}
-            scrollEnabled={true}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Feather name="message-circle" size={32} color="#657786" />
-                <Text style={styles.emptyText}>No comments yet</Text>
-                <Text style={styles.emptySubText}>
-                  Be the first to comment!
-                </Text>
-              </View>
-            }
-          />
-        )}
-      </View>
-
-      <Animated.View
-        style={[styles.inputContainer, { bottom: commentBoxBottom }]}
-      >
-        {keyboardVisible && (
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.closeKeyboardButton}
-            onPress={dismissKeyboard}
+            onPress={handleBackNavigation}
+            style={styles.backButton}
           >
-            <Feather name="x" size={20} color="#657786" />
+            <Feather name="arrow-left" size={24} color="#1DA1F2" />
           </TouchableOpacity>
-        )}
-        <Avatar size="sm" imageUrl={(currentUser as any)?.profile_image} />
-        <TextInput
-          ref={inputRef}
-          style={styles.input}
-          placeholder="Add a comment..."
-          placeholderTextColor="#657786"
-          value={newComment}
-          onChangeText={setNewComment}
-          multiline
-        />
-        {isSending ? (
-          <View style={styles.sendButton}>
-            <ActivityIndicator size="small" color="#1DA1F2" />
-          </View>
-        ) : (
+          <Text style={styles.headerTitle}>Comments</Text>
           <TouchableOpacity
-            style={[
-              styles.sendButton,
-              newComment.trim() ? styles.sendButtonActive : {},
-            ]}
-            onPress={handleAddComment}
-            disabled={!newComment.trim()}
+            onPress={fetchComments}
+            style={styles.refreshButton}
           >
-            <Feather
-              name="send"
-              size={18}
-              color={newComment.trim() ? "#1DA1F2" : "#657786"}
+            <Feather name="refresh-cw" size={18} color="#1DA1F2" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.content}>
+          {isLoading ? (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#1DA1F2" />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={comments}
+              renderItem={renderCommentItem}
+              keyExtractor={(item) => item.id}
+              ListHeaderComponent={renderPostHeader}
+              style={styles.commentsList}
+              contentContainerStyle={[
+                styles.commentsListContent,
+                { paddingBottom: 120 },
+              ]}
+              showsVerticalScrollIndicator={true}
+              scrollEnabled={true}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Feather name="message-circle" size={32} color="#657786" />
+                  <Text style={styles.emptyText}>No comments yet</Text>
+                  <Text style={styles.emptySubText}>
+                    Be the first to comment!
+                  </Text>
+                </View>
+              }
             />
-          </TouchableOpacity>
-        )}
-      </Animated.View>
-    </SafeAreaView>
+          )}
+        </View>
+
+        <Animated.View
+          style={[styles.inputContainer, { bottom: commentBoxBottom }]}
+        >
+          {keyboardVisible && (
+            <TouchableOpacity
+              style={styles.closeKeyboardButton}
+              onPress={dismissKeyboard}
+            >
+              <Feather name="x" size={20} color="#657786" />
+            </TouchableOpacity>
+          )}
+          <Avatar size="sm" imageUrl={(currentUser as any)?.profile_image} />
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            placeholder="Add a comment..."
+            placeholderTextColor="#657786"
+            value={newComment}
+            onChangeText={setNewComment}
+            multiline
+          />
+          {isSending ? (
+            <View style={styles.sendButton}>
+              <ActivityIndicator size="small" color="#1DA1F2" />
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                newComment.trim() ? styles.sendButtonActive : {},
+              ]}
+              onPress={handleAddComment}
+              disabled={!newComment.trim()}
+            >
+              <Feather
+                name="send"
+                size={18}
+                color={newComment.trim() ? "#1DA1F2" : "#657786"}
+              />
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </SafeAreaView>
+    </Animated.View>
   );
 };
 

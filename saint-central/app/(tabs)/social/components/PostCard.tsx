@@ -16,11 +16,11 @@ import * as Haptics from "expo-haptics";
 interface PostCardProps {
   post: Post;
   currentUserId: string | null;
-  onLike: (id: string, isLiked: boolean) => void;
-  onComment: (postId: string) => void;
+  onLike: (postId: string, isLiked: boolean) => void;
   onEdit?: (post: Post) => void;
   likeScaleAnim: Animated.Value;
   likeOpacityAnim: Animated.Value;
+  onCommentPress?: (post: Post) => void;
 }
 
 const PostCard: React.FC<PostCardProps> = ({
@@ -30,6 +30,7 @@ const PostCard: React.FC<PostCardProps> = ({
   onEdit,
   likeScaleAnim,
   likeOpacityAnim,
+  onCommentPress,
 }) => {
   // Track previous like state to detect changes
   const prevLikedRef = useRef(post.is_liked);
@@ -120,13 +121,9 @@ const PostCard: React.FC<PostCardProps> = ({
   const formattedTime = formatDateTime(post.created_at).split("•")[1].trim();
 
   const handleCommentPress = () => {
-    // Navigate to comments screen using Expo Router with params as path segments
-    router.push({
-      pathname: "../screens/CommentsScreen",
-      params: {
-        postData: JSON.stringify(post),
-      },
-    });
+    if (onCommentPress) {
+      onCommentPress(post);
+    }
   };
 
   const handleLikePress = () => {
@@ -151,7 +148,11 @@ const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={handleCommentPress}
+      style={styles.container}
+    >
       <View style={styles.postHeader}>
         <Avatar size="md" imageUrl={(post.user as any).profile_image} />
 
@@ -201,7 +202,10 @@ const PostCard: React.FC<PostCardProps> = ({
       <View style={styles.actionBar}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={handleCommentPress}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleCommentPress();
+          }}
           activeOpacity={0.7}
         >
           <Feather name="message-square" size={18} color="#718096" />
@@ -212,7 +216,10 @@ const PostCard: React.FC<PostCardProps> = ({
 
         <TouchableOpacity
           style={[styles.actionButton, post.is_liked && styles.likedButton]}
-          onPress={handleLikePress}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleLikePress();
+          }}
           activeOpacity={0.7}
         >
           <View style={styles.likeButtonContainer}>
@@ -241,14 +248,17 @@ const PostCard: React.FC<PostCardProps> = ({
         {post.user_id === currentUserId && (
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => onEdit && onEdit(post)}
+            onPress={(e) => {
+              e.stopPropagation();
+              onEdit && onEdit(post);
+            }}
             activeOpacity={0.7}
           >
             <Feather name="edit-2" size={18} color="#718096" />
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

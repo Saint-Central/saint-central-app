@@ -16,10 +16,11 @@ import PostCard from "./PostCard";
 interface PostListProps {
   posts: Post[];
   currentUserId: string | null;
-  onLike: (id: string, isLiked: boolean) => void;
+  onLike: (postId: string, isLiked: boolean) => Promise<void>;
   onEdit?: (post: Post) => void;
   isLoading: boolean;
   scrollY?: Animated.Value;
+  onCommentPress: (postData: Post) => void;
 }
 
 const PostList: React.FC<PostListProps> = ({
@@ -29,6 +30,7 @@ const PostList: React.FC<PostListProps> = ({
   onEdit,
   isLoading,
   scrollY = new Animated.Value(0),
+  onCommentPress,
 }) => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const insets = useSafeAreaInsets();
@@ -103,10 +105,10 @@ const PostList: React.FC<PostListProps> = ({
           post={item}
           currentUserId={currentUserId}
           onLike={onLike}
-          onComment={handleCommentAction}
           onEdit={onEdit}
           likeScaleAnim={getLikeScaleAnimation(item.id)}
           likeOpacityAnim={getLikeOpacityAnimation(item.id)}
+          onCommentPress={onCommentPress}
         />
       )}
       keyExtractor={(item) => item.id}
