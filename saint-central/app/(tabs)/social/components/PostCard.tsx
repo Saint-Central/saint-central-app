@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import { Post } from "../types";
 import Avatar from "./ui/Avatar";
 import { formatDateTime } from "../utils/formatters";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 
 interface PostCardProps {
   post: Post;
@@ -30,6 +31,78 @@ const PostCard: React.FC<PostCardProps> = ({
   likeScaleAnim,
   likeOpacityAnim,
 }) => {
+  // Track previous like state to detect changes
+  const prevLikedRef = useRef(post.is_liked);
+
+  // Animation sequence for like action
+  useEffect(() => {
+    // Only animate if like state has changed
+    if (prevLikedRef.current !== post.is_liked) {
+      if (post.is_liked) {
+        // Trigger success haptic when post is liked
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        // Heart pop animation
+        Animated.sequence([
+          // First reset any existing animations
+          Animated.timing(likeScaleAnim, {
+            toValue: 0.8,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+          // Pop animation
+          Animated.spring(likeScaleAnim, {
+            toValue: 1.2,
+            friction: 4,
+            tension: 300,
+            useNativeDriver: true,
+          }),
+          // Return to normal size
+          Animated.spring(likeScaleAnim, {
+            toValue: 1,
+            friction: 4,
+            tension: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Background ripple effect
+        Animated.sequence([
+          Animated.timing(likeOpacityAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(likeOpacityAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else {
+        // Subtle haptic when unliking
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        // Subtle scale down and up for unlike
+        Animated.sequence([
+          Animated.timing(likeScaleAnim, {
+            toValue: 0.9,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(likeScaleAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+
+      // Update previous liked state
+      prevLikedRef.current = post.is_liked;
+    }
+  }, [post.is_liked, likeScaleAnim, likeOpacityAnim]);
+
   const postTypeIcon = () => {
     switch (post.type) {
       case "prayer":
@@ -53,8 +126,33 @@ const PostCard: React.FC<PostCardProps> = ({
     });
   };
 
+  const handleLikePress = () => {
+    onLike(post.id, !!post.is_liked);
+  };
+
+  // Double tap to like functionality
+  const lastTap = useRef(0);
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      if (!post.is_liked) {
+        onLike(post.id, false);
+        // Haptic will be triggered by the useEffect when post.is_liked changes
+      }
+    }
+
+    lastTap.current = now;
+  };
+
   return (
-    <View style={styles.postCard}>
+    <TouchableOpacity
+      activeOpacity={1}
+      style={styles.postCard}
+      onPress={handleDoubleTap}
+    >
       {/* Header with user info */}
       <View style={styles.postHeader}>
         <Avatar size="md" />
@@ -100,6 +198,7 @@ const PostCard: React.FC<PostCardProps> = ({
         <TouchableOpacity
           style={styles.postAction}
           onPress={handleCommentPress}
+          activeOpacity={0.7}
         >
           <Feather name="message-circle" size={18} color="#6E767D" />
           <Text style={styles.actionText}>
@@ -109,7 +208,8 @@ const PostCard: React.FC<PostCardProps> = ({
 
         <TouchableOpacity
           style={[styles.postAction, post.is_liked && styles.postActionActive]}
-          onPress={() => onLike(post.id, !!post.is_liked)}
+          onPress={handleLikePress}
+          activeOpacity={0.7}
         >
           <View style={styles.likeButtonContainer}>
             <Animated.View
@@ -142,32 +242,28 @@ const PostCard: React.FC<PostCardProps> = ({
         {post.user_id === currentUserId && onEdit && (
           <TouchableOpacity
             style={styles.postAction}
-            onPress={() => onEdit(post)}
+            onPress={() => onEdit && onEdit(post)}
+            activeOpacity={0.7}
           >
-            <Feather name="edit" size={18} color="#6E767D" />
+            <Feather name="edit-2" size={18} color="#6E767D" />
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   postCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.04)",
   },
   postHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: 14,
   },
   postHeaderText: {
     flex: 1,
@@ -179,80 +275,84 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   postAuthor: {
-    color: "#000000",
+    color: "#1A202C",
     fontSize: 15,
     fontWeight: "700",
     marginRight: 4,
+    letterSpacing: -0.3,
   },
   username: {
-    color: "#6E767D",
+    color: "#718096",
     fontSize: 14,
     marginRight: 4,
   },
   dateSeparator: {
-    color: "#6E767D",
+    color: "#A0AEC0",
     marginHorizontal: 4,
   },
   authorTag: {
     color: "#1DA1F2",
-    fontWeight: "normal",
+    fontWeight: "600",
   },
   postTime: {
-    color: "#6E767D",
+    color: "#718096",
     fontSize: 14,
   },
   groupTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(29, 161, 242, 0.1)",
+    backgroundColor: "rgba(29, 161, 242, 0.08)",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 16,
-    marginTop: 4,
+    marginTop: 6,
     alignSelf: "flex-start",
   },
   groupTagText: {
     color: "#1DA1F2",
     fontSize: 12,
     marginLeft: 4,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   postTypeTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(29, 161, 242, 0.1)",
+    backgroundColor: "rgba(29, 161, 242, 0.08)",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 16,
-    marginLeft: 6,
+    marginLeft: 8,
   },
   postTypeText: {
     color: "#1DA1F2",
     fontSize: 12,
     marginLeft: 4,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   postContent: {
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   postTitle: {
-    color: "#000000",
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 6,
+    color: "#1A202C",
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 8,
+    letterSpacing: -0.3,
+    lineHeight: 22,
   },
   postDescription: {
-    color: "#0F1419",
+    color: "#2D3748",
     fontSize: 15,
     lineHeight: 22,
+    letterSpacing: -0.2,
   },
   postActions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 12,
-    paddingTop: 8,
+    marginTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.08)",
+    borderTopColor: "rgba(0, 0, 0, 0.04)",
   },
   postAction: {
     flexDirection: "row",
@@ -279,7 +379,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(224, 36, 94, 0.2)",
   },
   actionText: {
-    color: "#6E767D",
+    color: "#718096",
     fontSize: 14,
     marginLeft: 6,
     fontWeight: "500",

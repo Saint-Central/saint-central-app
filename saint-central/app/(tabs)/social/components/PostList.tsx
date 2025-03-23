@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Animated,
   RefreshControl,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Post } from "../types";
@@ -20,6 +22,8 @@ interface PostListProps {
   onLike: (id: string, isLiked: boolean) => void;
   onEdit?: (post: Post) => void;
   isLoading: boolean;
+  scrollY?: Animated.Value;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
 const PostList: React.FC<PostListProps> = ({
@@ -28,6 +32,8 @@ const PostList: React.FC<PostListProps> = ({
   onLike,
   onEdit,
   isLoading,
+  scrollY = new Animated.Value(0),
+  onScroll,
 }) => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -62,6 +68,15 @@ const PostList: React.FC<PostListProps> = ({
     }, 1000);
   }, []);
 
+  // Set up the animated scroll event
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: onScroll, // Pass through the optional scroll listener
+    }
+  );
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -83,7 +98,7 @@ const PostList: React.FC<PostListProps> = ({
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       data={posts}
       renderItem={({ item }) => (
         <PostCard
@@ -99,6 +114,8 @@ const PostList: React.FC<PostListProps> = ({
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.listContainer}
       showsVerticalScrollIndicator={false}
+      onScroll={handleScroll}
+      scrollEventThrottle={16} // Ensure smooth animation by throttling correctly
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -113,8 +130,8 @@ const PostList: React.FC<PostListProps> = ({
 
 const styles = StyleSheet.create({
   listContainer: {
-    padding: 10,
     paddingBottom: 100,
+    backgroundColor: "#FFFFFF",
   },
   loadingContainer: {
     flex: 1,
@@ -127,14 +144,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 40,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
     marginTop: 20,
     marginHorizontal: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   emptyStateText: {
     color: "#657786",

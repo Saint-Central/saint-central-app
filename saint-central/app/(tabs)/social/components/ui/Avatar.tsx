@@ -1,6 +1,7 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface AvatarProps {
   size?: "sm" | "md" | "lg";
@@ -27,18 +28,34 @@ const Avatar: React.FC<AvatarProps> = ({ size = "md" }) => {
         },
       ]}
     >
-      <Feather name="user" size={selectedSize.icon} color="#FAC898" />
+      <LinearGradient
+        colors={["#1DA1F2", "#0077B5"]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Feather name="user" size={selectedSize.icon} color="#FFFFFF" />
+      </LinearGradient>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   avatarContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  gradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
