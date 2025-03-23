@@ -10,6 +10,7 @@ import {
   Text,
   Dimensions,
   BackHandler,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -133,22 +134,33 @@ const FeedScreen: React.FC = () => {
             },
           ]}
         >
-          <View style={styles.sidebarHeader}>
-            <TouchableOpacity
-              onPress={toggleSidebar}
-              style={styles.closeButton}
-            >
-              <Feather name="x" size={24} color="#1DA1F2" />
-            </TouchableOpacity>
-            <Text style={styles.sidebarTitle}>Menu</Text>
+          {/* User Profile Section */}
+          <View style={styles.profileSection}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Feather name="user" size={30} color="#FFFFFF" />
+              </View>
+            </View>
+            <Text style={styles.profileName}>Your Name</Text>
+            <Text style={styles.profileUsername}>@username</Text>
           </View>
 
-          <View style={styles.sidebarContent}>
+          <View style={styles.divider} />
+
+          {/* Menu Items */}
+          <ScrollView
+            style={styles.sidebarContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.sectionTitle}>Main Menu</Text>
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigateToScreen("/Lent2025")}
             >
-              <Feather name="calendar" size={24} color="#1DA1F2" />
+              <View style={styles.menuIconContainer}>
+                <Feather name="calendar" size={20} color="#FFFFFF" />
+              </View>
               <Text style={styles.menuItemText}>Lent 2025</Text>
             </TouchableOpacity>
 
@@ -156,7 +168,14 @@ const FeedScreen: React.FC = () => {
               style={styles.menuItem}
               onPress={() => navigateToScreen("/Rosary")}
             >
-              <Feather name="circle" size={24} color="#1DA1F2" />
+              <View
+                style={[
+                  styles.menuIconContainer,
+                  { backgroundColor: "#9B82F7" },
+                ]}
+              >
+                <Feather name="circle" size={20} color="#FFFFFF" />
+              </View>
               <Text style={styles.menuItemText}>Rosary</Text>
             </TouchableOpacity>
 
@@ -164,15 +183,31 @@ const FeedScreen: React.FC = () => {
               style={styles.menuItem}
               onPress={() => navigateToScreen("/events")}
             >
-              <Feather name="calendar" size={24} color="#1DA1F2" />
+              <View
+                style={[
+                  styles.menuIconContainer,
+                  { backgroundColor: "#F5A623" },
+                ]}
+              >
+                <Feather name="calendar" size={20} color="#FFFFFF" />
+              </View>
               <Text style={styles.menuItemText}>Events</Text>
             </TouchableOpacity>
+
+            <Text style={styles.sectionTitle}>Resources</Text>
 
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigateToScreen("/bible")}
             >
-              <Feather name="book" size={24} color="#1DA1F2" />
+              <View
+                style={[
+                  styles.menuIconContainer,
+                  { backgroundColor: "#50C878" },
+                ]}
+              >
+                <Feather name="book" size={20} color="#FFFFFF" />
+              </View>
               <Text style={styles.menuItemText}>Bible</Text>
             </TouchableOpacity>
 
@@ -180,10 +215,29 @@ const FeedScreen: React.FC = () => {
               style={styles.menuItem}
               onPress={() => navigateToScreen("/donate")}
             >
-              <Feather name="heart" size={24} color="#1DA1F2" />
+              <View
+                style={[
+                  styles.menuIconContainer,
+                  { backgroundColor: "#FF6B6B" },
+                ]}
+              >
+                <Feather name="heart" size={20} color="#FFFFFF" />
+              </View>
               <Text style={styles.menuItemText}>Donation</Text>
             </TouchableOpacity>
-          </View>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+
+          {/* Close Button - Floating at bottom */}
+          <TouchableOpacity
+            onPress={toggleSidebar}
+            style={styles.closeButtonContainer}
+          >
+            <View style={styles.closeButtonCircle}>
+              <Feather name="x" size={20} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
         </Animated.View>
       </>
     );
@@ -241,41 +295,91 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
   },
-  sidebarHeader: {
-    flexDirection: "row",
+  profileSection: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
     alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E1E8ED",
   },
-  sidebarTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginLeft: 16,
+  avatarContainer: {
+    marginBottom: 12,
   },
-  closeButton: {
-    width: 40,
-    height: 40,
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "#1DA1F2",
     alignItems: "center",
     justifyContent: "center",
   },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 4,
+  },
+  profileUsername: {
+    fontSize: 14,
+    color: "#718096",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E1E8ED",
+    marginHorizontal: 20,
+    marginBottom: 16,
+  },
   sidebarContent: {
     flex: 1,
-    paddingTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#718096",
+    marginLeft: 20,
+    marginTop: 16,
+    marginBottom: 8,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E1E8ED",
+    marginBottom: 8,
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#1DA1F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
   },
   menuItemText: {
-    marginLeft: 16,
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: "500",
     color: "#333",
+  },
+  closeButtonContainer: {
+    position: "absolute",
+    bottom: 40,
+    right: -20,
+    zIndex: 102,
+  },
+  closeButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#1DA1F2",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
 
