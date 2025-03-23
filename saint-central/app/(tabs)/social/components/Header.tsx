@@ -15,11 +15,15 @@ import { Feather } from "@expo/vector-icons";
 interface HeaderProps {
   title: string;
   scrollY?: Animated.Value;
+  showMenuIcon?: boolean;
+  onMenuPress?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
   title,
   scrollY = new Animated.Value(0),
+  showMenuIcon = false,
+  onMenuPress,
 }) => {
   const router = useRouter();
 
@@ -70,6 +74,11 @@ const Header: React.FC<HeaderProps> = ({
         <StatusBar barStyle="dark-content" />
 
         <View style={styles.headerMain}>
+          {showMenuIcon && (
+            <TouchableOpacity style={styles.menuButton} onPress={onMenuPress}>
+              <Feather name="menu" size={24} color="#1DA1F2" />
+            </TouchableOpacity>
+          )}
           <Animated.Text
             style={[styles.headerTitle, { fontSize: headerTitleSize }]}
           >
@@ -174,6 +183,12 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: "#3182CE",
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
