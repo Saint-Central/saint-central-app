@@ -590,7 +590,7 @@ export default function RosaryPrayerScreen() {
   }, []);
   
   // Define prayers for the rosary (shortened versions for card display)
-  const prayers = mysteryType === "INTRODUCTION" 
+  const prayers = mysteryType === "The Visitation" 
     ? [
         { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
         { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
@@ -602,7 +602,7 @@ export default function RosaryPrayerScreen() {
         { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ]
     : [
-        { id: 5, title: "Third Mystery: INTRODUCTION", text: "And while they were there, the time came for her to be delivered. And she gave birth to her first-born son and wrapped him in swaddling cloths, and laid him in a manger, because there was no place for them in the inn. (Luke 2:6-7)" },
+      { id: 5, title: "First Mystery: The Annunciation", text: "The angel Gabriel was sent from God to a city of Galilee named Nazareth, to a virgin betrothed to a man whose name was Joseph, of the house of David; and the virgin's name was Mary. And he came to her and said, 'Hail, full of grace, the Lord is with you!' (Luke 1:26-28)" },
         { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
         { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
         { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
@@ -821,7 +821,7 @@ export default function RosaryPrayerScreen() {
         { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
         { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
         { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
-        { phrase: `${mysteryTitle || "Third Mystery:"}`, timestamp: 170000 }, // Announce Mystery
+        { phrase: `${mysteryTitle || "First Mystery:"}`, timestamp: 170000 }, // Announce Mystery
         { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
         { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
         { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
@@ -853,7 +853,7 @@ export default function RosaryPrayerScreen() {
     }
   };
   
-  // Move to next prayer step - MODIFIED to remove seeking and prevent page scrolling
+  // Move to next prayer step - MODIFIED to navigate to next screen when reaching the end
   const nextPrayerStep = () => {
     if (currentPrayerStep < prayers.length - 1) {
       const nextStep = currentPrayerStep + 1;
@@ -868,6 +868,29 @@ export default function RosaryPrayerScreen() {
           setSeekingPrayerName("");
         }, 1500);
       }
+    } else {
+      // We're at the end of prayers, navigate to RosaryPrayer5
+      // Save any state we need to pass to the next screen
+      const nextScreenParams = {
+        mysteryType: mysteryType,
+        mysteryKey: mysteryKey,
+        mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
+        mysteryTitle: "Next Mystery", // You'd replace this with actual title
+        mysteryDescription: "Description of the next mystery", // You'd replace this
+        guideName: selectedGuide.name
+      };
+      
+      // Pause audio if playing before navigation
+      if (isPlaying) {
+        audioManager.pauseAudio();
+        setIsPlaying(false);
+      }
+      
+      // Navigate to RosaryPrayer5 with params
+      router.push({
+        pathname: '/RosaryPrayer5',
+        params: nextScreenParams
+      });
     }
   };
   
@@ -973,7 +996,7 @@ export default function RosaryPrayerScreen() {
             </Animated.View>
           </TouchableOpacity>
           
-          {/* Navigation Controls */}
+          {/* Navigation Controls - MODIFIED for next mystery navigation */}
           <View style={styles.navigationContainer}>
             <TouchableOpacity
               style={[
@@ -991,14 +1014,24 @@ export default function RosaryPrayerScreen() {
             <TouchableOpacity
               style={[
                 styles.navButton,
-                { opacity: currentPrayerStep === prayers.length - 1 ? 0.5 : 1 }
+                currentPrayerStep === prayers.length - 1 ? { backgroundColor: theme.primary } : null
               ]}
               onPress={nextPrayerStep}
-              disabled={currentPrayerStep === prayers.length - 1}
               activeOpacity={0.8}
             >
-              <Text style={[styles.navButtonText, { color: theme.primary }]}>NEXT</Text>
-              <AntDesign name="right" size={20} color={theme.primary} />
+              <Text 
+                style={[
+                  styles.navButtonText, 
+                  { color: currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary }
+                ]}
+              >
+                {currentPrayerStep === prayers.length - 1 ? 'NEXT MYSTERY' : 'NEXT'}
+              </Text>
+              <AntDesign 
+                name="right" 
+                size={20} 
+                color={currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary} 
+              />
             </TouchableOpacity>
           </View>
           
