@@ -618,8 +618,6 @@ export default function RosaryPrayerScreen() {
         { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ];
       
-// Removed duplicate declaration of prayers
-  
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -853,7 +851,7 @@ export default function RosaryPrayerScreen() {
     }
   };
   
-  // Move to next prayer step - MODIFIED to remove seeking and prevent page scrolling
+  // Move to next prayer step - MODIFIED to navigate to next mystery when at the end
   const nextPrayerStep = () => {
     if (currentPrayerStep < prayers.length - 1) {
       const nextStep = currentPrayerStep + 1;
@@ -868,6 +866,35 @@ export default function RosaryPrayerScreen() {
           setSeekingPrayerName("");
         }, 1500);
       }
+    } else {
+      // We're at the end of prayers, navigate to the next mystery
+      // Get the next mystery index
+      const currentMysteryIndex = parseInt(mysteryIndex as string);
+      
+      // Determine the next mystery type and index based on the current one
+      // This is where you'd implement the logic to move to the next mystery
+      
+      // For now, let's assume we just increment the index to go to the next mystery of the same type
+      const nextScreenParams = {
+        mysteryType: mysteryType,
+        mysteryKey: mysteryKey,
+        mysteryIndex: currentMysteryIndex + 1,
+        mysteryTitle: "Next Mystery", // This would be dynamic in a real implementation
+        mysteryDescription: "Description of the next mystery", // This would be dynamic
+        guideName: selectedGuide.name
+      };
+      
+      // Pause audio if playing before navigation
+      if (isPlaying) {
+        audioManager.pauseAudio();
+        setIsPlaying(false);
+      }
+      
+      // Navigate to the next screen with params
+      router.push({
+        pathname: '/RosaryPrayer6',
+        params: nextScreenParams
+      });
     }
   };
   
@@ -973,7 +1000,7 @@ export default function RosaryPrayerScreen() {
             </Animated.View>
           </TouchableOpacity>
           
-          {/* Navigation Controls */}
+          {/* Navigation Controls - MODIFIED for next mystery navigation */}
           <View style={styles.navigationContainer}>
             <TouchableOpacity
               style={[
@@ -991,14 +1018,24 @@ export default function RosaryPrayerScreen() {
             <TouchableOpacity
               style={[
                 styles.navButton,
-                { opacity: currentPrayerStep === prayers.length - 1 ? 0.5 : 1 }
+                currentPrayerStep === prayers.length - 1 ? { backgroundColor: theme.primary } : null
               ]}
               onPress={nextPrayerStep}
-              disabled={currentPrayerStep === prayers.length - 1}
               activeOpacity={0.8}
             >
-              <Text style={[styles.navButtonText, { color: theme.primary }]}>NEXT</Text>
-              <AntDesign name="right" size={20} color={theme.primary} />
+              <Text 
+                style={[
+                  styles.navButtonText, 
+                  { color: currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary }
+                ]}
+              >
+                {currentPrayerStep === prayers.length - 1 ? 'NEXT MYSTERY' : 'NEXT'}
+              </Text>
+              <AntDesign 
+                name="right" 
+                size={20} 
+                color={currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary} 
+              />
             </TouchableOpacity>
           </View>
           

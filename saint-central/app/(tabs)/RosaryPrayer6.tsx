@@ -533,7 +533,7 @@ const toRoman = (num: number) => {
   return roman[num] || num.toString();
 };
 
-export default function RosaryPrayerScreen() {
+export default function RosaryPrayer6Screen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -602,7 +602,7 @@ export default function RosaryPrayerScreen() {
         { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ]
     : [
-      { id: 5, title: "Fifth Mystery: The Annunciation", text: "After three days they found him in the temple, sitting among the teachers, listening to them and asking them questions; and all who heard him were amazed at his understanding and his answers. (Luke 2:46-47)" },
+      { id: 5, title: "Fifth Mystery: The Finding in the Temple", text: "And when they saw him they were astonished; and his mother said to him, 'Son, why have you treated us so? Behold, your father and I have been looking for you anxiously.' And he said to them, 'How is it that you sought me? Did you not know that I must be in my Father's house?' (Luke 2:48-49)" },
         { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
         { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
         { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
@@ -618,8 +618,6 @@ export default function RosaryPrayerScreen() {
         { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ];
       
-// Removed duplicate declaration of prayers
-  
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -853,7 +851,7 @@ export default function RosaryPrayerScreen() {
     }
   };
   
-  // Move to next prayer step - MODIFIED to remove seeking and prevent page scrolling
+  // Move to next prayer step - MODIFIED to navigate to next mystery when at the end
   const nextPrayerStep = () => {
     if (currentPrayerStep < prayers.length - 1) {
       const nextStep = currentPrayerStep + 1;
@@ -868,6 +866,35 @@ export default function RosaryPrayerScreen() {
           setSeekingPrayerName("");
         }, 1500);
       }
+    } else {
+      // We're at the end of prayers, navigate to the next mystery
+      // Get the next mystery index
+      const currentMysteryIndex = parseInt(mysteryIndex as string);
+      
+      // Determine the next mystery type and index based on the current one
+      // This is where you'd implement the logic to move to the next mystery
+      
+      // For now, let's assume we just increment the index to go to the next mystery of the same type
+      const nextScreenParams = {
+        mysteryType: mysteryType,
+        mysteryKey: mysteryKey,
+        mysteryIndex: currentMysteryIndex + 1,
+        mysteryTitle: "Next Mystery", // This would be dynamic in a real implementation
+        mysteryDescription: "Description of the next mystery", // This would be dynamic
+        guideName: selectedGuide.name
+      };
+      
+      // Pause audio if playing before navigation
+      if (isPlaying) {
+        audioManager.pauseAudio();
+        setIsPlaying(false);
+      }
+      
+      // Navigate to the next screen with params
+      router.push({
+        pathname: '/RosaryPrayer7',
+        params: nextScreenParams
+      });
     }
   };
   
@@ -973,7 +1000,7 @@ export default function RosaryPrayerScreen() {
             </Animated.View>
           </TouchableOpacity>
           
-          {/* Navigation Controls */}
+          {/* Navigation Controls - MODIFIED for next mystery navigation */}
           <View style={styles.navigationContainer}>
             <TouchableOpacity
               style={[
@@ -991,14 +1018,24 @@ export default function RosaryPrayerScreen() {
             <TouchableOpacity
               style={[
                 styles.navButton,
-                { opacity: currentPrayerStep === prayers.length - 1 ? 0.5 : 1 }
+                currentPrayerStep === prayers.length - 1 ? { backgroundColor: theme.primary } : null
               ]}
               onPress={nextPrayerStep}
-              disabled={currentPrayerStep === prayers.length - 1}
               activeOpacity={0.8}
             >
-              <Text style={[styles.navButtonText, { color: theme.primary }]}>NEXT</Text>
-              <AntDesign name="right" size={20} color={theme.primary} />
+              <Text 
+                style={[
+                  styles.navButtonText, 
+                  { color: currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary }
+                ]}
+              >
+                {currentPrayerStep === prayers.length - 1 ? 'NEXT MYSTERY' : 'NEXT'}
+              </Text>
+              <AntDesign 
+                name="right" 
+                size={20} 
+                color={currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary} 
+              />
             </TouchableOpacity>
           </View>
           
