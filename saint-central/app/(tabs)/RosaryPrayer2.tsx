@@ -533,6 +533,18 @@ const toRoman = (num: number) => {
   return roman[num] || num.toString();
 };
 
+// Define the mystery names that match the file sequence
+const MYSTERY_NAMES = [
+  "Introduction",
+  "First Mystery",
+  "Second Mystery", 
+  "Third Mystery",
+  "Fourth Mystery",
+  "Fifth Mystery",
+  "Sixth Mystery",
+  "Conclusion"
+];
+
 export default function RosaryPrayerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -618,8 +630,6 @@ export default function RosaryPrayerScreen() {
         { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ];
       
-// Removed duplicate declaration of prayers
-  
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -853,18 +863,29 @@ export default function RosaryPrayerScreen() {
     }
   };
   
-  // Navigation functions for mystery progression
+  // Navigation functions for mystery progression - UPDATED for file sequence
   const navigateToNext = () => {
-    // Always navigate to RosaryPrayer2 for the first mystery regardless of type
-    const mysteryScreenParam = "RosaryPrayer2";
+    // Current mystery index as a number
+    const currentMysteryIndex = parseInt(mysteryIndex as string, 10);
+    
+    // Determine the next screen based on current index
+    let nextScreenPath = 'RosaryPrayer';
+    
+    // Add the number to the path if not on the last prayer
+    if (currentMysteryIndex < 6) {
+      nextScreenPath += `${currentMysteryIndex + 2}`;
+    } else {
+      // If on the last prayer, go back to Rosary (complete)
+      nextScreenPath = 'Rosary';
+    }
     
     // Create params to pass to next screen
     const nextScreenParams = {
       mysteryType: mysteryType,
       mysteryKey: mysteryKey,
-      mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
-      mysteryTitle: "Next Mystery", // This would be replaced with actual title in a full implementation
-      mysteryDescription: "Description of the next mystery", // This would be replaced with actual description
+      mysteryIndex: currentMysteryIndex + 1, // Move to next mystery
+      mysteryTitle: MYSTERY_NAMES[currentMysteryIndex + 1] || "Conclusion", 
+      mysteryDescription: "Description of the next mystery",
       guideName: selectedGuide.name
     };
     
@@ -874,17 +895,57 @@ export default function RosaryPrayerScreen() {
       setIsPlaying(false);
     }
     
-    console.log(`Navigating to: ${mysteryScreenParam}`);
+    console.log(`Navigating to: ${nextScreenPath}`);
     
     // Navigate to the next screen with params
     router.push({
-      pathname: `/${mysteryScreenParam}` as any,
+      pathname: `/${nextScreenPath}` as any,
       params: nextScreenParams
     });
   };
   
   const navigateToPrevious = () => {
-    router.replace('/Rosary');
+    // Current mystery index as a number
+    const currentMysteryIndex = parseInt(mysteryIndex as string, 10);
+    
+    // If at the first prayer, go back to main Rosary screen
+    if (currentMysteryIndex === 0) {
+      router.replace('/Rosary');
+      return;
+    }
+    
+    // Determine the previous screen path
+    let prevScreenPath = 'RosaryPrayer';
+    
+    // If going back from screen 3+, add the number
+    if (currentMysteryIndex > 1) {
+      prevScreenPath += `${currentMysteryIndex}`;
+    }
+    // If going from screen 2 to 1, just use RosaryPrayer (without number)
+    
+    // Create params for previous screen
+    const prevScreenParams = {
+      mysteryType: mysteryType,
+      mysteryKey: mysteryKey,
+      mysteryIndex: currentMysteryIndex - 1,
+      mysteryTitle: MYSTERY_NAMES[currentMysteryIndex - 1],
+      mysteryDescription: "Description of the previous mystery",
+      guideName: selectedGuide.name
+    };
+    
+    // Pause audio if playing before navigation
+    if (isPlaying) {
+      audioManager.pauseAudio();
+      setIsPlaying(false);
+    }
+    
+    console.log(`Navigating to: ${prevScreenPath}`);
+    
+    // Navigate to the previous screen with params
+    router.push({
+      pathname: `/${prevScreenPath}` as any,
+      params: prevScreenParams
+    });
   };
   
   // Move to next prayer step - MODIFIED to navigate to next screen when reaching the end
@@ -903,7 +964,7 @@ export default function RosaryPrayerScreen() {
         }, 1500);
       }
     } else {
-      // We're at the end of prayers, navigate to RosaryPrayer2
+      // We're at the end of prayers, navigate to next mystery
       navigateToNext();
     }
   };
@@ -1072,30 +1133,50 @@ export default function RosaryPrayerScreen() {
             </View>
           </View>
           
-          {/* Progress Navigation - NEW COMPONENT */}
+          {/* Progress Navigation - UPDATED FOR FILE SEQUENCE */}
           <View style={styles.progressNavigationContainer}>
             <TouchableOpacity
               style={styles.progressNavButton}
               onPress={navigateToPrevious}
             >
               <AntDesign name="left" size={16} color="#888" />
-              <Text style={styles.progressNavText}>Back to Rosary</Text>
+              <Text style={styles.progressNavText}>
+                {parseInt(mysteryIndex as string, 10) > 0 
+                  ? MYSTERY_NAMES[parseInt(mysteryIndex as string, 10) - 1] 
+                  : "Back to Rosary"}
+              </Text>
             </TouchableOpacity>
             
             <View style={styles.progressIndicator}>
-              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
+              {[0, 1, 2, 3, 4, 5, 6].map((index) => (
+                <View 
+                  key={index}
+                  style={[
+                    styles.progressDot, 
+                    { backgroundColor: parseInt(mysteryIndex as string, 10) === index ? theme.primary : "#DDD" }
+                  ]} 
+                />
+              ))}
             </View>
             
             <TouchableOpacity
               style={styles.progressNavButton}
               onPress={navigateToNext}
+              disabled={parseInt(mysteryIndex as string, 10) >= 6} // Disable if we're at the last mystery
             >
-              <Text style={styles.progressNavText}>First Mystery</Text>
-              <AntDesign name="right" size={16} color="#888" />
+              <Text style={[
+                styles.progressNavText,
+                parseInt(mysteryIndex as string, 10) >= 6 && { color: "#CCC" } // Grey out text if disabled
+              ]}>
+                {parseInt(mysteryIndex as string, 10) < 6 
+                  ? MYSTERY_NAMES[parseInt(mysteryIndex as string, 10) + 1] 
+                  : "Complete"}
+              </Text>
+              <AntDesign 
+                name="right" 
+                size={16} 
+                color={parseInt(mysteryIndex as string, 10) >= 6 ? "#CCC" : "#888"} 
+              />
             </TouchableOpacity>
           </View>
           
@@ -1834,7 +1915,7 @@ const styles = StyleSheet.create({
     margin: 4, // Reduced margin
     borderWidth: 2,
   },
-  // New Progress Navigation styles
+  // Progress Navigation styles
   progressNavigationContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
