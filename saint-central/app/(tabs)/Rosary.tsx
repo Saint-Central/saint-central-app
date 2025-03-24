@@ -793,76 +793,143 @@ export default function RosaryScreen() {
     );
   };
   
-  // Navigate to prayer screen
-  // Updated openPrayerScreen function to navigate to different screens based on mystery index
-const openPrayerScreen = (index: number) => {
-  const mystery = MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES][index];
-  // Stop current audio before navigating
-  audioManager.stopAudio();
-  setIsPlaying(false);
+  // UPDATED NAVIGATION FUNCTIONS FROM PASTE.TXT
   
-  // Determine which RosaryPrayer screen to navigate to based on index
-  let screenPath: "/RosaryPrayer" | "/RosaryPrayer2" | "/RosaryPrayer3" | "/RosaryPrayer4" | "/RosaryPrayer5" | "/RosaryPrayer6" | "/RosaryPrayer7" = "/RosaryPrayer";
-  if (index === 0) screenPath = "/RosaryPrayer2"; // The Annunciation
-  else if (index === 1) screenPath = "/RosaryPrayer3"; // The Visitation
-  else if (index === 2) screenPath = "/RosaryPrayer4"; // The Nativity
-  else if (index === 3) screenPath = "/RosaryPrayer5"; // The Presentation
-  else if (index === 4) screenPath = "/RosaryPrayer6"; // Finding in the Temple
-  else if (index === 5) screenPath = "/RosaryPrayer7"; // Conclusion
-  // Navigate to appropriate prayer screen with params
-  router.push({
-    pathname: screenPath,
-    params: {
-      mysteryType: currentMysteryType,
-      mysteryKey: currentMysteryKey,
-      mysteryIndex: index,
-      mysteryTitle: mystery.title,
-      mysteryDescription: mystery.description,
-      guideName: selectedGuide.name
+  // Updated openPrayerScreen function to route based on mystery type
+  const openPrayerScreen = (index: number) => {
+    const mystery = MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES][index];
+    // Stop current audio before navigating
+    audioManager.stopAudio();
+    setIsPlaying(false);
+    
+    // Define base paths for different mystery types
+    let basePath = "";
+    
+    // Determine which base path to use based on mystery type
+    switch (currentMysteryKey) {
+      case "JOYFUL":
+        // Keep the original routing for Joyful Mysteries (Mondays/Saturdays)
+        basePath = "RosaryPrayer";
+        break;
+      case "SORROWFUL":
+        // Use different routing for Sorrowful Mysteries (Tuesdays/Fridays)
+        basePath = "SorrowfulPrayer";
+        break;
+      case "GLORIOUS":
+        // Use different routing for Glorious Mysteries (Wednesdays/Sundays)
+        basePath = "GloriousPrayer";
+        break;
+      case "LUMINOUS":
+        // Use different routing for Luminous Mysteries (Thursdays)
+        basePath = "LuminousPrayer";
+        break;
+      default:
+        basePath = "RosaryPrayer";
     }
-  });
-};
+    
+    // Determine which specific screen to navigate to based on index
+    let screenNumber = "";
+    if (index === 0) screenNumber = "2";
+    else if (index === 1) screenNumber = "3";
+    else if (index === 2) screenNumber = "4";
+    else if (index === 3) screenNumber = "5";
+    else if (index === 4) screenNumber = "6";
+    else screenNumber = "";
+    
+    // Construct the full path
+    const screenPath = `/${basePath}${screenNumber}`;
+    
+    // Navigate to appropriate prayer screen with params
+    router.push({
+      pathname: screenPath as any,
+      params: {
+        mysteryType: currentMysteryType,
+        mysteryKey: currentMysteryKey,
+        mysteryIndex: index,
+        mysteryTitle: mystery.title,
+        mysteryDescription: mystery.description,
+        guideName: selectedGuide.name
+      }
+    });
+  };
 
-// Updated openIntroductionScreen function to navigate to RosaryPrayer
-const openIntroductionScreen = () => {
-  // Stop current audio before navigating
-  audioManager.stopAudio();
-  setIsPlaying(false);
-  
-  // Navigate to introduction screen (RosaryPrayer)
-  router.push({
-    pathname: "/RosaryPrayer",
-    params: {
-      mysteryType: "INTRODUCTION",
-      mysteryKey: currentMysteryKey,
-      mysteryIndex: 0,
-      mysteryTitle: "Introduction",
-      mysteryDescription: `Introduction to the ${currentMysteryType}`,
-      guideName: selectedGuide.name
+  // Updated openIntroductionScreen function to use mystery-specific routing
+  const openIntroductionScreen = () => {
+    // Stop current audio before navigating
+    audioManager.stopAudio();
+    setIsPlaying(false);
+    
+    // Determine which base path to use based on mystery type
+    let basePath = "";
+    switch (currentMysteryKey) {
+      case "JOYFUL":
+        basePath = "RosaryPrayer";
+        break;
+      case "SORROWFUL":
+        basePath = "SorrowfulPrayer";
+        break;
+      case "GLORIOUS":
+        basePath = "GloriousPrayer";
+        break;
+      case "LUMINOUS":
+        basePath = "LuminousPrayer";
+        break;
+      default:
+        basePath = "RosaryPrayer";
     }
-  });
-};
+    
+    // Navigate to introduction screen using the appropriate base path
+    router.push({
+      pathname: `/${basePath}` as any,
+      params: {
+        mysteryType: "INTRODUCTION",
+        mysteryKey: currentMysteryKey,
+        mysteryIndex: 0,
+        mysteryTitle: "Introduction",
+        mysteryDescription: `Introduction to the ${currentMysteryType}`,
+        guideName: selectedGuide.name
+      }
+    });
+  };
 
-// Add a new function for the Conclusion card
-const openConclusionScreen = () => {
-  // Stop current audio before navigating
-  audioManager.stopAudio();
-  setIsPlaying(false);
-  
-  // Navigate to conclusion screen (RosaryPrayer7)
-  router.push({
-    pathname: "/RosaryPrayer7",
-    params: {
-      mysteryType: "CONCLUSION",
-      mysteryKey: currentMysteryKey,
-      mysteryIndex: 5, // Index after the 5 mysteries
-      mysteryTitle: "Conclusion",
-      mysteryDescription: `Concluding prayers for the ${currentMysteryType}`,
-      guideName: selectedGuide.name
+  // Updated openConclusionScreen function to use mystery-specific routing
+  const openConclusionScreen = () => {
+    // Stop current audio before navigating
+    audioManager.stopAudio();
+    setIsPlaying(false);
+    
+    // Determine which base path to use based on mystery type
+    let basePath = "";
+    switch (currentMysteryKey) {
+      case "JOYFUL":
+        basePath = "RosaryPrayer7"; // Keep the original for Joyful
+        break;
+      case "SORROWFUL":
+        basePath = "SorrowfulPrayer7";
+        break;
+      case "GLORIOUS":
+        basePath = "GloriousPrayer7";
+        break;
+      case "LUMINOUS":
+        basePath = "LuminousPrayer7";
+        break;
+      default:
+        basePath = "RosaryPrayer7";
     }
-  });
-};
-  
+    
+    // Navigate to conclusion screen using the appropriate path
+    router.push({
+      pathname: `/${basePath}` as any,
+      params: {
+        mysteryType: "CONCLUSION",
+        mysteryKey: currentMysteryKey,
+        mysteryIndex: 5, // Index after the 5 mysteries
+        mysteryTitle: "Conclusion",
+        mysteryDescription: `Concluding prayers for the ${currentMysteryType}`,
+        guideName: selectedGuide.name
+      }
+    });
+  };
   
   // Get today's day name
   const getDayName = () => {
