@@ -645,7 +645,7 @@ export default function SorrowfulPrayer7Screen() {
   const prayers = [
     { id: 0, title: "Hail Holy Queen", text: "Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope. To thee do we cry, poor banished children of Eve..." },
     { id: 1, title: "Prayer after the Rosary", text: "O God, whose only begotten Son, by His life, death, and resurrection, has purchased for us the rewards of eternal salvation..." },
-    { id: 2, title: "For the Intentions of the Pope", text: "Our Father... Hail Mary... Glory Be... for the intentions of the Holy Father." },
+
     { id: 3, title: "The Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
   ];
   
