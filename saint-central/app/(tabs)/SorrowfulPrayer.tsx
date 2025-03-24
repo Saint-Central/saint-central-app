@@ -899,6 +899,25 @@ export default function SorrowfulPrayerScreen() {
     }
   };
   
+  // Navigation functions specific to this screen
+  const navigateToNext = () => {
+    router.push({
+      pathname: '/SorrowfulPrayer2' as any,
+      params: {
+        mysteryType: "SORROWFUL",
+        mysteryKey: "SORROWFUL",
+        mysteryIndex: 0, // First mystery (0-indexed)
+        mysteryTitle: "The Agony in the Garden",
+        mysteryDescription: "Then Jesus came with them to a place called Gethsemane, and he said to his disciples, 'Sit here while I go over there and pray.' He took along Peter and the two sons of Zebedee, and began to feel sorrow and distress. (Matthew 26:36-37)",
+        guideName: selectedGuide.name
+      }
+    });
+  };
+  
+  const navigateToPrevious = () => {
+    router.replace('/Rosary');
+  };
+  
   // Reference to scroll view for auto-scrolling
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -1049,6 +1068,33 @@ export default function SorrowfulPrayerScreen() {
                 />
               ))}
             </View>
+          </View>
+          
+          {/* Progress Navigation */}
+          <View style={styles.progressNavigationContainer}>
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToPrevious}
+            >
+              <AntDesign name="left" size={16} color="#888" />
+              <Text style={styles.progressNavText}>Back to Rosary</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.progressIndicator}>
+              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+            </View>
+            
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToNext}
+            >
+              <Text style={styles.progressNavText}>1st Mystery</Text>
+              <AntDesign name="right" size={16} color="#888" />
+            </TouchableOpacity>
           </View>
           
           {/* Audio Controls */}
@@ -1245,8 +1291,6 @@ export default function SorrowfulPrayerScreen() {
               </Text>
             </View>
           </View>
-          
-
         </ScrollView>
       </SafeAreaView>
       
@@ -1794,7 +1838,7 @@ const styles = StyleSheet.create({
   },
   beadsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 4, // Further reduced spacing
+    marginBottom: 0, // Removed bottom margin
   },
   sectionTitle: {
     fontSize: 16, // Smaller font
@@ -1807,7 +1851,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
-    padding: 8, // Further reduced padding
+    padding: 6, // Further reduced padding
+    paddingBottom: 4, // Even less padding at the bottom
     borderRadius: 16,
   },
   bead: {
@@ -1816,6 +1861,38 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     margin: 4, // Reduced margin
     borderWidth: 2,
+  },
+  progressNavigationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 8, // Added small top margin 
+    marginBottom: 16, // Reduced bottom margin
+    paddingVertical: 8, // Reduced vertical padding
+    paddingHorizontal: 10,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 12,
+  },
+  progressNavButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressNavText: {
+    fontSize: 12,
+    color: "#888",
+    marginHorizontal: 4,
+  },
+  progressIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#DDD",
+    marginHorizontal: 3,
   },
   playButton: {
     borderRadius: 14,
