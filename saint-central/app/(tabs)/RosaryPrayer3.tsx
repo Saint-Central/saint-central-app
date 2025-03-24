@@ -602,7 +602,7 @@ export default function RosaryPrayerScreen() {
         { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ]
     : [
-        { id: 5, title: "Third Mystery: INTRODUCTION", text: "And while they were there, the time came for her to be delivered. And she gave birth to her first-born son and wrapped him in swaddling cloths, and laid him in a manger, because there was no place for them in the inn. (Luke 2:6-7)" },
+      { id: 5, title: "Second Mystery: The Visitation", text: "And when Elizabeth heard the greeting of Mary, the babe leaped in her womb; and Elizabeth was filled with the Holy Spirit and she exclaimed with a loud cry, 'Blessed are you among women, and blessed is the fruit of your womb!' (Luke 1:41-42)" },
         { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
         { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
         { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
@@ -617,8 +617,6 @@ export default function RosaryPrayerScreen() {
         { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
         { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
       ];
-      
-// Removed duplicate declaration of prayers
   
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
@@ -806,13 +804,13 @@ export default function RosaryPrayerScreen() {
   // Prayer key phrase based timestamps mapping
   const prayerKeyPhrases = mysteryType === "INTRODUCTION"
     ? [
-        { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
-        { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
-        { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
+    { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
+    { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
+    { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
         { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
         { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
         { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
-        { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
+    { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
         { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
       ]
     : [
@@ -821,7 +819,7 @@ export default function RosaryPrayerScreen() {
         { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
         { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
         { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
-        { phrase: `${mysteryTitle || "Third Mystery:"}`, timestamp: 170000 }, // Announce Mystery
+        { phrase: `${mysteryTitle || "Second Mystery:"}`, timestamp: 170000 }, // Announce Mystery
         { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
         { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
         { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
@@ -835,7 +833,7 @@ export default function RosaryPrayerScreen() {
         { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
         { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
         { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
-      ];
+  ];
   
   // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
   const skipToCurrentPrayer = async (index: number) => {
@@ -853,7 +851,46 @@ export default function RosaryPrayerScreen() {
     }
   };
   
-  // Move to next prayer step - MODIFIED to navigate to next screen when reaching the end
+  // Navigation functions for mystery progression
+  const navigateToNext = () => {
+    // Determine the next mystery index
+    const nextMysteryIndex = parseInt(mysteryIndex as string) + 1;
+    
+    // Always navigate to RosaryPrayer2 for the first mystery regardless of type
+    const mysteryScreenParam = "RosaryPrayer2";
+    
+    // Create params to pass to next screen
+    const nextScreenParams = {
+      mysteryType: mysteryType,
+      mysteryKey: mysteryKey,
+      mysteryIndex: nextMysteryIndex,
+      mysteryTitle: "Next Mystery", // This would be replaced with actual title in a full implementation
+      mysteryDescription: "Description of the next mystery", // This would be replaced with actual description
+      guideName: selectedGuide.name
+    };
+    
+    // Pause audio if playing before navigation
+    if (isPlaying) {
+      audioManager.pauseAudio();
+      setIsPlaying(false);
+    }
+    
+    console.log(`Navigating to: ${mysteryScreenParam}`);
+    
+    // Navigate to the next screen with params
+    router.push({
+      pathname: `/${mysteryScreenParam}` as any,
+      params: nextScreenParams
+    });
+  };
+  
+  const navigateToPrevious = () => {
+    // For now, this simply navigates back to the Rosary main screen
+    // In a full implementation, you might want to navigate to the previous mystery if not at the beginning
+    router.replace('/Rosary');
+  };
+  
+  // Move to next prayer step - MODIFIED to remove seeking and prevent page scrolling
   const nextPrayerStep = () => {
     if (currentPrayerStep < prayers.length - 1) {
       const nextStep = currentPrayerStep + 1;
@@ -868,29 +905,6 @@ export default function RosaryPrayerScreen() {
           setSeekingPrayerName("");
         }, 1500);
       }
-    } else {
-      // We're at the end of prayers, navigate to RosaryPrayer4
-      // Save any state we need to pass to the next screen
-      const nextScreenParams = {
-        mysteryType: mysteryType,
-        mysteryKey: mysteryKey,
-        mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
-        mysteryTitle: "Next Mystery", // You'd replace this with actual title
-        mysteryDescription: "Description of the next mystery", // You'd replace this
-        guideName: selectedGuide.name
-      };
-      
-      // Pause audio if playing before navigation
-      if (isPlaying) {
-        audioManager.pauseAudio();
-        setIsPlaying(false);
-      }
-      
-      // Navigate to RosaryPrayer4 with params
-      router.push({
-        pathname: '/RosaryPrayer4',
-        params: nextScreenParams
-      });
     }
   };
   
@@ -983,9 +997,9 @@ export default function RosaryPrayerScreen() {
               </View>
               
               <View style={styles.prayerProgressIndicator}>
-                <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
+              <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
                   {currentPrayerStep + 1} of {prayers.length}
-                </Text>
+              </Text>
               </View>
               
               <View style={styles.readMoreContainer}>
@@ -1047,7 +1061,7 @@ export default function RosaryPrayerScreen() {
                     styles.bead,
                     mysteryType === "INTRODUCTION" 
                       ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
-                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
                           : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
                       : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
                           ? { backgroundColor: theme.primary, borderColor: theme.primary }
@@ -1056,6 +1070,33 @@ export default function RosaryPrayerScreen() {
                 />
               ))}
             </View>
+          </View>
+          
+          {/* Progress Navigation - NEW COMPONENT */}
+          <View style={styles.progressNavigationContainer}>
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToPrevious}
+            >
+              <AntDesign name="left" size={16} color="#888" />
+              <Text style={styles.progressNavText}>The Annunciation</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.progressIndicator}>
+              <View style={styles.progressDot} />
+              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+            </View>
+            
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToNext}
+            >
+              <Text style={styles.progressNavText}>The Nativity</Text>
+              <AntDesign name="right" size={16} color="#888" />
+            </TouchableOpacity>
           </View>
           
           {/* Audio Controls */}
@@ -1252,8 +1293,6 @@ export default function RosaryPrayerScreen() {
               </Text>
             </View>
           </View>
-          
-
         </ScrollView>
       </SafeAreaView>
       
@@ -1474,7 +1513,7 @@ export default function RosaryPrayerScreen() {
                       || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
                       || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 3 times)"
                       || currentPrayerStep === 4 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 5 && `${mysteryTitle || "The Mystery"}\n\n${mysteryDescription || "Meditate on this mystery..."}`
+                      || currentPrayerStep === 5 && "The Second Joyful Mystery: The Visitation\n\nAnd when Elizabeth heard the greeting of Mary, the babe leaped in her womb; and Elizabeth was filled with the Holy Spirit and she exclaimed with a loud cry, 'Blessed are you among women, and blessed is the fruit of your womb!' (Luke 1:41-42)"
                       || currentPrayerStep === 6 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
                       || (currentPrayerStep >= 7 && currentPrayerStep <= 16) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
                       || currentPrayerStep === 17 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
@@ -1771,7 +1810,7 @@ const styles = StyleSheet.create({
   },
   beadsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 4, // Further reduced spacing
+    marginBottom: 0, // Removed bottom margin
   },
   sectionTitle: {
     fontSize: 16, // Smaller font
@@ -1784,7 +1823,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
-    padding: 8, // Further reduced padding
+    padding: 6, // Further reduced padding
+    paddingBottom: 4, // Even less padding at the bottom
     borderRadius: 16,
   },
   bead: {
@@ -1793,6 +1833,39 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     margin: 4, // Reduced margin
     borderWidth: 2,
+  },
+  // New Progress Navigation styles
+  progressNavigationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 8, // Added small top margin 
+    marginBottom: 16, // Reduced bottom margin
+    paddingVertical: 8, // Reduced vertical padding
+    paddingHorizontal: 10,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 12,
+  },
+  progressNavButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressNavText: {
+    fontSize: 12,
+    color: "#888",
+    marginHorizontal: 4,
+  },
+  progressIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#DDD",
+    marginHorizontal: 3,
   },
   playButton: {
     borderRadius: 14,
@@ -2021,5 +2094,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginLeft: 6,
+  },
+  // Prayer counter styles
+  prayerCounterContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "#F9F9F9",
+    borderRadius: 12,
+  },
+  prayerCounterLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  prayerCounterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  prayerCounterBead: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    margin: 3,
+    borderWidth: 1,
   },
 });
