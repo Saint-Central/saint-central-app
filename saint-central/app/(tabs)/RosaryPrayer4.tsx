@@ -590,35 +590,22 @@ export default function RosaryPrayerScreen() {
   }, []);
   
   // Define prayers for the rosary (shortened versions for card display)
-  const prayers = mysteryType === "The Visitation" 
-    ? [
-        { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
-        { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
-        { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-        { id: 3, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 4, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 5, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 6, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-        { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
-      ]
-    : [
-      { id: 5, title: "First Mystery: The Annunciation", text: "The angel Gabriel was sent from God to a city of Galilee named Nazareth, to a virgin betrothed to a man whose name was Joseph, of the house of David; and the virgin's name was Mary. And he came to her and said, 'Hail, full of grace, the Lord is with you!' (Luke 1:26-28)" },
-        { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-        { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 9, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 10, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 11, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 12, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 13, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 14, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 15, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 16, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-        { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
-      ];
-      
-// Removed duplicate declaration of prayers
+  const prayers = [
+    { id: 5, title: "Third Mystery: The Nativity", text: "And she gave birth to her first-born son and wrapped him in swaddling cloths, and laid him in a manger, because there was no place for them in the inn. (Luke 2:7)" },
+    { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
+    { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 9, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 10, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 11, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 12, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 13, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 14, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 15, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 16, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+    { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
+    { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
+  ];
   
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
@@ -804,38 +791,22 @@ export default function RosaryPrayerScreen() {
   };
   
   // Prayer key phrase based timestamps mapping
-  const prayerKeyPhrases = mysteryType === "INTRODUCTION"
-    ? [
-        { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
-        { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
-        { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
-        { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
-        { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
-        { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
-        { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
-        { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
-      ]
-    : [
-        { phrase: "In the name of the Father", timestamp: 0 },                // Sign of the Cross
-        { phrase: "I believe in God", timestamp: 12000 },                     // Apostles' Creed
-        { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
-        { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
-        { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
-        { phrase: `${mysteryTitle || "First Mystery:"}`, timestamp: 170000 }, // Announce Mystery
-        { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
-        { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
-        { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
-        { phrase: "Hail Mary (3)", timestamp: 270000 },                       // Hail Mary 3
-        { phrase: "Hail Mary (4)", timestamp: 285000 },                       // Hail Mary 4
-        { phrase: "Hail Mary (5)", timestamp: 300000 },                       // Hail Mary 5
-        { phrase: "Hail Mary (6)", timestamp: 315000 },                       // Hail Mary 6
-        { phrase: "Hail Mary (7)", timestamp: 330000 },                       // Hail Mary 7
-        { phrase: "Hail Mary (8)", timestamp: 345000 },                       // Hail Mary 8
-        { phrase: "Hail Mary (9)", timestamp: 360000 },                       // Hail Mary 9
-        { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
-        { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
-        { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
-      ];
+  const prayerKeyPhrases = [
+    { phrase: "Third Mystery: The Nativity", timestamp: 170000 }, // Announce Mystery
+    { phrase: "Our Father, who art in heaven", timestamp: 210000 },  // Our Father
+    { phrase: "Hail Mary (1)", timestamp: 240000 },                 // Hail Mary 1
+    { phrase: "Hail Mary (2)", timestamp: 255000 },                 // Hail Mary 2
+    { phrase: "Hail Mary (3)", timestamp: 270000 },                 // Hail Mary 3
+    { phrase: "Hail Mary (4)", timestamp: 285000 },                 // Hail Mary 4
+    { phrase: "Hail Mary (5)", timestamp: 300000 },                 // Hail Mary 5
+    { phrase: "Hail Mary (6)", timestamp: 315000 },                 // Hail Mary 6
+    { phrase: "Hail Mary (7)", timestamp: 330000 },                 // Hail Mary 7
+    { phrase: "Hail Mary (8)", timestamp: 345000 },                 // Hail Mary 8
+    { phrase: "Hail Mary (9)", timestamp: 360000 },                 // Hail Mary 9
+    { phrase: "Hail Mary (10)", timestamp: 375000 },                // Hail Mary 10
+    { phrase: "Glory be to the Father", timestamp: 390000 },        // Glory Be
+    { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 }, // Fatima Prayer
+  ];
   
   // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
   const skipToCurrentPrayer = async (index: number) => {
@@ -851,6 +822,50 @@ export default function RosaryPrayerScreen() {
         setSeekingPrayerName("");
       }, 1500);
     }
+  };
+  
+  // Navigation functions for mystery progression
+  const navigateToNext = () => {
+    // Create params to pass to next screen
+    const nextScreenParams = {
+      mysteryType: mysteryType,
+      mysteryKey: mysteryKey,
+      mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
+      mysteryTitle: "The Presentation", // Set title for next mystery
+      mysteryDescription: "And when the time came for their purification according to the law of Moses, they brought him up to Jerusalem to present him to the Lord. (Luke 2:22)", 
+      guideName: selectedGuide.name
+    };
+    
+    // Pause audio if playing before navigation
+    if (isPlaying) {
+      audioManager.pauseAudio();
+      setIsPlaying(false);
+    }
+    
+    // Navigate to the next mystery screen
+    router.push({
+      pathname: "/RosaryPrayer4" as any,
+      params: nextScreenParams
+    });
+  };
+  
+  // Navigation to previous mystery
+  const navigateToPrevious = () => {
+    // Create params to pass to previous screen
+    const prevScreenParams = {
+      mysteryType: mysteryType,
+      mysteryKey: mysteryKey,
+      mysteryIndex: parseInt(mysteryIndex as string) - 1, // Move to previous mystery
+      mysteryTitle: "The Visitation", 
+      mysteryDescription: "And when Elizabeth heard the greeting of Mary, the babe leaped in her womb; and Elizabeth was filled with the Holy Spirit and she exclaimed with a loud cry, 'Blessed are you among women, and blessed is the fruit of your womb!' (Luke 1:41-42)",
+      guideName: selectedGuide.name
+    };
+    
+    // Navigate to the previous mystery screen
+    router.push({
+      pathname: "/RosaryPrayer2" as any,
+      params: prevScreenParams
+    });
   };
   
   // Move to next prayer step - MODIFIED to navigate to next screen when reaching the end
@@ -869,28 +884,8 @@ export default function RosaryPrayerScreen() {
         }, 1500);
       }
     } else {
-      // We're at the end of prayers, navigate to RosaryPrayer5
-      // Save any state we need to pass to the next screen
-      const nextScreenParams = {
-        mysteryType: mysteryType,
-        mysteryKey: mysteryKey,
-        mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
-        mysteryTitle: "Next Mystery", // You'd replace this with actual title
-        mysteryDescription: "Description of the next mystery", // You'd replace this
-        guideName: selectedGuide.name
-      };
-      
-      // Pause audio if playing before navigation
-      if (isPlaying) {
-        audioManager.pauseAudio();
-        setIsPlaying(false);
-      }
-      
-      // Navigate to RosaryPrayer5 with params
-      router.push({
-        pathname: '/RosaryPrayer5',
-        params: nextScreenParams
-      });
+      // We're at the end of prayers, navigate to next mystery
+      navigateToNext();
     }
   };
   
@@ -940,7 +935,7 @@ export default function RosaryPrayerScreen() {
           </TouchableOpacity>
           
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>{mysteryType}</Text>
+            <Text style={styles.headerTitle}>{mysteryType || "JOYFUL MYSTERIES"}</Text>
           </View>
           
           <TouchableOpacity
@@ -1045,17 +1040,40 @@ export default function RosaryPrayerScreen() {
                   key={index}
                   style={[
                     styles.bead,
-                    mysteryType === "INTRODUCTION" 
-                      ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
-                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
-                      : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
-                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
+                    currentPrayerStep >= 2 && currentPrayerStep <= 11 && index < currentPrayerStep - 1
+                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                      : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' }
                   ]}
                 />
               ))}
             </View>
+          </View>
+          
+          {/* Progress Navigation - NEW COMPONENT */}
+          <View style={styles.progressNavigationContainer}>
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToPrevious}
+            >
+              <AntDesign name="left" size={16} color="#888" />
+              <Text style={styles.progressNavText}>The Visitation</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.progressIndicator}>
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+            </View>
+            
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToNext}
+            >
+              <Text style={styles.progressNavText}>The Presentation</Text>
+              <AntDesign name="right" size={16} color="#888" />
+            </TouchableOpacity>
           </View>
           
           {/* Audio Controls */}
@@ -1252,8 +1270,6 @@ export default function RosaryPrayerScreen() {
               </Text>
             </View>
           </View>
-          
-
         </ScrollView>
       </SafeAreaView>
       
@@ -1455,31 +1471,11 @@ export default function RosaryPrayerScreen() {
             <ScrollView style={styles.fullPrayerScrollView}>
               <View style={styles.fullPrayerContent}>
                 <Text style={styles.fullPrayerText}>
-                  {mysteryType === "INTRODUCTION" 
-                    ? (
-                      // Introduction prayers
-                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
-                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
-                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
-                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 4 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 5 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 6 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 7 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
-                    )
-                    : (
-                      // Regular mystery prayers with individual Hail Marys
-                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
-                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
-                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
-                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 3 times)"
-                      || currentPrayerStep === 4 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 5 && `${mysteryTitle || "The Mystery"}\n\n${mysteryDescription || "Meditate on this mystery..."}`
-                      || currentPrayerStep === 6 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
-                      || (currentPrayerStep >= 7 && currentPrayerStep <= 16) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 17 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 18 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
-                    )
+                  {currentPrayerStep === 0 && "The Third Joyful Mystery: The Nativity\n\nAnd she gave birth to her first-born son and wrapped him in swaddling cloths, and laid him in a manger, because there was no place for them in the inn. (Luke 2:7)"
+                  || currentPrayerStep === 1 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                  || (currentPrayerStep >= 2 && currentPrayerStep <= 11) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                  || currentPrayerStep === 12 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                  || currentPrayerStep === 13 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
                   }
                 </Text>
               </View>
@@ -1793,6 +1789,39 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     margin: 4, // Reduced margin
     borderWidth: 2,
+  },
+  // New Progress Navigation styles
+  progressNavigationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 8, // Added small top margin 
+    marginBottom: 16, // Reduced bottom margin
+    paddingVertical: 8, // Reduced vertical padding
+    paddingHorizontal: 10,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 12,
+  },
+  progressNavButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressNavText: {
+    fontSize: 12,
+    color: "#888",
+    marginHorizontal: 4,
+  },
+  progressIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#DDD",
+    marginHorizontal: 3,
   },
   playButton: {
     borderRadius: 14,
