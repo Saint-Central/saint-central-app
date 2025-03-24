@@ -773,7 +773,7 @@ export default function SorrowfulPrayer6Screen() {
   
   // Quick guide switch button component
   const QuickGuideButton = ({ guide }: { guide: typeof VOICE_GUIDES[number] }) => {
-    const isActive = selectedGuide.id === guide.id;
+    const isActive = selectedGuide?.id === guide.id;
     
     return (
       <TouchableOpacity
@@ -813,7 +813,7 @@ export default function SorrowfulPrayer6Screen() {
         mysteryIndex: 5, // Conclusion (after 5 mysteries)
         mysteryTitle: "Conclusion",
         mysteryDescription: "Concluding prayers for the Sorrowful Mysteries",
-        guideName: selectedGuide.name
+        guideName: selectedGuide?.name || "Francis"
       }
     });
   };
@@ -827,7 +827,7 @@ export default function SorrowfulPrayer6Screen() {
         mysteryIndex: 3, // Fourth mystery (0-indexed)
         mysteryTitle: "The Carrying of the Cross",
         mysteryDescription: "And carrying the cross himself, he went out to what is called the Place of the Skull, in Hebrew, Golgotha. (John 19:17)",
-        guideName: selectedGuide.name
+        guideName: selectedGuide?.name || "Francis"
       }
     });
   };
@@ -1170,7 +1170,7 @@ export default function SorrowfulPrayer6Screen() {
                 />
               </View>
               <Text style={styles.transitionText}>
-                Transitioning from {selectedGuide.name} to new guide...
+                Transitioning from {selectedGuide?.name || "Francis"} to new guide...
               </Text>
             </View>
           )}
@@ -1190,7 +1190,7 @@ export default function SorrowfulPrayer6Screen() {
             <View style={[styles.guideChip, { backgroundColor: theme.accent }]}>
               <AntDesign name="user" size={16} color={theme.primary} />
               <Text style={[styles.guideText, { color: theme.primary }]}>
-                Guide: {selectedGuide.name}
+                Guide: {selectedGuide?.name || "Francis"}
               </Text>
             </View>
             

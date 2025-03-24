@@ -853,7 +853,41 @@ export default function RosaryPrayerScreen() {
     }
   };
   
-  // Move to next prayer step - MODIFIED to remove seeking and prevent page scrolling
+  // Navigation functions for mystery progression
+  const navigateToNext = () => {
+    // Always navigate to RosaryPrayer2 for the first mystery regardless of type
+    const mysteryScreenParam = "RosaryPrayer2";
+    
+    // Create params to pass to next screen
+    const nextScreenParams = {
+      mysteryType: mysteryType,
+      mysteryKey: mysteryKey,
+      mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
+      mysteryTitle: "Next Mystery", // This would be replaced with actual title in a full implementation
+      mysteryDescription: "Description of the next mystery", // This would be replaced with actual description
+      guideName: selectedGuide.name
+    };
+    
+    // Pause audio if playing before navigation
+    if (isPlaying) {
+      audioManager.pauseAudio();
+      setIsPlaying(false);
+    }
+    
+    console.log(`Navigating to: ${mysteryScreenParam}`);
+    
+    // Navigate to the next screen with params
+    router.push({
+      pathname: `/${mysteryScreenParam}` as any,
+      params: nextScreenParams
+    });
+  };
+  
+  const navigateToPrevious = () => {
+    router.replace('/Rosary');
+  };
+  
+  // Move to next prayer step - MODIFIED to navigate to next screen when reaching the end
   const nextPrayerStep = () => {
     if (currentPrayerStep < prayers.length - 1) {
       const nextStep = currentPrayerStep + 1;
@@ -868,6 +902,9 @@ export default function RosaryPrayerScreen() {
           setSeekingPrayerName("");
         }, 1500);
       }
+    } else {
+      // We're at the end of prayers, navigate to RosaryPrayer2
+      navigateToNext();
     }
   };
   
@@ -973,7 +1010,7 @@ export default function RosaryPrayerScreen() {
             </Animated.View>
           </TouchableOpacity>
           
-          {/* Navigation Controls */}
+          {/* Navigation Controls - MODIFIED for next mystery navigation */}
           <View style={styles.navigationContainer}>
             <TouchableOpacity
               style={[
@@ -991,14 +1028,24 @@ export default function RosaryPrayerScreen() {
             <TouchableOpacity
               style={[
                 styles.navButton,
-                { opacity: currentPrayerStep === prayers.length - 1 ? 0.5 : 1 }
+                currentPrayerStep === prayers.length - 1 ? { backgroundColor: theme.primary } : null
               ]}
               onPress={nextPrayerStep}
-              disabled={currentPrayerStep === prayers.length - 1}
               activeOpacity={0.8}
             >
-              <Text style={[styles.navButtonText, { color: theme.primary }]}>NEXT</Text>
-              <AntDesign name="right" size={20} color={theme.primary} />
+              <Text 
+                style={[
+                  styles.navButtonText, 
+                  { color: currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary }
+                ]}
+              >
+                {currentPrayerStep === prayers.length - 1 ? 'NEXT MYSTERY' : 'NEXT'}
+              </Text>
+              <AntDesign 
+                name="right" 
+                size={20} 
+                color={currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary} 
+              />
             </TouchableOpacity>
           </View>
           
@@ -1023,6 +1070,33 @@ export default function RosaryPrayerScreen() {
                 />
               ))}
             </View>
+          </View>
+          
+          {/* Progress Navigation - NEW COMPONENT */}
+          <View style={styles.progressNavigationContainer}>
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToPrevious}
+            >
+              <AntDesign name="left" size={16} color="#888" />
+              <Text style={styles.progressNavText}>Back to Rosary</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.progressIndicator}>
+              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+              <View style={styles.progressDot} />
+            </View>
+            
+            <TouchableOpacity
+              style={styles.progressNavButton}
+              onPress={navigateToNext}
+            >
+              <Text style={styles.progressNavText}>First Mystery</Text>
+              <AntDesign name="right" size={16} color="#888" />
+            </TouchableOpacity>
           </View>
           
           {/* Audio Controls */}
@@ -1219,8 +1293,6 @@ export default function RosaryPrayerScreen() {
               </Text>
             </View>
           </View>
-          
-
         </ScrollView>
       </SafeAreaView>
       
@@ -1738,7 +1810,7 @@ const styles = StyleSheet.create({
   },
   beadsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 4, // Further reduced spacing
+    marginBottom: 0, // Removed bottom margin
   },
   sectionTitle: {
     fontSize: 16, // Smaller font
@@ -1751,7 +1823,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
-    padding: 8, // Further reduced padding
+    padding: 6, // Further reduced padding
+    paddingBottom: 4, // Even less padding at the bottom
     borderRadius: 16,
   },
   bead: {
@@ -1760,6 +1833,39 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     margin: 4, // Reduced margin
     borderWidth: 2,
+  },
+  // New Progress Navigation styles
+  progressNavigationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 8, // Added small top margin 
+    marginBottom: 16, // Reduced bottom margin
+    paddingVertical: 8, // Reduced vertical padding
+    paddingHorizontal: 10,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 12,
+  },
+  progressNavButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressNavText: {
+    fontSize: 12,
+    color: "#888",
+    marginHorizontal: 4,
+  },
+  progressIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#DDD",
+    marginHorizontal: 3,
   },
   playButton: {
     borderRadius: 14,

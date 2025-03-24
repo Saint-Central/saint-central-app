@@ -802,7 +802,7 @@ export default function SorrowfulPrayer7Screen() {
   
   // Quick guide switch button component
   const QuickGuideButton = ({ guide }: { guide: typeof VOICE_GUIDES[number] }) => {
-    const isActive = selectedGuide.id === guide.id;
+    const isActive = selectedGuide?.id === guide.id;
     
     return (
       <TouchableOpacity
@@ -833,25 +833,26 @@ export default function SorrowfulPrayer7Screen() {
   };
   
   // Navigation functions
-  const navigateToFifthMystery = () => {
+  const navigateToPrevious = () => {
     router.push({
-      pathname: '/SorrowfulPrayer6',
+      pathname: '/SorrowfulPrayer6' as any,
       params: {
         mysteryType: "SORROWFUL",
         mysteryKey: "SORROWFUL",
-        mysteryIndex: 4, // Fifth mystery (0-indexed)
+        mysteryIndex: 4,
         mysteryTitle: "The Crucifixion",
-        mysteryDescription: "There they crucified him, and with him two others, one on either side, with Jesus in the middle. (John 19:18)",
-        guideName: selectedGuide.name
+        mysteryDescription: "When they came to the place called the Skull, they crucified him and the criminals there, one on his right, the other on his left. Then Jesus said, \"Father, forgive them, they know not what they do.\" (Luke 23:33-34)",
+        guideName: guideName || "Francis"
       }
     });
   };
   
-  const navigateToMainScreen = () => {
+  const navigateToRosary = () => {
     router.push({
-      pathname: '/Rosary',
+      pathname: '/Rosary' as any,
       params: {
-        guideName: selectedGuide.name
+        mysteryType: "SORROWFUL",
+        mysteryKey: "SORROWFUL"
       }
     });
   };
@@ -872,7 +873,7 @@ export default function SorrowfulPrayer7Screen() {
       }
     } else {
       // At the end, navigate to main screen
-      navigateToMainScreen();
+      navigateToRosary();
     }
   };
   
@@ -892,7 +893,7 @@ export default function SorrowfulPrayer7Screen() {
       }
     } else {
       // At the beginning, navigate to fifth mystery
-      navigateToFifthMystery();
+      navigateToPrevious();
     }
   };
   
@@ -917,7 +918,7 @@ export default function SorrowfulPrayer7Screen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={navigateToFifthMystery}
+            onPress={navigateToPrevious}
             activeOpacity={0.7}
           >
             <AntDesign name="arrowleft" size={24} color="#FFF" />
@@ -1039,7 +1040,7 @@ export default function SorrowfulPrayer7Screen() {
           <View style={styles.progressNavigationContainer}>
             <TouchableOpacity
               style={styles.progressNavButton}
-              onPress={navigateToFifthMystery}
+              onPress={navigateToPrevious}
             >
               <AntDesign name="left" size={16} color="#888" />
               <Text style={styles.progressNavText}>5th Mystery</Text>
@@ -1056,7 +1057,7 @@ export default function SorrowfulPrayer7Screen() {
             
             <TouchableOpacity
               style={styles.progressNavButton}
-              onPress={navigateToMainScreen}
+              onPress={navigateToRosary}
             >
               <Text style={styles.progressNavText}>Finish</Text>
               <AntDesign name="check" size={16} color="#888" />
@@ -1066,7 +1067,7 @@ export default function SorrowfulPrayer7Screen() {
           {/* Return to Main Screen Button */}
           <TouchableOpacity 
             style={[styles.finishButton, { backgroundColor: theme.primary }]}
-            onPress={navigateToMainScreen}
+            onPress={navigateToRosary}
             activeOpacity={0.9}
           >
             <View style={styles.finishButtonContent}>
@@ -1217,7 +1218,7 @@ export default function SorrowfulPrayer7Screen() {
                 />
               </View>
               <Text style={styles.transitionText}>
-                Transitioning from {selectedGuide.name} to new guide...
+                Transitioning from {selectedGuide?.name || "Francis"} to new guide...
               </Text>
             </View>
           )}
@@ -1237,7 +1238,7 @@ export default function SorrowfulPrayer7Screen() {
             <View style={[styles.guideChip, { backgroundColor: theme.accent }]}>
               <AntDesign name="user" size={16} color={theme.primary} />
               <Text style={[styles.guideText, { color: theme.primary }]}>
-                Guide: {selectedGuide.name}
+                Guide: {selectedGuide?.name || "Francis"}
               </Text>
             </View>
             
