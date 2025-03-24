@@ -517,12 +517,12 @@ const getMysteryTheme = (mysteryKey: string) => {
       };
     default:
       return {
-        primary: "#FF4757", // Default to Sorrowful for this screen
-        secondary: "#D63031",
-        accent: "#FFE9EB",
-        gradientStart: "#FF4757",
-        gradientEnd: "#D63031",
-        icon: "heart-broken",
+        primary: "#0ACF83",
+        secondary: "#07A866",
+        accent: "#E8FFF4",
+        gradientStart: "#0ACF83",
+        gradientEnd: "#07A866",
+        icon: "leaf",
       };
   }
 };
@@ -533,41 +533,28 @@ const toRoman = (num: number) => {
   return roman[num] || num.toString();
 };
 
-// Second Sorrowful Mystery-specific content
-const SECOND_MYSTERY_CONTENT = {
-  title: "The Scourging at the Pillar",
-  description: "Then Pilate took Jesus and had him scourged. (John 19:1)",
-  reflection: "Jesus endured the scourging in silence, offering His suffering for our redemption. Each lash He bore was for our sins. His sacred body was torn, yet His love remained unbroken."
-};
-
-export default function SorrowfulPrayer3Screen() {
+export default function RosaryPrayerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const scrollY = useRef(new Animated.Value(0)).current;
   const sliderWidth = useRef(1);
   
-  // Get parameters from navigation or use defaults specific to this mystery
-  const { 
-    mysteryType = "SORROWFUL", 
-    mysteryKey = "SORROWFUL", 
-    mysteryIndex = "1", 
-    mysteryTitle = SECOND_MYSTERY_CONTENT.title, 
-    mysteryDescription = SECOND_MYSTERY_CONTENT.description, 
-    guideName 
-  } = params;
+  // Get parameters from navigation
+  const { mysteryType, mysteryKey, mysteryIndex, mysteryTitle, mysteryDescription, guideName } = params;
   
   // Get theme based on mystery type
   const theme = getMysteryTheme(mysteryKey as string);
   
-  // State for prayer interface - starting with the mystery announcement for this screen
+  // State for prayer interface
   const [currentPrayerStep, setCurrentPrayerStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  
   
   // UI state for prayer seeking
   const [seekingPrayer, setSeekingPrayer] = useState(false);
   const [seekingPrayerName, setSeekingPrayerName] = useState("");
   
-  // Audio control states
+  // New audio control states
   const [currentPosition, setCurrentPosition] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -602,23 +589,36 @@ export default function SorrowfulPrayer3Screen() {
     ]).start();
   }, []);
   
-  // Define prayers for this specific mystery
-  const prayers = [
-    { id: 0, title: "Second Mystery: The Scourging at the Pillar", text: SECOND_MYSTERY_CONTENT.description },
-    { id: 1, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-    { id: 2, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 3, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 4, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 5, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 6, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 7, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 8, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 9, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 10, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 11, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-    { id: 12, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-    { id: 13, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
-  ];
+  // Define prayers for the rosary (shortened versions for card display)
+  const prayers = mysteryType === "INTRODUCTION" 
+    ? [
+        { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
+        { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
+        { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
+        { id: 3, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 4, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 5, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 6, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
+        { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
+      ]
+    : [
+        { id: 5, title: "Third Mystery: INTRODUCTION", text: "And while they were there, the time came for her to be delivered. And she gave birth to her first-born son and wrapped him in swaddling cloths, and laid him in a manger, because there was no place for them in the inn. (Luke 2:6-7)" },
+        { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
+        { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 9, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 10, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 11, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 12, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 13, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 14, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 15, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 16, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
+        { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
+        { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
+      ];
+      
+// Removed duplicate declaration of prayers
   
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
@@ -672,7 +672,7 @@ export default function SorrowfulPrayer3Screen() {
         const result = await audioManager.resumeAudio();
         if (!result) {
           // If no audio is loaded, play the mystery
-          await audioManager.playMystery(mysteryKey as string || "SORROWFUL", parseInt(mysteryIndex as string) || 1);
+          await audioManager.playMystery(mysteryKey as string, parseInt(mysteryIndex as string));
         }
         setIsPlaying(true);
       }
@@ -803,48 +803,57 @@ export default function SorrowfulPrayer3Screen() {
     );
   };
   
-  // Navigation functions specific to this mystery
-  const navigateToNext = () => {
-    // Pause audio if playing before navigation
-    if (isPlaying) {
-      audioManager.pauseAudio();
-      setIsPlaying(false);
+  // Prayer key phrase based timestamps mapping
+  const prayerKeyPhrases = mysteryType === "INTRODUCTION"
+    ? [
+        { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
+        { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
+        { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
+        { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
+        { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
+        { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
+        { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
+        { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
+      ]
+    : [
+        { phrase: "In the name of the Father", timestamp: 0 },                // Sign of the Cross
+        { phrase: "I believe in God", timestamp: 12000 },                     // Apostles' Creed
+        { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
+        { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
+        { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
+        { phrase: `${mysteryTitle || "Third Mystery:"}`, timestamp: 170000 }, // Announce Mystery
+        { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
+        { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
+        { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
+        { phrase: "Hail Mary (3)", timestamp: 270000 },                       // Hail Mary 3
+        { phrase: "Hail Mary (4)", timestamp: 285000 },                       // Hail Mary 4
+        { phrase: "Hail Mary (5)", timestamp: 300000 },                       // Hail Mary 5
+        { phrase: "Hail Mary (6)", timestamp: 315000 },                       // Hail Mary 6
+        { phrase: "Hail Mary (7)", timestamp: 330000 },                       // Hail Mary 7
+        { phrase: "Hail Mary (8)", timestamp: 345000 },                       // Hail Mary 8
+        { phrase: "Hail Mary (9)", timestamp: 360000 },                       // Hail Mary 9
+        { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
+        { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
+        { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
+      ];
+  
+  // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
+  const skipToCurrentPrayer = async (index: number) => {
+    if (isPlaying && totalDuration > 0) {
+      // Get prayer info
+      const prayerInfo = prayerKeyPhrases[index];
+      
+      // Only show prayer name without seeking
+      setSeekingPrayerName(prayerInfo.phrase);
+      
+      // Hide seeking indicator after a moment
+      setTimeout(() => {
+        setSeekingPrayerName("");
+      }, 1500);
     }
-    
-    router.push({
-      pathname: '/RosaryPrayer4',
-      params: {
-        mysteryType: "SORROWFUL",
-        mysteryKey: "SORROWFUL",
-        mysteryIndex: 2, // Third mystery (0-indexed)
-        mysteryTitle: "The Crowning with Thorns",
-        mysteryDescription: "They clothed him in purple and, weaving a crown of thorns, placed it on him. (Mark 15:17)",
-        guideName: selectedGuide.name
-      }
-    });
   };
   
-  const navigateToPrevious = () => {
-    // Pause audio if playing before navigation
-    if (isPlaying) {
-      audioManager.pauseAudio();
-      setIsPlaying(false);
-    }
-    
-    router.push({
-      pathname: '/RosaryPrayer2',
-      params: {
-        mysteryType: "SORROWFUL",
-        mysteryKey: "SORROWFUL",
-        mysteryIndex: 0,
-        mysteryTitle: "The Agony in the Garden",
-        mysteryDescription: "Then Jesus came with them to a place called Gethsemane, and he said to his disciples, 'Sit here while I go over there and pray.' He took along Peter and the two sons of Zebedee, and began to feel sorrow and distress. (Matthew 26:36-37)",
-        guideName: selectedGuide.name
-      }
-    });
-  };
-  
-  // Move to next prayer step - MODIFIED to navigate to RosaryPrayer4 when reaching the end
+  // Move to next prayer step - MODIFIED to navigate to next screen when reaching the end
   const nextPrayerStep = () => {
     if (currentPrayerStep < prayers.length - 1) {
       const nextStep = currentPrayerStep + 1;
@@ -852,19 +861,40 @@ export default function SorrowfulPrayer3Screen() {
       
       // Only show prayer name without seeking audio
       if (isPlaying) {
-        setSeekingPrayerName(prayers[nextStep].title);
+        const prayerInfo = prayerKeyPhrases[nextStep];
+        setSeekingPrayerName(prayerInfo.phrase);
         
         setTimeout(() => {
           setSeekingPrayerName("");
         }, 1500);
       }
     } else {
-      // At the end, navigate to next mystery
-      navigateToNext();
+      // We're at the end of prayers, navigate to RosaryPrayer4
+      // Save any state we need to pass to the next screen
+      const nextScreenParams = {
+        mysteryType: mysteryType,
+        mysteryKey: mysteryKey,
+        mysteryIndex: parseInt(mysteryIndex as string) + 1, // Move to next mystery
+        mysteryTitle: "Next Mystery", // You'd replace this with actual title
+        mysteryDescription: "Description of the next mystery", // You'd replace this
+        guideName: selectedGuide.name
+      };
+      
+      // Pause audio if playing before navigation
+      if (isPlaying) {
+        audioManager.pauseAudio();
+        setIsPlaying(false);
+      }
+      
+      // Navigate to RosaryPrayer4 with params
+      router.push({
+        pathname: '/RosaryPrayer4',
+        params: nextScreenParams
+      });
     }
   };
   
-  // Move to previous prayer step
+  // Move to previous prayer step - MODIFIED to remove seeking and prevent page scrolling
   const prevPrayerStep = () => {
     if (currentPrayerStep > 0) {
       const prevStep = currentPrayerStep - 1;
@@ -872,15 +902,13 @@ export default function SorrowfulPrayer3Screen() {
       
       // Only show prayer name without seeking audio
       if (isPlaying) {
-        setSeekingPrayerName(prayers[prevStep].title);
+        const prayerInfo = prayerKeyPhrases[prevStep];
+        setSeekingPrayerName(prayerInfo.phrase);
         
         setTimeout(() => {
           setSeekingPrayerName("");
         }, 1500);
       }
-    } else {
-      // At the beginning, navigate to previous screen
-      navigateToPrevious();
     }
   };
   
@@ -905,14 +933,14 @@ export default function SorrowfulPrayer3Screen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={navigateToPrevious}
+            onPress={() => router.replace('/Rosary')}
             activeOpacity={0.7}
           >
             <AntDesign name="arrowleft" size={24} color="#FFF" />
           </TouchableOpacity>
           
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Second Sorrowful Mystery</Text>
+            <Text style={styles.headerTitle}>{mysteryType}</Text>
           </View>
           
           <TouchableOpacity
@@ -929,26 +957,6 @@ export default function SorrowfulPrayer3Screen() {
           showsVerticalScrollIndicator={false}
           ref={scrollViewRef}
         >
-          {/* Mystery Card */}
-          <Animated.View 
-            style={[
-              styles.mysteryCard,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              }
-            ]}
-          >
-            <View style={styles.mysteryIconContainer}>
-              <FontAwesome5 name="heart-broken" size={24} color="#FFF" />
-            </View>
-            <Text style={styles.mysteryTitle}>{SECOND_MYSTERY_CONTENT.title}</Text>
-            <Text style={styles.mysteryScripture}>{SECOND_MYSTERY_CONTENT.description}</Text>
-            <View style={styles.mysteryReflectionContainer}>
-              <Text style={styles.mysteryReflection}>{SECOND_MYSTERY_CONTENT.reflection}</Text>
-            </View>
-          </Animated.View>
-          
           {/* Current Prayer Display */}
           <TouchableOpacity
             activeOpacity={0.9}
@@ -996,6 +1004,7 @@ export default function SorrowfulPrayer3Screen() {
                 { opacity: currentPrayerStep === 0 ? 0.5 : 1 }
               ]}
               onPress={prevPrayerStep}
+              disabled={currentPrayerStep === 0}
               activeOpacity={0.8}
             >
               <AntDesign name="left" size={20} color={theme.primary} />
@@ -1026,31 +1035,27 @@ export default function SorrowfulPrayer3Screen() {
             </TouchableOpacity>
           </View>
           
-          {/* Progress Navigation */}
-          <View style={styles.progressNavigationContainer}>
-            <TouchableOpacity
-              style={styles.progressNavButton}
-              onPress={navigateToPrevious}
-            >
-              <AntDesign name="left" size={16} color="#888" />
-              <Text style={styles.progressNavText}>1st Mystery</Text>
-            </TouchableOpacity>
+          {/* Rosary Beads Visualizer */}
+          <View style={styles.beadsContainer}>
+            <Text style={styles.sectionTitle}>Rosary Progress</Text>
             
-            <View style={styles.progressIndicator}>
-              <View style={styles.progressDot} />
-              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
+            <View style={styles.beadsRow}>
+              {Array.from({ length: 10 }).map((_, index) => (
+                <View 
+                  key={index}
+                  style={[
+                    styles.bead,
+                    mysteryType === "INTRODUCTION" 
+                      ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
+                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
+                      : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
+                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
+                  ]}
+                />
+              ))}
             </View>
-            
-            <TouchableOpacity
-              style={styles.progressNavButton}
-              onPress={navigateToNext}
-            >
-              <Text style={styles.progressNavText}>3rd Mystery</Text>
-              <AntDesign name="right" size={16} color="#888" />
-            </TouchableOpacity>
           </View>
           
           {/* Audio Controls */}
@@ -1175,6 +1180,29 @@ export default function SorrowfulPrayer3Screen() {
                   ))}
                 </View>
               </View>
+              
+              {/* Secondary controls */}
+              <View style={styles.secondaryButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { backgroundColor: theme.accent }]}
+                  onPress={() => setShowGuidePicker(true)}
+                  activeOpacity={0.8}
+                  disabled={isTransitioning}
+                >
+                  <AntDesign name="user" size={18} color={theme.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Guide</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { backgroundColor: theme.accent }]}
+                  onPress={() => setShowDurationPicker(true)}
+                  activeOpacity={0.8}
+                  disabled={isTransitioning}
+                >
+                  <AntDesign name="clockcircleo" size={18} color={theme.primary} />
+                  <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Duration</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
           
@@ -1224,6 +1252,8 @@ export default function SorrowfulPrayer3Screen() {
               </Text>
             </View>
           </View>
+          
+
         </ScrollView>
       </SafeAreaView>
       
@@ -1361,7 +1391,7 @@ export default function SorrowfulPrayer3Screen() {
                     if (wasPlaying) {
                       // Small delay to ensure audio manager updates
                       setTimeout(async () => {
-                        await audioManager.playMystery(mysteryKey as string || "SORROWFUL", parseInt(mysteryIndex as string) || 1);
+                        await audioManager.playMystery(mysteryKey as string, parseInt(mysteryIndex as string));
                         setIsPlaying(true);
                       }, 100);
                     }
@@ -1425,11 +1455,32 @@ export default function SorrowfulPrayer3Screen() {
             <ScrollView style={styles.fullPrayerScrollView}>
               <View style={styles.fullPrayerContent}>
                 <Text style={styles.fullPrayerText}>
-                  {currentPrayerStep === 0 && SECOND_MYSTERY_CONTENT.description}
-                  {currentPrayerStep === 1 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."}
-                  {(currentPrayerStep >= 2 && currentPrayerStep <= 11) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."}
-                  {currentPrayerStep === 12 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."}
-                  {currentPrayerStep === 13 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."}
+                  {mysteryType === "INTRODUCTION" 
+                    ? (
+                      // Introduction prayers
+                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
+                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
+                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 4 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 5 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 6 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                      || currentPrayerStep === 7 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
+                    )
+                    : (
+                      // Regular mystery prayers with individual Hail Marys
+                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
+                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
+                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 3 times)"
+                      || currentPrayerStep === 4 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                      || currentPrayerStep === 5 && `${mysteryTitle || "The Mystery"}\n\n${mysteryDescription || "Meditate on this mystery..."}`
+                      || currentPrayerStep === 6 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
+                      || (currentPrayerStep >= 7 && currentPrayerStep <= 16) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
+                      || currentPrayerStep === 17 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
+                      || currentPrayerStep === 18 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
+                    )
+                  }
                 </Text>
               </View>
             </ScrollView>
@@ -1450,56 +1501,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-  },
-  mysteryCard: {
-    backgroundColor: "#FF4757",
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  mysteryIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  mysteryTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  mysteryScripture: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 16,
-  },
-  mysteryReflectionContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
-  },
-  mysteryReflection: {
-    fontSize: 15,
-    color: "#FFFFFF",
-    fontStyle: "italic",
-    textAlign: "center",
-    lineHeight: 22,
   },
   readMoreContainer: {
     marginTop: 4,
@@ -1694,6 +1695,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     marginHorizontal: 20,
+    marginTop: 10,
     marginBottom: 20,
     padding: 24,
     shadowColor: "#000",
@@ -1767,36 +1769,30 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginHorizontal: 8,
   },
-  progressNavigationContainer: {
+  beadsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 4, // Further reduced spacing
+  },
+  sectionTitle: {
+    fontSize: 16, // Smaller font
+    fontWeight: "700",
+    color: "#242424",
+    marginBottom: 6, // Reduced margin
+  },
+  beadsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginHorizontal: 20,
-    marginBottom: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    backgroundColor: "#F8F8F8",
-    borderRadius: 12,
+    flexWrap: "wrap",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 8, // Further reduced padding
+    borderRadius: 16,
   },
-  progressNavButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  progressNavText: {
-    fontSize: 12,
-    color: "#888",
-    marginHorizontal: 4,
-  },
-  progressIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#DDD",
-    marginHorizontal: 3,
+  bead: {
+    width: 18, // Smaller beads
+    height: 18, // Smaller beads
+    borderRadius: 9,
+    margin: 4, // Reduced margin
+    borderWidth: 2,
   },
   playButton: {
     borderRadius: 14,
@@ -1838,6 +1834,61 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
+  prayerListContainer: {
+    paddingHorizontal: 20,
+  },
+  prayerListItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  prayerListItemActive: {
+    borderWidth: 2,
+  },
+  prayerListItemNumber: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  prayerListItemNumberText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  prayerListItemContent: {
+    flex: 1,
+  },
+  prayerListItemTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#242424",
+    marginBottom: 3,
+  },
+  prayerListItemText: {
+    fontSize: 13,
+    color: "#666666",
+  },
+  currentIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  // Animation and transition styles
   transitionProgressContainer: {
     marginHorizontal: 20,
     marginBottom: 20,
@@ -1878,6 +1929,7 @@ const styles = StyleSheet.create({
     color: "#666",
     marginRight: 5,
   },
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -1950,6 +2002,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#777777",
   },
+  // Secondary action buttons
   secondaryButtonsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
