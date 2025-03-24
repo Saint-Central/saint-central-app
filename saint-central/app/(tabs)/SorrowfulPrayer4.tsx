@@ -806,7 +806,7 @@ export default function SorrowfulPrayer4Screen() {
   // Navigation functions specific to this mystery
   const navigateToNext = () => {
     router.push({
-      pathname: '/SorrowfulPrayer5',
+      pathname: '/SorrowfulPrayer5' as any,
       params: {
         mysteryType: "SORROWFUL",
         mysteryKey: "SORROWFUL",
@@ -820,7 +820,7 @@ export default function SorrowfulPrayer4Screen() {
   
   const navigateToPrevious = () => {
     router.push({
-      pathname: '/SorrowfulPrayer3',
+      pathname: '/SorrowfulPrayer3' as any,
       params: {
         mysteryType: "SORROWFUL",
         mysteryKey: "SORROWFUL",
