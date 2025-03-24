@@ -853,13 +853,11 @@ export default function RosaryPrayerScreen() {
   
   // Navigation functions for mystery progression
   const navigateToNext = () => {
-    // Determine the next mystery index and appropriate screen to navigate to
+    // Determine the next mystery index
     const nextMysteryIndex = parseInt(mysteryIndex as string) + 1;
-    const mysteryScreenParam = mysteryKey === "SORROWFUL" 
-      ? "SorrowfulPrayer2" 
-      : mysteryKey === "JOYFUL" 
-        ? "JoyfulPrayer2" 
-        : "RosaryPrayer2";
+    
+    // Always navigate to RosaryPrayer2 for the first mystery regardless of type
+    const mysteryScreenParam = "RosaryPrayer2";
     
     // Create params to pass to next screen
     const nextScreenParams = {
@@ -876,6 +874,8 @@ export default function RosaryPrayerScreen() {
       audioManager.pauseAudio();
       setIsPlaying(false);
     }
+    
+    console.log(`Navigating to: ${mysteryScreenParam}`);
     
     // Navigate to the next screen with params
     router.push({
@@ -1094,7 +1094,7 @@ export default function RosaryPrayerScreen() {
               style={styles.progressNavButton}
               onPress={navigateToNext}
             >
-              <Text style={styles.progressNavText}>1st Mystery</Text>
+              <Text style={styles.progressNavText}>First Mystery</Text>
               <AntDesign name="right" size={16} color="#888" />
             </TouchableOpacity>
           </View>

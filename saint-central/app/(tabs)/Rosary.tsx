@@ -8,19 +8,30 @@ import {
   ScrollView,
   Dimensions,
   Animated,
-  StatusBar,
   Modal,
   FlatList,
+  StatusBar,
+  ImageBackground,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { AntDesign } from "@expo/vector-icons";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FontAwesome5 } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { Audio } from "expo-av";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
+
+// Mystery types
+const MYSTERY_TYPES = {
+  JOYFUL: "Joyful Mysteries",
+  SORROWFUL: "Sorrowful Mysteries",
+  GLORIOUS: "Glorious Mysteries",
+  LUMINOUS: "Luminous Mysteries",
+};
 
 // Define voice guides
 const VOICE_GUIDES = [
@@ -38,31 +49,83 @@ const AUDIO_DURATIONS = [
   { id: 4, duration: "30 min" },
 ];
 
+// Mystery content
+const MYSTERIES = {
+  JOYFUL: [
+    { id: 1, title: "The Annunciation", description: "The Angel Gabriel announces to Mary that she shall conceive the Son of God." },
+    { id: 2, title: "The Visitation", description: "Mary visits her cousin Elizabeth, who is pregnant with John the Baptist." },
+    { id: 3, title: "The Nativity", description: "Jesus is born in a stable in Bethlehem." },
+    { id: 4, title: "The Presentation", description: "Mary and Joseph present Jesus at the temple." },
+    { id: 5, title: "Finding in the Temple", description: "After being lost for three days, Jesus is found in the temple." },
+  ],
+  SORROWFUL: [
+    { id: 1, title: "The Agony in the Garden", description: "Jesus prays in the Garden of Gethsemane on the night of His betrayal." },
+    { id: 2, title: "The Scourging at the Pillar", description: "Jesus is tied to a pillar and whipped." },
+    { id: 3, title: "The Crowning with Thorns", description: "Jesus is mocked and crowned with thorns." },
+    { id: 4, title: "The Carrying of the Cross", description: "Jesus carries His cross to Calvary." },
+    { id: 5, title: "The Crucifixion", description: "Jesus is nailed to the cross and dies." },
+  ],
+  GLORIOUS: [
+    { id: 1, title: "The Resurrection", description: "Jesus rises from the dead on the third day." },
+    { id: 2, title: "The Ascension", description: "Jesus ascends into Heaven forty days after His resurrection." },
+    { id: 3, title: "The Descent of the Holy Spirit", description: "The Holy Spirit descends upon Mary and the apostles." },
+    { id: 4, title: "The Assumption", description: "Mary is assumed body and soul into Heaven." },
+    { id: 5, title: "The Coronation", description: "Mary is crowned Queen of Heaven and Earth." },
+  ],
+  LUMINOUS: [
+    { id: 1, title: "The Baptism in the Jordan", description: "Jesus is baptized by John the Baptist." },
+    { id: 2, title: "The Wedding at Cana", description: "Jesus performs His first miracle, changing water into wine." },
+    { id: 3, title: "The Proclamation of the Kingdom", description: "Jesus announces the Kingdom of God and calls all to conversion." },
+    { id: 4, title: "The Transfiguration", description: "Jesus is transfigured on Mount Tabor." },
+    { id: 5, title: "The Institution of the Eucharist", description: "Jesus institutes the Eucharist at the Last Supper." },
+  ],
+};
+
+// Get day of the week mystery
+const getDayMystery = () => {
+  const day = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+  
+  switch (day) {
+    case 0: // Sunday
+      return { type: MYSTERY_TYPES.GLORIOUS, key: "GLORIOUS" };
+    case 1: // Monday
+      return { type: MYSTERY_TYPES.JOYFUL, key: "JOYFUL" };
+    case 2: // Tuesday
+      return { type: MYSTERY_TYPES.SORROWFUL, key: "SORROWFUL" };
+    case 3: // Wednesday
+      return { type: MYSTERY_TYPES.GLORIOUS, key: "GLORIOUS" };
+    case 4: // Thursday
+      return { type: MYSTERY_TYPES.LUMINOUS, key: "LUMINOUS" };
+    case 5: // Friday
+      return { type: MYSTERY_TYPES.SORROWFUL, key: "SORROWFUL" };
+    case 6: // Saturday
+      return { type: MYSTERY_TYPES.JOYFUL, key: "JOYFUL" };
+    default:
+      return { type: MYSTERY_TYPES.GLORIOUS, key: "GLORIOUS" };
+  }
+};
+
 // Guide Audio Mapping
 const GUIDE_AUDIO_FILES = {
   "Francis": {
-    INTRODUCTION: require('../../assets/audio/rosary1.mp3'),
     JOYFUL: require('../../assets/audio/rosary1.mp3'),
     SORROWFUL: require('../../assets/audio/rosary1.mp3'),
     GLORIOUS: require('../../assets/audio/rosary1.mp3'),
     LUMINOUS: require('../../assets/audio/rosary1.mp3'),
   },
   "Claire": {
-    INTRODUCTION: require('../../assets/audio/rosary2.mp3'),
     JOYFUL: require('../../assets/audio/rosary2.mp3'),
     SORROWFUL: require('../../assets/audio/rosary2.mp3'),
     GLORIOUS: require('../../assets/audio/rosary2.mp3'),
     LUMINOUS: require('../../assets/audio/rosary2.mp3'),
   },
   "Thomas": {
-    INTRODUCTION: require('../../assets/audio/rosary1.mp3'),
     JOYFUL: require('../../assets/audio/rosary1.mp3'),
     SORROWFUL: require('../../assets/audio/rosary1.mp3'),
     GLORIOUS: require('../../assets/audio/rosary1.mp3'),
     LUMINOUS: require('../../assets/audio/rosary1.mp3'),
   },
   "Maria": {
-    INTRODUCTION: require('../../assets/audio/rosary1.mp3'),
     JOYFUL: require('../../assets/audio/rosary1.mp3'),
     SORROWFUL: require('../../assets/audio/rosary1.mp3'),
     GLORIOUS: require('../../assets/audio/rosary1.mp3'),
@@ -70,7 +133,7 @@ const GUIDE_AUDIO_FILES = {
   },
 };
 
-// Duration Multipliers
+// Duration Multipliers (to simulate different length audio sessions)
 const DURATION_MULTIPLIERS = {
   "15 min": 1.5,    // Fastest playback for shortest duration
   "20 min": 1.0,    // Normal playback speed (unchanged)
@@ -311,35 +374,6 @@ class AudioManager {
     return false;
   }
 
-  // Advanced method to seek to specific prayer phrase
-  async seekToKeyPhrase(phrase: string, startPositionMs = 0, endPositionMs?: number): Promise<boolean> {
-    if (!this.sound) return false;
-    
-    try {
-      // In a real implementation, this would use speech recognition on audio segments
-      // to find the exact position of the phrase. For this example, we'll simulate with
-      // predetermined mappings and add a small delay to simulate processing.
-      
-      // Here we would analyze the audio from startPosition to endPosition
-      // looking for the specified phrase
-      
-      // Instead, we'll just use our lookup values based on the phrase
-      // This is where real voice recognition would happen in a production app
-      const foundPosition = startPositionMs;
-      
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Perform the seek
-      await this.seekTo(foundPosition);
-      
-      return true;
-    } catch (error) {
-      console.error("Failed to seek to phrase:", error);
-      return false;
-    }
-  }
-  
   // Smooth guide transition method
   async smoothTransitionToGuide(newGuide: typeof VOICE_GUIDES[number], onTransitionProgress?: (progress: number) => void) {
     try {
@@ -470,15 +504,6 @@ const audioManager = new AudioManager();
 // Get mystery theme color
 const getMysteryTheme = (mysteryKey: string) => {
   switch (mysteryKey) {
-    case "INTRODUCTION":
-      return {
-        primary: "#4A90E2",
-        secondary: "#2E78CD",
-        accent: "#E8F4FF",
-        gradientStart: "#4A90E2",
-        gradientEnd: "#2E78CD",
-        icon: "info-circle",
-      };
     case "JOYFUL":
       return {
         primary: "#0ACF83",
@@ -527,97 +552,54 @@ const getMysteryTheme = (mysteryKey: string) => {
   }
 };
 
-// Convert number to Roman numeral
-const toRoman = (num: number) => {
-  const roman = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
-  return roman[num] || num.toString();
-};
-
-export default function RosaryPrayerScreen() {
+export default function RosaryScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
   const scrollY = useRef(new Animated.Value(0)).current;
   const sliderWidth = useRef(1);
   
-  // Get parameters from navigation
-  const { mysteryType, mysteryKey, mysteryIndex, mysteryTitle, mysteryDescription, guideName } = params;
+  // Get the day's mystery
+  const dayMystery = getDayMystery();
   
-  // Get theme based on mystery type
-  const theme = getMysteryTheme(mysteryKey as string);
-  
-  // State for prayer interface
-  const [currentPrayerStep, setCurrentPrayerStep] = useState(0);
+  // State management
+  const [currentMysteryType, setCurrentMysteryType] = useState(dayMystery.type);
+  const [currentMysteryKey, setCurrentMysteryKey] = useState(dayMystery.key);
+  const [selectedGuide, setSelectedGuide] = useState(VOICE_GUIDES[0]);
+  const [selectedDuration, setSelectedDuration] = useState(AUDIO_DURATIONS[1]); // Default 20 min
   const [isPlaying, setIsPlaying] = useState(false);
-  
-  
-  // UI state for prayer seeking
-  const [seekingPrayer, setSeekingPrayer] = useState(false);
-  const [seekingPrayerName, setSeekingPrayerName] = useState("");
-  
-  // New audio control states
+  const [currentMysteryIndex, setCurrentMysteryIndex] = useState(0);
+  const [showGuidePicker, setShowGuidePicker] = useState(false);
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [showMysteryPicker, setShowMysteryPicker] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionProgress, setTransitionProgress] = useState(0);
   const [currentPosition, setCurrentPosition] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
   const [isSeekBarVisible, setIsSeekBarVisible] = useState(false);
-  const [selectedGuide, setSelectedGuide] = useState(() => {
-    // Find the guide by name or default to Francis
-    return VOICE_GUIDES.find(g => g.name === guideName) || VOICE_GUIDES[0];
-  });
-  const [selectedDuration, setSelectedDuration] = useState(AUDIO_DURATIONS[1]); // Default 20 min
-  const [showGuidePicker, setShowGuidePicker] = useState(false);
-  const [showDurationPicker, setShowDurationPicker] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [transitionProgress, setTransitionProgress] = useState(0);
-  
+
+  // Get current theme based on mystery
+  const theme = getMysteryTheme(currentMysteryKey);
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 800,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 500,
+        duration: 600,
         useNativeDriver: true,
       })
     ]).start();
   }, []);
-  
-  // Define prayers for the rosary (shortened versions for card display)
-  const prayers = mysteryType === "INTRODUCTION" 
-    ? [
-        { id: 0, title: "Sign of the Cross", text: "In the name of the Father, and of the Son, and of the Holy Spirit. Amen." },
-        { id: 1, title: "Apostles' Creed", text: "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord..." },
-        { id: 2, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-        { id: 3, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 4, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 5, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 6, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-        { id: 7, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
-      ]
-    : [
-      { id: 5, title: "First Mystery: The Annunciation", text: "The angel Gabriel was sent from God to a city of Galilee named Nazareth, to a virgin betrothed to a man whose name was Joseph, of the house of David; and the virgin's name was Mary. And he came to her and said, 'Hail, full of grace, the Lord is with you!' (Luke 1:26-28)" },
-        { id: 6, title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven..." },
-        { id: 7, title: "Hail Mary (1)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 8, title: "Hail Mary (2)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 9, title: "Hail Mary (3)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 10, title: "Hail Mary (4)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 11, title: "Hail Mary (5)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 12, title: "Hail Mary (6)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 13, title: "Hail Mary (7)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 14, title: "Hail Mary (8)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 15, title: "Hail Mary (9)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 16, title: "Hail Mary (10)", text: "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus..." },
-        { id: 17, title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be..." },
-        { id: 18, title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy." },
-      ];
-  
+
   // Set audio mode to play in silent mode (iOS)
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -645,7 +627,7 @@ export default function RosaryPrayerScreen() {
       }
     });
     
-    // Clean up audio when component unmounts
+    // Clean up audio on unmount
     return () => {
       audioManager.stopAudio();
     };
@@ -660,8 +642,8 @@ export default function RosaryPrayerScreen() {
     audioManager.setDuration(selectedDuration);
   }, [selectedDuration]);
   
-  // Toggle audio playback
-  const toggleAudio = async () => {
+  // Play/pause audio
+  const togglePlayback = async () => {
     try {
       if (isPlaying) {
         await audioManager.pauseAudio();
@@ -670,7 +652,7 @@ export default function RosaryPrayerScreen() {
         const result = await audioManager.resumeAudio();
         if (!result) {
           // If no audio is loaded, play the mystery
-          await audioManager.playMystery(mysteryKey as string, parseInt(mysteryIndex as string));
+          await audioManager.playMystery(currentMysteryKey, currentMysteryIndex);
         }
         setIsPlaying(true);
       }
@@ -749,6 +731,16 @@ export default function RosaryPrayerScreen() {
     setTimeout(() => setIsSeeking(false), 100);
   };
   
+  // Change mystery type
+  const changeMysteryType = (mysteryType: string, mysteryKey: string) => {
+    audioManager.stopAudio();
+    setIsPlaying(false);
+    setCurrentMysteryType(mysteryType);
+    setCurrentMysteryKey(mysteryKey);
+    setCurrentMysteryIndex(0);
+    setShowMysteryPicker(false);
+  };
+
   // Smooth guide transition method
   const smoothTransitionToGuide = async (newGuide: typeof VOICE_GUIDES[number]) => {
     if (isTransitioning) return;
@@ -801,146 +793,86 @@ export default function RosaryPrayerScreen() {
     );
   };
   
-  // Prayer key phrase based timestamps mapping
-  const prayerKeyPhrases = mysteryType === "INTRODUCTION"
-    ? [
-    { phrase: "In the name of the Father", timestamp: 0 },            // Sign of the Cross
-    { phrase: "I believe in God", timestamp: 12000 },                 // Apostles' Creed
-    { phrase: "Our Father, who art in heaven", timestamp: 50000 },    // Our Father
-        { phrase: "Hail Mary (1)", timestamp: 80000 },                    // First Hail Mary
-        { phrase: "Hail Mary (2)", timestamp: 100000 },                   // Second Hail Mary
-        { phrase: "Hail Mary (3)", timestamp: 120000 },                   // Third Hail Mary
-    { phrase: "Glory be to the Father", timestamp: 140000 },          // Glory Be
-        { phrase: "O my Jesus, forgive us our sins", timestamp: 160000 }, // Fatima Prayer
-      ]
-    : [
-        { phrase: "In the name of the Father", timestamp: 0 },                // Sign of the Cross
-        { phrase: "I believe in God", timestamp: 12000 },                     // Apostles' Creed
-        { phrase: "Our Father, who art in heaven", timestamp: 50000 },        // Our Father
-        { phrase: "Hail Mary, full of grace", timestamp: 80000 },             // Hail Mary (3x)
-        { phrase: "Glory be to the Father", timestamp: 140000 },              // Glory Be
-        { phrase: `${mysteryTitle || "First Mystery:"}`, timestamp: 170000 }, // Announce Mystery
-        { phrase: "Our Father, who art in heaven", timestamp: 210000 },       // Our Father
-        { phrase: "Hail Mary (1)", timestamp: 240000 },                       // Hail Mary 1
-        { phrase: "Hail Mary (2)", timestamp: 255000 },                       // Hail Mary 2
-        { phrase: "Hail Mary (3)", timestamp: 270000 },                       // Hail Mary 3
-        { phrase: "Hail Mary (4)", timestamp: 285000 },                       // Hail Mary 4
-        { phrase: "Hail Mary (5)", timestamp: 300000 },                       // Hail Mary 5
-        { phrase: "Hail Mary (6)", timestamp: 315000 },                       // Hail Mary 6
-        { phrase: "Hail Mary (7)", timestamp: 330000 },                       // Hail Mary 7
-        { phrase: "Hail Mary (8)", timestamp: 345000 },                       // Hail Mary 8
-        { phrase: "Hail Mary (9)", timestamp: 360000 },                       // Hail Mary 9
-        { phrase: "Hail Mary (10)", timestamp: 375000 },                      // Hail Mary 10
-        { phrase: "Glory be to the Father", timestamp: 390000 },              // Glory Be
-        { phrase: "O my Jesus, forgive us our sins", timestamp: 405000 },     // Fatima Prayer
-  ];
+  // Navigate to prayer screen
+  // Updated openPrayerScreen function to navigate to different screens based on mystery index
+const openPrayerScreen = (index: number) => {
+  const mystery = MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES][index];
+  // Stop current audio before navigating
+  audioManager.stopAudio();
+  setIsPlaying(false);
   
-  // Skip to timestamp for the current prayer based on key phrases - MODIFIED to remove seeking
-  const skipToCurrentPrayer = async (index: number) => {
-    if (isPlaying && totalDuration > 0) {
-      // Get prayer info
-      const prayerInfo = prayerKeyPhrases[index];
-      
-      // Only show prayer name without seeking
-      setSeekingPrayerName(prayerInfo.phrase);
-      
-      // Hide seeking indicator after a moment
-      setTimeout(() => {
-        setSeekingPrayerName("");
-      }, 1500);
-    }
-  };
-  
-  // Navigation functions for mystery progression
-  const navigateToNext = () => {
-    // Determine the next mystery index
-    const nextMysteryIndex = parseInt(mysteryIndex as string) + 1;
-    
-    // For RosaryPrayer screen, always navigate to RosaryPrayer2 as the first mystery
-    // This explicitly sets the default behavior
-    let mysteryScreenParam = "RosaryPrayer2";
-    
-    // For specific mystery types, use their dedicated screens
-    if (mysteryKey === "SORROWFUL") {
-      mysteryScreenParam = "SorrowfulPrayer2";
-    } else if (mysteryKey === "JOYFUL") {
-      mysteryScreenParam = "JoyfulPrayer2";
-    }
-    
-    // Create params to pass to next screen
-    const nextScreenParams = {
-      mysteryType: mysteryType,
-      mysteryKey: mysteryKey,
-      mysteryIndex: nextMysteryIndex,
-      mysteryTitle: "Next Mystery", // This would be replaced with actual title in a full implementation
-      mysteryDescription: "Description of the next mystery", // This would be replaced with actual description
+  // Determine which RosaryPrayer screen to navigate to based on index
+  let screenPath: "/RosaryPrayer" | "/RosaryPrayer2" | "/RosaryPrayer3" | "/RosaryPrayer4" | "/RosaryPrayer5" | "/RosaryPrayer6" | "/RosaryPrayer7" = "/RosaryPrayer";
+  if (index === 0) screenPath = "/RosaryPrayer2"; // The Annunciation
+  else if (index === 1) screenPath = "/RosaryPrayer3"; // The Visitation
+  else if (index === 2) screenPath = "/RosaryPrayer4"; // The Nativity
+  else if (index === 3) screenPath = "/RosaryPrayer5"; // The Presentation
+  else if (index === 4) screenPath = "/RosaryPrayer6"; // Finding in the Temple
+  else if (index === 5) screenPath = "/RosaryPrayer7"; // Conclusion
+  // Navigate to appropriate prayer screen with params
+  router.push({
+    pathname: screenPath,
+    params: {
+      mysteryType: currentMysteryType,
+      mysteryKey: currentMysteryKey,
+      mysteryIndex: index,
+      mysteryTitle: mystery.title,
+      mysteryDescription: mystery.description,
       guideName: selectedGuide.name
-    };
-    
-    // Pause audio if playing before navigation
-    if (isPlaying) {
-      audioManager.pauseAudio();
-      setIsPlaying(false);
     }
-    
-    // Navigate to the next screen with params
-    router.push({
-      pathname: `/${mysteryScreenParam}` as any,
-      params: nextScreenParams
-    });
-  };
+  });
+};
+
+// Updated openIntroductionScreen function to navigate to RosaryPrayer
+const openIntroductionScreen = () => {
+  // Stop current audio before navigating
+  audioManager.stopAudio();
+  setIsPlaying(false);
   
-  const navigateToPrevious = () => {
-    // For now, this simply navigates back to the Rosary main screen
-    // In a full implementation, you might want to navigate to the previous mystery if not at the beginning
-    router.replace('/Rosary');
-  };
-  
-  // Move to next prayer step - MODIFIED to remove seeking and prevent page scrolling
-  const nextPrayerStep = () => {
-    if (currentPrayerStep < prayers.length - 1) {
-      const nextStep = currentPrayerStep + 1;
-      setCurrentPrayerStep(nextStep);
-      
-      // Only show prayer name without seeking audio
-      if (isPlaying) {
-        const prayerInfo = prayerKeyPhrases[nextStep];
-        setSeekingPrayerName(prayerInfo.phrase);
-        
-        setTimeout(() => {
-          setSeekingPrayerName("");
-        }, 1500);
-      }
+  // Navigate to introduction screen (RosaryPrayer)
+  router.push({
+    pathname: "/RosaryPrayer",
+    params: {
+      mysteryType: "INTRODUCTION",
+      mysteryKey: currentMysteryKey,
+      mysteryIndex: 0,
+      mysteryTitle: "Introduction",
+      mysteryDescription: `Introduction to the ${currentMysteryType}`,
+      guideName: selectedGuide.name
     }
-  };
+  });
+};
+
+// Add a new function for the Conclusion card
+const openConclusionScreen = () => {
+  // Stop current audio before navigating
+  audioManager.stopAudio();
+  setIsPlaying(false);
   
-  // Move to previous prayer step - MODIFIED to remove seeking and prevent page scrolling
-  const prevPrayerStep = () => {
-    if (currentPrayerStep > 0) {
-      const prevStep = currentPrayerStep - 1;
-      setCurrentPrayerStep(prevStep);
-      
-      // Only show prayer name without seeking audio
-      if (isPlaying) {
-        const prayerInfo = prayerKeyPhrases[prevStep];
-        setSeekingPrayerName(prayerInfo.phrase);
-        
-        setTimeout(() => {
-          setSeekingPrayerName("");
-        }, 1500);
-      }
+  // Navigate to conclusion screen (RosaryPrayer7)
+  router.push({
+    pathname: "/RosaryPrayer7",
+    params: {
+      mysteryType: "CONCLUSION",
+      mysteryKey: currentMysteryKey,
+      mysteryIndex: 5, // Index after the 5 mysteries
+      mysteryTitle: "Conclusion",
+      mysteryDescription: `Concluding prayers for the ${currentMysteryType}`,
+      guideName: selectedGuide.name
     }
+  });
+};
+  
+  
+  // Get today's day name
+  const getDayName = () => {
+    return new Date().toLocaleString('default', { weekday: 'long' });
   };
-  
-  // Reference to scroll view for auto-scrolling
-  const scrollViewRef = useRef<ScrollView>(null);
-  
-  // State for full prayer modal
-  const [showFullPrayer, setShowFullPrayer] = useState(false);
-  
-  // Display full prayer when card is pressed
-  const handlePrayerCardPress = () => {
-    setShowFullPrayer(true);
+
+  // Convert mystery number to Roman numeral
+  const toRoman = (num: number) => {
+    const roman = ["I", "II", "III", "IV", "V"];
+    return roman[num - 1] || num.toString();
   };
   
   return (
@@ -953,305 +885,218 @@ export default function RosaryPrayerScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.replace('/Rosary')}
+            onPress={() => router.back()}
             activeOpacity={0.7}
           >
             <AntDesign name="arrowleft" size={24} color="#FFF" />
           </TouchableOpacity>
           
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>{mysteryType}</Text>
+          <View style={styles.dayIndicator}>
+            <Text style={styles.dayText}>{getDayName()}</Text>
           </View>
           
-          <TouchableOpacity
-            style={styles.soundButton}
-            onPress={toggleAudio}
+          <TouchableOpacity 
+            style={styles.menuButton}
+            onPress={() => setShowMysteryPicker(true)}
             activeOpacity={0.7}
           >
-            <AntDesign name={isPlaying ? "sound" : "sound"} size={22} color="#FFF" />
+            <AntDesign name="appstore-o" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
         
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          ref={scrollViewRef}
         >
-          {/* Current Prayer Display */}
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={handlePrayerCardPress}
+          {/* Hero Section */}
+          <Animated.View 
+            style={[
+              styles.heroSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
           >
-            <Animated.View 
-              style={[
-                styles.currentPrayerCard,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                }
-              ]}
-            >
-              <View style={styles.prayerBadge}>
-                <Text style={[styles.prayerBadgeText, { color: theme.primary }]}>
-                  {toRoman(currentPrayerStep)}
+            <View style={styles.mysteryBadge}>
+              <FontAwesome5 name={theme.icon} size={26} color={theme.primary} />
+            </View>
+            
+            <Text style={styles.heroTitle}>{currentMysteryType}</Text>
+            
+            <View style={styles.chipRow}>
+              <View style={styles.chip}>
+                <AntDesign name="user" size={14} color={theme.primary} />
+                <Text style={[styles.chipText, { color: theme.primary }]}>
+                  {selectedGuide.name}
+                  {isTransitioning && " (Changing...)"}
                 </Text>
               </View>
               
-              <View style={styles.prayerContent}>
-                <Text style={styles.prayerTitle}>{prayers[currentPrayerStep].title}</Text>
-                <Text style={styles.prayerText}>{prayers[currentPrayerStep].text}</Text>
+              <View style={styles.chip}>
+                <AntDesign name="clockcircleo" size={14} color={theme.primary} />
+                <Text style={[styles.chipText, { color: theme.primary }]}>{selectedDuration.duration}</Text>
               </View>
               
-              <View style={styles.prayerProgressIndicator}>
-              <Text style={[styles.prayerProgressText, { color: theme.primary }]}>
-                  {currentPrayerStep + 1} of {prayers.length}
-              </Text>
+              <View style={[styles.chip, { marginTop: 8, backgroundColor: theme.accent }]}>
+                <AntDesign name="sound" size={14} color={theme.primary} />
+                <Text style={[styles.chipText, { color: theme.primary }]}>Custom Audio</Text>
               </View>
-              
-              <View style={styles.readMoreContainer}>
-                <Text style={[styles.readMoreText, { color: theme.primary }]}>
-                  Tap to read full prayer
+            </View>
+          </Animated.View>
+          
+          {/* Action buttons */}
+          <Animated.View 
+            style={[
+              styles.actionButtonsContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.mainButton, { backgroundColor: theme.primary }]}
+              onPress={togglePlayback}
+              activeOpacity={0.9}
+              disabled={isTransitioning}
+            >
+              <View style={styles.mainButtonContent}>
+                {isPlaying ? (
+                  <AntDesign name="pausecircle" size={26} color="#FFFFFF" />
+                ) : (
+                  <AntDesign name="playcircleo" size={26} color="#FFFFFF" />
+                )}
+                <Text style={styles.mainButtonText}>
+                  {isTransitioning ? "CHANGING GUIDE..." : (isPlaying ? "PAUSE PRAYER" : "START PRAYER")}
                 </Text>
               </View>
-            </Animated.View>
-          </TouchableOpacity>
-          
-          {/* Navigation Controls - MODIFIED for next mystery navigation */}
-          <View style={styles.navigationContainer}>
-            <TouchableOpacity
-              style={[
-                styles.navButton,
-                { opacity: currentPrayerStep === 0 ? 0.5 : 1 }
-              ]}
-              onPress={prevPrayerStep}
-              disabled={currentPrayerStep === 0}
-              activeOpacity={0.8}
-            >
-              <AntDesign name="left" size={20} color={theme.primary} />
-              <Text style={[styles.navButtonText, { color: theme.primary }]}>PREVIOUS</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity
-              style={[
-                styles.navButton,
-                currentPrayerStep === prayers.length - 1 ? { backgroundColor: theme.primary } : null
-              ]}
-              onPress={nextPrayerStep}
-              activeOpacity={0.8}
-            >
-              <Text 
-                style={[
-                  styles.navButtonText, 
-                  { color: currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary }
-                ]}
-              >
-                {currentPrayerStep === prayers.length - 1 ? 'NEXT MYSTERY' : 'NEXT'}
-              </Text>
-              <AntDesign 
-                name="right" 
-                size={20} 
-                color={currentPrayerStep === prayers.length - 1 ? '#FFFFFF' : theme.primary} 
-              />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Rosary Beads Visualizer */}
-          <View style={styles.beadsContainer}>
-            <Text style={styles.sectionTitle}>Rosary Progress</Text>
-            
-            <View style={styles.beadsRow}>
-              {Array.from({ length: 10 }).map((_, index) => (
-                <View 
-                  key={index}
-                  style={[
-                    styles.bead,
-                    mysteryType === "INTRODUCTION" 
-                      ? (currentPrayerStep >= 3 && index < currentPrayerStep - 2
-                      ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
-                      : (currentPrayerStep >= 7 && currentPrayerStep <= 16 && index < currentPrayerStep - 6
-                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                          : { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderColor: 'rgba(255, 255, 255, 0.3)' })
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-          
-          {/* Progress Navigation - NEW COMPONENT */}
-          <View style={styles.progressNavigationContainer}>
-            <TouchableOpacity
-              style={styles.progressNavButton}
-              onPress={navigateToPrevious}
-            >
-              <AntDesign name="left" size={16} color="#888" />
-              <Text style={styles.progressNavText}>Back to Rosary</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.progressIndicator}>
-              <View style={[styles.progressDot, { backgroundColor: theme.primary }]} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-            </View>
-            
-            <TouchableOpacity
-              style={styles.progressNavButton}
-              onPress={navigateToNext}
-            >
-              <Text style={styles.progressNavText}>1st Mystery</Text>
-              <AntDesign name="right" size={16} color="#888" />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Audio Controls */}
-          <TouchableOpacity 
-            style={[styles.playButton, { backgroundColor: theme.primary }]}
-            onPress={toggleAudio}
-            activeOpacity={0.9}
-            disabled={isTransitioning || seekingPrayer}
-          >
-            <View style={styles.playButtonContent}>
-              {isPlaying ? (
-                <AntDesign name="pausecircle" size={24} color="#FFFFFF" />
-              ) : (
-                <AntDesign name="playcircleo" size={24} color="#FFFFFF" />
-              )}
-              <Text style={styles.playButtonText}>
-                {seekingPrayerName.length > 0
-                  ? `CURRENT PRAYER: "${seekingPrayerName}"` 
-                  : isTransitioning 
-                    ? "CHANGING GUIDE..." 
-                    : (isPlaying ? "PAUSE AUDIO" : "PLAY AUDIO")}
-              </Text>
-            </View>
-          </TouchableOpacity>
-          
-          {/* Audio progress bar */}
-          {isSeekBarVisible && (
-            <View style={styles.audioProgressContainer}>
-              <View style={styles.timeContainer}>
-                <Text style={styles.timeText}>{formatTime(isSeeking ? seekPosition : currentPosition)}</Text>
-                <Text style={styles.timeText}>{formatTime(totalDuration)}</Text>
-              </View>
-              
-              <View style={styles.seekBarContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.skipButton,
-                    isSeeking && currentPosition > 15000 && { backgroundColor: `${theme.primary}20` }
-                  ]}
-                  onPress={skipBackward}
-                  disabled={isTransitioning}
-                >
-                  <AntDesign name="stepbackward" size={22} color={theme.primary} />
-                  <Text style={[styles.skipButtonText, { color: theme.primary }]}>15s</Text>
-                </TouchableOpacity>
+            {/* Audio progress bar */}
+            {isSeekBarVisible && (
+              <View style={styles.audioProgressContainer}>
+                <View style={styles.timeContainer}>
+                  <Text style={styles.timeText}>{formatTime(isSeeking ? seekPosition : currentPosition)}</Text>
+                  <Text style={styles.timeText}>{formatTime(totalDuration)}</Text>
+                </View>
                 
-                <Animated.View style={styles.sliderContainer}>
-                  <View style={styles.sliderBackground} />
-                  <View 
+                <View style={styles.seekBarContainer}>
+                  <TouchableOpacity 
                     style={[
-                      styles.sliderFill, 
-                      { 
-                        width: `${(isSeeking ? seekPosition : currentPosition) / totalDuration * 100}%`,
-                        backgroundColor: theme.primary 
-                      }
-                    ]} 
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.sliderThumb,
-                      { 
-                        left: `${(isSeeking ? seekPosition : currentPosition) / totalDuration * 100}%`,
-                        backgroundColor: theme.primary,
-                        transform: [{ translateX: -10 }] // Half of thumb width
-                      }
+                      styles.skipButton,
+                      isSeeking && currentPosition > 15000 && { backgroundColor: `${theme.primary}20` }
                     ]}
-                    onPressIn={handleSeekStart}
-                    onLongPress={handleSeekStart}
-                  />
+                    onPress={skipBackward}
+                    disabled={isTransitioning}
+                  >
+                    <AntDesign name="stepbackward" size={22} color={theme.primary} />
+                    <Text style={[styles.skipButtonText, { color: theme.primary }]}>15s</Text>
+                  </TouchableOpacity>
                   
-                  {/* Invisible slider area for seeking */}
-                  <View
-                    style={styles.sliderTouchArea}
-                    onLayout={(event) => {
-                      // Store the width for percentage calculations
-                      sliderWidth.current = event.nativeEvent.layout.width;
-                    }}
-                    onTouchStart={(event) => {
-                      const touchX = event.nativeEvent.locationX;
-                      const percentage = touchX / sliderWidth.current;
-                      const newPosition = Math.max(0, Math.min(percentage * totalDuration, totalDuration));
-                      
-                      handleSeekStart();
-                      handleSeekMove(newPosition);
-                    }}
-                    onTouchMove={(event) => {
-                      if (isSeeking) {
+                  <Animated.View style={styles.sliderContainer}>
+                    <View style={styles.sliderBackground} />
+                    <View 
+                      style={[
+                        styles.sliderFill, 
+                        { 
+                          width: `${(isSeeking ? seekPosition : currentPosition) / totalDuration * 100}%`,
+                          backgroundColor: theme.primary 
+                        }
+                      ]} 
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.sliderThumb,
+                        { 
+                          left: `${(isSeeking ? seekPosition : currentPosition) / totalDuration * 100}%`,
+                          backgroundColor: theme.primary,
+                          transform: [{ translateX: -10 }] // Half of thumb width
+                        }
+                      ]}
+                      onPressIn={handleSeekStart}
+                      onLongPress={handleSeekStart}
+                    />
+                    
+                    {/* Invisible slider area for seeking */}
+                    <View
+                      style={styles.sliderTouchArea}
+                      onLayout={(event) => {
+                        // Store the width for percentage calculations
+                        sliderWidth.current = event.nativeEvent.layout.width;
+                      }}
+                      onTouchStart={(event) => {
                         const touchX = event.nativeEvent.locationX;
                         const percentage = touchX / sliderWidth.current;
                         const newPosition = Math.max(0, Math.min(percentage * totalDuration, totalDuration));
                         
+                        handleSeekStart();
                         handleSeekMove(newPosition);
-                      }
-                    }}
-                    onTouchEnd={() => {
-                      if (isSeeking) {
-                        handleSeekComplete();
-                      }
-                    }}
-                  />
-                </Animated.View>
+                      }}
+                      onTouchMove={(event) => {
+                        if (isSeeking) {
+                          const touchX = event.nativeEvent.locationX;
+                          const percentage = touchX / sliderWidth.current;
+                          const newPosition = Math.max(0, Math.min(percentage * totalDuration, totalDuration));
+                          
+                          handleSeekMove(newPosition);
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (isSeeking) {
+                          handleSeekComplete();
+                        }
+                      }}
+                    />
+                  </Animated.View>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.skipButton,
+                      isSeeking && currentPosition < (totalDuration - 30000) && { backgroundColor: `${theme.primary}20` }
+                    ]}
+                    onPress={skipForward}
+                    disabled={isTransitioning}
+                  >
+                    <AntDesign name="stepforward" size={22} color={theme.primary} />
+                    <Text style={[styles.skipButtonText, { color: theme.primary }]}>30s</Text>
+                  </TouchableOpacity>
+                </View>
                 
-                <TouchableOpacity 
-                  style={[
-                    styles.skipButton,
-                    isSeeking && currentPosition < (totalDuration - 30000) && { backgroundColor: `${theme.primary}20` }
-                  ]}
-                  onPress={skipForward}
-                  disabled={isTransitioning}
-                >
-                  <AntDesign name="stepforward" size={22} color={theme.primary} />
-                  <Text style={[styles.skipButtonText, { color: theme.primary }]}>30s</Text>
-                </TouchableOpacity>
-              </View>
-              
-              {/* Quick guide switch buttons */}
-              <View style={styles.quickGuideSwitchContainer}>
-                <Text style={styles.quickGuideSwitchLabel}>Change Guide:</Text>
-                <View style={styles.quickGuideButtonsRow}>
-                  {VOICE_GUIDES.map((guide) => (
-                    <QuickGuideButton key={guide.id} guide={guide} />
-                  ))}
+                {/* Quick guide switch buttons */}
+                <View style={styles.quickGuideSwitchContainer}>
+                  <Text style={styles.quickGuideSwitchLabel}>Change Guide:</Text>
+                  <View style={styles.quickGuideButtonsRow}>
+                    {VOICE_GUIDES.map((guide) => (
+                      <QuickGuideButton key={guide.id} guide={guide} />
+                    ))}
+                  </View>
                 </View>
               </View>
+            )}
+            
+            <View style={styles.secondaryButtonsRow}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { backgroundColor: theme.accent }]}
+                onPress={() => setShowGuidePicker(true)}
+                activeOpacity={0.8}
+                disabled={isTransitioning}
+              >
+                <AntDesign name="user" size={22} color={theme.primary} />
+                <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Guide</Text>
+              </TouchableOpacity>
               
-              {/* Secondary controls */}
-              <View style={styles.secondaryButtonsRow}>
-                <TouchableOpacity
-                  style={[styles.secondaryButton, { backgroundColor: theme.accent }]}
-                  onPress={() => setShowGuidePicker(true)}
-                  activeOpacity={0.8}
-                  disabled={isTransitioning}
-                >
-                  <AntDesign name="user" size={18} color={theme.primary} />
-                  <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Guide</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.secondaryButton, { backgroundColor: theme.accent }]}
-                  onPress={() => setShowDurationPicker(true)}
-                  activeOpacity={0.8}
-                  disabled={isTransitioning}
-                >
-                  <AntDesign name="clockcircleo" size={18} color={theme.primary} />
-                  <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Duration</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { backgroundColor: theme.accent }]}
+                onPress={() => setShowDurationPicker(true)}
+                activeOpacity={0.8}
+                disabled={isTransitioning}
+              >
+                <AntDesign name="clockcircleo" size={22} color={theme.primary} />
+                <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>Duration</Text>
+              </TouchableOpacity>
             </View>
-          )}
+          </Animated.View>
           
           {/* Progress bar for guide transition */}
           {isTransitioning && (
@@ -1284,21 +1129,181 @@ export default function RosaryPrayerScreen() {
             </TouchableOpacity>
           )}
           
-          <View style={styles.guideContainer}>
-            <View style={[styles.guideChip, { backgroundColor: theme.accent }]}>
-              <AntDesign name="user" size={16} color={theme.primary} />
-              <Text style={[styles.guideText, { color: theme.primary }]}>
-                Guide: {selectedGuide.name}
-              </Text>
+          {/* Mysteries list */}
+          <View style={styles.mysteriesContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Today's Mysteries</Text>
             </View>
             
-            <View style={[styles.guideChip, { backgroundColor: theme.accent, marginTop: 8 }]}>
-              <AntDesign name="clockcircleo" size={16} color={theme.primary} />
-              <Text style={[styles.guideText, { color: theme.primary }]}>
-                Duration: {selectedDuration.duration}
-              </Text>
-            </View>
+            {/* Introduction card */}
+            <Animated.View 
+              style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }}
+            >
+              <TouchableOpacity 
+                style={[
+                  styles.mysteryCard,
+                  { borderColor: theme.primary, borderWidth: 2 }
+                ]}
+                onPress={openIntroductionScreen}
+                activeOpacity={0.9}
+                disabled={isTransitioning}
+              >
+                <View style={[
+                  styles.mysteryCardHeader,
+                  { backgroundColor: theme.primary }
+                ]}>
+                  <Text style={[
+                    styles.mysteryNumber,
+                    { color: '#FFFFFF' }
+                  ]}>
+                    Intro
+                  </Text>
+                </View>
+                
+                <View style={styles.mysteryCardBody}>
+                  <Text style={styles.mysteryCardTitle}>Introduction</Text>
+                  <Text style={styles.mysteryCardDescription} numberOfLines={2}>
+                    Introduction to the {currentMysteryType}
+                  </Text>
+                </View>
+                
+                <View style={[
+                  styles.mysteryCardAction,
+                  { backgroundColor: theme.accent }
+                ]}>
+                  <Text style={[
+                    styles.mysteryCardActionText,
+                    { color: theme.primary }
+                  ]}>
+                    START HERE
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+            
+            {MYSTERIES[currentMysteryKey as keyof typeof MYSTERIES].map((mystery, index) => (
+              <Animated.View 
+                key={mystery.id}
+                style={{
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                }}
+              >
+                <TouchableOpacity 
+                  style={[
+                    styles.mysteryCard,
+                    currentMysteryIndex === index && { borderColor: theme.primary, borderWidth: 2 }
+                  ]}
+                  onPress={() => {
+                    setCurrentMysteryIndex(index);
+                    openPrayerScreen(index);
+                  }}
+                  activeOpacity={0.9}
+                  disabled={isTransitioning}
+                >
+                  <View style={[
+                    styles.mysteryCardHeader,
+                    { backgroundColor: currentMysteryIndex === index ? theme.primary : '#F0F0F0' }
+                  ]}>
+                    <Text style={[
+                      styles.mysteryNumber,
+                      { color: currentMysteryIndex === index ? '#FFFFFF' : '#505050' }
+                    ]}>
+                      {toRoman(mystery.id)}
+                    </Text>
+                    
+                    {currentMysteryIndex === index && isPlaying && (
+                      <View style={styles.playingIndicator}>
+                        <AntDesign name="sound" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </View>
+                  
+                  <View style={styles.mysteryCardBody}>
+                    <Text style={styles.mysteryCardTitle}>{mystery.title}</Text>
+                    <Text style={styles.mysteryCardDescription} numberOfLines={2}>
+                      {mystery.description}
+                    </Text>
+                  </View>
+                  
+                  <View style={[
+                    styles.mysteryCardAction,
+                    { backgroundColor: currentMysteryIndex === index ? theme.accent : '#F8F8F8' }
+                  ]}>
+                    <Text style={[
+                      styles.mysteryCardActionText,
+                      { color: currentMysteryIndex === index ? theme.primary : '#909090' }
+                    ]}>
+                      {currentMysteryIndex === index ? "CURRENTLY SELECTED" : "TAP TO SELECT"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+            
+            {/* Conclusion card */}
+            <Animated.View 
+              style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              }}
+            >
+              <TouchableOpacity 
+                style={[
+                  styles.mysteryCard,
+                  { borderColor: theme.primary, borderWidth: 2 }
+                ]}
+                activeOpacity={0.9}
+                onPress={openConclusionScreen}
+              >
+                <View style={[
+                  styles.mysteryCardHeader,
+                  { backgroundColor: theme.primary }
+                ]}>
+                  <Text style={[
+                    styles.mysteryNumber,
+                    { color: '#FFFFFF' }
+                  ]}>
+                    End
+                  </Text>
+                </View>
+                
+                <View style={styles.mysteryCardBody}>
+                  <Text style={styles.mysteryCardTitle}>Conclusion</Text>
+                  <Text style={styles.mysteryCardDescription} numberOfLines={2}>
+                    Concluding prayers for the {currentMysteryType}
+                  </Text>
+                </View>
+                
+                <View style={[
+                  styles.mysteryCardAction,
+                  { backgroundColor: theme.accent }
+                ]}>
+                  <Text style={[
+                    styles.mysteryCardActionText,
+                    { color: theme.primary }
+                  ]}>
+                    FINISH HERE
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
+          
+          {/* Intention Button */}
+          <TouchableOpacity 
+            style={[styles.intentionButton, { backgroundColor: theme.accent }]}
+            activeOpacity={0.8}
+            disabled={isTransitioning}
+          >
+            <AntDesign name="heart" size={22} color={theme.primary} />
+            <Text style={[styles.intentionButtonText, { color: theme.primary }]}>
+              Set Prayer Intention
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
       
@@ -1436,7 +1441,7 @@ export default function RosaryPrayerScreen() {
                     if (wasPlaying) {
                       // Small delay to ensure audio manager updates
                       setTimeout(async () => {
-                        await audioManager.playMystery(mysteryKey as string, parseInt(mysteryIndex as string));
+                        await audioManager.playMystery(currentMysteryKey, currentMysteryIndex);
                         setIsPlaying(true);
                       }, 100);
                     }
@@ -1478,63 +1483,214 @@ export default function RosaryPrayerScreen() {
         </View>
       </Modal>
       
-      {/* Full Prayer Modal */}
+      {/* Mystery Type Selection Modal */}
       <Modal
-        visible={showFullPrayer}
+        visible={showMysteryPicker}
         transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowFullPrayer(false)}
+        animationType="slide"
+        onRequestClose={() => setShowMysteryPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.fullPrayerModalCard, { maxHeight: height * 0.8 }]}>
+          <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{prayers[currentPrayerStep].title}</Text>
+              <Text style={styles.modalTitle}>Choose Mystery</Text>
               <TouchableOpacity 
                 style={styles.modalCloseButton}
-                onPress={() => setShowFullPrayer(false)}
+                onPress={() => setShowMysteryPicker(false)}
               >
                 <AntDesign name="close" size={20} color="#333" />
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.fullPrayerScrollView}>
-              <View style={styles.fullPrayerContent}>
-                <Text style={styles.fullPrayerText}>
-                  {mysteryType === "INTRODUCTION" 
-                    ? (
-                      // Introduction prayers
-                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
-                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
-                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
-                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 4 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 5 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 6 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 7 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
-                    )
-                    : (
-                      // Regular mystery prayers with individual Hail Marys
-                      currentPrayerStep === 0 && "In the name of the Father, and of the Son, and of the Holy Spirit. Amen."
-                      || currentPrayerStep === 1 && "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen."
-                      || currentPrayerStep === 2 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
-                      || currentPrayerStep === 3 && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (Repeat 3 times)"
-                      || currentPrayerStep === 4 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 5 && `${mysteryTitle || "The Mystery"}\n\n${mysteryDescription || "Meditate on this mystery..."}`
-                      || currentPrayerStep === 6 && "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen."
-                      || (currentPrayerStep >= 7 && currentPrayerStep <= 16) && "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen."
-                      || currentPrayerStep === 17 && "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen."
-                      || currentPrayerStep === 18 && "O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to Heaven, especially those in most need of Thy mercy."
-                    )
-                  }
-                </Text>
-              </View>
+            <ScrollView contentContainerStyle={styles.modalList}>
+              <TouchableOpacity
+                style={[
+                  styles.mysteryModalItem,
+                  currentMysteryKey === "JOYFUL" && styles.mysteryModalItemSelected
+                ]}
+                onPress={() => changeMysteryType(MYSTERY_TYPES.JOYFUL, "JOYFUL")}
+              >
+                <LinearGradient
+                  colors={currentMysteryKey === "JOYFUL" 
+                    ? [getMysteryTheme("JOYFUL").gradientStart, getMysteryTheme("JOYFUL").gradientEnd] 
+                    : ['#f0f0f0', '#f0f0f0']}
+                  style={styles.mysteryModalGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <View style={styles.mysteryModalContent}>
+                    <View style={[
+                      styles.mysteryModalIcon,
+                      { backgroundColor: currentMysteryKey === "JOYFUL" ? "#FFFFFF" : "#e0e0e0" }
+                    ]}>
+                      <FontAwesome5 
+                        name="leaf" 
+                        size={24} 
+                        color={currentMysteryKey === "JOYFUL" 
+                          ? getMysteryTheme("JOYFUL").primary 
+                          : "#999"} 
+                      />
+                    </View>
+                    
+                    <View style={styles.mysteryModalTextContent}>
+                      <Text style={[
+                        styles.mysteryModalTitle,
+                        { color: currentMysteryKey === "JOYFUL" ? "#FFFFFF" : "#333" }
+                      ]}>
+                        {MYSTERY_TYPES.JOYFUL}
+                      </Text>
+                      <Text style={[
+                        styles.mysteryModalSubtitle,
+                        { color: currentMysteryKey === "JOYFUL" ? "#FFFFFF" : "#777" }
+                      ]}>
+                        Mondays & Saturdays
+                      </Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.mysteryModalItem,
+                  currentMysteryKey === "SORROWFUL" && styles.mysteryModalItemSelected
+                ]}
+                onPress={() => changeMysteryType(MYSTERY_TYPES.SORROWFUL, "SORROWFUL")}
+              >
+                <LinearGradient
+                  colors={currentMysteryKey === "SORROWFUL" 
+                    ? [getMysteryTheme("SORROWFUL").gradientStart, getMysteryTheme("SORROWFUL").gradientEnd] 
+                    : ['#f0f0f0', '#f0f0f0']}
+                  style={styles.mysteryModalGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <View style={styles.mysteryModalContent}>
+                    <View style={[
+                      styles.mysteryModalIcon,
+                      { backgroundColor: currentMysteryKey === "SORROWFUL" ? "#FFFFFF" : "#e0e0e0" }
+                    ]}>
+                      <FontAwesome5 
+                        name="heart-broken" 
+                        size={24} 
+                        color={currentMysteryKey === "SORROWFUL" 
+                          ? getMysteryTheme("SORROWFUL").primary 
+                          : "#999"} 
+                      />
+                    </View>
+                    
+                    <View style={styles.mysteryModalTextContent}>
+                      <Text style={[
+                        styles.mysteryModalTitle,
+                        { color: currentMysteryKey === "SORROWFUL" ? "#FFFFFF" : "#333" }
+                      ]}>
+                        {MYSTERY_TYPES.SORROWFUL}
+                      </Text>
+                      <Text style={[
+                        styles.mysteryModalSubtitle,
+                        { color: currentMysteryKey === "SORROWFUL" ? "#FFFFFF" : "#777" }
+                      ]}>
+                        Tuesdays & Fridays
+                      </Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.mysteryModalItem,
+                  currentMysteryKey === "GLORIOUS" && styles.mysteryModalItemSelected
+                ]}
+                onPress={() => changeMysteryType(MYSTERY_TYPES.GLORIOUS, "GLORIOUS")}
+              >
+                <LinearGradient
+                  colors={currentMysteryKey === "GLORIOUS" 
+                    ? [getMysteryTheme("GLORIOUS").gradientStart, getMysteryTheme("GLORIOUS").gradientEnd] 
+                    : ['#f0f0f0', '#f0f0f0']}
+                  style={styles.mysteryModalGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <View style={styles.mysteryModalContent}>
+                    <View style={[
+                      styles.mysteryModalIcon,
+                      { backgroundColor: currentMysteryKey === "GLORIOUS" ? "#FFFFFF" : "#e0e0e0" }
+                    ]}>
+                      <FontAwesome5 
+                        name="crown" 
+                        size={24} 
+                        color={currentMysteryKey === "GLORIOUS" 
+                          ? getMysteryTheme("GLORIOUS").primary 
+                          : "#999"} 
+                      />
+                    </View>
+                    
+                    <View style={styles.mysteryModalTextContent}>
+                      <Text style={[
+                        styles.mysteryModalTitle,
+                        { color: currentMysteryKey === "GLORIOUS" ? "#FFFFFF" : "#333" }
+                      ]}>
+                        {MYSTERY_TYPES.GLORIOUS}
+                      </Text>
+                      <Text style={[
+                        styles.mysteryModalSubtitle,
+                        { color: currentMysteryKey === "GLORIOUS" ? "#FFFFFF" : "#777" }
+                      ]}>
+                        Wednesdays & Sundays
+                      </Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.mysteryModalItem,
+                  currentMysteryKey === "LUMINOUS" && styles.mysteryModalItemSelected
+                ]}
+                onPress={() => changeMysteryType(MYSTERY_TYPES.LUMINOUS, "LUMINOUS")}
+              >
+                <LinearGradient
+                  colors={currentMysteryKey === "LUMINOUS" 
+                    ? [getMysteryTheme("LUMINOUS").gradientStart, getMysteryTheme("LUMINOUS").gradientEnd] 
+                    : ['#f0f0f0', '#f0f0f0']}
+                  style={styles.mysteryModalGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <View style={styles.mysteryModalContent}>
+                    <View style={[
+                      styles.mysteryModalIcon,
+                      { backgroundColor: currentMysteryKey === "LUMINOUS" ? "#FFFFFF" : "#e0e0e0" }
+                    ]}>
+                      <FontAwesome5 
+                        name="star" 
+                        size={24} 
+                        color={currentMysteryKey === "LUMINOUS" 
+                          ? getMysteryTheme("LUMINOUS").primary 
+                          : "#999"} 
+                      />
+                    </View>
+                    
+                    <View style={styles.mysteryModalTextContent}>
+                      <Text style={[
+                        styles.mysteryModalTitle,
+                        { color: currentMysteryKey === "LUMINOUS" ? "#FFFFFF" : "#333" }
+                      ]}>
+                        {MYSTERY_TYPES.LUMINOUS}
+                      </Text>
+                      <Text style={[
+                        styles.mysteryModalSubtitle,
+                        { color: currentMysteryKey === "LUMINOUS" ? "#FFFFFF" : "#777" }
+                      ]}>
+                        Thursdays
+                      </Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
             </ScrollView>
-            
-            {isPlaying && (
-              <View style={styles.followAlongContainer}>
-                <Text style={styles.followAlongText}>Continue following along with audio</Text>
-              </View>
-            )}
           </View>
         </View>
       </Modal>
@@ -1547,50 +1703,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  readMoreContainer: {
-    marginTop: 4,
-    alignItems: 'center',
-  },
-  readMoreText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  fullPrayerModalCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    margin: 20,
-    width: width - 40,
-    padding: 0,
-    overflow: 'hidden',
-  },
-  fullPrayerScrollView: {
-    maxHeight: height * 0.6,
-  },
-  fullPrayerContent: {
-    padding: 24,
-    paddingTop: 12,
-  },
-  fullPrayerText: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: "#333",
-  },
-  followAlongContainer: {
-    padding: 16,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-  },
-  followAlongText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '600',
-  },
   audioProgressContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 12,
-    marginHorizontal: 20,
     marginBottom: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1708,6 +1824,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
+    backgroundColor: "transparent",
   },
   backButton: {
     width: 44,
@@ -1717,15 +1834,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitleContainer: {
-    alignItems: "center",
+  dayIndicator: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 20,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+  dayText: {
     color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 15,
   },
-  soundButton: {
+  menuButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1736,238 +1856,103 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  currentPrayerCard: {
+  heroSection: {
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  mysteryBadge: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 20,
-    padding: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  prayerBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#F5F5F5",
-    justifyContent: "center",
-    alignItems: "center",
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  prayerBadgeText: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  prayerContent: {
-    alignItems: "center",
-  },
-  prayerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#242424",
-    textAlign: "center",
-    marginBottom: 14,
-  },
-  prayerText: {
-    fontSize: 16,
-    color: "#505050",
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  prayerProgressIndicator: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-    alignItems: "center",
-  },
-  prayerProgressText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  navigationContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  navButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  navButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginHorizontal: 8,
-  },
-  beadsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 0, // Removed bottom margin
-  },
-  sectionTitle: {
-    fontSize: 16, // Smaller font
-    fontWeight: "700",
-    color: "#242424",
-    marginBottom: 6, // Reduced margin
-  },
-  beadsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    padding: 6, // Further reduced padding
-    paddingBottom: 4, // Even less padding at the bottom
-    borderRadius: 16,
-  },
-  bead: {
-    width: 18, // Smaller beads
-    height: 18, // Smaller beads
-    borderRadius: 9,
-    margin: 4, // Reduced margin
-    borderWidth: 2,
-  },
-  // New Progress Navigation styles
-  progressNavigationContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginHorizontal: 20,
-    marginTop: 8, // Added small top margin 
-    marginBottom: 16, // Reduced bottom margin
-    paddingVertical: 8, // Reduced vertical padding
-    paddingHorizontal: 10,
-    backgroundColor: "#F8F8F8",
-    borderRadius: 12,
-  },
-  progressNavButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  progressNavText: {
-    fontSize: 12,
-    color: "#888",
-    marginHorizontal: 4,
-  },
-  progressIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#DDD",
-    marginHorizontal: 3,
-  },
-  playButton: {
-    borderRadius: 14,
-    paddingVertical: 12, // Further reduced vertical padding
-    marginHorizontal: 20,
-    marginBottom: 10, // Reduced bottom margin
-    marginTop: -6, // Increased negative top margin to pull it up more
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 4,
   },
-  playButtonContent: {
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  chipRow: {
     flexDirection: "row",
     justifyContent: "center",
-    alignItems: "center",
+    flexWrap: "wrap",
   },
-  playButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 10,
-    letterSpacing: 0.5,
-  },
-  guideContainer: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  guideChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-  },
-  guideText: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  prayerListContainer: {
-    paddingHorizontal: 20,
-  },
-  prayerListItem: {
+  chip: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "transparent",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: 5,
   },
-  prayerListItemActive: {
-    borderWidth: 2,
-  },
-  prayerListItemNumber: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  prayerListItemNumberText: {
+  chipText: {
     fontSize: 14,
-    fontWeight: "700",
-  },
-  prayerListItemContent: {
-    flex: 1,
-  },
-  prayerListItemTitle: {
-    fontSize: 15,
     fontWeight: "600",
-    color: "#242424",
-    marginBottom: 3,
+    marginLeft: 5,
   },
-  prayerListItemText: {
-    fontSize: 13,
-    color: "#666666",
+  actionButtonsContainer: {
+    paddingHorizontal: 20,
+    marginTop: -20,
+    marginBottom: 24,
+    zIndex: 10,
   },
-  currentIndicator: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  mainButton: {
+    borderRadius: 16,
+    paddingVertical: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    marginBottom: 14,
+  },
+  mainButtonContent: {
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+  },
+  mainButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    marginLeft: 10,
+    letterSpacing: 0.5,
+  },
+  secondaryButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  secondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
     marginLeft: 8,
   },
-  // Animation and transition styles
   transitionProgressContainer: {
     marginHorizontal: 20,
     marginBottom: 20,
@@ -2008,7 +1993,88 @@ const styles = StyleSheet.create({
     color: "#666",
     marginRight: 5,
   },
-  // Modal styles
+  mysteriesContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#242424",
+  },
+  mysteryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  mysteryCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  mysteryNumber: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  playingIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mysteryCardBody: {
+    padding: 16,
+  },
+  mysteryCardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#242424",
+    marginBottom: 6,
+  },
+  mysteryCardDescription: {
+    fontSize: 15,
+    color: "#666666",
+    lineHeight: 22,
+  },
+  mysteryCardAction: {
+    paddingVertical: 12,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#EEEEEE",
+  },
+  mysteryCardActionText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  intentionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 16,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  intentionButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 10,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -2081,50 +2147,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#777777",
   },
-  // Secondary action buttons
-  secondaryButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 12,
+  mysteryModalItem: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: "hidden",
   },
-  secondaryButton: {
+  mysteryModalItemSelected: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mysteryModalGradient: {
+    borderRadius: 16,
+  },
+  mysteryModalContent: {
     flexDirection: "row",
     alignItems: "center",
+    padding: 20,
+  },
+  mysteryModalIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    width: "45%",
+    alignItems: "center",
+    marginRight: 20,
   },
-  secondaryButtonText: {
+  mysteryModalTextContent: {
+    flex: 1,
+  },
+  mysteryModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  mysteryModalSubtitle: {
     fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
-  // Prayer counter styles
-  prayerCounterContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: "#F9F9F9",
-    borderRadius: 12,
-  },
-  prayerCounterLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  prayerCounterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-  },
-  prayerCounterBead: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    margin: 3,
-    borderWidth: 1,
-  },
+  }
 });
