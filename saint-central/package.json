@@ -14,7 +14,16 @@
   "jest": {
     "preset": "jest-expo"
   },
+  "babel": {
+    "presets": [
+      "babel-preset-expo"
+    ],
+    "plugins": [
+      "@babel/plugin-transform-runtime"
+    ]
+  },
   "dependencies": {
+    "@babel/runtime": "^7.27.0",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "^8.3.0",
@@ -48,6 +57,7 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.7",
     "react-native-animatable": "^1.4.0",
+    "react-native-chart-kit": "^6.12.0",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-reanimated": "~3.16.1",
     "react-native-render-html": "^6.3.4",
@@ -57,10 +67,12 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
-    "three": "^0.173.0"
+    "three": "^0.173.0",
+    "expo-image-picker": "~16.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-runtime": "^7.24.0",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-test-renderer": "^18.3.0",

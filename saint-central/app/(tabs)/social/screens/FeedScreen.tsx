@@ -166,7 +166,7 @@ const FeedScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateToScreen("/Rosary")}
+              onPress={() => navigateToScreen("/rosary/screens/RosaryHome")}
             >
               <View
                 style={[

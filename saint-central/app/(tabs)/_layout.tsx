@@ -329,6 +329,7 @@ export default function TabLayout() {
       <Tabs.Screen name="RosaryPrayer5" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="RosaryPrayer6" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="RosaryPrayer7" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="statistics" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="bible" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
