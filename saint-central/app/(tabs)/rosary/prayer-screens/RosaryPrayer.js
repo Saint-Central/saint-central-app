@@ -68,27 +68,27 @@ const RosaryPrayer = ({ route }) => {
         matthew: require('../../../../assets/audio/rosarysorrow-man1.mp3'),
         mark: require('../../../../assets/audio/rosarysorrow-man2.mp3'),
         elizabeth: require('../../../../assets/audio/rosarysorrow-nat.mp3'),
-        marie: require('../../../../assets/audio/rosarysorrow-woman.mp3'),
+        marie: require('../../../../assets/audio/rosarysorrrow-woman.mp3'),
       }
     },
     glorious: {
       name: 'Glorious Mysteries',
       key: 'GLORIOUS',
       audioFiles: {
-        matthew: require('../../../../assets/audio/rosary1.mp3'),
-        mark: require('../../../../assets/audio/rosary1.mp3'),
-        elizabeth: require('../../../../assets/audio/rosary1.mp3'),
-        marie: require('../../../../assets/audio/rosary1.mp3'),
+        matthew: require('../../../../assets/audio/rosaryglory-man1.mp3'),
+        mark: require('../../../../assets/audio/rosaryglory-man2.mp3'),
+        elizabeth: require('../../../../assets/audio/rosaryglory-nat.mp3'),
+        marie: require('../../../../assets/audio/rosaryglory-woman.mp3'),
       }
     },
     luminous: {
       name: 'Luminous Mysteries',
       key: 'LUMINOUS',
       audioFiles: {
-        matthew: require('../../../../assets/audio/rosary1.mp3'),
-        mark: require('../../../../assets/audio/rosary1.mp3'),
-        elizabeth: require('../../../../assets/audio/rosary1.mp3'),
-        marie: require('../../../../assets/audio/rosary1.mp3'),
+        matthew: require('../../../../assets/audio/rosarylumin-man1.mp3'),
+        mark: require('../../../../assets/audio/rosarylumin-man2.mp3'),
+        elizabeth: require('../../../../assets/audio/rosarylumin-nat.mp3'),
+        marie: require('../../../../assets/audio/rosarylumin-women.mp3'),
       }
     }
   };
@@ -244,7 +244,7 @@ const RosaryPrayer = ({ route }) => {
       } else {
         // Fallback to matthew voice if specific combination not found
         console.log('Specific audio not found, using fallback');
-        audioFile = require('../../../../assets/audio/rosary1.mp3');
+        audioFile = require('../../../../assets/audio/rosarysorrow-man2.mp3');
       }
       
       setAudioSource(audioFile);
