@@ -55,10 +55,10 @@ const RosaryPrayer = ({ route }) => {
       name: 'Joyful Mysteries',
       key: 'JOYFUL',
       audioFiles: {
-        matthew: require('../../../../assets/audio/rosary1.mp3'),
-        mark: require('../../../../assets/audio/rosary1.mp3'),
-        elizabeth: require('../../../../assets/audio/rosary2.mp3'),
-        marie: require('../../../../assets/audio/rosary2.mp3'),
+        matthew: require('../../../../assets/audio/rosaryjoy-man1.mp3'),
+        mark: require('../../../../assets/audio/rosaryjoy-nat.mp3'),
+        elizabeth: require('../../../../assets/audio/rosaryjoy-nat.mp3'),
+        marie: require('../../../../assets/audio/rosaryjoy-woman.mp3'),
       }
     },
     sorrowful: {
