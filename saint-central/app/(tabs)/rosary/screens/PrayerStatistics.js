@@ -857,13 +857,13 @@ export default function PrayerStatistics() {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <AntDesign name="arrowleft" size={24} color="#FFF" />
-        </TouchableOpacity>
+      <TouchableOpacity
+  style={styles.backButton}
+  onPress={() => router.push("/rosary/RosaryHome")}
+  activeOpacity={0.7}
+>
+  <AntDesign name="arrowleft" size={24} color="#FFF" />
+</TouchableOpacity>
         
         <Text style={styles.headerTitle}>Prayer Journal</Text>
         

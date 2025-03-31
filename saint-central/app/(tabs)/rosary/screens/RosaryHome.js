@@ -212,7 +212,6 @@ export default function RosaryHome() {
   // Navigate to intentions screen
   const navigateToIntentions = () => {
     router.push('/rosary/screens/RosaryIntentions');
-
   };
   
   // Navigate to settings screen
@@ -327,16 +326,6 @@ export default function RosaryHome() {
     >
       <TouchableOpacity
         style={styles.quickActionButton}
-        onPress={navigateToMysterySelection}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}20` }]}>
-          <MaterialIcons name="format-list-bulleted" size={24} color={theme.primary} />
-        </View>
-        <Text style={styles.quickActionText}>All Mysteries</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={styles.quickActionButton}
         onPress={navigateToIntentions}
       >
         <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}20` }]}>
@@ -344,6 +333,14 @@ export default function RosaryHome() {
         </View>
         <Text style={styles.quickActionText}>Intentions</Text>
       </TouchableOpacity>
+      
+      <View style={styles.quickActionButton}>
+        <Image
+          source={require('../../../../assets/images/rosary-mascot.png')}
+          style={styles.mascotImage}
+          resizeMode="contain"
+        />
+      </View>
       
       <TouchableOpacity
         style={styles.quickActionButton}
@@ -353,16 +350,6 @@ export default function RosaryHome() {
           <AntDesign name="barschart" size={24} color={theme.primary} />
         </View>
         <Text style={styles.quickActionText}>Statistics</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        onPress={navigateToSettings}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}20` }]}>
-          <AntDesign name="setting" size={24} color={theme.primary} />
-        </View>
-        <Text style={styles.quickActionText}>Settings</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -539,14 +526,14 @@ export default function RosaryHome() {
       </View>
       
       <ScrollView
-  contentContainerStyle={styles.scrollContent}
-  showsVerticalScrollIndicator={false}
-  scrollEventThrottle={16}
-  onScroll={(event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    scrollY.setValue(offsetY);
-  }}
->
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const offsetY = event.nativeEvent.contentOffset.y;
+          scrollY.setValue(offsetY);
+        }}
+      >
         {/* Welcome message for first-time users */}
         {renderWelcomeMessage()}
         
@@ -740,13 +727,13 @@ const styles = StyleSheet.create({
   },
   quickActionsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     paddingHorizontal: 20,
     marginBottom: 24,
   },
   quickActionButton: {
     alignItems: "center",
-    width: (width - 60) / 4,
+    width: (width - 60) / 3,
   },
   quickActionIcon: {
     width: 50,
@@ -754,6 +741,11 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 8,
+  },
+  mascotImage: {
+    width: 60,
+    height: 60,
     marginBottom: 8,
   },
   quickActionText: {
