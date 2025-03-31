@@ -12,10 +12,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { AntDesign, FontAwesome5, Feather, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
+import { useCallback } from "react";
 
 const { width, height } = Dimensions.get("window");
 
@@ -98,6 +99,31 @@ const formatTime = (dateString) => {
   });
 };
 
+// Check if two dates are the same day
+const isSameDay = (date1, date2) => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
+// Check if two dates are consecutive days
+const isConsecutiveDay = (date1, date2) => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  
+  // Set to midnight to compare just the dates
+  d1.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+  
+  // Check if d2 is one day after d1
+  const oneDayInMs = 24 * 60 * 60 * 1000;
+  return d2.getTime() - d1.getTime() === oneDayInMs;
+};
+
 export default function PrayerStatistics() {
   const router = useRouter();
   const theme = getMysteryTheme("GLORIOUS"); // Default theme
@@ -113,14 +139,29 @@ export default function PrayerStatistics() {
   const [longestStreak, setLongestStreak] = useState(0);
   const [totalPrayers, setTotalPrayers] = useState(0);
   const [totalPrayerTime, setTotalPrayerTime] = useState(0);
-  const [weeklyData, setWeeklyData] = useState([]);
-  const [monthlyData, setMonthlyData] = useState([]);
+  const [weeklyData, setWeeklyData] = useState({
+    labels: [],
+    datasets: [{ data: [] }]
+  });
+  const [monthlyData, setMonthlyData] = useState({
+    labels: [],
+    datasets: [{ data: [] }]
+  });
   const [mysteryDistribution, setMysteryDistribution] = useState([]);
+  const [streakData, setStreakData] = useState([]);
   
-  // Load prayer data on mount
+  // Load prayer data on mount and when screen comes into focus
   useEffect(() => {
     loadPrayerData();
   }, []);
+  
+  // Using useFocusEffect instead of router.addListener
+  useFocusEffect(
+    useCallback(() => {
+      checkForNewPrayers();
+      return () => {}; // Cleanup function if needed
+    }, [])
+  );
   
   // Update filtered history when filters change
   useEffect(() => {
@@ -149,6 +190,22 @@ export default function PrayerStatistics() {
     setFilteredHistory(filtered);
   }, [prayerHistory, timeRange, mysteryFilter]);
   
+  // Check for new prayers
+  const checkForNewPrayers = async () => {
+    try {
+      // Check for a flag indicating a new prayer was completed
+      const newPrayerFlag = await AsyncStorage.getItem('newPrayerCompleted');
+      if (newPrayerFlag === 'true') {
+        // Reset the flag
+        await AsyncStorage.setItem('newPrayerCompleted', 'false');
+        // Reload prayer data
+        loadPrayerData();
+      }
+    } catch (error) {
+      console.error("Failed to check for new prayers:", error);
+    }
+  };
+  
   // Load prayer data from AsyncStorage
   const loadPrayerData = async () => {
     try {
@@ -160,6 +217,8 @@ export default function PrayerStatistics() {
       
       if (history) {
         prayerHistoryData = JSON.parse(history);
+        // Sort by date, newest first
+        prayerHistoryData.sort((a, b) => new Date(b.date) - new Date(a.date));
         setPrayerHistory(prayerHistoryData);
         setFilteredHistory(prayerHistoryData);
       }
@@ -172,6 +231,11 @@ export default function PrayerStatistics() {
         if (stats.longestStreak) setLongestStreak(stats.longestStreak);
         if (stats.totalPrayers) setTotalPrayers(stats.totalPrayers);
         if (stats.totalPrayerTime) setTotalPrayerTime(stats.totalPrayerTime);
+        
+        // Set streak data for the bar graph
+        if (stats.streakHistory) {
+          setStreakData(stats.streakHistory);
+        }
       }
       
       // Generate chart data
@@ -186,7 +250,26 @@ export default function PrayerStatistics() {
   
   // Generate chart data from prayer history
   const generateChartData = (history) => {
-    if (!history || history.length === 0) return;
+    if (!history || history.length === 0) {
+      setWeeklyData({
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }]
+      });
+      
+      setMonthlyData({
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{ data: [0, 0, 0, 0, 0, 0] }]
+      });
+      
+      setMysteryDistribution([
+        { name: "Joyful", count: 0, color: "#0ACF83", legendFontColor: "#333333" },
+        { name: "Sorrowful", count: 0, color: "#FF4757", legendFontColor: "#333333" },
+        { name: "Glorious", count: 0, color: "#7158e2", legendFontColor: "#333333" },
+        { name: "Luminous", count: 0, color: "#18DCFF", legendFontColor: "#333333" }
+      ]);
+      
+      return;
+    }
     
     // Sort history by date
     const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -362,6 +445,45 @@ export default function PrayerStatistics() {
     }
   };
   
+  // Render streak bar graph
+  const renderStreakGraph = () => {
+    if (!streakData || streakData.length === 0) {
+      return (
+        <View style={styles.emptyStreakContainer}>
+          <Text style={styles.emptyStreakText}>Complete prayers to build your streak!</Text>
+        </View>
+      );
+    }
+    
+    // Only show the most recent 30 days of streak data
+    const recentStreakData = streakData.slice(-30);
+    
+    return (
+      <View style={styles.streakChartContainer}>
+        <View style={styles.streakLabels}>
+          <Text style={styles.streakLabelText}>1</Text>
+          <Text style={styles.streakLabelText}>{Math.max(15, Math.floor(recentStreakData.length/2))}</Text>
+          <Text style={styles.streakLabelText}>{recentStreakData.length}</Text>
+        </View>
+        <View style={styles.streakBarsContainer}>
+          {recentStreakData.map((value, index) => (
+            <View 
+              key={index} 
+              style={[
+                styles.streakBar,
+                { 
+                  height: Math.max(value * 10, 10), 
+                  backgroundColor: theme.primary 
+                }
+              ]}
+            />
+          ))}
+        </View>
+        <Text style={styles.streakGraphCaption}>Prayer points earned over time</Text>
+      </View>
+    );
+  };
+  
   // Render mystery distribution pie chart
   const renderMysteryDistribution = () => {
     // Filter out zero values
@@ -400,7 +522,7 @@ export default function PrayerStatistics() {
         style={styles.historyItem}
         onPress={() => {
           router.push({
-            pathname: "/Rosary",
+            pathname: "/rosary/prayer-screens/RosaryPrayer",
             params: {
               mysteryType: item.mysteryType,
               mysteryKey: item.mysteryKey,
@@ -642,7 +764,7 @@ export default function PrayerStatistics() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <View style={styles.statIconContainer}>
-              <FontAwesome5 name="rosary-beads" size={20} color="#5856D6" />
+              <FontAwesome5 name="pray" size={20} color="#5856D6" />
             </View>
             <View style={styles.statContent}>
               <Text style={styles.statValue}>{totalPrayers}</Text>
@@ -660,6 +782,14 @@ export default function PrayerStatistics() {
             </View>
           </View>
         </View>
+      </View>
+      
+      {/* Streak Graph */}
+      <View style={styles.chartSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Prayer Streak Growth</Text>
+        </View>
+        {renderStreakGraph()}
       </View>
       
       {/* Activity chart */}
@@ -957,6 +1087,58 @@ const styles = StyleSheet.create({
   emptyChartText: {
     fontSize: 16,
     color: "#666666",
+  },
+  streakChartContainer: {
+    height: 220,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  streakLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  streakLabelText: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  streakBarsContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    flex: 1,
+    justifyContent: "space-around",
+  },
+  streakBar: {
+    width: 6,
+    borderRadius: 3,
+    marginHorizontal: 2,
+  },
+  streakGraphCaption: {
+    fontSize: 12,
+    color: "#666666",
+    textAlign: "center",
+    marginTop: 16,
+  },
+  emptyStreakContainer: {
+    height: 220,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 16,
+    marginHorizontal: 20,
+  },
+  emptyStreakText: {
+    fontSize: 16,
+    color: "#666666",
+    textAlign: "center",
+    paddingHorizontal: 20,
   },
   mysteryFilterContainer: {
     flexDirection: "row",

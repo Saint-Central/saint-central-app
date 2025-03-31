@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  Image,
   Animated,
+  Alert,
 } from "react-native";
 import { AntDesign, FontAwesome5 } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -137,70 +137,88 @@ const getDayMystery = () => {
 
 export default function MysterySelection() {
   const router = useRouter();
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const dayMystery = getDayMystery();
+  const navigation = useNavigation();
   
   // State management
+  const dayMystery = getDayMystery();
   const [selectedMystery, setSelectedMystery] = useState(dayMystery.key);
   const [selectedGuide, setSelectedGuide] = useState(null);
   const [selectedDuration, setSelectedDuration] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  
-  // Load settings on mount
+  // Setup navigation options
   useEffect(() => {
-    loadSettings();
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
+  
+  // Load settings and previous selections
+  useEffect(() => {
+    async function initialize() {
+      try {
+        // Load previously selected mystery if exists
+        const savedMystery = await AsyncStorage.getItem('selectedMystery');
+        if (savedMystery) {
+          setSelectedMystery(savedMystery);
+        }
+        
+        // Load settings
+        const settingsJson = await AsyncStorage.getItem('rosarySettings');
+        if (settingsJson !== null) {
+          const settings = JSON.parse(settingsJson);
+          
+          if (settings.guide) {
+            setSelectedGuide(settings.guide);
+          }
+          
+          if (settings.duration) {
+            setSelectedDuration(settings.duration);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        Alert.alert("Error", "Failed to load settings. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
     
-    // Animation sequence
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      })
-    ]).start();
+    initialize();
   }, []);
   
-  // Load settings from AsyncStorage
-  const loadSettings = async () => {
+  // Save mystery selection and navigate
+  const startPraying = async () => {
     try {
-      const settingsJson = await AsyncStorage.getItem('rosarySettings');
-      if (settingsJson !== null) {
-        const settings = JSON.parse(settingsJson);
-        
-        if (settings.guide) {
-          setSelectedGuide(settings.guide);
+      // Save selected mystery
+      await AsyncStorage.setItem('selectedMystery', selectedMystery);
+      
+      // Navigate to Rosary screen with selected mystery
+      router.push({
+        pathname: "../../../../RosaryPrayer",
+        params: {
+          mysteryType: MYSTERY_TYPES[selectedMystery],
+          mysteryKey: selectedMystery,
         }
-        
-        if (settings.duration) {
-          setSelectedDuration(settings.duration);
-        }
-      }
+      });
+      
+      // Haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
-      console.error("Failed to load settings:", error);
+      console.error("Error starting rosary:", error);
+      Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
   
-  // Start praying the selected mystery
-  const startPraying = () => {
-    // Navigate to Rosary screen with selected mystery
-    router.push({
-      pathname: "/Rosary",
-      params: {
-        mysteryType: MYSTERY_TYPES[selectedMystery],
-        mysteryKey: selectedMystery,
-      }
-    });
-    
-    // Haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Handle mystery selection
+  const handleMysterySelect = (mysteryKey) => {
+    setSelectedMystery(mysteryKey);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  
+  // Navigate to settings
+  const goToSettings = () => {
+    router.push("../../../../RosaryPrayer");
   };
   
   // Render mystery card
@@ -209,22 +227,10 @@ export default function MysterySelection() {
     const isSelected = selectedMystery === mysteryKey;
     
     return (
-      <Animated.View 
-        style={[
-          styles.mysteryCard,
-          isSelected && styles.selectedMysteryCard,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }
-        ]}
-      >
+      <View style={[styles.mysteryCard, isSelected && styles.selectedMysteryCard]}>
         <TouchableOpacity
           style={styles.mysteryCardTouchable}
-          onPress={() => {
-            setSelectedMystery(mysteryKey);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
+          onPress={() => handleMysterySelect(mysteryKey)}
           activeOpacity={0.9}
         >
           <LinearGradient
@@ -277,7 +283,7 @@ export default function MysterySelection() {
             </View>
           </LinearGradient>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
     );
   };
   
@@ -287,18 +293,10 @@ export default function MysterySelection() {
     const mysteries = MYSTERIES[selectedMystery];
     
     return (
-      <Animated.View 
-        style={[
-          styles.detailsContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }
-        ]}
-      >
+      <View style={styles.detailsContainer}>
         <Text style={styles.detailsTitle}>The Five Mysteries</Text>
         
-        {mysteries.map((mystery, index) => (
+        {mysteries.map((mystery) => (
           <View key={mystery.id} style={styles.mysteryItem}>
             <View style={[
               styles.mysteryItemNumber,
@@ -315,34 +313,20 @@ export default function MysterySelection() {
             </View>
           </View>
         ))}
-      </Animated.View>
+      </View>
     );
   };
   
-  // Render start button
-  const renderStartButton = () => {
-    const theme = getMysteryTheme(selectedMystery);
-    
+  // If still loading, show nothing (could add a loading spinner here)
+  if (isLoading) {
     return (
-      <Animated.View
-        style={[
-          styles.startButtonContainer,
-          {
-            opacity: fadeAnim,
-          }
-        ]}
-      >
-        <TouchableOpacity
-          style={[styles.startButton, { backgroundColor: theme.primary }]}
-          onPress={startPraying}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.startButtonText}>Begin {MYSTERY_TYPES[selectedMystery]}</Text>
-          <AntDesign name="arrowright" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </Animated.View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
     );
-  };
+  }
   
   return (
     <SafeAreaView style={styles.container}>
@@ -360,7 +344,7 @@ export default function MysterySelection() {
         
         <TouchableOpacity
           style={styles.settingsButton}
-          onPress={() => router.push("/RosarySettings")}
+          onPress={goToSettings}
           activeOpacity={0.7}
         >
           <AntDesign name="setting" size={24} color="#242424" />
@@ -368,14 +352,9 @@ export default function MysterySelection() {
       </View>
       
       <ScrollView
-  contentContainerStyle={styles.scrollContent}
-  showsVerticalScrollIndicator={false}
-  scrollEventThrottle={16}
-  onScroll={Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true, listener: () => {} }  // Add this empty listener function
-  )}
->
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Mystery cards */}
         <Text style={styles.sectionTitle}>Choose Mystery Type</Text>
         {renderMysteryCard("JOYFUL")}
@@ -387,15 +366,7 @@ export default function MysterySelection() {
         {renderMysteryDetails()}
         
         {/* Prayer guide info */}
-        <Animated.View 
-          style={[
-            styles.guideContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            }
-          ]}
-        >
+        <View style={styles.guideContainer}>
           <View style={styles.guideCard}>
             <Text style={styles.guideTitle}>Your Prayer Settings</Text>
             
@@ -417,17 +388,29 @@ export default function MysterySelection() {
             
             <TouchableOpacity
               style={styles.changeSettingsButton}
-              onPress={() => router.push("/RosarySettings")}
+              onPress={goToSettings}
             >
               <Text style={styles.changeSettingsText}>Change Settings</Text>
               <AntDesign name="right" size={14} color="#666666" />
             </TouchableOpacity>
           </View>
-        </Animated.View>
+        </View>
       </ScrollView>
       
       {/* Start button */}
-      {renderStartButton()}
+      <View style={styles.startButtonContainer}>
+        <TouchableOpacity
+          style={[
+            styles.startButton, 
+            { backgroundColor: getMysteryTheme(selectedMystery).primary }
+          ]}
+          onPress={startPraying}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.startButtonText}>Begin {MYSTERY_TYPES[selectedMystery]}</Text>
+          <AntDesign name="arrowright" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -436,6 +419,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F8F8",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666666',
   },
   header: {
     flexDirection: "row",
