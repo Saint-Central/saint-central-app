@@ -12,21 +12,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
 
-// Audio player props interface
-// {
-//   audioFile: any;               // Required: Audio file source
-//   theme: {                      // Required: Theme colors
-//     primary: string;
-//     secondary: string;
-//     accent: string;
-//   };
-//   onPlaybackStatusChange?: (status: any) => void;  // Optional: Callback for playback status
-//   autoPlayOnMount?: boolean;    // Optional: Auto-play when component mounts
-//   playbackRate?: number;        // Optional: Playback rate (speed)
-//   loopAudio?: boolean;          // Optional: Loop playback when finished
-//   showSpeedControl?: boolean;   // Optional: Show speed control buttons
-//   onComplete?: () => void;      // Optional: Callback when audio completes
-// }
+// Updated props interface to include:
+// - isPlaying: boolean - External control of playing state
+// - initialSeekPosition: number - Position to seek to when loading audio
+// - onAudioLoad: (sound) => void - Callback with sound object reference
 
 export default function AudioPlayer({
   audioFile,
@@ -36,7 +25,10 @@ export default function AudioPlayer({
   playbackRate = 1.0,
   loopAudio = false,
   showSpeedControl = true,
-  onComplete
+  onComplete,
+  isPlaying: externalIsPlaying, // New prop for external play control
+  initialSeekPosition, // New prop for initial seek position when loading audio
+  onAudioLoad // New prop to pass sound object to parent
 }) {
   // State management
   const [sound, setSound] = useState(null);
@@ -49,6 +41,8 @@ export default function AudioPlayer({
   const [seekPosition, setSeekPosition] = useState(0);
   const [sliderWidth, setSliderWidth] = useState(1);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [shouldApplyInitialSeek, setShouldApplyInitialSeek] = useState(false);
+  const [isAudioLoaded, setIsAudioLoaded] = useState(false);
   
   // Animation refs
   const playButtonScale = useRef(new Animated.Value(1)).current;
@@ -83,6 +77,10 @@ export default function AudioPlayer({
   useEffect(() => {
     loadSound();
     
+    // Reset state for new audio
+    setIsAudioLoaded(false);
+    setShouldApplyInitialSeek(!!initialSeekPosition);
+    
     // Cleanup function
     return () => {
       if (sound) {
@@ -93,10 +91,10 @@ export default function AudioPlayer({
   
   // Play audio when autoPlayOnMount is true
   useEffect(() => {
-    if (autoPlayOnMount && sound) {
+    if (autoPlayOnMount && sound && isAudioLoaded) {
       playSound();
     }
-  }, [sound, autoPlayOnMount]);
+  }, [sound, autoPlayOnMount, isAudioLoaded]);
   
   // Update playback rate when it changes
   useEffect(() => {
@@ -115,11 +113,41 @@ export default function AudioPlayer({
     }
   }, [isBuffering]);
   
+  // Handle external isPlaying prop
+  useEffect(() => {
+    if (externalIsPlaying !== undefined && sound && isAudioLoaded) {
+      if (externalIsPlaying && !isPlaying) {
+        playSound();
+      } else if (!externalIsPlaying && isPlaying) {
+        pauseSound();
+      }
+    }
+  }, [externalIsPlaying, sound, isAudioLoaded]);
+  
+  // Handle initial seek position - seek after audio is loaded
+  useEffect(() => {
+    const applyInitialSeek = async () => {
+      if (shouldApplyInitialSeek && sound && isAudioLoaded && initialSeekPosition) {
+        try {
+          console.log(`AudioPlayer: Applying initial seek to ${initialSeekPosition}ms`);
+          await sound.setPositionAsync(initialSeekPosition);
+          setPosition(initialSeekPosition);
+          setShouldApplyInitialSeek(false);
+        } catch (error) {
+          console.error("Failed to apply initial seek:", error);
+        }
+      }
+    };
+    
+    applyInitialSeek();
+  }, [sound, isAudioLoaded, initialSeekPosition, shouldApplyInitialSeek]);
+  
   // Load sound function
   const loadSound = async () => {
     try {
       setIsLoading(true);
       setIsPlaying(false);
+      setIsAudioLoaded(false);
       
       // Show loading animation
       Animated.timing(loadingOpacity, {
@@ -146,6 +174,12 @@ export default function AudioPlayer({
       
       setSound(newSound);
       
+      // Expose sound object to parent component
+      if (onAudioLoad && typeof onAudioLoad === 'function') {
+        console.log('AudioPlayer: Providing sound object to parent component');
+        onAudioLoad(newSound);
+      }
+      
       // Hide loading animation
       Animated.timing(loadingOpacity, {
         toValue: 0,
@@ -154,6 +188,7 @@ export default function AudioPlayer({
       }).start();
       
       setIsLoading(false);
+      setIsAudioLoaded(true);
       
       if (autoPlayOnMount) {
         setIsPlaying(true);
@@ -186,7 +221,11 @@ export default function AudioPlayer({
     
     // Call external status change handler if provided
     if (onPlaybackStatusChange) {
-      onPlaybackStatusChange(status);
+      // Add the sound object to the status for external control
+      onPlaybackStatusChange({
+        ...status,
+        sound
+      });
     }
   };
   

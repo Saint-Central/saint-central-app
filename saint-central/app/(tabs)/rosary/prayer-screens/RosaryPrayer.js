@@ -9,7 +9,8 @@ import {
   Platform, 
   Modal,
   Alert,
-  BackHandler
+  BackHandler,
+  ActivityIndicator
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -40,6 +41,15 @@ const RosaryPrayer = ({ route }) => {
   const [isPraying, setIsPraying] = useState(false);
   const timerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Add state for tracking audio playback position
+  const [audioPosition, setAudioPosition] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(1); // Default to 1 to avoid division by zero
+  const [positionPercentage, setPositionPercentage] = useState(0);
+  const [initialSeekPosition, setInitialSeekPosition] = useState(null);
+  
+  // Reference to the current sound object
+  const soundRef = useRef(null);
   
   // Available voice narrators
   const voiceOptions = {
@@ -256,20 +266,82 @@ const RosaryPrayer = ({ route }) => {
     }
   };
 
-  // Handle voice selection
+  // Handle voice selection with position memory
   const handleVoiceChange = (voice) => {
     // Set transitioning flag to trigger animation/transition
     setIsTransitioning(true);
+    
+    // Calculate and save the current position percentage before changing voice
+    if (audioDuration > 0) {
+      const percentage = audioPosition / audioDuration;
+      setPositionPercentage(percentage);
+      
+      // Calculate the initial seek position in milliseconds
+      const seekPos = Math.floor(audioPosition);
+      console.log(`Saving position at ${Math.round(percentage * 100)}% (${seekPos}ms) before changing voice`);
+      
+      // Set the initial seek position for the new audio file
+      setInitialSeekPosition(seekPos);
+    } else {
+      console.log('No audio duration available yet, cannot calculate position percentage');
+      setInitialSeekPosition(null);
+    }
+    
+    // Pause current audio to ensure clean transition
+    if (isPlaying) {
+      setIsPlaying(false);
+    }
     
     // Use setTimeout to create a smooth transition effect
     setTimeout(() => {
       setCurrentVoice(voice);
       setIsTransitioning(false);
+      
+      // If audio was playing before voice change, resume playback after a short delay
+      if (isPlaying) {
+        setTimeout(() => {
+          setIsPlaying(true);
+        }, 500);
+      }
     }, 300); // 300ms transition
     
     setShowGuideSelector(false);
   };
 
+  // Audio playback callbacks
+  const handlePlaybackStatusChange = (status) => {
+    if (status.isPlaying !== isPlaying) {
+      setIsPlaying(status.isPlaying);
+      setIsPraying(status.isPlaying);
+    }
+    
+    // Track current position and duration
+    if (status.positionMillis !== undefined) {
+      setAudioPosition(status.positionMillis);
+    }
+    
+    if (status.durationMillis !== undefined && status.durationMillis > 0) {
+      setAudioDuration(status.durationMillis);
+    }
+    
+    // Store the sound object reference if it's available via status
+    if (status.sound) {
+      soundRef.current = status.sound;
+    }
+  };
+  
+  // Store sound object reference when audio is loaded
+  const handleAudioLoad = (sound) => {
+    if (sound) {
+      soundRef.current = sound;
+      console.log('Audio loaded, sound object stored');
+    }
+  };
+  
+  const handleAudioComplete = () => {
+    console.log('Audio playback completed');
+  };
+  
   // Get prayers and mysteries based on mystery type
   const getMysteryContent = () => {
     const currentMysteryType = mysteryType || getTodaysMystery();
@@ -459,18 +531,6 @@ const RosaryPrayer = ({ route }) => {
       console.error("Failed to update prayer statistics:", error);
       throw error;
     }
-  };
-  
-  // Audio playback callbacks
-  const handlePlaybackStatusChange = (status) => {
-    if (status.isPlaying !== isPlaying) {
-      setIsPlaying(status.isPlaying);
-      setIsPraying(status.isPlaying);
-    }
-  };
-  
-  const handleAudioComplete = () => {
-    console.log('Audio playback completed');
   };
   
   const navigateToNextScreen = () => {
@@ -712,17 +772,22 @@ const RosaryPrayer = ({ route }) => {
                 accent: '#e91e63'
               }}
               onPlaybackStatusChange={handlePlaybackStatusChange}
-              autoPlayOnMount={false} // Set to false to prevent auto-start
+              onAudioLoad={handleAudioLoad}
+              autoPlayOnMount={false}
               playbackRate={1.0}
               loopAudio={true}
               showSpeedControl={true}
               onComplete={handleAudioComplete}
-              isPlaying={isPlaying} // Use this prop to control playing state
+              isPlaying={isPlaying}
+              initialSeekPosition={initialSeekPosition}
             />
           ) : (
-            <Text style={styles.audioPlayerPlaceholder}>
-              Audio player will appear here when audio file is available.
-            </Text>
+            <View style={styles.audioPlayerPlaceholder}>
+              <Text style={styles.audioPlayerPlaceholderText}>
+                Loading audio for {mysteryTypeData[mysteryType]?.name || 'Rosary Prayer'}...
+              </Text>
+              <ActivityIndicator size="small" color="#3f51b5" style={{marginTop: 8}} />
+            </View>
           )}
         </View>
         
@@ -852,11 +917,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
-    minHeight: 80,
   },
   audioPlayerPlaceholder: {
     padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    minHeight: 80,
+  },
+  audioPlayerPlaceholderText: {
     textAlign: 'center',
     color: '#666',
     fontStyle: 'italic',
