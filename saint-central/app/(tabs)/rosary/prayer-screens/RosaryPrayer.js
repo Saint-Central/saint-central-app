@@ -10,10 +10,12 @@ import {
   Modal,
   Alert,
   BackHandler,
-  ActivityIndicator
+  ActivityIndicator,
+  Animated
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import RosaryPrayerBase from '../components/RosaryPrayerBase';
 import AudioPlayer from '../components/AudioPlayer';
 import { Audio } from 'expo-av';
@@ -25,6 +27,10 @@ const RosaryPrayer = ({ route }) => {
   // Use router instead of navigation prop
   const router = useRouter();
   const navigation = useNavigation();
+  
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   
   // Initialize with default values
   const [currentScreen, setCurrentScreen] = useState('introduction');
@@ -103,6 +109,44 @@ const RosaryPrayer = ({ route }) => {
     }
   };
   
+  // Get mystery theme color based on the mystery type
+  const getMysteryThemeColor = () => {
+    switch (mysteryKey) {
+      case 'JOYFUL':
+        return {
+          primary: '#4CAF50',
+          secondary: '#E8F5E9',
+          accent: '#81C784'
+        };
+      case 'SORROWFUL':
+        return {
+          primary: '#9C27B0',
+          secondary: '#F3E5F5',
+          accent: '#BA68C8'
+        };
+      case 'GLORIOUS':
+        return {
+          primary: '#FFC107',
+          secondary: '#FFF8E1',
+          accent: '#FFD54F'
+        };
+      case 'LUMINOUS':
+        return {
+          primary: '#2196F3',
+          secondary: '#E3F2FD',
+          accent: '#64B5F6'
+        };
+      default:
+        return {
+          primary: '#3f51b5',
+          secondary: '#E8EAF6',
+          accent: '#7986CB'
+        };
+    }
+  };
+  
+  const themeColors = getMysteryThemeColor();
+  
   // Set up event listeners for screen focus/blur
   useEffect(() => {
     const unsubscribeFocus = navigation.addListener('focus', () => {
@@ -169,6 +213,24 @@ const RosaryPrayer = ({ route }) => {
       setIsPraying(false);
     };
   }, [route?.params?.mysteryType]);
+  
+  // Show modal animation
+  useEffect(() => {
+    if (showGuideSelector) {
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true
+      }).start();
+    }
+  }, [showGuideSelector]);
   
   // Timer effect for tracking prayer time
   useEffect(() => {
@@ -533,31 +595,62 @@ const RosaryPrayer = ({ route }) => {
     }
   };
   
+  // Modified navigation with animations
   const navigateToNextScreen = () => {
-    if (currentScreen === 'introduction') {
-      setCurrentScreen('decade');
-    } else if (currentScreen === 'decade') {
-      if (currentDecade < 5) {
-        setCurrentDecade(currentDecade + 1);
-      } else {
-        setCurrentScreen('conclusion');
+    // Fade out
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      // Change screen
+      if (currentScreen === 'introduction') {
+        setCurrentScreen('decade');
+      } else if (currentScreen === 'decade') {
+        if (currentDecade < 5) {
+          setCurrentDecade(currentDecade + 1);
+        } else {
+          setCurrentScreen('conclusion');
+        }
+      } else if (currentScreen === 'conclusion') {
+        handlePrayerCompletion();
       }
-    } else if (currentScreen === 'conclusion') {
-      handlePrayerCompletion();
-    }
+      
+      // Fade in
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    });
   };
   
   const navigateToPreviousScreen = () => {
-    if (currentScreen === 'decade') {
-      if (currentDecade > 1) {
-        setCurrentDecade(currentDecade - 1);
-      } else {
-        setCurrentScreen('introduction');
+    // Fade out
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      // Change screen
+      if (currentScreen === 'decade') {
+        if (currentDecade > 1) {
+          setCurrentDecade(currentDecade - 1);
+        } else {
+          setCurrentScreen('introduction');
+        }
+      } else if (currentScreen === 'conclusion') {
+        setCurrentScreen('decade');
+        setCurrentDecade(5);
       }
-    } else if (currentScreen === 'conclusion') {
-      setCurrentScreen('decade');
-      setCurrentDecade(5);
-    }
+      
+      // Fade in
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    });
   };
   
   // Get mystery content only after mysteryType is set
@@ -567,60 +660,108 @@ const RosaryPrayer = ({ route }) => {
   const renderVoiceSelector = () => {
     return (
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={showGuideSelector}
         onRequestClose={() => setShowGuideSelector(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select a Voice</Text>
+          <Animated.View 
+            style={[
+              styles.modalContent,
+              {
+                transform: [{ 
+                  translateY: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [300, 0]
+                  })
+                }]
+              }
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, {color: themeColors.primary}]}>Select a Voice</Text>
+              <TouchableOpacity 
+                style={styles.closeModalButton}
+                onPress={() => setShowGuideSelector(false)}
+              >
+                <Ionicons name="close" size={24} color="#999" />
+              </TouchableOpacity>
+            </View>
             
             {Object.keys(voiceOptions).map((voiceKey) => (
               <TouchableOpacity
                 key={voiceKey}
                 style={[
                   styles.guideOption,
-                  currentVoice === voiceKey && styles.selectedGuideOption
+                  currentVoice === voiceKey && [
+                    styles.selectedGuideOption, 
+                    { borderColor: themeColors.primary }
+                  ]
                 ]}
                 onPress={() => handleVoiceChange(voiceKey)}
               >
-                <Text style={styles.guideTitle}>{voiceOptions[voiceKey].name}</Text>
-                <Text style={styles.guideDescription}>{voiceOptions[voiceKey].description}</Text>
+                <View style={[
+                  styles.voiceIconContainer,
+                  { backgroundColor: currentVoice === voiceKey ? `${themeColors.primary}20` : '#f5f5f5' }
+                ]}>
+                  <Ionicons 
+                    name={currentVoice === voiceKey ? "mic" : "mic-outline"} 
+                    size={20} 
+                    color={currentVoice === voiceKey ? themeColors.primary : "#999"} 
+                  />
+                </View>
+                <View style={styles.voiceTextContainer}>
+                  <Text style={[
+                    styles.guideTitle,
+                    currentVoice === voiceKey && { color: themeColors.primary }
+                  ]}>
+                    {voiceOptions[voiceKey].name}
+                  </Text>
+                  <Text style={styles.guideDescription}>
+                    {voiceOptions[voiceKey].description}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
-            
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowGuideSelector(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     );
   };
   
-  // Render Finish Prayer button
-  const renderFinishButton = () => {
-    // Only show the finish button if the user has been praying for at least 30 seconds
-    if (elapsedTime < 30) {
-      return null;
-    }
-    
-    return (
-      <View style={styles.finishButtonContainer}>
-        <TouchableOpacity
-          style={styles.finishButton}
-          onPress={handlePrayerCompletion}
+  // Updated renderFinishButton function
+const renderFinishButton = () => {
+  // Only show the finish button if the user has been praying for at least 30 seconds
+  if (elapsedTime < 30) {
+    return null;
+  }
+  
+  return (
+    <Animated.View 
+      style={[
+        styles.finishButtonContainer,
+        {opacity: fadeAnim}
+      ]}
+    >
+      <TouchableOpacity
+        style={[styles.finishButton, {backgroundColor: '#4CAF50'}]}
+        onPress={handlePrayerCompletion}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#4CAF50', '#3D9140']}
+          style={styles.finishButtonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          <Text style={styles.finishButtonText}>Finish Prayer</Text>
-          <FontAwesome5 name="check" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-    );
-  };
+          <Text style={styles.finishButtonText}>Finish</Text>
+          <FontAwesome5 name="check" size={16} color="#FFFFFF" />
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
   
   const renderContent = () => {
     if (currentScreen === 'introduction') {
@@ -631,31 +772,40 @@ const RosaryPrayer = ({ route }) => {
           styles.contentContainer,
           isTransitioning && styles.fadeContent
         ]}>
-          <Text style={styles.title}>Introduction</Text>
-          <Text style={styles.mysteryTitle}>{mysteryTypeData[currentMysteryType]?.name || currentMysteryType.toUpperCase()}</Text>
-          <Text style={styles.prayer}>{introductionPrayer}</Text>
+          <Text style={[styles.title, {color: themeColors.primary}]}>Introduction</Text>
           
-          <View style={styles.prayerContainer}>
+          <View style={styles.mysteryTitleContainer}>
+            <View style={[styles.mysteryTitleAccent, {backgroundColor: themeColors.primary}]} />
+            <Text style={[styles.mysteryTitle, {color: themeColors.primary}]}>
+              {mysteryTypeData[currentMysteryType]?.name || currentMysteryType.toUpperCase()}
+            </Text>
+          </View>
+          
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
+            <Text style={styles.prayer}>{introductionPrayer}</Text>
+          </View>
+          
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Sign of the Cross</Text>
             <Text style={styles.prayer}>In the name of the Father, and of the Son, and of the Holy Spirit. Amen.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Apostles' Creed</Text>
             <Text style={styles.prayer}>I believe in God, the Father Almighty, Creator of heaven and earth; and in Jesus Christ, His only Son, our Lord; who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died, and was buried. He descended into hell; the third day He arose again from the dead. He ascended into heaven, sits at the right hand of God, the Father Almighty; from thence He shall come to judge the living and the dead. I believe in the Holy Spirit, the Holy Catholic Church, the communion of Saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Our Father</Text>
             <Text style={styles.prayer}>Our Father, who art in heaven, hallowed be Thy name; Thy kingdom come; Thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Three Hail Marys</Text>
             <Text style={styles.prayer}>Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (3x)</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Glory Be</Text>
             <Text style={styles.prayer}>Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen.</Text>
           </View>
@@ -667,30 +817,36 @@ const RosaryPrayer = ({ route }) => {
           styles.contentContainer,
           isTransitioning && styles.fadeContent
         ]}>
-          <Text style={styles.title}>Decade {currentDecade}</Text>
-          <Text style={styles.mysteryTitle}>{mysteries[currentDecade - 1]}</Text>
+          <Text style={[styles.title, {color: themeColors.primary}]}>Decade {currentDecade}</Text>
           
-          <View style={styles.prayerContainer}>
+          <View style={styles.mysteryTitleContainer}>
+            <View style={[styles.mysteryTitleAccent, {backgroundColor: themeColors.primary}]} />
+            <Text style={[styles.mysteryTitle, {color: themeColors.primary}]}>
+              {mysteries[currentDecade - 1]}
+            </Text>
+          </View>
+          
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Announcement of the Mystery</Text>
             <Text style={styles.prayer}>Let us contemplate {mysteries[currentDecade - 1]}.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Our Father</Text>
             <Text style={styles.prayer}>Our Father, who art in heaven, hallowed be Thy name; Thy kingdom come; Thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Ten Hail Marys</Text>
             <Text style={styles.prayer}>Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen. (10x)</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Glory Be</Text>
             <Text style={styles.prayer}>Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Fatima Prayer</Text>
             <Text style={styles.prayer}>O my Jesus, forgive us our sins, save us from the fires of hell, lead all souls to heaven, especially those in most need of Thy mercy.</Text>
           </View>
@@ -702,24 +858,24 @@ const RosaryPrayer = ({ route }) => {
           styles.contentContainer,
           isTransitioning && styles.fadeContent
         ]}>
-          <Text style={styles.title}>Conclusion</Text>
+          <Text style={[styles.title, {color: themeColors.primary}]}>Conclusion</Text>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Hail Holy Queen</Text>
             <Text style={styles.prayer}>Hail, Holy Queen, Mother of Mercy, our life, our sweetness and our hope! To thee do we cry, poor banished children of Eve. To thee do we send up our sighs, mourning and weeping in this valley of tears. Turn, then, most gracious Advocate, thine eyes of mercy toward us, and after this, our exile, show unto us the blessed fruit of thy womb, Jesus. O clement, O loving, O sweet Virgin Mary.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Pray for us, O Holy Mother of God</Text>
             <Text style={styles.prayer}>That we may be made worthy of the promises of Christ.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Final Prayer</Text>
             <Text style={styles.prayer}>Let us pray. O God, whose only-begotten Son, by His life, death and resurrection, has purchased for us the rewards of eternal life; grant, we beseech Thee, that by meditating upon these mysteries of the Most Holy Rosary of the Blessed Virgin Mary, we may imitate what they contain and obtain what they promise, through the same Christ our Lord. Amen.</Text>
           </View>
           
-          <View style={styles.prayerContainer}>
+          <View style={[styles.prayerContainer, {borderLeftColor: themeColors.primary}]}>
             <Text style={styles.prayerTitle}>Sign of the Cross</Text>
             <Text style={styles.prayer}>In the name of the Father, and of the Son, and of the Holy Spirit. Amen.</Text>
           </View>
@@ -737,39 +893,59 @@ const RosaryPrayer = ({ route }) => {
   
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header with voice selector button */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {mysteryTypeData[mysteryType]?.name || 'Rosary Prayer'}
-        </Text>
-        <TouchableOpacity 
-          style={styles.guideButton}
-          onPress={() => setShowGuideSelector(true)}
-        >
-          <Ionicons name="mic" size={24} color="#fff" />
-          <Text style={styles.guideButtonText}>Voice: {voiceOptions[currentVoice]?.name}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Header with gradient background */}
+      <LinearGradient
+        colors={[themeColors.primary, themeColors.accent]}
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
+            {mysteryTypeData[mysteryType]?.name || 'Rosary Prayer'}
+          </Text>
+          <TouchableOpacity 
+            style={styles.guideButton}
+            onPress={() => setShowGuideSelector(true)}
+          >
+            <LinearGradient
+              colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+              style={styles.guideBtnGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="mic" size={20} color="#fff" />
+              <Text style={styles.guideButtonText}>Voice: {voiceOptions[currentVoice]?.name}</Text>
+              <Ionicons name="chevron-down" size={16} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
       
-      {/* Prayer timer display */}
+      {/* Enhanced Prayer timer display */}
       <View style={styles.timerContainer}>
-        <Text style={styles.timerText}>
-          Prayer time: {formatTime(elapsedTime)}
-        </Text>
+        <View style={styles.timerInner}>
+          <Ionicons name="time-outline" size={18} color={themeColors.primary} />
+          <Text style={[styles.timerText, {color: themeColors.primary}]}>
+            {formatTime(elapsedTime)}
+          </Text>
+        </View>
       </View>
       
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {renderContent()}
+        <Animated.View style={{opacity: fadeAnim}}>
+          {renderContent()}
+        </Animated.View>
         
-        {/* Audio Player Component */}
-        <View style={styles.audioPlayerContainer}>
+        {/* Enhanced Audio Player Component */}
+        <View style={[styles.audioPlayerContainer, {backgroundColor: `${themeColors.primary}10`}]}>
           {audioSource ? (
             <AudioPlayer
               audioFile={audioSource}
               theme={{
-                primary: '#3f51b5',
-                secondary: '#7986cb',
-                accent: '#e91e63'
+                primary: themeColors.primary,
+                secondary: themeColors.accent,
+                accent: themeColors.primary
               }}
               onPlaybackStatusChange={handlePlaybackStatusChange}
               onAudioLoad={handleAudioLoad}
@@ -786,33 +962,48 @@ const RosaryPrayer = ({ route }) => {
               <Text style={styles.audioPlayerPlaceholderText}>
                 Loading audio for {mysteryTypeData[mysteryType]?.name || 'Rosary Prayer'}...
               </Text>
-              <ActivityIndicator size="small" color="#3f51b5" style={{marginTop: 8}} />
+              <ActivityIndicator size="small" color={themeColors.primary} style={{marginTop: 8}} />
             </View>
           )}
         </View>
         
+        {/* Enhanced Navigation Buttons */}
         <View style={styles.navigationContainer}>
           {(currentScreen !== 'introduction') && (
             <TouchableOpacity 
-              style={styles.navigationButton} 
+              style={[styles.navigationButton, styles.navigationButtonSecondary]} 
               onPress={navigateToPreviousScreen}
+              activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>Previous</Text>
+              <Ionicons 
+                name="arrow-back" 
+                size={18} 
+                color="#666" 
+                style={{marginRight: 8}}
+              />
+              <Text style={styles.buttonTextSecondary}>Previous</Text>
             </TouchableOpacity>
           )}
           
           <TouchableOpacity 
-            style={styles.navigationButton} 
+            style={[styles.navigationButton, styles.navigationButtonPrimary, {backgroundColor: themeColors.primary}]} 
             onPress={navigateToNextScreen}
+            activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>
               {currentScreen === 'conclusion' ? 'Finish' : 'Next'}
             </Text>
+            <Ionicons 
+              name={currentScreen === 'conclusion' ? 'checkmark-circle' : 'arrow-forward'} 
+              size={18} 
+              color="#fff" 
+              style={{marginLeft: 8}}
+            />
           </TouchableOpacity>
         </View>
       </ScrollView>
       
-      {/* Finish Prayer Button - Shows after 30 seconds of prayer */}
+      {/* Finish Prayer Button */}
       {renderFinishButton()}
       
       {/* Voice Selector Modal */}
@@ -826,42 +1017,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f8f8'
   },
+  headerGradient: {
+    paddingBottom: 16,
+  },
   header: {
-    backgroundColor: '#3f51b5',
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   headerTitle: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   guideButton: {
+    overflow: 'hidden',
+    borderRadius: 20,
+  },
+  guideBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 8,
-    borderRadius: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
   guideButtonText: {
     color: 'white',
-    marginLeft: 5,
+    marginLeft: 6,
+    marginRight: 6,
     fontWeight: '500',
   },
   timerContainer: {
-    backgroundColor: '#E8EAF6',
-    paddingVertical: 10,
+    backgroundColor: '#f8f9ff',
+    paddingVertical: 8,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#C5CAE9',
+    borderBottomColor: '#E8EAF6',
+  },
+  timerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   timerText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#3F51B5',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -870,53 +1083,64 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     marginBottom: 20,
-    opacity: 1,
-    transition: 'opacity 0.3s'
   },
   fadeContent: {
     opacity: 0.4
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
-    color: '#333'
+    marginBottom: 20,
+  },
+  mysteryTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  mysteryTitleAccent: {
+    width: 24,
+    height: 2,
+    marginRight: 12,
   },
   mysteryTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#3f51b5'
   },
   prayerContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
     backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
+    padding: 20,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2
+    shadowRadius: 12,
+    elevation: 4,
+    borderLeftWidth: 4,
   },
   prayerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#555'
+    marginBottom: 12,
+    color: '#444',
   },
   prayer: {
     fontSize: 16,
     lineHeight: 24,
     color: '#444'
   },
-  // Audio player styles
+  // Enhanced Audio player styles
   audioPlayerContainer: {
-    marginBottom: 20,
-    borderRadius: 10,
+    marginBottom: 24,
+    borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#3f51b5',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   audioPlayerPlaceholder: {
     padding: 20,
@@ -924,65 +1148,82 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
-    minHeight: 80,
+    minHeight: 100,
   },
   audioPlayerPlaceholderText: {
     textAlign: 'center',
     color: '#666',
     fontStyle: 'italic',
   },
+  // Enhanced Navigation buttons
   navigationContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginVertical: 20
+    marginVertical: 20,
+    paddingHorizontal: 10,
   },
   navigationButton: {
-    backgroundColor: '#3f51b5',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    minWidth: 140,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  navigationButtonPrimary: {
+    backgroundColor: '#3f51b5',
+  },
+  navigationButtonSecondary: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold'
   },
-  // Finish button styles
-  finishButtonContainer: {
-    position: 'absolute',
-    bottom: 90,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    zIndex: 10,
-  },
-  finishButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4CAF50', // Green color
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  finishButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginRight: 8,
-  },
-  // Modal styles
+buttonTextSecondary: {
+  color: '#444',
+  fontSize: 16,
+  fontWeight: 'bold'
+},
+// Enhanced Finish button styles (moved to side)
+finishButtonContainer: {
+  position: 'absolute',
+  bottom: 20,
+  right: 20,
+  zIndex: 10,
+},
+finishButton: {
+  overflow: 'hidden',
+  borderRadius: 30,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.2,
+  shadowRadius: 8,
+  elevation: 4,
+},
+finishButtonGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+},
+finishButtonText: {
+  fontSize: 16,
+  fontWeight: "700",
+  color: "#FFFFFF",
+  marginRight: 6,
+},
+  // Enhanced Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -992,51 +1233,68 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 20,
     width: '90%',
-    maxHeight: '80%'
+    maxWidth: 400,
+    maxHeight: '80%',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 16,
   },
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#3f51b5'
+  },
+  closeModalButton: {
+    padding: 4,
   },
   guideOption: {
-    padding: 15,
-    borderRadius: 5,
-    marginBottom: 10,
-    backgroundColor: '#f5f5f5'
+    flexDirection: 'row',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#f9f9f9',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   selectedGuideOption: {
-    backgroundColor: '#e8eaf6',
+    backgroundColor: '#f5f7ff',
     borderWidth: 1,
-    borderColor: '#3f51b5'
+  },
+  voiceIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  voiceTextContainer: {
+    flex: 1,
   },
   guideTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#3f51b5',
-    marginBottom: 5
+    color: '#444',
+    marginBottom: 4,
   },
   guideDescription: {
     fontSize: 14,
-    color: '#666'
+    color: '#666',
   },
-  closeButton: {
-    backgroundColor: '#3f51b5',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 10
-  },
-  closeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16
-  }
 });
 
 export default RosaryPrayer;
