@@ -72,9 +72,8 @@ interface Intention {
   selectedGroups?: (number | string)[]; // For "Certain Groups" selection
 }
 
-type IntentionType = "resolution" | "prayer" | "goal";
-type TabType = "all" | "resolutions" | "prayers" | "goals";
-
+type IntentionType = "resolution" | "prayer" | "goal" | "spiritual" | "family" | "health" | "work" | "friends" | "world" | "personal" | "other";
+type TabType = "all" | "resolutions" | "prayers" | "goals" | "spiritual" | "family" | "health" | "work" | "friends" | "world" | "personal" | "other";
 interface Notification {
   message: string;
   type: "error" | "success";
@@ -233,18 +232,34 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
             )}
           </Text>
           <View style={styles.intentionMeta}>
-            <View style={styles.intentionTypeTag}>
-              {item.type === "prayer" ? (
-                <FontAwesome name="hand-peace-o" size={12} color="#FAC898" />
-              ) : item.type === "resolution" ? (
-                <Feather name="book-open" size={12} color="#FAC898" />
-              ) : (
-                <Feather name="target" size={12} color="#FAC898" />
-              )}
-              <Text style={styles.intentionTypeText}>
-                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-              </Text>
-            </View>
+          <View style={styles.intentionTypeTag}>
+  {item.type === "prayer" ? (
+    <FontAwesome name="hand-peace-o" size={12} color="#FAC898" />
+  ) : item.type === "resolution" ? (
+    <Feather name="book-open" size={12} color="#FAC898" />
+  ) : item.type === "goal" ? (
+    <Feather name="target" size={12} color="#FAC898" />
+  ) : item.type === "spiritual" ? (
+    <FontAwesome name="star" size={12} color="#FAC898" />
+  ) : item.type === "family" ? (
+    <Feather name="users" size={12} color="#FAC898" />
+  ) : item.type === "health" ? (
+    <Feather name="heart" size={12} color="#FAC898" />
+  ) : item.type === "work" ? (
+    <Feather name="briefcase" size={12} color="#FAC898" />
+  ) : item.type === "friends" ? (
+    <Feather name="user-plus" size={12} color="#FAC898" />
+  ) : item.type === "world" ? (
+    <Feather name="globe" size={12} color="#FAC898" />
+  ) : item.type === "personal" ? (
+    <Feather name="user" size={12} color="#FAC898" />
+  ) : (
+    <Feather name="more-horizontal" size={12} color="#FAC898" />
+  )}
+  <Text style={styles.intentionTypeText}>
+    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+  </Text>
+</View>
             <Text style={styles.intentionTime}>
               {new Date(item.created_at).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -2091,7 +2106,7 @@ export default function CommunityScreen() {
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Type</Text>
                   <View style={styles.pickerContainer}>
-                    {["prayer", "resolution", "goal"].map((type) => (
+                    {["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"].map((type) => (
                       <TouchableOpacity
                         key={type}
                         style={[
@@ -2214,26 +2229,38 @@ export default function CommunityScreen() {
                   />
                 </View>
                 <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Description</Text>
-                  <TextInput
-                    style={[
-                      styles.formTextarea,
-                      createDescriptionFocused && styles.formTextareaFocused,
-                    ]}
-                    value={newIntention.description}
-                    onChangeText={(text) =>
-                      setNewIntention({ ...newIntention, description: text })
-                    }
-                    placeholder="Enter description..."
-                    placeholderTextColor="rgba(250, 200, 152, 0.5)"
-                    multiline={true}
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                    inputAccessoryViewID="accessoryViewID"
-                    onFocus={() => setCreateDescriptionFocused(true)}
-                    onBlur={() => setCreateDescriptionFocused(false)}
-                  />
-                </View>
+  <Text style={styles.formLabel}>Description</Text>
+  <View style={styles.textInputContainer}>
+    <TextInput
+      style={[styles.formTextarea, createDescriptionFocused && styles.formTextareaFocused]}
+      value={newIntention.description}
+      onChangeText={(text) =>
+        setNewIntention({ ...newIntention, description: text })
+      }
+      placeholder="Enter description..."
+      placeholderTextColor="rgba(250, 200, 152, 0.5)"
+      multiline={true}
+      numberOfLines={4}
+      textAlignVertical="top"
+      inputAccessoryViewID="accessoryViewID"
+      onFocus={() => setCreateDescriptionFocused(true)}
+      onBlur={() => setCreateDescriptionFocused(false)}
+    />
+    {createDescriptionFocused && (
+      <TouchableOpacity 
+        style={styles.closeButton}
+        onPress={() => {
+          Keyboard.dismiss();
+          setCreateDescriptionFocused(false);
+        }}
+      >
+        <Feather name="check" size={20} color="#FAC898" />
+      </TouchableOpacity>
+    )}
+  </View>
+</View>
+
+
                 <InputAccessoryView nativeID="accessoryViewID">
                   <View style={styles.accessory}>
                     <TouchableOpacity onPress={() => Keyboard.dismiss()}>
@@ -2279,7 +2306,7 @@ export default function CommunityScreen() {
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Type</Text>
                     <View style={styles.pickerContainer}>
-                      {["prayer", "resolution", "goal"].map((type) => (
+                      {["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"].map((type) => (
                         <TouchableOpacity
                           key={type}
                           style={[
@@ -2995,17 +3022,20 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     gap: 10,
   },
   typeOption: {
     flex: 1,
+    minWidth: "30%",
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     alignItems: "center",
     backgroundColor: "rgba(41, 37, 36, 0.5)",
+    marginBottom: 8,
   },
   selectedTypeOption: {
     backgroundColor: "rgba(250, 200, 152, 0.2)",
@@ -3149,6 +3179,22 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     zIndex: 1000,
   },
+  textInputContainer: { 
+    position: 'relative', 
+  },
+  closeButton: { 
+    position: 'absolute', 
+    right: 10, 
+    top: 10, 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    borderRadius: 20, 
+    width: 36, 
+    height: 36, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: 'rgba(250, 200, 152, 0.4)', 
+  },
   fabMenu: {
     position: "absolute",
     right: 20,
@@ -3200,3 +3246,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
+
+
