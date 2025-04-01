@@ -522,7 +522,7 @@ export default function PrayerStatistics() {
         style={styles.historyItem}
         onPress={() => {
           router.push({
-            pathname: "/rosary/prayer-screens/RosaryPrayer",
+            pathname: "/rosary/screens/RosaryHome",
             params: {
               mysteryType: item.mysteryType,
               mysteryKey: item.mysteryKey,
@@ -542,13 +542,15 @@ export default function PrayerStatistics() {
             <View style={styles.historyItemDuration}>
               <AntDesign name="clockcircleo" size={12} color="#666666" />
               <Text style={styles.historyItemDurationText}>
-                {Math.round(item.duration / 60)} min
-              </Text>
+  {`${Math.round(item.duration / 60)} min`}
+</Text>
             </View>
           )}
         </View>
         
-        <AntDesign name="right" size={16} color="#CCCCCC" />
+        <View>
+          <AntDesign name="right" size={16} color="#CCCCCC" />
+        </View>
       </TouchableOpacity>
     );
   };
@@ -858,12 +860,12 @@ export default function PrayerStatistics() {
       {/* Header */}
       <View style={styles.header}>
       <TouchableOpacity
-  style={styles.backButton}
-  onPress={() => router.push("/rosary/RosaryHome")}
-  activeOpacity={0.7}
->
-  <AntDesign name="arrowleft" size={24} color="#FFF" />
-</TouchableOpacity>
+        style={styles.backButton}
+        onPress={() => router.push("/rosary/screens/RosaryHome")}
+        activeOpacity={0.7}
+      >
+        <AntDesign name="arrowleft" size={24} color="#FFF" />
+      </TouchableOpacity>
         
         <Text style={styles.headerTitle}>Prayer Journal</Text>
         
