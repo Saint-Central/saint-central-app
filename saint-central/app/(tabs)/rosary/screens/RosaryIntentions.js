@@ -18,107 +18,116 @@ import {
   StatusBar,
   Vibration,
   ImageBackground,
-  InputAccessoryView,
   Keyboard,
+  Image,
+  Pressable,
 } from "react-native";
-import { AntDesign, FontAwesome5, Feather, FontAwesome } from "@expo/vector-icons";
+import { AntDesign, FontAwesome5, Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../../../supabaseClient";
 import { BlurView } from "expo-blur";
+// Using only packages that are already in the project
 
 // Get device dimensions
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
-// Theme colors
+// Theme colors - New palette
 const theme = {
-  primary: "#7158e2",
-  secondary: "#5F45C2",
-  tertiary: "#B39DFF",
-  accent: "#F0ECFF",
-  light: "#F8F5FF",
-  darkPurple: "#4A3B94",
-  gray: "#EAEAEA",
-  darkGray: "#666666",
-  lightGray: "#999999",
-  textPrimary: "#333333",
-  textSecondary: "#666666",
-  textLight: "#999999",
-  success: "#4CAF50",
-  error: "#FF4757",
-  warning: "#FFCC00",
-  white: "#FFFFFF",
+  primary: "#3B82F6", // Bright blue
+  secondary: "#1E40AF", // Dark blue
+  tertiary: "#93C5FD", // Light blue
+  background: "#F3F4F6", // Light gray
+  surface: "#FFFFFF", // White
+  surfaceVariant: "#F8FAFC", // Off-white
+  error: "#EF4444", // Red
+  success: "#10B981", // Green
+  warning: "#F59E0B", // Yellow/Amber
+  textPrimary: "#1F2937", // Very dark gray
+  textSecondary: "#4B5563", // Dark gray
+  textTertiary: "#9CA3AF", // Medium gray
+  divider: "#E5E7EB", // Light gray for borders/dividers
+  cardShadow: "#0000001A", // Shadow for cards
+  icon: "#6B7280", // Icon color
+  highlight: "#DBEAFE", // Light blue highlight
 };
 
-// Replace CATEGORY_ICONS with TYPE_ICONS
+// Enhanced type icons and colors
 const TYPE_ICONS = {
-  "prayer": "pray",
-  "resolution": "book-open",
-  "goal": "target",
-  "spiritual": "pray",
-  "family": "users",
-  "health": "heart",
-  "work": "briefcase",
-  "friends": "user-friends",
-  "world": "globe-americas",
-  "personal": "user",
-  "other": "ellipsis-h",
+  "prayer": { name: "pray", style: "fa5", color: ["#3B82F6", "#1E40AF"] },
+  "resolution": { name: "notebook", style: "ion", color: ["#8B5CF6", "#6D28D9"] },
+  "goal": { name: "target", style: "feather", color: ["#EC4899", "#DB2777"] },
+  "spiritual": { name: "church", style: "fa5", color: ["#10B981", "#059669"] },
+  "family": { name: "people", style: "ion", color: ["#F59E0B", "#D97706"] },
+  "health": { name: "heart", style: "fa5", color: ["#EF4444", "#DC2626"] },
+  "work": { name: "briefcase", style: "fa5", color: ["#6366F1", "#4F46E5"] },
+  "friends": { name: "users", style: "fa5", color: ["#14B8A6", "#0D9488"] },
+  "world": { name: "globe", style: "fa5", color: ["#3B82F6", "#1E40AF"] },
+  "personal": { name: "person", style: "ion", color: ["#8B5CF6", "#6D28D9"] },
+  "other": { name: "options", style: "ion", color: ["#6B7280", "#4B5563"] },
 };
 
-// Replace getCategoryColor with getTypeColor
-const getTypeColor = (type) => {
-  const colors = {
-    "prayer": ["#7158e2", "#5F45C2"], // Purple
-    "resolution": ["#A18CD1", "#FBC2EB"], // Light purple
-    "goal": ["#4776E6", "#8E54E9"], // Blue/purple
-    "spiritual": ["#7158e2", "#5F45C2"], // Purple
-    "family": ["#FF9966", "#FF5E62"], // Orange/red
-    "health": ["#56CCF2", "#2F80ED"], // Blue
-    "work": ["#A18CD1", "#FBC2EB"], // Light purple
-    "friends": ["#00B09B", "#96C93D"], // Green
-    "world": ["#4776E6", "#8E54E9"], // Blue/purple
-    "personal": ["#FF5858", "#F09819"], // Red/orange
-    "other": ["#8E2DE2", "#4A00E0"], // Deep purple
-  };
+// Helper function to render icon based on type
+const renderTypeIcon = (type, size = 20, color = "#FFFFFF") => {
+  const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
   
-  return colors[type] || colors["other"];
+  switch (iconInfo.style) {
+    case "fa5":
+      return <FontAwesome5 name={iconInfo.name} size={size} color={color} />;
+    case "ion":
+      return <Ionicons name={iconInfo.name} size={size} color={color} />;
+    case "feather":
+      return <Feather name={iconInfo.name} size={size} color={color} />;
+    default:
+      return <FontAwesome5 name={iconInfo.name} size={size} color={color} />;
+  }
 };
 
-// Define visibility options with icons and in desired order
+// Enhanced visibility options
 const VISIBILITY_OPTIONS = [
   {
-    label: "Friends",
-    icon: "users",
-    description: "Share with your friends"
-  },
-  {
+    id: "just-me",
     label: "Just Me",
-    icon: "user",
-    description: "Only visible to you"
+    icon: "lock-closed",
+    style: "ion",
+    description: "Only visible to you",
+    color: "#6B7280"
   },
   {
+    id: "friends",
+    label: "Friends",
+    icon: "people",
+    style: "ion",
+    description: "Share with your friends",
+    color: "#3B82F6"
+  },
+  {
+    id: "groups",
     label: "Friends & Groups",
     icon: "globe",
-    description: "Share with friends and all your groups"
+    style: "fa5",
+    description: "Share with friends and all your groups",
+    color: "#8B5CF6"
   },
   {
+    id: "certain-groups",
     label: "Certain Groups",
-    icon: "grid",
-    description: "Select specific groups to share with"
+    icon: "people-circle",
+    style: "ion",
+    description: "Select specific groups to share with",
+    color: "#10B981"
   }
 ];
 
-// Helper: Convert the returned selected_groups field to a proper array
+// Parse selected groups helper function
 const parseSelectedGroups = (selected_groups) => {
   if (Array.isArray(selected_groups)) {
     return selected_groups;
   } else if (typeof selected_groups === "string") {
     try {
-      // Try JSON parsing first
       return JSON.parse(selected_groups);
     } catch (e) {
-      // Fallback: remove any brackets and split by comma
       return selected_groups
         .replace(/[\[\]]/g, "")
         .split(",")
@@ -129,80 +138,111 @@ const parseSelectedGroups = (selected_groups) => {
   return [];
 };
 
-// IntentionItem Component for rendering each intention card
-const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCompleted }) => {
-  const typeColors = getTypeColor(item.type);
+// Format date for display
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+  const day = 24 * 60 * 60 * 1000;
   
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
+  if (diff < day) {
+    return "Today";
+  } else if (diff < 2 * day) {
+    return "Yesterday";
+  } else if (diff < 7 * day) {
+    return `${Math.floor(diff / day)} days ago`;
+  } else {
     return date.toLocaleDateString(undefined, { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric' 
     });
-  };
+  }
+};
+
+// Intention Card Component - Completely redesigned
+const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCompleted, index }) => {
+  const iconInfo = TYPE_ICONS[item.type] || TYPE_ICONS["other"];
+  const animation = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.timing(animation, {
+      toValue: 1,
+      duration: 400,
+      delay: index * 100,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+  
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [50, 0],
+  });
+  
+  const opacity = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
   
   return (
-    <View style={styles.intentionCardContainer}>
-      <TouchableOpacity
+    <Animated.View 
+      style={[
+        styles.intentionCard,
+        { opacity, transform: [{ translateY }] }
+      ]}
+    >
+      <Pressable
         style={[
-          styles.intentionCard,
-          item.completed && styles.completedIntentionCard
+          styles.intentionCardInner,
+          item.completed && styles.completedCard
         ]}
         onPress={() => onPress(item)}
-        activeOpacity={0.9}
+        android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
       >
-        <LinearGradient
-          colors={item.completed ? ['#E0E0E0', '#BBBBBB'] : typeColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.intentionCardGradient}
-        />
-        
-        <View style={styles.intentionCardContent}>
-          <View style={styles.intentionCardHeader}>
-            <View style={styles.typeContainer}>
-              <View style={styles.typeIconContainer}>
-                <FontAwesome5 
-                  name={TYPE_ICONS[item.type] || "ellipsis-h"} 
-                  size={14} 
-                  color="#FFFFFF" 
-                />
-              </View>
-              <Text style={styles.typeText}>
-                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-              </Text>
+        <View style={styles.cardHeader}>
+          <View style={styles.typeContainer}>
+            <View 
+              style={[
+                styles.typeIconContainer, 
+                { backgroundColor: iconInfo.color[0] }
+              ]}
+            >
+              {renderTypeIcon(item.type, 16)}
             </View>
-            
-            <View style={styles.intentionActions}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => onToggleFavorite(item.id)}
-              >
-                <AntDesign 
-                  name={item.favorite ? "heart" : "hearto"} 
-                  size={18} 
-                  color="#FFFFFF" 
-                />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => onToggleCompleted(item.id)}
-              >
-                <AntDesign 
-                  name={item.completed ? "checkcircle" : "checkcircleo"} 
-                  size={18} 
-                  color="#FFFFFF" 
-                />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.typeText}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</Text>
           </View>
           
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => onToggleFavorite(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <AntDesign 
+                name={item.favorite ? "heart" : "hearto"} 
+                size={18} 
+                color={item.favorite ? theme.error : theme.textSecondary} 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => onToggleCompleted(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons 
+                name={item.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
+                size={18} 
+                color={item.completed ? theme.success : theme.textSecondary} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View style={styles.cardContent}>
           <Text 
             style={[
-              styles.intentionTitle,
+              styles.cardTitle,
               item.completed && styles.completedText
             ]}
             numberOfLines={2}
@@ -213,7 +253,7 @@ const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
           {item.description ? (
             <Text 
               style={[
-                styles.intentionDescription,
+                styles.cardDescription,
                 item.completed && styles.completedText
               ]}
               numberOfLines={2}
@@ -221,98 +261,95 @@ const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
               {item.description}
             </Text>
           ) : null}
-          
-          <View style={styles.intentionCardFooter}>
-            <View style={styles.visibilityBadge}>
-              <Feather 
-                name={
-                  item.visibility === "Just Me" ? "user" : 
-                  item.visibility === "Certain Groups" ? "grid" :
-                  item.visibility === "Friends & Groups" ? "globe" : "users"
-                } 
-                size={12} 
-                color="#FFFFFF" 
-              />
-              <Text style={styles.visibilityText}>{item.visibility}</Text>
-            </View>
-            
-            <Text style={styles.dateText}>{formatDate(item.date)}</Text>
-          </View>
         </View>
-      </TouchableOpacity>
-    </View>
+        
+        <View style={styles.cardFooter}>
+          <View style={styles.visibilityContainer}>
+            {item.visibility === "Just Me" ? (
+              <Ionicons name="lock-closed" size={14} color={theme.textTertiary} />
+            ) : item.visibility === "Friends" ? (
+              <Ionicons name="people" size={14} color={theme.textTertiary} />
+            ) : item.visibility === "Friends & Groups" ? (
+              <FontAwesome5 name="globe" size={12} color={theme.textTertiary} />
+            ) : (
+              <Ionicons name="people-circle" size={14} color={theme.textTertiary} />
+            )}
+            <Text style={styles.visibilityText}>{item.visibility}</Text>
+          </View>
+          
+          <Text style={styles.dateText}>{formatDate(item.date)}</Text>
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 });
 
-// Replace CategorySection with TypeSection
-const TypeSection = ({ type, intentions, onToggleFavorite, onToggleCompleted, onPressIntention, expanded, onToggleExpand }) => {
-  const typeColors = getTypeColor(type);
+// Intention Group Component - New design for the type sections
+const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted, onPressIntention, expanded, onToggleExpand }) => {
+  const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
   const activeCount = intentions.filter(i => !i.completed).length;
   const completedCount = intentions.filter(i => i.completed).length;
+  const rotateAnim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+  
+  useEffect(() => {
+    Animated.timing(rotateAnim, {
+      toValue: expanded ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [expanded]);
+  
+  const rotateIcon = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
   
   return (
-    <View style={styles.typeSectionContainer}>
-      <TouchableOpacity 
-        style={styles.typeSectionHeader}
+    <View style={styles.groupContainer}>
+      <TouchableOpacity
+        style={styles.groupHeader}
         onPress={onToggleExpand}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
       >
-        <LinearGradient
-          colors={typeColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.typeSectionGradient}
-        />
-        
-        <View style={styles.typeSectionHeaderContent}>
-          <View style={styles.typeHeaderLeft}>
-            <View style={styles.typeHeaderIconContainer}>
-              <FontAwesome5 
-                name={TYPE_ICONS[type] || "ellipsis-h"} 
-                size={18} 
-                color="#FFFFFF" 
-              />
-            </View>
-            <Text style={styles.typeSectionTitle}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </Text>
+        <View style={styles.groupHeaderLeft}>
+          <View 
+            style={[
+              styles.groupIconContainer, 
+              { backgroundColor: iconInfo.color[0] }
+            ]}
+          >
+            {renderTypeIcon(type, 20)}
           </View>
-          
-          <View style={styles.typeHeaderRight}>
-            <View style={styles.typeCountBadge}>
-              <Text style={styles.typeCountText}>{intentions.length}</Text>
-            </View>
-            <AntDesign 
-              name={expanded ? "up" : "down"} 
-              size={18} 
-              color="#FFFFFF" 
-              style={styles.typeExpandIcon}
-            />
+          <View style={styles.groupTitleContainer}>
+            <Text style={styles.groupTitle}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
+            <Text style={styles.groupCount}>{intentions.length} intention{intentions.length !== 1 ? 's' : ''}</Text>
           </View>
         </View>
+        
+        <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
+          <Ionicons name="chevron-down" size={24} color={theme.textSecondary} />
+        </Animated.View>
       </TouchableOpacity>
       
       {expanded && (
-        <View style={styles.typeSectionContent}>
-          <View style={styles.typeStatsRow}>
-            <View style={styles.typeStatItem}>
-              <Text style={styles.typeStatLabel}>Active</Text>
-              <Text style={styles.typeStatValue}>{activeCount}</Text>
+        <View style={styles.groupContent}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Active</Text>
+              <Text style={styles.statValue}>{activeCount}</Text>
             </View>
-            <View style={styles.typeStatItem}>
-              <Text style={styles.typeStatLabel}>Completed</Text>
-              <Text style={styles.typeStatValue}>{completedCount}</Text>
-            </View>
-            <View style={styles.typeStatItem}>
-              <Text style={styles.typeStatLabel}>Total</Text>
-              <Text style={styles.typeStatValue}>{intentions.length}</Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Completed</Text>
+              <Text style={styles.statValue}>{completedCount}</Text>
             </View>
           </View>
           
-          {intentions.map(intention => (
-            <IntentionItem 
+          {intentions.map((intention, index) => (
+            <IntentionCard 
               key={intention.id}
               item={intention}
+              index={index}
               onPress={onPressIntention}
               onToggleFavorite={onToggleFavorite}
               onToggleCompleted={onToggleCompleted}
@@ -324,12 +361,272 @@ const TypeSection = ({ type, intentions, onToggleFavorite, onToggleCompleted, on
   );
 };
 
+// Filter Chip Component - Reusable for filter options
+const FilterChip = ({ label, icon, active, onPress, IconComponent = Ionicons }) => (
+  <TouchableOpacity
+    style={[
+      styles.filterChip,
+      active && styles.filterChipActive
+    ]}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <IconComponent 
+      name={icon} 
+      size={16} 
+      color={active ? theme.primary : theme.textSecondary} 
+      style={styles.filterChipIcon}
+    />
+    <Text 
+      style={[
+        styles.filterChipText,
+        active && styles.filterChipTextActive
+      ]}
+    >
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
+
+// AnimatedIconButton Component - For the add button animation
+const AnimatedIconButton = ({ icon, onPress, style, size = 24, color = "white", backgroundColor = theme.primary }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.9,
+      useNativeDriver: true,
+    }).start();
+  };
+  
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 5,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+  
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+      style={style}
+    >
+      <Animated.View
+        style={[
+          styles.animatedButtonContainer,
+          { transform: [{ scale }], backgroundColor },
+        ]}
+      >
+        <Ionicons name={icon} size={size} color={color} />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+// VisibilityOption Component - For the modal selection
+const VisibilityOption = ({ option, selected, onSelect }) => {
+  const IconComponent = option.style === "ion" ? Ionicons : FontAwesome5;
+  
+  return (
+    <TouchableOpacity
+      style={[
+        styles.visibilityOption,
+        selected && styles.visibilityOptionSelected
+      ]}
+      onPress={() => onSelect(option)}
+      activeOpacity={0.7}
+    >
+      <View 
+        style={[
+          styles.visibilityIconContainer,
+          { backgroundColor: option.color + '20' }
+        ]}
+      >
+        <IconComponent name={option.icon} size={20} color={option.color} />
+      </View>
+      
+      <View style={styles.visibilityTextContainer}>
+        <Text style={styles.visibilityLabel}>{option.label}</Text>
+        <Text style={styles.visibilityDescription}>{option.description}</Text>
+      </View>
+      
+      {selected && (
+        <View style={styles.visibilitySelectedIndicator}>
+          <Ionicons name="checkmark" size={18} color={theme.primary} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+// TypeOption Component - For type selection in modals
+const TypeOption = ({ type, selected, onSelect }) => {
+  const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
+  const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+  
+  return (
+    <TouchableOpacity
+      style={[
+        styles.typeOption,
+        selected && styles.typeOptionSelected
+      ]}
+      onPress={() => onSelect(type)}
+      activeOpacity={0.7}
+    >
+      <View 
+        style={[
+          styles.typeOptionIconContainer,
+          { backgroundColor: iconInfo.color[0] + '20' }
+        ]}
+      >
+        {renderTypeIcon(type, 20, iconInfo.color[0])}
+      </View>
+      
+      <Text style={styles.typeOptionLabel}>{typeLabel}</Text>
+      
+      {selected && (
+        <View style={styles.typeOptionSelectedIndicator}>
+          <Ionicons name="checkmark" size={18} color={theme.primary} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+// GroupOption Component - For group selection in modals
+const GroupOption = ({ group, selected, onSelect }) => (
+  <TouchableOpacity
+    style={[
+      styles.groupOption,
+      selected && styles.groupOptionSelected
+    ]}
+    onPress={() => onSelect(group.id)}
+    activeOpacity={0.7}
+  >
+    <Text style={[
+      styles.groupOptionLabel,
+      selected && styles.groupOptionLabelSelected
+    ]}>
+      {group.name}
+    </Text>
+    
+    {selected && (
+      <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+    )}
+  </TouchableOpacity>
+);
+
+// Empty State Component - New design
+const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
+  return (
+    <View style={styles.emptyStateContainer}>
+      <View style={styles.emptyAnimationContainer}>
+        <Ionicons 
+          name={
+            activeTab === "completed" ? "checkmark-circle-outline" : 
+            activeTab === "active" ? "hourglass-outline" : "list-outline"
+          } 
+          size={60} 
+          color={theme.primary} 
+        />
+      </View>
+      
+      <Text style={styles.emptyStateTitle}>
+        {filterType 
+          ? `No ${activeTab === "completed" ? "completed" : ""} ${filterType} intentions found`
+          : activeTab === "all" 
+            ? "No intentions yet"
+            : activeTab === "active"
+              ? "No active intentions"
+              : "No completed intentions"}
+      </Text>
+      
+      <Text style={styles.emptyStateDescription}>
+        {filterType 
+          ? `Try changing filters or add a new ${filterType} intention`
+          : activeTab === "all" 
+            ? "Add your first prayer intention to get started"
+            : activeTab === "active"
+              ? "All your intentions are completed"
+              : "Complete some intentions to see them here"}
+      </Text>
+      
+      {(activeTab === "all" || activeTab === "active") && (
+        <TouchableOpacity
+          style={styles.emptyStateButton}
+          onPress={onAddIntention}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={[theme.primary, theme.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.emptyStateButtonGradient}
+          >
+            <Ionicons name="add" size={20} color="white" />
+            <Text style={styles.emptyStateButtonText}>
+              Add New Intention
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// Toast Notification Component - Enhanced design
+const ToastNotification = ({ message, type, onDismiss }) => {
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+  
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2500),
+      Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      if (onDismiss) onDismiss();
+    });
+  }, []);
+  
+  return (
+    <Animated.View 
+      style={[
+        styles.toastContainer,
+        type === "error" ? styles.toastError : styles.toastSuccess,
+        { transform: [{ translateY: slideAnim }] }
+      ]}
+    >
+      <View style={styles.toastContent}>
+        <Ionicons 
+          name={type === "error" ? "alert-circle" : "checkmark-circle"} 
+          size={24} 
+          color="white" 
+        />
+        <Text style={styles.toastMessage}>{message}</Text>
+      </View>
+    </Animated.View>
+  );
+};
+
 export default function RosaryIntentions() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
-  const backgroundImageRequire = require("../../../../assets/images/community-image.jpg");
+  const addButtonAnimation = useRef(new Animated.Value(0)).current;
   
-  // State
+  // State variables - maintained from original component
   const [intentions, setIntentions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all"); // "all", "active", "completed"
@@ -337,28 +634,24 @@ export default function RosaryIntentions() {
   const [sortOrder, setSortOrder] = useState("newest"); // "newest", "oldest", "alphabetical"
   const [notification, setNotification] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showPostIntentionModal, setShowPostIntentionModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showVisibilityModal, setShowVisibilityModal] = useState(false);
-  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
-  const [showFilterOptions, setShowFilterOptions] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [expandedTypes, setExpandedTypes] = useState([]);
-  const [postDescriptionFocused, setPostDescriptionFocused] = useState(false);
-  
-  // Form states
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   
-  // New intention state (using Community style)
+  // Form states
   const [newIntention, setNewIntention] = useState({
     title: "",
     description: "",
     type: "prayer",
     completed: false,
     favorite: false,
-    visibility: "Friends",
-    selected_groups: null,
+    visibility: "Just Me",
     selectedGroups: []
   });
   
@@ -367,7 +660,7 @@ export default function RosaryIntentions() {
   // Header animations
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [180, 100],
+    outputRange: [220, 100],
     extrapolate: 'clamp',
   });
   
@@ -383,12 +676,35 @@ export default function RosaryIntentions() {
     extrapolate: 'clamp',
   });
   
+  // Add button animations
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(addButtonAnimation, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(addButtonAnimation, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+  
+  const addButtonScale = addButtonAnimation.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1.1, 1],
+  });
+  
   // Check authentication on mount
   useEffect(() => {
     checkAuth();
   }, []);
   
-  // Cleanup notification after 3 seconds
+  // Cleanup notification after timeout
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
@@ -398,7 +714,7 @@ export default function RosaryIntentions() {
     }
   }, [notification]);
   
-  // Check if user is authenticated
+  // Authentication function - same as original
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -417,7 +733,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Fetch user's groups
+  // Fetch user groups function - same as original
   const fetchUserGroups = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -436,7 +752,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Load intentions from Supabase
+  // Load intentions function - same as original
   const loadIntentions = async (userId) => {
     try {
       setIsLoading(true);
@@ -458,7 +774,7 @@ export default function RosaryIntentions() {
           date: item.created_at,
           completed: item.completed || false,
           favorite: item.favorite || false,
-          visibility: item.visibility || "Friends",
+          visibility: item.visibility || "Just Me",
           selected_groups: item.selected_groups,
           selectedGroups: parseSelectedGroups(item.selected_groups),
         }));
@@ -476,7 +792,7 @@ export default function RosaryIntentions() {
     } catch (error) {
       console.error("Failed to load intentions:", error);
       setNotification({
-        message: "Failed to load intentions. Please try again.",
+        message: "Failed to load intentions",
         type: "error"
       });
     } finally {
@@ -484,85 +800,11 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Post new intention to Community (using the same structure as Community page)
-  const handlePostIntention = async () => {
-    if (!newIntention.title.trim() || !newIntention.description.trim()) {
-      setNotification({
-        message: "Please fill in both the title and description.",
-        type: "error"
-      });
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-      
-      // Prepare intention data for Supabase
-      const intentionData = {
-        user_id: user.id,
-        title: newIntention.title,
-        description: newIntention.description,
-        type: newIntention.type,
-        completed: newIntention.completed,
-        favorite: newIntention.favorite,
-        visibility: newIntention.visibility,
-        selected_groups: 
-          newIntention.visibility === "Certain Groups" 
-            ? newIntention.selectedGroups 
-            : [],
-        created_at: new Date().toISOString()
-      };
-      
-      // Insert into Supabase
-      const { error } = await supabase
-        .from('intentions')
-        .insert(intentionData);
-      
-      if (error) throw error;
-      
-      // Reset form and close modal
-      setNewIntention({
-        title: "",
-        description: "",
-        type: "prayer",
-        completed: false,
-        favorite: false,
-        visibility: "Friends",
-        selected_groups: null,
-        selectedGroups: []
-      });
-      
-      setShowPostIntentionModal(false);
-      
-      // Success feedback
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setNotification({
-        message: "Intention shared to community successfully!",
-        type: "success"
-      });
-      
-      // Reload intentions
-      await loadIntentions(user.id);
-      
-    } catch (error) {
-      console.error("Failed to post intention:", error);
-      setNotification({
-        message: "Failed to post intention. Please try again.",
-        type: "error"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle creating a new intention (using Community style)
+  // Create new intention function - same as original
   const handleCreateIntention = async () => {
     if (!newIntention.title.trim()) {
       setNotification({
-        message: "Please enter a title for your intention.",
+        message: "Please enter a title for your intention",
         type: "error"
       });
       return;
@@ -628,8 +870,7 @@ export default function RosaryIntentions() {
           type: "prayer",
           completed: false,
           favorite: false,
-          visibility: "Friends",
-          selected_groups: null,
+          visibility: "Just Me",
           selectedGroups: []
         });
         setShowAddModal(false);
@@ -637,14 +878,14 @@ export default function RosaryIntentions() {
         // Success feedback
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setNotification({
-          message: "Prayer intention added successfully!",
+          message: "Prayer intention added successfully",
           type: "success"
         });
       }
     } catch (error) {
       console.error("Failed to add intention:", error);
       setNotification({
-        message: "Failed to add intention. Please try again.",
+        message: "Failed to add intention",
         type: "error"
       });
     } finally {
@@ -652,7 +893,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Edit intention
+  // Edit intention function - same as original
   const startEditIntention = (intention) => {
     let parsedGroups = [];
     if (intention.selected_groups) {
@@ -667,15 +908,18 @@ export default function RosaryIntentions() {
       }
     }
     
-    setEditingIntention(intention);
+    setEditingIntention({
+      ...intention,
+      selectedGroups: parsedGroups
+    });
     setShowEditModal(true);
   };
   
-  // Update intention
+  // Update intention function - same as original
   const updateIntention = async () => {
     if (!editingIntention.title.trim()) {
       setNotification({
-        message: "Please enter a title for your intention.",
+        message: "Please enter a title for your intention",
         type: "error"
       });
       return;
@@ -719,13 +963,13 @@ export default function RosaryIntentions() {
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setNotification({
-        message: "Prayer intention updated successfully!",
+        message: "Prayer intention updated successfully",
         type: "success"
       });
     } catch (error) {
       console.error("Failed to update intention:", error);
       setNotification({
-        message: "Failed to update intention. Please try again.",
+        message: "Failed to update intention",
         type: "error"
       });
     } finally {
@@ -733,7 +977,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Delete intention
+  // Delete intention function - same as original
   const deleteIntention = (intentionId) => {
     Alert.alert(
       "Delete Intention",
@@ -764,13 +1008,13 @@ export default function RosaryIntentions() {
               
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               setNotification({
-                message: "Prayer intention deleted successfully!",
+                message: "Prayer intention deleted successfully",
                 type: "success"
               });
             } catch (error) {
               console.error("Failed to delete intention:", error);
               setNotification({
-                message: "Failed to delete intention. Please try again.",
+                message: "Failed to delete intention",
                 type: "error"
               });
             } finally {
@@ -783,7 +1027,7 @@ export default function RosaryIntentions() {
     );
   };
   
-  // Toggle completion status - now updates both local state and database
+  // Toggle completion function - same as original
   const toggleCompleted = async (intentionId) => {
     try {
       const intention = intentions.find(item => item.id === intentionId);
@@ -812,13 +1056,13 @@ export default function RosaryIntentions() {
     } catch (error) {
       console.error("Failed to toggle completion:", error);
       setNotification({
-        message: "Failed to update intention. Please try again.",
+        message: "Failed to update intention",
         type: "error"
       });
     }
   };
   
-  // Toggle favorite status - now updates both local state and database
+  // Toggle favorite function - same as original
   const toggleFavorite = async (intentionId) => {
     try {
       const intention = intentions.find(item => item.id === intentionId);
@@ -847,13 +1091,13 @@ export default function RosaryIntentions() {
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
       setNotification({
-        message: "Failed to update intention. Please try again.",
+        message: "Failed to update intention",
         type: "error"
       });
     }
   };
   
-  // Toggle group selection for new intention
+  // Group selection toggles - same as original
   const toggleGroupSelection = (groupId) => {
     if (newIntention.selectedGroups.includes(groupId)) {
       setNewIntention({
@@ -868,7 +1112,6 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Toggle group selection for editing
   const toggleEditGroupSelection = (groupId) => {
     if (!editingIntention) return;
     const currentSelected = editingIntention.selectedGroups || [];
@@ -895,27 +1138,46 @@ export default function RosaryIntentions() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   
-  // Group and sort intentions by type
-  const getGroupedIntentions = () => {
-    let filtered = intentions;
+  // Filter and group intentions
+  const getFilteredIntentions = () => {
+    let filtered = [...intentions];
     
+    // Apply search filter if searching
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(item => 
+        item.title.toLowerCase().includes(query) || 
+        (item.description && item.description.toLowerCase().includes(query))
+      );
+    }
+    
+    // Apply tab filter
     if (activeTab === "active") {
       filtered = filtered.filter(item => !item.completed);
     } else if (activeTab === "completed") {
       filtered = filtered.filter(item => item.completed);
     }
     
+    // Apply type filter
     if (filterType) {
       filtered = filtered.filter(item => item.type === filterType);
     }
     
+    // Apply sorting
     if (sortOrder === "newest") {
-      filtered = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date));
+      filtered = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
     } else if (sortOrder === "oldest") {
-      filtered = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date));
+      filtered = filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
     } else if (sortOrder === "alphabetical") {
-      filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
+      filtered = filtered.sort((a, b) => a.title.localeCompare(b.title));
     }
+    
+    return filtered;
+  };
+  
+  // Group intentions by type
+  const getGroupedIntentions = () => {
+    const filtered = getFilteredIntentions();
     
     const grouped = {};
     filtered.forEach(intention => {
@@ -934,7 +1196,7 @@ export default function RosaryIntentions() {
     return Array.from(types);
   };
   
-  // Get stats
+  // Get stats for dashboard
   const getStats = () => {
     const total = intentions.length;
     const active = intentions.filter(i => !i.completed).length;
@@ -944,612 +1206,716 @@ export default function RosaryIntentions() {
     return { total, active, completed, favorites };
   };
   
-  // Render individual stat item
-  const renderStatItem = ({ icon, label, value, color }) => (
-    <View style={styles.statItem}>
-      <View style={[styles.statIconContainer, { backgroundColor: `${color}15` }]}>
-        <FontAwesome5 name={icon} size={16} color={color} />
+  // Render functions for UI components
+  const renderHeader = () => (
+    <Animated.View style={[styles.header, { height: headerHeight }]}>
+      <LinearGradient
+        colors={[theme.primary, theme.secondary]}
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
+      {/* Fixed header top */}
+      <View style={styles.headerTop}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={22} color="white" />
+        </TouchableOpacity>
+        
+        <Animated.Text style={[styles.headerTitle, { opacity: headerTitleOpacity }]}>
+          Prayer Intentions
+        </Animated.Text>
+        
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons 
+            name="options-outline" 
+            size={22} 
+            color={filterType || activeTab !== "all" || sortOrder !== "newest" ? theme.warning : "white"} 
+          />
+        </TouchableOpacity>
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      
+      {/* Header collapsible content */}
+      <Animated.View 
+        style={[
+          styles.headerContent, 
+          { opacity: headerContentOpacity }
+        ]}
+      >
+        <Text style={styles.headerMainTitle}>Prayer Intentions</Text>
+        <Text style={styles.headerSubtitle}>Lift your prayers and intentions to God</Text>
+        
+        {/* Stats cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrapper}>
+              <Ionicons name="list" size={18} color={theme.primary} />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{getStats().total}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+          </View>
+          
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrapper, styles.activeIconWrapper]}>
+              <Ionicons name="hourglass-outline" size={18} color="#F59E0B" />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{getStats().active}</Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+          </View>
+          
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrapper, styles.completedIconWrapper]}>
+              <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{getStats().completed}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+          </View>
+          
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrapper, styles.favoriteIconWrapper]}>
+              <Ionicons name="heart-outline" size={18} color="#EF4444" />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{getStats().favorites}</Text>
+              <Text style={styles.statLabel}>Favorites</Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+      
+      {/* Search container */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color={theme.textTertiary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search intentions..."
+            placeholderTextColor={theme.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onFocus={() => setIsSearching(true)}
+            onBlur={() => setIsSearching(false)}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+  
+  const renderTabs = () => (
+    <View style={styles.tabsContainer}>
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === "all" && styles.activeTab
+        ]}
+        onPress={() => setActiveTab("all")}
+        activeOpacity={0.7}
+      >
+        <Ionicons 
+          name="grid-outline" 
+          size={18} 
+          color={activeTab === "all" ? theme.primary : theme.textSecondary} 
+        />
+        <Text style={[
+          styles.tabText,
+          activeTab === "all" && styles.activeTabText
+        ]}>All</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === "active" && styles.activeTab
+        ]}
+        onPress={() => setActiveTab("active")}
+        activeOpacity={0.7}
+      >
+        <Ionicons 
+          name="hourglass-outline" 
+          size={18} 
+          color={activeTab === "active" ? theme.primary : theme.textSecondary} 
+        />
+        <Text style={[
+          styles.tabText,
+          activeTab === "active" && styles.activeTabText
+        ]}>Active</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === "completed" && styles.activeTab
+        ]}
+        onPress={() => setActiveTab("completed")}
+        activeOpacity={0.7}
+      >
+        <Ionicons 
+          name="checkmark-circle-outline" 
+          size={18} 
+          color={activeTab === "completed" ? theme.primary : theme.textSecondary} 
+        />
+        <Text style={[
+          styles.tabText,
+          activeTab === "completed" && styles.activeTabText
+        ]}>Completed</Text>
+      </TouchableOpacity>
     </View>
   );
   
-  // Render filter options modal
-  const renderFilterOptions = () => (
-    <Modal
-      visible={showFilterOptions}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={() => setShowFilterOptions(false)}
-    >
-      <TouchableOpacity 
-        style={styles.filterModalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowFilterOptions(false)}
+  const renderTypeFilters = () => {
+    const types = getTypes();
+    if (types.length === 0) return null;
+    
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.typeFiltersContainer}
       >
-        <BlurView intensity={60} style={StyleSheet.absoluteFill} />
+        <FilterChip
+          label="All Types"
+          icon="apps"
+          active={!filterType}
+          onPress={() => setFilterType(null)}
+        />
         
-        <TouchableOpacity 
-          activeOpacity={1}
-          style={styles.filterOptionsContainer}
-          onPress={(e) => e.stopPropagation()}
+        {types.map(type => (
+          <FilterChip
+            key={type}
+            label={type.charAt(0).toUpperCase() + type.slice(1)}
+            icon={TYPE_ICONS[type]?.name || "options"}
+            IconComponent={TYPE_ICONS[type]?.style === "ion" ? Ionicons : 
+                          TYPE_ICONS[type]?.style === "feather" ? Feather : FontAwesome5}
+            active={filterType === type}
+            onPress={() => setFilterType(filterType === type ? null : type)}
+          />
+        ))}
+      </ScrollView>
+    );
+  };
+  
+  const renderAddButton = () => (
+    <Animated.View 
+      style={[
+        styles.addButtonContainer,
+        { transform: [{ scale: addButtonScale }] }
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => {
+          setNewIntention({
+            title: "",
+            description: "",
+            type: "prayer",
+            completed: false,
+            favorite: false,
+            visibility: "Just Me",
+            selectedGroups: []
+          });
+          setShowAddModal(true);
+        }}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={[theme.primary, theme.secondary]}
+          style={styles.addButtonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          <View style={styles.filterOptionsHeader}>
-            <Text style={styles.filterOptionsTitle}>Filter & Sort</Text>
-            <TouchableOpacity onPress={() => setShowFilterOptions(false)}>
-              <AntDesign name="close" size={22} color={theme.textPrimary} />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Type</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterTypesContainer}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.filterTypeChip,
-                  !filterType && styles.filterTypeChipSelected
-                ]}
-                onPress={() => {
-                  setFilterType(null);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Text style={[
-                  styles.filterTypeChipText,
-                  !filterType && styles.filterTypeChipTextSelected
-                ]}>All</Text>
-              </TouchableOpacity>
-              
-              {getTypes().map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.filterTypeChip,
-                    filterType === type && styles.filterTypeChipSelected
-                  ]}
-                  onPress={() => {
-                    setFilterType(filterType === type ? null : type);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <FontAwesome5 
-                    name={TYPE_ICONS[type] || "ellipsis-h"} 
-                    size={14} 
-                    color={filterType === type ? theme.white : theme.textSecondary} 
-                    style={styles.filterTypeIcon}
-                  />
-                  <Text style={[
-                    styles.filterTypeChipText,
-                    filterType === type && styles.filterTypeChipTextSelected
-                  ]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-          
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Status</Text>
-            <View style={styles.statusTabsContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.statusTab,
-                  activeTab === "all" && [styles.statusTabSelected, { backgroundColor: theme.primary }]
-                ]}
-                onPress={() => setActiveTab("all")}
-              >
-                <Text style={[
-                  styles.statusTabText,
-                  activeTab === "all" && styles.statusTabTextSelected
-                ]}>All</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.statusTab,
-                  activeTab === "active" && [styles.statusTabSelected, { backgroundColor: theme.primary }]
-                ]}
-                onPress={() => setActiveTab("active")}
-              >
-                <Text style={[
-                  styles.statusTabText,
-                  activeTab === "active" && styles.statusTabTextSelected
-                ]}>Active</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.statusTab,
-                  activeTab === "completed" && [styles.statusTabSelected, { backgroundColor: theme.primary }]
-                ]}
-                onPress={() => setActiveTab("completed")}
-              >
-                <Text style={[
-                  styles.statusTabText,
-                  activeTab === "completed" && styles.statusTabTextSelected
-                ]}>Completed</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Sort By</Text>
-            <View style={styles.sortOptionsContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.sortOptionChip,
-                  sortOrder === "newest" && [styles.sortOptionChipSelected, { borderColor: theme.primary }]
-                ]}
-                onPress={() => {
-                  setSortOrder("newest");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Text style={[
-                  styles.sortOptionText,
-                  sortOrder === "newest" && { color: theme.primary }
-                ]}>Newest</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.sortOptionChip,
-                  sortOrder === "oldest" && [styles.sortOptionChipSelected, { borderColor: theme.primary }]
-                ]}
-                onPress={() => {
-                  setSortOrder("oldest");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Text style={[
-                  styles.sortOptionText,
-                  sortOrder === "oldest" && { color: theme.primary }
-                ]}>Oldest</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.sortOptionChip,
-                  sortOrder === "alphabetical" && [styles.sortOptionChipSelected, { borderColor: theme.primary }]
-                ]}
-                onPress={() => {
-                  setSortOrder("alphabetical");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Text style={[
-                  styles.sortOptionText,
-                  sortOrder === "alphabetical" && { color: theme.primary }
-                ]}>A-Z</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.applyFiltersButton, { backgroundColor: theme.primary }]}
-            onPress={() => setShowFilterOptions(false)}
-          >
-            <Text style={styles.applyFiltersText}>Apply Filters</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          <Ionicons name="add" size={30} color="white" />
+        </LinearGradient>
       </TouchableOpacity>
-    </Modal>
+    </Animated.View>
   );
-
-  // New Add Modal (Community Style)
+  
+  const renderMainContent = () => {
+    const filteredIntentions = getFilteredIntentions();
+    const groupedIntentions = getGroupedIntentions();
+    const groupedTypes = Object.keys(groupedIntentions);
+    
+    if (isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={styles.loadingText}>Loading intentions...</Text>
+        </View>
+      );
+    }
+    
+    if (filteredIntentions.length === 0) {
+      return (
+        <EmptyState 
+          filterType={filterType} 
+          activeTab={activeTab} 
+          onAddIntention={() => setShowAddModal(true)} 
+        />
+      );
+    }
+    
+    return (
+      <Animated.ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
+        {searchQuery.trim() ? (
+          <View style={styles.searchResultsContainer}>
+            <Text style={styles.searchResultsTitle}>
+              Search Results: {filteredIntentions.length} {filteredIntentions.length === 1 ? 'intention' : 'intentions'}
+            </Text>
+            
+            {filteredIntentions.map((intention, index) => (
+              <IntentionCard 
+                key={intention.id}
+                item={intention}
+                index={index}
+                onPress={startEditIntention}
+                onToggleFavorite={toggleFavorite}
+                onToggleCompleted={toggleCompleted}
+              />
+            ))}
+          </View>
+        ) : (
+          groupedTypes.map(type => (
+            <IntentionGroup
+              key={type}
+              type={type}
+              intentions={groupedIntentions[type]}
+              onToggleFavorite={toggleFavorite}
+              onToggleCompleted={toggleCompleted}
+              onPressIntention={startEditIntention}
+              expanded={expandedTypes.includes(type)}
+              onToggleExpand={() => toggleTypeExpansion(type)}
+            />
+          ))
+        )}
+        
+        <View style={styles.bottomPadding} />
+      </Animated.ScrollView>
+    );
+  };
+  
+  // Modal rendering functions
   const renderAddModal = () => (
     <Modal
       visible={showAddModal}
-      transparent={true}
       animationType="slide"
+      transparent={true}
       onRequestClose={() => setShowAddModal(false)}
     >
       <KeyboardAvoidingView 
-        style={{ flex: 1 }}
+        style={styles.modalContainer} 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ImageBackground
-          source={backgroundImageRequire}
-          style={styles.postModalBackground}
-        >
-          <View style={styles.postModalOverlay}>
-            <View style={styles.postModalContent}>
-              <Text style={styles.postModalTitle}>New Prayer Intention</Text>
-              
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Type</Text>
-                <View style={styles.pickerContainer}>
-                  {Object.keys(TYPE_ICONS).map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.typeOption,
-                        newIntention.type === type && styles.selectedTypeOption,
-                      ]}
-                      onPress={() =>
-                        setNewIntention({
-                          ...newIntention,
-                          type: type,
-                        })
-                      }
-                    >
-                      <FontAwesome5 
-                        name={TYPE_ICONS[type]} 
-                        size={14} 
-                        color={newIntention.type === type ? "#2D2D3A" : "#FFFFFF"} 
-                        style={styles.typeOptionIcon}
-                      />
-                      <Text style={[
-                        styles.typeOptionText,
-                        newIntention.type === type && styles.selectedTypeOptionText
-                      ]}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+        <BlurView intensity={25} style={StyleSheet.absoluteFill} tint="dark" />
+        
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>New Prayer Intention</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowAddModal(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalScrollView}>
+            {/* Type Selection */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Type</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.typeOptionsContainer}
+              >
+                {Object.keys(TYPE_ICONS).map(type => (
+                  <TypeOption 
+                    key={type} 
+                    type={type} 
+                    selected={newIntention.type === type}
+                    onSelect={(selectedType) => {
+                      setNewIntention({...newIntention, type: selectedType});
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+            
+            {/* Visibility Selection */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Visibility</Text>
+              <View style={styles.visibilityOptionsContainer}>
+                {VISIBILITY_OPTIONS.map(option => (
+                  <VisibilityOption
+                    key={option.id}
+                    option={option}
+                    selected={newIntention.visibility === option.label}
+                    onSelect={(selectedOption) => {
+                      setNewIntention({
+                        ...newIntention, 
+                        visibility: selectedOption.label,
+                        selectedGroups: selectedOption.label === "Certain Groups" ? newIntention.selectedGroups : []
+                      });
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  />
+                ))}
               </View>
               
-              {/* Rest of the modal content remains the same */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Visibility</Text>
-                <TouchableOpacity
-                  style={styles.dropdown}
-                  onPress={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
-                >
-                  <View style={styles.dropdownContent}>
-                    <Feather 
-                      name={
-                        newIntention.visibility === "Just Me" ? "user" : 
-                        newIntention.visibility === "Certain Groups" ? "grid" :
-                        newIntention.visibility === "Friends & Groups" ? "globe" : "users"
-                      } 
-                      size={16} 
-                      color="#FFFFFF" 
-                    />
-                    <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
-                      {newIntention.visibility}
-                    </Text>
-                  </View>
-                  <Feather
-                    name={showVisibilityDropdown ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color="#FAC898"
-                  />
-                </TouchableOpacity>
-                
-                {showVisibilityDropdown && (
-                  <View style={styles.dropdownOptions}>
-                    {VISIBILITY_OPTIONS.map((option) => (
-                      <TouchableOpacity
-                        key={option.label}
-                        style={styles.dropdownOption}
-                        onPress={() => {
-                          setNewIntention({
-                            ...newIntention,
-                            visibility: option.label,
-                            selectedGroups:
-                              option.label === "Certain Groups"
-                                ? newIntention.selectedGroups
-                                : [],
-                          });
-                          setShowVisibilityDropdown(false);
-                        }}
-                      >
-                        <View style={styles.dropdownOptionContent}>
-                          <Feather name={option.icon} size={16} color="#FFFFFF" />
-                          <Text style={styles.dropdownOptionText}>
-                            {option.label}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                
-                {newIntention.visibility === "Certain Groups" && (
-                  <View style={styles.groupSelectorContainer}>
-                    <Text style={styles.groupSelectorLabel}>
-                      Select Groups:
-                    </Text>
-                    <View style={styles.groupSelectorList}>
-                      {userGroups.map((group) => (
-                        <TouchableOpacity
+              {/* Group Selection (if visibility is "Certain Groups") */}
+              {newIntention.visibility === "Certain Groups" && (
+                <View style={styles.groupSelectionContainer}>
+                  <Text style={styles.groupSelectionTitle}>Select Groups</Text>
+                  {userGroups.length > 0 ? (
+                    <View style={styles.groupOptions}>
+                      {userGroups.map(group => (
+                        <GroupOption
                           key={group.id}
-                          style={[
-                            styles.groupOption,
-                            newIntention.selectedGroups.includes(group.id)
-                              ? styles.groupOptionSelected
-                              : null,
-                          ]}
-                          onPress={() => toggleGroupSelection(group.id)}
-                        >
-                          <Text style={styles.groupOptionText}>
-                            {group.name}
-                          </Text>
-                        </TouchableOpacity>
+                          group={group}
+                          selected={newIntention.selectedGroups.includes(group.id)}
+                          onSelect={toggleGroupSelection}
+                        />
                       ))}
                     </View>
-                  </View>
-                )}
-              </View>
-              
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Title</Text>
-                <TextInput
-                  style={styles.formInput}
-                  value={newIntention.title}
-                  onChangeText={(text) =>
-                    setNewIntention({ ...newIntention, title: text })
-                  }
-                  placeholder="Enter title..."
-                  placeholderTextColor="rgba(250, 200, 152, 0.5)"
-                  inputAccessoryViewID="accessoryViewID"
-                />
-              </View>
-              
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Description</Text>
-                <View style={styles.textInputContainer}>
-                  <TextInput
-                    style={[
-                      styles.formTextarea,
-                      postDescriptionFocused && styles.formTextareaFocused,
-                    ]}
-                    value={newIntention.description}
-                    onChangeText={(text) =>
-                      setNewIntention({ ...newIntention, description: text })
-                    }
-                    placeholder="Enter description..."
-                    placeholderTextColor="rgba(250, 200, 152, 0.5)"
-                    multiline={true}
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                    inputAccessoryViewID="accessoryViewID"
-                    onFocus={() => setPostDescriptionFocused(true)}
-                    onBlur={() => setPostDescriptionFocused(false)}
-                  />
-                  {postDescriptionFocused && (
-                    <TouchableOpacity 
-                      style={styles.closeButton}
-                      onPress={() => {
-                        Keyboard.dismiss();
-                        setPostDescriptionFocused(false);
-                      }}
-                    >
-                      <Feather name="check" size={20} color="#FAC898" />
-                    </TouchableOpacity>
+                  ) : (
+                    <Text style={styles.noGroupsText}>
+                      You don't have any groups yet
+                    </Text>
                   )}
                 </View>
-              </View>
-              
-              {Platform.OS === 'ios' && (
-                <InputAccessoryView nativeID="accessoryViewID">
-                  <View style={styles.accessory}>
-                    <TouchableOpacity onPress={() => Keyboard.dismiss()}>
-                      <Text style={styles.accessoryText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                </InputAccessoryView>
               )}
-              
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.enhancedCommunityCancel}
-                  onPress={() => setShowAddModal(false)}
-                >
-                  <Text style={styles.enhancedCommunityCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.enhancedCommunityShare}
-                  onPress={handleCreateIntention}
-                >
-                  <Text style={styles.enhancedCommunityShareText}>Add Intention</Text>
-                </TouchableOpacity>
-              </View>
             </View>
+            
+            {/* Title Input */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Title <Text style={styles.requiredIndicator}>*</Text></Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="What is your prayer intention?"
+                placeholderTextColor={theme.textTertiary}
+                value={newIntention.title}
+                onChangeText={(text) => setNewIntention({...newIntention, title: text})}
+                maxLength={100}
+              />
+            </View>
+            
+            {/* Description Input */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Description <Text style={styles.optionalIndicator}>(optional)</Text></Text>
+              <TextInput
+                style={[styles.formInput, styles.textArea]}
+                placeholder="Add details about your intention..."
+                placeholderTextColor={theme.textTertiary}
+                value={newIntention.description}
+                onChangeText={(text) => setNewIntention({...newIntention, description: text})}
+                multiline={true}
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+            
+            {/* Additional Options */}
+            <View style={styles.additionalOptions}>
+              <Text style={styles.additionalOptionsTitle}>Additional Options</Text>
+              
+              <TouchableOpacity
+                style={styles.optionRow}
+                onPress={() => {
+                  setNewIntention({...newIntention, favorite: !newIntention.favorite});
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Text style={styles.optionLabel}>Mark as favorite</Text>
+                <View style={[
+                  styles.optionToggle,
+                  newIntention.favorite && styles.optionToggleActive
+                ]}>
+                  <Ionicons 
+                    name={newIntention.favorite ? "heart" : "heart-outline"} 
+                    size={20} 
+                    color={newIntention.favorite ? theme.error : theme.textSecondary} 
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.optionRow}
+                onPress={() => {
+                  setNewIntention({...newIntention, completed: !newIntention.completed});
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Text style={styles.optionLabel}>Mark as completed</Text>
+                <View style={[
+                  styles.optionToggle,
+                  newIntention.completed && styles.optionToggleActive
+                ]}>
+                  <Ionicons 
+                    name={newIntention.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
+                    size={20} 
+                    color={newIntention.completed ? theme.success : theme.textSecondary} 
+                  />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowAddModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={handleCreateIntention}
+            >
+              <LinearGradient
+                colors={[theme.primary, theme.secondary]}
+                style={styles.submitButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.submitButtonText}>Create Intention</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-        </ImageBackground>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
   
-  // Enhanced Edit Modal
   const renderEditModal = () => {
     if (!editingIntention) return null;
     
     return (
       <Modal
         visible={showEditModal}
-        transparent={true}
         animationType="slide"
+        transparent={true}
         onRequestClose={() => setShowEditModal(false)}
       >
         <KeyboardAvoidingView 
-          style={styles.modalOverlay}
+          style={styles.modalContainer} 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={styles.enhancedModalCard}>
-            <View style={styles.enhancedModalHeader}>
-              <Text style={styles.enhancedModalTitle}>Edit Prayer Intention</Text>
-              <TouchableOpacity 
-                style={styles.enhancedModalCloseButton}
+          <BlurView intensity={25} style={StyleSheet.absoluteFill} tint="dark" />
+          
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Prayer Intention</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
                 onPress={() => setShowEditModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <AntDesign name="close" size={20} color="#333" />
+                <Ionicons name="close" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.modalBody}>
-              {/* Type Selection - Now First */}
-              <Text style={styles.enhancedInputLabel}>Type</Text>
-              <TouchableOpacity
-                style={styles.enhancedCategorySelector}
-                onPress={() => setShowTypeModal(true)}
-              >
-                <View style={styles.categoryDisplay}>
-                  <View style={[
-                    styles.enhancedCategorySelectorIcon,
-                    { backgroundColor: getTypeColor(editingIntention.type)[0] }
-                  ]}>
-                    <FontAwesome5 
-                      name={TYPE_ICONS[editingIntention.type] || "ellipsis-h"} 
-                      size={16} 
-                      color="#FFFFFF" 
+            <ScrollView style={styles.modalScrollView}>
+              {/* Type Selection */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Type</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.typeOptionsContainer}
+                >
+                  {Object.keys(TYPE_ICONS).map(type => (
+                    <TypeOption 
+                      key={type} 
+                      type={type} 
+                      selected={editingIntention.type === type}
+                      onSelect={(selectedType) => {
+                        setEditingIntention({...editingIntention, type: selectedType});
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
                     />
-                  </View>
-                  <Text style={styles.enhancedCategoryDisplayText}>{editingIntention.type}</Text>
-                </View>
-                <AntDesign name="down" size={16} color="#666" />
-              </TouchableOpacity>
-              
-              {/* Title Input */}
-              <Text style={styles.enhancedInputLabel}>Title *</Text>
-              <TextInput
-                style={styles.enhancedTextInput}
-                placeholder="What would you like to pray for?"
-                value={editingIntention.title}
-                onChangeText={(text) => setEditingIntention({...editingIntention, title: text})}
-                maxLength={100}
-              />
-              
-              {/* Description Input */}
-              <Text style={styles.enhancedInputLabel}>Description (optional)</Text>
-              <TextInput
-                style={[styles.enhancedTextInput, styles.enhancedTextArea]}
-                placeholder="Add more details about your intention..."
-                value={editingIntention.description}
-                onChangeText={(text) => setEditingIntention({...editingIntention, description: text})}
-                multiline={true}
-                numberOfLines={4}
-                maxLength={500}
-              />
-              
-              {/* Visibility Selection */}
-              <Text style={styles.enhancedInputLabel}>Visibility</Text>
-              <TouchableOpacity
-                style={styles.enhancedCategorySelector}
-                onPress={() => setShowVisibilityModal(true)}
-              >
-                <View style={styles.categoryDisplay}>
-                  <View style={styles.enhancedVisibilitySelectorIcon}>
-                    <Feather 
-                      name={
-                        editingIntention.visibility === "Just Me" ? "user" : 
-                        editingIntention.visibility === "Certain Groups" ? "grid" :
-                        editingIntention.visibility === "Friends & Groups" ? "globe" : "users"
-                      } 
-                      size={16} 
-                      color="#FFFFFF" 
-                    />
-                  </View>
-                  <Text style={styles.enhancedCategoryDisplayText}>{editingIntention.visibility}</Text>
-                </View>
-                <AntDesign name="down" size={16} color="#666" />
-              </TouchableOpacity>
-              
-              {/* If Certain Groups is selected, show group selection */}
-              {editingIntention.visibility === "Certain Groups" && (
-                <View style={styles.enhancedGroupSelector}>
-                  <Text style={styles.enhancedGroupSelectorTitle}>Select Groups</Text>
-                  {userGroups.length > 0 ? (
-                    <View style={styles.enhancedGroupList}>
-                      {userGroups.map((group) => (
-                        <TouchableOpacity
-                          key={group.id}
-                          style={[
-                            styles.enhancedGroupChip,
-                            editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id) && styles.enhancedGroupChipSelected
-                          ]}
-                          onPress={() => toggleEditGroupSelection(group.id)}
-                        >
-                          <Text style={[
-                            styles.enhancedGroupChipText,
-                            editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id) && styles.enhancedGroupChipTextSelected
-                          ]}>{group.name}</Text>
-                          {editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id) && (
-                            <AntDesign name="check" size={14} color={theme.white} style={styles.enhancedGroupChipIcon} />
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  ) : (
-                    <Text style={styles.enhancedNoGroupsText}>You don't have any groups yet.</Text>
-                  )}
-                </View>
-              )}
-              
-              <View style={styles.enhancedOptionsContainer}>
-                <Text style={styles.enhancedOptionsSectionTitle}>Additional Options</Text>
-                <View style={styles.enhancedOptionsRow}>
-                  <Text style={styles.enhancedOptionLabel}>Mark as favorite</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.enhancedFavoriteToggle,
-                      editingIntention.favorite && { backgroundColor: `${theme.primary}20` }
-                    ]}
-                    onPress={() => {
-                      setEditingIntention({...editingIntention, favorite: !editingIntention.favorite});
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <AntDesign 
-                      name={editingIntention.favorite ? "heart" : "hearto"} 
-                      size={20}
-                      color={theme.primary} 
-                    />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.enhancedOptionsRow}>
-                  <Text style={styles.enhancedOptionLabel}>Mark as completed</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.enhancedFavoriteToggle,
-                      editingIntention.completed && { backgroundColor: `${theme.primary}20` }
-                    ]}
-                    onPress={() => {
-                      setEditingIntention({...editingIntention, completed: !editingIntention.completed});
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <AntDesign 
-                      name={editingIntention.completed ? "checkcircle" : "checkcircleo"} 
-                      size={20} 
-                      color={theme.primary} 
-                    />
-                  </TouchableOpacity>
-                </View>
+                  ))}
+                </ScrollView>
               </View>
               
-              <TouchableOpacity
-                style={styles.enhancedDeleteButton}
-                onPress={() => deleteIntention(editingIntention.id)}
-              >
-                <AntDesign name="delete" size={20} color={theme.error} />
-                <Text style={styles.enhancedDeleteButtonText}>Delete Intention</Text>
-              </TouchableOpacity>
+              {/* Visibility Selection */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Visibility</Text>
+                <View style={styles.visibilityOptionsContainer}>
+                  {VISIBILITY_OPTIONS.map(option => (
+                    <VisibilityOption
+                      key={option.id}
+                      option={option}
+                      selected={editingIntention.visibility === option.label}
+                      onSelect={(selectedOption) => {
+                        setEditingIntention({
+                          ...editingIntention, 
+                          visibility: selectedOption.label,
+                          selectedGroups: selectedOption.label === "Certain Groups" ? editingIntention.selectedGroups : []
+                        });
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    />
+                  ))}
+                </View>
+                
+                {/* Group Selection (if visibility is "Certain Groups") */}
+                {editingIntention.visibility === "Certain Groups" && (
+                  <View style={styles.groupSelectionContainer}>
+                    <Text style={styles.groupSelectionTitle}>Select Groups</Text>
+                    {userGroups.length > 0 ? (
+                      <View style={styles.groupOptions}>
+                        {userGroups.map(group => (
+                          <GroupOption
+                            key={group.id}
+                            group={group}
+                            selected={editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id)}
+                            onSelect={toggleEditGroupSelection}
+                          />
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.noGroupsText}>
+                        You don't have any groups yet
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              
+              {/* Title Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Title <Text style={styles.requiredIndicator}>*</Text></Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="What is your prayer intention?"
+                  placeholderTextColor={theme.textTertiary}
+                  value={editingIntention.title}
+                  onChangeText={(text) => setEditingIntention({...editingIntention, title: text})}
+                  maxLength={100}
+                />
+              </View>
+              
+              {/* Description Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description <Text style={styles.optionalIndicator}>(optional)</Text></Text>
+                <TextInput
+                  style={[styles.formInput, styles.textArea]}
+                  placeholder="Add details about your intention..."
+                  placeholderTextColor={theme.textTertiary}
+                  value={editingIntention.description}
+                  onChangeText={(text) => setEditingIntention({...editingIntention, description: text})}
+                  multiline={true}
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+              
+              {/* Additional Options */}
+              <View style={styles.additionalOptions}>
+                <Text style={styles.additionalOptionsTitle}>Additional Options</Text>
+                
+                <TouchableOpacity
+                  style={styles.optionRow}
+                  onPress={() => {
+                    setEditingIntention({...editingIntention, favorite: !editingIntention.favorite});
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={styles.optionLabel}>Mark as favorite</Text>
+                  <View style={[
+                    styles.optionToggle,
+                    editingIntention.favorite && styles.optionToggleActive
+                  ]}>
+                    <Ionicons 
+                      name={editingIntention.favorite ? "heart" : "heart-outline"} 
+                      size={20} 
+                      color={editingIntention.favorite ? theme.error : theme.textSecondary} 
+                    />
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.optionRow}
+                  onPress={() => {
+                    setEditingIntention({...editingIntention, completed: !editingIntention.completed});
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={styles.optionLabel}>Mark as completed</Text>
+                  <View style={[
+                    styles.optionToggle,
+                    editingIntention.completed && styles.optionToggleActive
+                  ]}>
+                    <Ionicons 
+                      name={editingIntention.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
+                      size={20} 
+                      color={editingIntention.completed ? theme.success : theme.textSecondary} 
+                    />
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.deleteButtonContainer}
+                  onPress={() => deleteIntention(editingIntention.id)}
+                >
+                  <Text style={styles.deleteButtonText}>Delete Intention</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
             
-            <View style={styles.enhancedModalFooter}>
+            <View style={styles.modalFooter}>
               <TouchableOpacity
-                style={[styles.enhancedCancelButton, { borderColor: theme.lightGray }]}
+                style={styles.cancelButton}
                 onPress={() => setShowEditModal(false)}
               >
-                <Text style={[styles.enhancedCancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.enhancedSaveButton, { backgroundColor: theme.primary }]}
+                style={styles.submitButton}
                 onPress={updateIntention}
               >
-                <Text style={styles.enhancedSaveButtonText}>Save Changes</Text>
-                <AntDesign name="check" size={20} color="#FFFFFF" style={styles.enhancedButtonIcon} />
+                <LinearGradient
+                  colors={[theme.primary, theme.secondary]}
+                  style={styles.submitButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.submitButtonText}>Save Changes</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -1558,407 +1924,234 @@ export default function RosaryIntentions() {
     );
   };
   
-  // Add button
-  const renderButtons = () => (
-    <View style={styles.buttonsContainer}>
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => {
-          setNewIntention({
-            title: "",
-            description: "",
-            type: "prayer",
-            completed: false,
-            favorite: false,
-            visibility: "Friends",
-            selected_groups: null,
-            selectedGroups: []
-          });
-          setShowAddModal(true);
-        }}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={[theme.primary, theme.darkPurple]}
-          style={styles.floatingButtonGradient}
-        >
-          <AntDesign name="plus" size={26} color="#FFFFFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
-  );
-  
-  // Empty state
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <LinearGradient
-        colors={['rgba(113, 88, 226, 0.1)', 'rgba(113, 88, 226, 0.05)']}
-        style={styles.emptyStateGradient}
-      />
-      
-      <FontAwesome5 name="pray" size={60} color={`${theme.primary}70`} />
-      <Text style={styles.emptyStateTitle}>No Intentions Found</Text>
-      <Text style={styles.emptyStateDescription}>
-        {filterType 
-          ? `You don't have any ${activeTab === "completed" ? "completed" : ""} intentions in the ${filterType} category.`
-          : activeTab === "all" 
-            ? "Add your first prayer intention to get started."
-            : activeTab === "active"
-              ? "You don't have any active intentions."
-              : "You don't have any completed intentions."}
-      </Text>
-      
-      {(activeTab === "all" || activeTab === "active") && (
-        <View style={styles.emptyStateButtons}>
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.filterModalContainer}>
+        <BlurView intensity={25} style={StyleSheet.absoluteFill} tint="dark" />
+        
+        <View style={styles.filterModalContent}>
+          <View style={styles.filterModalHeader}>
+            <Text style={styles.filterModalTitle}>Filter & Sort</Text>
+            <TouchableOpacity
+              style={styles.filterModalCloseButton}
+              onPress={() => setShowFilterModal(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.filterModalScrollView}>
+            {/* Status Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Status</Text>
+              <View style={styles.filterOptionsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterStatusOption,
+                    activeTab === "all" && styles.filterStatusOptionActive
+                  ]}
+                  onPress={() => setActiveTab("all")}
+                >
+                  <Ionicons 
+                    name="grid-outline" 
+                    size={20} 
+                    color={activeTab === "all" ? "white" : theme.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.filterStatusOptionText,
+                    activeTab === "all" && styles.filterStatusOptionTextActive
+                  ]}>All</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.filterStatusOption,
+                    activeTab === "active" && [styles.filterStatusOptionActive, { backgroundColor: "#F59E0B" }]
+                  ]}
+                  onPress={() => setActiveTab("active")}
+                >
+                  <Ionicons 
+                    name="hourglass-outline" 
+                    size={20} 
+                    color={activeTab === "active" ? "white" : theme.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.filterStatusOptionText,
+                    activeTab === "active" && styles.filterStatusOptionTextActive
+                  ]}>Active</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.filterStatusOption,
+                    activeTab === "completed" && [styles.filterStatusOptionActive, { backgroundColor: "#10B981" }]
+                  ]}
+                  onPress={() => setActiveTab("completed")}
+                >
+                  <Ionicons 
+                    name="checkmark-circle-outline" 
+                    size={20} 
+                    color={activeTab === "completed" ? "white" : theme.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.filterStatusOptionText,
+                    activeTab === "completed" && styles.filterStatusOptionTextActive
+                  ]}>Completed</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Type Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Type</Text>
+              <View style={styles.filterTypeOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterTypeOption,
+                    !filterType && styles.filterTypeOptionActive
+                  ]}
+                  onPress={() => setFilterType(null)}
+                >
+                  <Ionicons 
+                    name="apps" 
+                    size={20} 
+                    color={!filterType ? "white" : theme.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.filterTypeOptionText,
+                    !filterType && styles.filterTypeOptionTextActive
+                  ]}>All Types</Text>
+                </TouchableOpacity>
+                
+                {Object.keys(TYPE_ICONS).map(type => {
+                  const iconInfo = TYPE_ICONS[type];
+                  const IconComponent = iconInfo.style === "ion" ? Ionicons : 
+                                       iconInfo.style === "feather" ? Feather : FontAwesome5;
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.filterTypeOption,
+                        filterType === type && styles.filterTypeOptionActive,
+                        filterType === type && { backgroundColor: iconInfo.color[0] }
+                      ]}
+                      onPress={() => setFilterType(filterType === type ? null : type)}
+                    >
+                      <IconComponent 
+                        name={iconInfo.name} 
+                        size={20} 
+                        color={filterType === type ? "white" : theme.textSecondary} 
+                      />
+                      <Text style={[
+                        styles.filterTypeOptionText,
+                        filterType === type && styles.filterTypeOptionTextActive
+                      ]}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+            
+            {/* Sort Options */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Sort By</Text>
+              <View style={styles.sortOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    sortOrder === "newest" && styles.sortOptionActive
+                  ]}
+                  onPress={() => setSortOrder("newest")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    sortOrder === "newest" && styles.sortOptionTextActive
+                  ]}>Newest First</Text>
+                  {sortOrder === "newest" && (
+                    <Ionicons name="checkmark" size={18} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    sortOrder === "oldest" && styles.sortOptionActive
+                  ]}
+                  onPress={() => setSortOrder("oldest")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    sortOrder === "oldest" && styles.sortOptionTextActive
+                  ]}>Oldest First</Text>
+                  {sortOrder === "oldest" && (
+                    <Ionicons name="checkmark" size={18} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    sortOrder === "alphabetical" && styles.sortOptionActive
+                  ]}
+                  onPress={() => setSortOrder("alphabetical")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    sortOrder === "alphabetical" && styles.sortOptionTextActive
+                  ]}>Alphabetical (A-Z)</Text>
+                  {sortOrder === "alphabetical" && (
+                    <Ionicons name="checkmark" size={18} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+          
           <TouchableOpacity
-            style={styles.emptyStateButton}
-            onPress={() => setShowAddModal(true)}
+            style={styles.applyFiltersButton}
+            onPress={() => setShowFilterModal(false)}
           >
             <LinearGradient
-              colors={[theme.primary, theme.darkPurple]}
-              style={styles.emptyStateButtonGradient}
+              colors={[theme.primary, theme.secondary]}
+              style={styles.applyFiltersButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <AntDesign name="plus" size={20} color="#FFFFFF" />
-              <Text style={styles.emptyStateButtonText}>Add Intention</Text>
+              <Text style={styles.applyFiltersButtonText}>Apply Filters</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
-      )}
-    </View>
-  );
-  
-  // Notification toast
-  const renderNotification = () => {
-    if (!notification) return null;
-    
-    return (
-      <View 
-        style={[
-          styles.notificationToast,
-          notification.type === 'error' ? styles.errorToast : styles.successToast
-        ]}
-      >
-        <View style={styles.notificationContent}>
-          <AntDesign 
-            name={notification.type === 'error' ? "exclamationcircle" : "checkcircle"} 
-            size={20} 
-            color="#FFFFFF" 
-          />
-          <Text style={styles.notificationText}>{notification.message}</Text>
-        </View>
       </View>
-    );
-  };
-  
-  // Group intentions by type
-  const groupedIntentions = getGroupedIntentions();
-  const groupedTypes = Object.keys(groupedIntentions);
-  
-  // Enhanced Type selection modal
-  const renderTypeModal = () => {
-    return (
-      <Modal
-        visible={showTypeModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowTypeModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.enhancedModalCard}>
-            <View style={styles.enhancedModalHeader}>
-              <Text style={styles.enhancedModalTitle}>Select Type</Text>
-              <TouchableOpacity 
-                style={styles.enhancedModalCloseButton}
-                onPress={() => setShowTypeModal(false)}
-              >
-                <AntDesign name="close" size={20} color="#333" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.typeModalScrollView}>
-              {Object.keys(TYPE_ICONS).map((type) => {
-                const isSelected = editingIntention 
-                  ? editingIntention.type === type 
-                  : newIntention.type === type;
-                
-                const typeColors = getTypeColor(type);
-                
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.enhancedTypeItem,
-                      isSelected && styles.enhancedTypeItemSelected
-                    ]}
-                    onPress={() => {
-                      if (editingIntention) {
-                        setEditingIntention({...editingIntention, type: type});
-                      } else {
-                        setNewIntention({...newIntention, type: type});
-                      }
-                      
-                      setShowTypeModal(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <LinearGradient
-                      colors={typeColors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[
-                        styles.enhancedTypeGradient,
-                        isSelected && { opacity: 1 }
-                      ]}
-                    />
-                    
-                    <View style={styles.enhancedTypeContent}>
-                      <View style={[
-                        styles.enhancedTypeIconContainer,
-                        { backgroundColor: isSelected ? 'transparent' : typeColors[0] }
-                      ]}>
-                        <FontAwesome5 
-                          name={TYPE_ICONS[type]} 
-                          size={20} 
-                          color="#FFFFFF" 
-                        />
-                      </View>
-                      
-                      <Text style={[
-                        styles.enhancedTypeText,
-                        isSelected && { color: "#FFFFFF", fontWeight: "700" }
-                      ]}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Text>
-                      
-                      {isSelected && (
-                        <View style={styles.enhancedTypeCheck}>
-                          <AntDesign name="check" size={16} color="#FFFFFF" />
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-  
-  // Enhanced Visibility selection modal
-  const renderVisibilityModal = () => {
-    return (
-      <Modal
-        visible={showVisibilityModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowVisibilityModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.enhancedModalCard}>
-            <View style={styles.enhancedModalHeader}>
-              <Text style={styles.enhancedModalTitle}>Select Visibility</Text>
-              <TouchableOpacity 
-                style={styles.enhancedModalCloseButton}
-                onPress={() => setShowVisibilityModal(false)}
-              >
-                <AntDesign name="close" size={20} color="#333" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.enhancedVisibilityList}>
-              {VISIBILITY_OPTIONS.map((option) => {
-                const isSelected = editingIntention 
-                  ? editingIntention.visibility === option.label 
-                  : newIntention.visibility === option.label;
-                
-                return (
-                  <TouchableOpacity
-                    key={option.label}
-                    style={[
-                      styles.enhancedVisibilityItem,
-                      isSelected && styles.enhancedVisibilityItemSelected
-                    ]}
-                    onPress={() => {
-                      if (editingIntention) {
-                        setEditingIntention({
-                          ...editingIntention,
-                          visibility: option.label,
-                          selectedGroups: option.label === "Certain Groups" ? editingIntention.selectedGroups : []
-                        });
-                      } else {
-                        setNewIntention({
-                          ...newIntention,
-                          visibility: option.label,
-                          selectedGroups: option.label === "Certain Groups" ? newIntention.selectedGroups : []
-                        });
-                      }
-                      
-                      setShowVisibilityModal(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <View style={styles.enhancedVisibilityContent}>
-                      <View style={styles.enhancedVisibilityIconContainer}>
-                        <Feather name={option.icon} size={20} color="#FFFFFF" />
-                      </View>
-                      
-                      <View style={styles.enhancedVisibilityTextContainer}>
-                        <Text style={styles.enhancedVisibilityTitle}>
-                          {option.label}
-                        </Text>
-                        <Text style={styles.enhancedVisibilityDescription}>
-                          {option.description}
-                        </Text>
-                      </View>
-                      
-                      {isSelected && (
-                        <View style={styles.enhancedVisibilityCheck}>
-                          <AntDesign name="check" size={16} color="#FFFFFF" />
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
+    </Modal>
+  );
   
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
       
-      {/* Header with collapsible content */}
-      <Animated.View style={[styles.header, { height: headerHeight }]}>
-        <LinearGradient
-          colors={[theme.primary, theme.darkPurple]}
-          style={styles.headerGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      {renderHeader()}
+      {renderTabs()}
+      {renderTypeFilters()}
+      {renderMainContent()}
+      {renderAddButton()}
+      
+      {notification && (
+        <ToastNotification
+          message={notification.message}
+          type={notification.type}
+          onDismiss={() => setNotification(null)}
         />
-        
-        {/* Fixed header content */}
-        <View style={styles.headerFixedContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <AntDesign name="arrowleft" size={24} color="#FFF" />
-          </TouchableOpacity>
-          
-          <Animated.Text style={[styles.headerTitle, { opacity: headerTitleOpacity }]}>
-            Prayer Intentions
-          </Animated.Text>
-          
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilterOptions(true)}
-            activeOpacity={0.7}
-          >
-            <Feather 
-              name="sliders" 
-              size={22} 
-              color={filterType || activeTab !== "all" || sortOrder !== "newest" ? theme.warning : "#FFF"} 
-            />
-          </TouchableOpacity>
-        </View>
-        
-        {/* Collapsible header content */}
-        <Animated.View style={[styles.headerCollapsibleContent, { opacity: headerContentOpacity }]}>
-          <Text style={styles.headerMainTitle}>Prayer Intentions</Text>
-          
-          {/* Stats row */}
-          <View style={styles.statsContainer}>
-            {renderStatItem({ 
-              icon: "list-ul", 
-              label: "Total", 
-              value: getStats().total, 
-              color: theme.white 
-            })}
-            
-            {renderStatItem({ 
-              icon: "hourglass-half", 
-              label: "Active", 
-              value: getStats().active, 
-              color: theme.white 
-            })}
-            
-            {renderStatItem({ 
-              icon: "check-circle", 
-              label: "Completed", 
-              value: getStats().completed, 
-              color: theme.white 
-            })}
-            
-            {renderStatItem({ 
-              icon: "heart", 
-              label: "Favorites", 
-              value: getStats().favorites, 
-              color: theme.white 
-            })}
-          </View>
-        </Animated.View>
-      </Animated.View>
-      
-      {/* Main Content */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Loading intentions...</Text>
-        </View>
-      ) : intentions.length > 0 ? (
-        groupedTypes.length > 0 ? (
-          <Animated.ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.typesContainer}
-            showsVerticalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
-            scrollEventThrottle={16}
-          >
-            {groupedTypes.map(type => (
-              <TypeSection
-                key={type}
-                type={type}
-                intentions={groupedIntentions[type]}
-                onToggleFavorite={toggleFavorite}
-                onToggleCompleted={toggleCompleted}
-                onPressIntention={startEditIntention}
-                expanded={expandedTypes.includes(type)}
-                onToggleExpand={() => toggleTypeExpansion(type)}
-              />
-            ))}
-            <View style={styles.bottomPadding} />
-          </Animated.ScrollView>
-        ) : (
-          renderEmptyState()
-        )
-      ) : (
-        renderEmptyState()
       )}
       
-      {/* Notification */}
-      {renderNotification()}
-      
-      {/* Buttons */}
-      {renderButtons()}
-      
-      {/* Modals */}
       {renderAddModal()}
       {renderEditModal()}
-      {renderTypeModal()}
-      {renderVisibilityModal()}
-      {renderFilterOptions()}
+      {renderFilterModal()}
     </SafeAreaView>
   );
 }
@@ -1966,8 +2159,10 @@ export default function RosaryIntentions() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: theme.background,
   },
+  
+  // Header styles
   header: {
     width: "100%",
     overflow: "hidden",
@@ -1979,12 +2174,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  headerFixedContent: {
+  headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 10,
     height: 60,
   },
   backButton: {
@@ -2008,37 +2203,59 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerCollapsibleContent: {
+  headerContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
+    paddingTop: 5,
   },
   headerMainTitle: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#FFFFFF",
-    marginBottom: 15,
   },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 5,
+    marginBottom: 20,
+  },
+  
+  // Stats styles
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 5,
+    marginBottom: 15,
   },
-  statItem: {
+  statCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 16,
+    padding: 12,
+    width: (width - 60) / 4,
     alignItems: "center",
-    justifyContent: "center",
   },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  statIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 6,
+  },
+  activeIconWrapper: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+  },
+  completedIconWrapper: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+  },
+  favoriteIconWrapper: {
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+  },
+  statTextContainer: {
+    alignItems: "center",
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#FFFFFF",
   },
   statLabel: {
@@ -2046,409 +2263,342 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.7)",
   },
   
-  // Collapsible category sections
+  // Search styles
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  searchInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 24,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: theme.textPrimary,
+  },
+  clearSearchButton: {
+    padding: 5,
+  },
+  
+  // Tabs styles
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: theme.surface,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -20,
+    shadowColor: theme.cardShadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  activeTab: {
+    backgroundColor: `${theme.primary}10`,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.textSecondary,
+    marginLeft: 6,
+  },
+  activeTabText: {
+    color: theme.primary,
+  },
+  
+  // Type filters styles
+  typeFiltersContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: theme.surface,
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: `${theme.textTertiary}10`,
+    marginRight: 10,
+  },
+  filterChipActive: {
+    backgroundColor: `${theme.primary}20`,
+  },
+  filterChipIcon: {
+    marginRight: 6,
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  filterChipTextActive: {
+    fontWeight: "600",
+    color: theme.primary,
+  },
+  
+  // Main content styles
   scrollView: {
     flex: 1,
+    backgroundColor: theme.background,
   },
-  typesContainer: {
-    padding: 16,
+  scrollViewContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 100,
   },
-  typeSectionContainer: {
-    marginBottom: 16,
+  
+  // Search results styles
+  searchResultsContainer: {
+    marginBottom: 20,
+  },
+  searchResultsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textSecondary,
+    marginBottom: 15,
+  },
+  
+  // Intention card styles
+  intentionCard: {
+    marginBottom: 12,
+  },
+  intentionCardInner: {
+    backgroundColor: theme.surface,
     borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
+    padding: 16,
+    shadowColor: theme.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  typeSectionHeader: {
-    overflow: "hidden",
+  completedCard: {
+    opacity: 0.7,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  typeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  typeIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  typeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.textPrimary,
+  },
+  cardActions: {
+    flexDirection: "row",
+  },
+  actionButton: {
+    marginLeft: 15,
+  },
+  cardContent: {
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.textPrimary,
+    marginBottom: 6,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    lineHeight: 20,
+  },
+  completedText: {
+    textDecorationLine: "line-through",
+    opacity: 0.7,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: theme.divider,
+  },
+  visibilityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  visibilityText: {
+    fontSize: 12,
+    color: theme.textTertiary,
+    marginLeft: 5,
+  },
+  dateText: {
+    fontSize: 12,
+    color: theme.textTertiary,
+  },
+  
+  // Intention group styles
+  groupContainer: {
+    marginBottom: 16,
+    backgroundColor: theme.surface,
     borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: theme.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  typeSectionGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  typeSectionHeaderContent: {
+  groupHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.divider,
   },
-  typeHeaderLeft: {
+  groupHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
   },
-  typeHeaderIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  groupIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
-  typeSectionTitle: {
+  groupTitleContainer: {
+    justifyContent: "center",
+  },
+  groupTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: theme.textPrimary,
   },
-  typeHeaderRight: {
+  groupCount: {
+    fontSize: 14,
+    color: theme.textTertiary,
+  },
+  groupContent: {
+    padding: 16,
+  },
+  statsRow: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  typeCountBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  typeCountText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  typeExpandIcon: {
-    marginLeft: 4,
-  },
-  typeSectionContent: {
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-  },
-  typeStatsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: theme.divider,
   },
-  typeStatItem: {
+  statItem: {
     alignItems: "center",
-  },
-  typeStatLabel: {
-    fontSize: 12,
-    color: "#666666",
-    marginBottom: 4,
-  },
-  typeStatValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333333",
-  },
-  typeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  typeIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  typeText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  bottomPadding: {
-    height: 180,
-  },
-  
-  // Intention card styles
-  intentionCardContainer: {
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  intentionCard: {
-    overflow: "hidden",
-    minHeight: 120,
-  },
-  completedIntentionCard: {
-    opacity: 0.7,
-  },
-  intentionCardGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  intentionCardContent: {
-    padding: 16,
-  },
-  intentionCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  typeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  typeIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  typeText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  intentionActions: {
-    flexDirection: "row",
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-  },
-  intentionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 8,
-  },
-  intentionDescription: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.9)",
-    marginBottom: 12,
-  },
-  completedText: {
-    textDecorationLine: "line-through",
-  },
-  intentionCardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  visibilityBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  visibilityText: {
-    fontSize: 12,
-    color: "#FFFFFF",
-    marginLeft: 4,
-  },
-  dateText: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.7)",
-  },
-  
-  // Filter modal
-  filterModalOverlay: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
-  filterOptionsContainer: {
-    width: width * 0.9,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
-  },
-  filterOptionsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  filterOptionsTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#333333",
-  },
-  filterSection: {
-    marginBottom: 20,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666666",
-    marginBottom: 12,
-  },
-  filterTypesContainer: {
-    flexDirection: "row",
-    flexWrap: "nowrap",
-  },
-  filterTypeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#F0F0F0",
-    marginRight: 10,
-  },
-  filterTypeChipSelected: {
-    backgroundColor: "#7158e2",
-  },
-  filterTypeIcon: {
-    marginRight: 6,
-  },
-  filterTypeChipText: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  filterTypeChipTextSelected: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  statusTabsContainer: {
-    flexDirection: "row",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 12,
-    padding: 4,
-  },
-  statusTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  statusTabSelected: {
-    backgroundColor: "#7158e2",
-  },
-  statusTabText: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  statusTabTextSelected: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  sortOptionsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  sortOptionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  sortOptionChipSelected: {
-    borderWidth: 1,
-    backgroundColor: "rgba(113, 88, 226, 0.05)",
-  },
-  sortOptionText: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  applyFiltersButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  applyFiltersText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
+  statDivider: {
+    height: 30,
+    width: 1,
+    backgroundColor: theme.divider,
   },
   
-  // Floating buttons
-  buttonsContainer: {
+  // Add button styles
+  addButtonContainer: {
     position: "absolute",
     right: 20,
-    bottom: 100,
+    bottom: 30,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
-  floatingButton: {
+  addButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
     overflow: "hidden",
-    shadowColor: "#7158e2",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    marginBottom: 15,
   },
-  floatingButtonGradient: {
+  addButtonGradient: {
     width: 60,
     height: 60,
-    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
   },
   
-  // Empty state
-  emptyState: {
+  // Loading styles
+  loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
   },
-  emptyStateGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  loadingText: {
+    fontSize: 16,
+    color: theme.textSecondary,
+    marginTop: 12,
+  },
+  
+  // Empty state styles
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+  },
+  emptyAnimationContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: `${theme.primary}15`,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
   },
   emptyStateTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
-    color: "#333333",
-    marginTop: 20,
+    color: theme.textPrimary,
     marginBottom: 10,
+    textAlign: "center",
   },
   emptyStateDescription: {
     fontSize: 16,
-    color: "#666666",
+    color: theme.textSecondary,
     textAlign: "center",
     marginBottom: 30,
     lineHeight: 24,
   },
-  emptyStateButtons: {
-    width: "100%",
-    gap: 15,
-  },
   emptyStateButton: {
+    borderRadius: 25,
     overflow: "hidden",
-    borderRadius: 30,
-    shadowColor: "#000",
+    width: "100%",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -2458,768 +2608,491 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 15,
   },
   emptyStateButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: "white",
     marginLeft: 8,
   },
   
-  // Notifications
-  notificationToast: {
+  // Toast notification styles
+  toastContainer: {
     position: "absolute",
-    top: Platform.OS === 'ios' ? 50 : 30,
+    top: 20,
     left: 20,
     right: 20,
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 10,
+    elevation: 8,
   },
-  errorToast: {
-    backgroundColor: "rgba(255, 71, 87, 0.9)",
+  toastError: {
+    backgroundColor: theme.error,
   },
-  successToast: {
-    backgroundColor: "rgba(76, 175, 80, 0.9)",
+  toastSuccess: {
+    backgroundColor: theme.success,
   },
-  notificationContent: {
+  toastContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
-  notificationText: {
-    color: "#FFFFFF",
+  toastMessage: {
     fontSize: 16,
     fontWeight: "600",
+    color: "white",
     marginLeft: 10,
-  },
-  
-  // Loading state
-  loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666666",
   },
   
   // Modal styles
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
-  
-  // Enhanced Modal Styles
-  enhancedModalCard: {
-    backgroundColor: "#FFFFFF",
+  modalContent: {
+    backgroundColor: theme.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "90%",
   },
-  enhancedModalHeader: {
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: theme.divider,
   },
-  enhancedModalTitle: {
-    fontSize: 22,
+  modalTitle: {
+    fontSize: 20,
     fontWeight: "800",
-    color: "#242424",
+    color: theme.textPrimary,
   },
-  enhancedModalCloseButton: {
+  modalCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: theme.background,
     justifyContent: "center",
     alignItems: "center",
   },
-  modalBody: {
-    padding: 24,
-  },
-  enhancedInputLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: 10,
-  },
-  enhancedTextInput: {
-    backgroundColor: "#F8F8F8",
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: "#333333",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#EEEEEE",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  enhancedTextArea: {
-    minHeight: 120,
-    textAlignVertical: "top",
-  },
-  enhancedCategorySelector: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#F8F8F8",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#EEEEEE",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  categoryDisplay: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  enhancedCategorySelectorIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  enhancedVisibilitySelectorIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#7158e2",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  enhancedCategoryDisplayText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333333",
-  },
-  
-  // Category selection styles
-  enhancedTypeList: {
-    padding: 16,
-  },
-  enhancedTypeItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 16,
-    marginBottom: 10,
-    height: 60,
-    position: "relative",
-    overflow: "hidden",
-  },
-  enhancedTypeItemSelected: {
-    backgroundColor: "#7158e2", // Will be overridden by gradient
-  },
-  enhancedTypeGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.2,
-  },
-  enhancedTypeContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    paddingHorizontal: 16,
-  },
-  enhancedTypeIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  enhancedTypeText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333333",
-    flex: 1,
-  },
-  enhancedTypeCheck: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
-  
-  // Visibility selection styles
-  enhancedVisibilityList: {
-    padding: 16,
-  },
-  enhancedVisibilityItem: {
-    marginBottom: 12,
-    borderRadius: 16,
-    backgroundColor: "#F8F8F8",
-    borderWidth: 1,
-    borderColor: "#EEEEEE",
-  },
-  enhancedVisibilityItemSelected: {
-    backgroundColor: "#F0ECFF",
-    borderColor: "#7158e2",
-  },
-  enhancedVisibilityContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-  enhancedVisibilityIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#7158e2",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  enhancedVisibilityTextContainer: {
-    flex: 1,
-  },
-  enhancedVisibilityTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: 4,
-  },
-  enhancedVisibilityDescription: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  enhancedVisibilityCheck: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#7158e2",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  
-  // Group selection styles
-  enhancedGroupSelector: {
-    marginTop: 5,
-    marginBottom: 20,
-    backgroundColor: "#F8F8F8",
-    borderRadius: 16,
-    padding: 16,
-  },
-  enhancedGroupSelectorTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: 12,
-  },
-  enhancedGroupList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  enhancedGroupChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#EEEEEE",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  enhancedGroupChipSelected: {
-    backgroundColor: "#7158e2",
-  },
-  enhancedGroupChipText: {
-    fontSize: 14,
-    color: "#333333",
-  },
-  enhancedGroupChipTextSelected: {
-    color: "#FFFFFF",
-    fontWeight: "500",
-  },
-  enhancedGroupChipIcon: {
-    marginLeft: 6,
-  },
-  enhancedNoGroupsText: {
-    fontSize: 14,
-    color: "#666666",
-    fontStyle: "italic",
-  },
-  
-  // Additional options
-  enhancedOptionsContainer: {
-    marginTop: 5,
-    marginBottom: 20,
-    backgroundColor: "#F8F8F8",
-    borderRadius: 16,
-    padding: 16,
-  },
-  enhancedOptionsSectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: 14,
-  },
-  enhancedOptionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  enhancedOptionLabel: {
-    fontSize: 15,
-    color: "#333333",
-  },
-  enhancedFavoriteToggle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  
-  // Delete button
-  enhancedDeleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    marginTop: 10,
-    backgroundColor: "#FFF2F2",
-    borderRadius: 16,
-  },
-  enhancedDeleteButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FF4757",
-    marginLeft: 8,
-  },
-  
-  // Modal footer
-  enhancedModalFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-  },
-  enhancedCancelButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-    borderWidth: 1,
-  },
-  enhancedCancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  enhancedSaveButton: {
-    flex: 2,
-    flexDirection: "row",
-    paddingVertical: 16,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-    shadowColor: "#7158e2",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  enhancedSaveButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  enhancedButtonIcon: {
-    marginLeft: 8,
-  },
-  
-  // Community-style modal styles
-  postModalBackground: {
-    flex: 1,
-  },
-  postModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
+  modalScrollView: {
     padding: 20,
   },
-  postModalContent: {
-    backgroundColor: "rgba(30, 30, 45, 0.9)",
-    borderRadius: 20,
-    padding: 20,
-    backdropFilter: "blur(10px)",
-  },
-  postModalTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#FAC898",
-    marginBottom: 20,
-    textAlign: "center",
-  },
+  
+  // Form styles
   formGroup: {
     marginBottom: 20,
   },
   formLabel: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#FAC898",
-    marginBottom: 8,
-  },
-  pickerContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+    fontWeight: "700",
+    color: theme.textPrimary,
     marginBottom: 10,
+  },
+  requiredIndicator: {
+    color: theme.error,
+  },
+  optionalIndicator: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: theme.textTertiary,
+  },
+  formInput: {
+    backgroundColor: theme.background,
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    color: theme.textPrimary,
+    borderWidth: 1,
+    borderColor: theme.divider,
+  },
+  textArea: {
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+  
+  // Type options styles
+  typeOptionsContainer: {
+    paddingVertical: 10,
   },
   typeOption: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginRight: 15,
+    backgroundColor: theme.background,
     borderWidth: 1,
-    borderColor: "#FAC898",
-    marginBottom: 8,
+    borderColor: theme.divider,
   },
-  selectedTypeOption: {
-    backgroundColor: "#FAC898",
+  typeOptionSelected: {
+    borderColor: theme.primary,
+    backgroundColor: `${theme.primary}10`,
   },
-  typeOptionIcon: {
-    marginRight: 8,
-  },
-  typeOptionText: {
-    fontSize: 14,
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  selectedTypeOptionText: {
-    color: "#2D2D3A",
-  },
-  dropdown: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-  },
-  dropdownContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: "#FFFFFF",
-  },
-  dropdownOptions: {
-    backgroundColor: "rgba(50, 50, 65, 0.95)",
-    borderRadius: 12,
-    marginBottom: 10,
-    overflow: "hidden",
-  },
-  dropdownOption: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  dropdownOptionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dropdownOptionText: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    marginLeft: 10,
-  },
-  
-  // Enhanced community selectors
-  enhancedCommunitySelector: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-  },
-  enhancedCommunityCategoryIcon: {
+  typeOptionIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
-    backgroundColor: "#7158e2",
+    marginRight: 10,
   },
-  enhancedCommunityCategoryText: {
-    fontSize: 16,
-    color: "#FFFFFF",
-  },
-  
-  // Group selector for community
-  groupSelectorContainer: {
-    marginTop: 10,
-    padding: 16,
-    backgroundColor: "rgba(250, 200, 152, 0.1)",
-    borderRadius: 12,
-  },
-  groupSelectorLabel: {
-    fontSize: 14,
-    color: "#FAC898",
-    marginBottom: 10,
-  },
-  groupSelectorList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  groupOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#FAC898",
-    marginBottom: 8,
-  },
-  groupOptionSelected: {
-    backgroundColor: "#FAC898",
-  },
-  groupOptionText: {
-    fontSize: 14,
-    color: "#FFFFFF",
-  },
-  
-  // Form inputs for community
-  formInput: {
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
-    borderRadius: 12,
-    padding: 16,
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-  formTextarea: {
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
-    borderRadius: 12,
-    padding: 16,
-    color: "#FFFFFF",
-    fontSize: 16,
-    minHeight: 120,
-  },
-  formTextareaFocused: {
-    borderWidth: 1,
-    borderColor: "#FAC898",
-  },
-  
-  // Keyboard accessory
-  accessory: {
-    height: 45,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    backgroundColor: "#2D2D3A",
-    paddingHorizontal: 16,
-  },
-  accessoryText: {
-    color: "#FAC898",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  
-  // Enhanced community modal actions
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
-  },
-  enhancedCommunityCancel: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  enhancedCommunityCancelText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  enhancedCommunityShare: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-    backgroundColor: "#FAC898",
-  },
-  enhancedCommunityShareText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#2D2D3A",
-  },
-  textInputContainer: { 
-    position: 'relative', 
-  },
-  closeButton: { 
-    position: 'absolute', 
-    right: 10, 
-    top: 10, 
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-    borderRadius: 20, 
-    width: 36, 
-    height: 36, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 1, 
-    borderColor: 'rgba(250, 200, 152, 0.4)', 
-  },
-  moreTypesButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    marginTop: 8,
-    borderRadius: 20,
-    backgroundColor: "rgba(250, 200, 152, 0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(250, 200, 152, 0.3)",
-  },
-  moreTypesButtonText: {
-    color: "#FAC898",
+  typeOptionLabel: {
     fontSize: 14,
     fontWeight: "600",
-    marginRight: 8,
+    color: theme.textPrimary,
+    marginRight: 10,
   },
-  typeModalScrollView: {
-    padding: 16,
+  typeOptionSelectedIndicator: {
+    marginLeft: 'auto',
   },
-  typeGroupSection: {
-    marginBottom: 20,
+  
+  // Visibility options styles
+  visibilityOptionsContainer: {
+    gap: 12,
   },
-  typeGroupTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333333",
-    marginBottom: 12,
-    paddingLeft: 8,
-  },
-  enhancedTypeItem: {
+  visibilityOption: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 16,
-    marginBottom: 10,
-    height: 60,
-    position: "relative",
-    overflow: "hidden",
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
-  enhancedTypeItemSelected: {
-    backgroundColor: "#7158e2", // Will be overridden by gradient
+  visibilityOptionSelected: {
+    borderColor: theme.primary,
+    backgroundColor: `${theme.primary}10`,
   },
-  enhancedTypeGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.2,
-  },
-  enhancedTypeContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    paddingHorizontal: 16,
-  },
-  enhancedTypeIconContainer: {
+  visibilityIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 15,
   },
-  enhancedTypeText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333333",
+  visibilityTextContainer: {
     flex: 1,
   },
-  enhancedTypeCheck: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  visibilityLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textPrimary,
+    marginBottom: 4,
+  },
+  visibilityDescription: {
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  visibilitySelectedIndicator: {
+    marginLeft: 10,
+  },
+  
+  // Group selection styles
+  groupSelectionContainer: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: theme.background,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
-  filterTypesContainer: {
+  groupSelectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textPrimary,
+    marginBottom: 12,
+  },
+  groupOptions: {
+    gap: 10,
+  },
+  groupOption: {
     flexDirection: "row",
-    flexWrap: "nowrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: `${theme.textTertiary}10`,
   },
-  filterTypeChip: {
+  groupOptionSelected: {
+    backgroundColor: `${theme.primary}10`,
+  },
+  groupOptionLabel: {
+    fontSize: 15,
+    color: theme.textPrimary,
+  },
+  groupOptionLabelSelected: {
+    fontWeight: "600",
+    color: theme.primary,
+  },
+  noGroupsText: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    fontStyle: "italic",
+  },
+  
+  // Additional options styles
+  additionalOptions: {
+    marginTop: 10,
+    padding: 15,
+    backgroundColor: theme.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.divider,
+  },
+  additionalOptionsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textPrimary,
+    marginBottom: 15,
+  },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 15,
+  },
+  optionLabel: {
+    fontSize: 15,
+    color: theme.textPrimary,
+  },
+  optionToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.divider,
+  },
+  optionToggleActive: {
+    backgroundColor: `${theme.primary}10`,
+    borderColor: theme.primary,
+  },
+  deleteButtonContainer: {
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: `${theme.error}10`,
+    alignItems: "center",
+    marginTop: 15,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.error,
+  },
+  
+  // Modal footer styles
+  modalFooter: {
+    flexDirection: "row",
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: theme.divider,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.divider,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textSecondary,
+  },
+  submitButton: {
+    flex: 2,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginLeft: 10,
+  },
+  submitButtonGradient: {
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
+  },
+  
+  // Filter modal styles
+  filterModalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterModalContent: {
+    width: width * 0.9,
+    backgroundColor: theme.surface,
+    borderRadius: 20,
+    maxHeight: height * 0.8,
+    shadowColor: theme.cardShadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  filterModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.divider,
+  },
+  filterModalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: theme.textPrimary,
+  },
+  filterModalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterModalScrollView: {
+    padding: 20,
+    maxHeight: height * 0.5,
+  },
+  filterSection: {
+    marginBottom: 25,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.textPrimary,
+    marginBottom: 15,
+  },
+  filterOptionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  filterStatusOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.background,
+    marginHorizontal: 5,
+  },
+  filterStatusOptionActive: {
+    backgroundColor: theme.primary,
+  },
+  filterStatusOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.textSecondary,
+    marginLeft: 8,
+  },
+  filterStatusOptionTextActive: {
+    color: "white",
+  },
+  filterTypeOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  filterTypeOption: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F0F0F0",
-    marginRight: 10,
+    backgroundColor: theme.background,
+    marginBottom: 10,
   },
-  filterTypeChipSelected: {
-    backgroundColor: "#7158e2",
+  filterTypeOptionActive: {
+    backgroundColor: theme.primary,
   },
-  filterTypeIcon: {
-    marginRight: 6,
-  },
-  filterTypeChipText: {
+  filterTypeOptionText: {
     fontSize: 14,
-    color: "#666666",
+    color: theme.textSecondary,
+    marginLeft: 6,
   },
-  filterTypeChipTextSelected: {
-    color: "#FFFFFF",
+  filterTypeOptionTextActive: {
+    color: "white",
+  },
+  sortOptions: {
+    gap: 10,
+  },
+  sortOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.divider,
+  },
+  sortOptionActive: {
+    borderColor: theme.primary,
+    backgroundColor: `${theme.primary}10`,
+  },
+  sortOptionText: {
+    fontSize: 15,
+    color: theme.textPrimary,
+  },
+  sortOptionTextActive: {
     fontWeight: "600",
+    color: theme.primary,
   },
+  applyFiltersButton: {
+    margin: 20,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  applyFiltersButtonGradient: {
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  applyFiltersButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
+  },
+  
+  // Animation components
+  animatedButtonContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  
+  // Bottom padding
+  bottomPadding: {
+    height: 100,
+  }
 });
