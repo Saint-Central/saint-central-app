@@ -51,32 +51,38 @@ const theme = {
   white: "#FFFFFF",
 };
 
-// Category icons mapping
-const CATEGORY_ICONS = {
-  "Family": "users",
-  "Health": "heart",
-  "Work": "briefcase",
-  "Spiritual": "pray",
-  "Friends": "user-friends",
-  "World": "globe-americas",
-  "Personal": "user",
-  "Other": "ellipsis-h",
+// Replace CATEGORY_ICONS with TYPE_ICONS
+const TYPE_ICONS = {
+  "prayer": "pray",
+  "resolution": "book-open",
+  "goal": "target",
+  "spiritual": "pray",
+  "family": "users",
+  "health": "heart",
+  "work": "briefcase",
+  "friends": "user-friends",
+  "world": "globe-americas",
+  "personal": "user",
+  "other": "ellipsis-h",
 };
 
-// Get category color based on category name
-const getCategoryColor = (category) => {
+// Replace getCategoryColor with getTypeColor
+const getTypeColor = (type) => {
   const colors = {
-    "Family": ["#FF9966", "#FF5E62"],
-    "Health": ["#56CCF2", "#2F80ED"],
-    "Work": ["#A18CD1", "#FBC2EB"],
-    "Spiritual": ["#7158e2", "#5F45C2"],
-    "Friends": ["#00B09B", "#96C93D"],
-    "World": ["#4776E6", "#8E54E9"],
-    "Personal": ["#FF5858", "#F09819"],
-    "Other": ["#8E2DE2", "#4A00E0"],
+    "prayer": ["#7158e2", "#5F45C2"], // Purple
+    "resolution": ["#A18CD1", "#FBC2EB"], // Light purple
+    "goal": ["#4776E6", "#8E54E9"], // Blue/purple
+    "spiritual": ["#7158e2", "#5F45C2"], // Purple
+    "family": ["#FF9966", "#FF5E62"], // Orange/red
+    "health": ["#56CCF2", "#2F80ED"], // Blue
+    "work": ["#A18CD1", "#FBC2EB"], // Light purple
+    "friends": ["#00B09B", "#96C93D"], // Green
+    "world": ["#4776E6", "#8E54E9"], // Blue/purple
+    "personal": ["#FF5858", "#F09819"], // Red/orange
+    "other": ["#8E2DE2", "#4A00E0"], // Deep purple
   };
   
-  return colors[category] || colors["Other"];
+  return colors[type] || colors["other"];
 };
 
 // Define visibility options with icons and in desired order
@@ -125,7 +131,7 @@ const parseSelectedGroups = (selected_groups) => {
 
 // IntentionItem Component for rendering each intention card
 const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCompleted }) => {
-  const categoryColors = getCategoryColor(item.category);
+  const typeColors = getTypeColor(item.type);
   
   // Format date for display
   const formatDate = (dateString) => {
@@ -148,7 +154,7 @@ const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={item.completed ? ['#E0E0E0', '#BBBBBB'] : categoryColors}
+          colors={item.completed ? ['#E0E0E0', '#BBBBBB'] : typeColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.intentionCardGradient}
@@ -156,15 +162,17 @@ const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
         
         <View style={styles.intentionCardContent}>
           <View style={styles.intentionCardHeader}>
-            <View style={styles.categoryContainer}>
-              <View style={styles.categoryIconContainer}>
+            <View style={styles.typeContainer}>
+              <View style={styles.typeIconContainer}>
                 <FontAwesome5 
-                  name={CATEGORY_ICONS[item.category] || "ellipsis-h"} 
+                  name={TYPE_ICONS[item.type] || "ellipsis-h"} 
                   size={14} 
                   color="#FFFFFF" 
                 />
               </View>
-              <Text style={styles.categoryText}>{item.category}</Text>
+              <Text style={styles.typeText}>
+                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+              </Text>
             </View>
             
             <View style={styles.intentionActions}>
@@ -236,66 +244,68 @@ const IntentionItem = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
   );
 });
 
-// Category Section Component for collapsible category groups
-const CategorySection = ({ category, intentions, onToggleFavorite, onToggleCompleted, onPressIntention, expanded, onToggleExpand }) => {
-  const categoryColors = getCategoryColor(category);
+// Replace CategorySection with TypeSection
+const TypeSection = ({ type, intentions, onToggleFavorite, onToggleCompleted, onPressIntention, expanded, onToggleExpand }) => {
+  const typeColors = getTypeColor(type);
   const activeCount = intentions.filter(i => !i.completed).length;
   const completedCount = intentions.filter(i => i.completed).length;
   
   return (
-    <View style={styles.categorySectionContainer}>
+    <View style={styles.typeSectionContainer}>
       <TouchableOpacity 
-        style={styles.categorySectionHeader}
+        style={styles.typeSectionHeader}
         onPress={onToggleExpand}
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={categoryColors}
+          colors={typeColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.categorySectionGradient}
+          style={styles.typeSectionGradient}
         />
         
-        <View style={styles.categorySectionHeaderContent}>
-          <View style={styles.categoryHeaderLeft}>
-            <View style={styles.categoryHeaderIconContainer}>
+        <View style={styles.typeSectionHeaderContent}>
+          <View style={styles.typeHeaderLeft}>
+            <View style={styles.typeHeaderIconContainer}>
               <FontAwesome5 
-                name={CATEGORY_ICONS[category] || "ellipsis-h"} 
+                name={TYPE_ICONS[type] || "ellipsis-h"} 
                 size={18} 
                 color="#FFFFFF" 
               />
             </View>
-            <Text style={styles.categorySectionTitle}>{category}</Text>
+            <Text style={styles.typeSectionTitle}>
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </Text>
           </View>
           
-          <View style={styles.categoryHeaderRight}>
-            <View style={styles.categoryCountBadge}>
-              <Text style={styles.categoryCountText}>{intentions.length}</Text>
+          <View style={styles.typeHeaderRight}>
+            <View style={styles.typeCountBadge}>
+              <Text style={styles.typeCountText}>{intentions.length}</Text>
             </View>
             <AntDesign 
               name={expanded ? "up" : "down"} 
               size={18} 
               color="#FFFFFF" 
-              style={styles.categoryExpandIcon}
+              style={styles.typeExpandIcon}
             />
           </View>
         </View>
       </TouchableOpacity>
       
       {expanded && (
-        <View style={styles.categorySectionContent}>
-          <View style={styles.categoryStatsRow}>
-            <View style={styles.categoryStatItem}>
-              <Text style={styles.categoryStatLabel}>Active</Text>
-              <Text style={styles.categoryStatValue}>{activeCount}</Text>
+        <View style={styles.typeSectionContent}>
+          <View style={styles.typeStatsRow}>
+            <View style={styles.typeStatItem}>
+              <Text style={styles.typeStatLabel}>Active</Text>
+              <Text style={styles.typeStatValue}>{activeCount}</Text>
             </View>
-            <View style={styles.categoryStatItem}>
-              <Text style={styles.categoryStatLabel}>Completed</Text>
-              <Text style={styles.categoryStatValue}>{completedCount}</Text>
+            <View style={styles.typeStatItem}>
+              <Text style={styles.typeStatLabel}>Completed</Text>
+              <Text style={styles.typeStatValue}>{completedCount}</Text>
             </View>
-            <View style={styles.categoryStatItem}>
-              <Text style={styles.categoryStatLabel}>Total</Text>
-              <Text style={styles.categoryStatValue}>{intentions.length}</Text>
+            <View style={styles.typeStatItem}>
+              <Text style={styles.typeStatLabel}>Total</Text>
+              <Text style={styles.typeStatValue}>{intentions.length}</Text>
             </View>
           </View>
           
@@ -323,47 +333,33 @@ export default function RosaryIntentions() {
   const [intentions, setIntentions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all"); // "all", "active", "completed"
-  const [filterCategory, setFilterCategory] = useState(null);
+  const [filterType, setFilterType] = useState(null);
   const [sortOrder, setSortOrder] = useState("newest"); // "newest", "oldest", "alphabetical"
   const [notification, setNotification] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPostIntentionModal, setShowPostIntentionModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showTypeModal, setShowTypeModal] = useState(false);
   const [showVisibilityModal, setShowVisibilityModal] = useState(false);
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [showFilterOptions, setShowFilterOptions] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState([]);
+  const [expandedTypes, setExpandedTypes] = useState([]);
   const [postDescriptionFocused, setPostDescriptionFocused] = useState(false);
   
   // Form states
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [selectedGroups, setSelectedGroups] = useState([]);
   const [userGroups, setUserGroups] = useState([]);
   
-  // New intention state for posting to community
+  // New intention state (using Community style)
   const [newIntention, setNewIntention] = useState({
     title: "",
     description: "",
-    category: "Spiritual",
     type: "prayer",
     completed: false,
     favorite: false,
     visibility: "Friends",
     selected_groups: null,
     selectedGroups: []
-  });
-  
-  // Traditional add intention state
-  const [newPrayerIntention, setNewPrayerIntention] = useState({
-    title: "",
-    description: "",
-    category: "Spiritual",
-    completed: false,
-    favorite: false,
-    visibility: "Friends",
-    selected_groups: null,
-    type: "prayer",
   });
   
   const [editingIntention, setEditingIntention] = useState(null);
@@ -458,22 +454,21 @@ export default function RosaryIntentions() {
           id: item.id.toString(),
           title: item.title,
           description: item.description,
-          category: item.category || item.type || 'Spiritual', // FIXED: Use category first, then fall back to type
+          type: item.type || "prayer",
           date: item.created_at,
-          completed: item.completed || false, // FIXED: Use stored value or default
-          favorite: item.favorite || false, // FIXED: Use stored value or default
+          completed: item.completed || false,
+          favorite: item.favorite || false,
           visibility: item.visibility || "Friends",
           selected_groups: item.selected_groups,
           selectedGroups: parseSelectedGroups(item.selected_groups),
-          type: item.type || "prayer"
         }));
         
         setIntentions(formattedData);
         
-        // Set the first category as expanded by default
-        const categories = [...new Set(formattedData.map(item => item.category))];
-        if (categories.length > 0) {
-          setExpandedCategories([categories[0]]);
+        // Set the first type as expanded by default
+        const types = [...new Set(formattedData.map(item => item.type))];
+        if (types.length > 0) {
+          setExpandedTypes([types[0]]);
         }
       } else {
         setIntentions([]);
@@ -510,10 +505,9 @@ export default function RosaryIntentions() {
         user_id: user.id,
         title: newIntention.title,
         description: newIntention.description,
-        category: newIntention.category, // FIXED: Use category as primary field
-        type: newIntention.type, // Keep type field for compatibility
-        completed: newIntention.completed, // FIXED: Store completed
-        favorite: newIntention.favorite, // FIXED: Store favorite
+        type: newIntention.type,
+        completed: newIntention.completed,
+        favorite: newIntention.favorite,
         visibility: newIntention.visibility,
         selected_groups: 
           newIntention.visibility === "Certain Groups" 
@@ -533,7 +527,6 @@ export default function RosaryIntentions() {
       setNewIntention({
         title: "",
         description: "",
-        category: "Spiritual",
         type: "prayer",
         completed: false,
         favorite: false,
@@ -565,9 +558,9 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Regular add intention (traditional method)
-  const addIntention = async () => {
-    if (!newPrayerIntention.title.trim()) {
+  // Handle creating a new intention (using Community style)
+  const handleCreateIntention = async () => {
+    if (!newIntention.title.trim()) {
       setNotification({
         message: "Please enter a title for your intention.",
         type: "error"
@@ -578,17 +571,22 @@ export default function RosaryIntentions() {
     try {
       setIsLoading(true);
       
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      
       // Prepare intention data for Supabase
       const intentionData = {
-        user_id: currentUserId,
-        title: newPrayerIntention.title,
-        description: newPrayerIntention.description,
-        category: newPrayerIntention.category, // FIXED: Use category field directly
-        type: newPrayerIntention.type, // Keep type as separate field
-        completed: newPrayerIntention.completed, // FIXED: Store completed in DB
-        favorite: newPrayerIntention.favorite, // FIXED: Store favorite in DB
-        visibility: newPrayerIntention.visibility,
-        selected_groups: newPrayerIntention.visibility === "Certain Groups" ? selectedGroups : null,
+        user_id: user.id,
+        title: newIntention.title,
+        description: newIntention.description,
+        type: newIntention.type,
+        completed: newIntention.completed,
+        favorite: newIntention.favorite,
+        visibility: newIntention.visibility,
+        selected_groups: 
+          newIntention.visibility === "Certain Groups" 
+            ? newIntention.selectedGroups 
+            : [],
         created_at: new Date().toISOString()
       };
       
@@ -606,36 +604,34 @@ export default function RosaryIntentions() {
           id: data[0].id.toString(),
           title: data[0].title,
           description: data[0].description,
-          category: data[0].category || data[0].type || 'Spiritual', // FIXED: Use category first, then fall back to type
+          type: data[0].type,
           date: data[0].created_at,
-          completed: data[0].completed || newPrayerIntention.completed,
-          favorite: data[0].favorite || newPrayerIntention.favorite,
+          completed: data[0].completed || newIntention.completed,
+          favorite: data[0].favorite || newIntention.favorite,
           visibility: data[0].visibility,
           selected_groups: data[0].selected_groups,
           selectedGroups: parseSelectedGroups(data[0].selected_groups),
-          type: data[0].type
         };
         
         // Update state
         setIntentions([newItem, ...intentions]);
         
-        // Make sure the new intention's category is expanded
-        if (!expandedCategories.includes(newItem.category)) {
-          setExpandedCategories([...expandedCategories, newItem.category]);
+        // Make sure the new intention's type is expanded
+        if (!expandedTypes.includes(newItem.type)) {
+          setExpandedTypes([...expandedTypes, newItem.type]);
         }
         
         // Reset form and close modal
-        setNewPrayerIntention({
+        setNewIntention({
           title: "",
           description: "",
-          category: "Spiritual",
+          type: "prayer",
           completed: false,
           favorite: false,
           visibility: "Friends",
           selected_groups: null,
-          type: "prayer",
+          selectedGroups: []
         });
-        setSelectedGroups([]);
         setShowAddModal(false);
         
         // Success feedback
@@ -671,7 +667,6 @@ export default function RosaryIntentions() {
       }
     }
     
-    setSelectedGroups(parsedGroups);
     setEditingIntention(intention);
     setShowEditModal(true);
   };
@@ -692,12 +687,11 @@ export default function RosaryIntentions() {
       const updatedData = {
         title: editingIntention.title,
         description: editingIntention.description,
-        category: editingIntention.category, // FIXED: Use category field
-        type: editingIntention.type, // Keep type field for compatibility
-        completed: editingIntention.completed, // FIXED: Store completed status
-        favorite: editingIntention.favorite, // FIXED: Store favorite status
+        type: editingIntention.type,
+        completed: editingIntention.completed,
+        favorite: editingIntention.favorite,
         visibility: editingIntention.visibility,
-        selected_groups: editingIntention.visibility === "Certain Groups" ? selectedGroups : null,
+        selected_groups: editingIntention.visibility === "Certain Groups" ? editingIntention.selectedGroups : null,
       };
       
       const { error } = await supabase
@@ -710,19 +704,18 @@ export default function RosaryIntentions() {
       
       // Update local state
       const updatedIntentions = intentions.map(item => 
-        item.id === editingIntention.id ? { ...editingIntention, selected_groups: selectedGroups } : item
+        item.id === editingIntention.id ? { ...editingIntention, selected_groups: editingIntention.selectedGroups } : item
       );
       
       setIntentions(updatedIntentions);
       
-      // If the category has changed, make sure the new category is expanded
-      if (!expandedCategories.includes(editingIntention.category)) {
-        setExpandedCategories([...expandedCategories, editingIntention.category]);
+      // If the type has changed, make sure the new type is expanded
+      if (!expandedTypes.includes(editingIntention.type)) {
+        setExpandedTypes([...expandedTypes, editingIntention.type]);
       }
       
       setShowEditModal(false);
       setEditingIntention(null);
-      setSelectedGroups([]);
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setNotification({
@@ -767,7 +760,6 @@ export default function RosaryIntentions() {
               if (showEditModal && editingIntention && editingIntention.id === intentionId) {
                 setShowEditModal(false);
                 setEditingIntention(null);
-                setSelectedGroups([]);
               }
               
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -861,17 +853,8 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Toggle group selection for Regular Add Intention
+  // Toggle group selection for new intention
   const toggleGroupSelection = (groupId) => {
-    if (selectedGroups.includes(groupId)) {
-      setSelectedGroups(selectedGroups.filter(id => id !== groupId));
-    } else {
-      setSelectedGroups([...selectedGroups, groupId]);
-    }
-  };
-  
-  // Toggle group selection for Post to Community
-  const toggleNewGroupSelection = (groupId) => {
     if (newIntention.selectedGroups.includes(groupId)) {
       setNewIntention({
         ...newIntention,
@@ -885,19 +868,35 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Toggle category expansion
-  const toggleCategoryExpansion = (category) => {
-    if (expandedCategories.includes(category)) {
-      setExpandedCategories(expandedCategories.filter(c => c !== category));
+  // Toggle group selection for editing
+  const toggleEditGroupSelection = (groupId) => {
+    if (!editingIntention) return;
+    const currentSelected = editingIntention.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setEditingIntention({
+        ...editingIntention,
+        selectedGroups: currentSelected.filter(id => id !== groupId)
+      });
     } else {
-      setExpandedCategories([...expandedCategories, category]);
+      setEditingIntention({
+        ...editingIntention,
+        selectedGroups: [...currentSelected, groupId]
+      });
+    }
+  };
+  
+  // Toggle type expansion
+  const toggleTypeExpansion = (type) => {
+    if (expandedTypes.includes(type)) {
+      setExpandedTypes(expandedTypes.filter(t => t !== type));
+    } else {
+      setExpandedTypes([...expandedTypes, type]);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   
-  // Group and sort intentions by category
+  // Group and sort intentions by type
   const getGroupedIntentions = () => {
-    // First filter by active tab
     let filtered = intentions;
     
     if (activeTab === "active") {
@@ -906,12 +905,10 @@ export default function RosaryIntentions() {
       filtered = filtered.filter(item => item.completed);
     }
     
-    // Then filter by category if applicable
-    if (filterCategory) {
-      filtered = filtered.filter(item => item.category === filterCategory);
+    if (filterType) {
+      filtered = filtered.filter(item => item.type === filterType);
     }
     
-    // Sort intentions
     if (sortOrder === "newest") {
       filtered = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date));
     } else if (sortOrder === "oldest") {
@@ -920,22 +917,21 @@ export default function RosaryIntentions() {
       filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
     }
     
-    // Group by category
     const grouped = {};
     filtered.forEach(intention => {
-      if (!grouped[intention.category]) {
-        grouped[intention.category] = [];
+      if (!grouped[intention.type]) {
+        grouped[intention.type] = [];
       }
-      grouped[intention.category].push(intention);
+      grouped[intention.type].push(intention);
     });
     
     return grouped;
   };
   
-  // Get unique categories
-  const getCategories = () => {
-    const categories = new Set(intentions.map(item => item.category));
-    return Array.from(categories);
+  // Get unique types
+  const getTypes = () => {
+    const types = new Set(intentions.map(item => item.type));
+    return Array.from(types);
   };
   
   // Get stats
@@ -987,50 +983,50 @@ export default function RosaryIntentions() {
           </View>
           
           <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Category</Text>
+            <Text style={styles.filterSectionTitle}>Type</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterCategoriesContainer}
+              contentContainerStyle={styles.filterTypesContainer}
             >
               <TouchableOpacity
                 style={[
-                  styles.filterCategoryChip,
-                  !filterCategory && styles.filterCategoryChipSelected
+                  styles.filterTypeChip,
+                  !filterType && styles.filterTypeChipSelected
                 ]}
                 onPress={() => {
-                  setFilterCategory(null);
+                  setFilterType(null);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
                 <Text style={[
-                  styles.filterCategoryChipText,
-                  !filterCategory && styles.filterCategoryChipTextSelected
+                  styles.filterTypeChipText,
+                  !filterType && styles.filterTypeChipTextSelected
                 ]}>All</Text>
               </TouchableOpacity>
               
-              {getCategories().map((category) => (
+              {getTypes().map((type) => (
                 <TouchableOpacity
-                  key={category}
+                  key={type}
                   style={[
-                    styles.filterCategoryChip,
-                    filterCategory === category && styles.filterCategoryChipSelected
+                    styles.filterTypeChip,
+                    filterType === type && styles.filterTypeChipSelected
                   ]}
                   onPress={() => {
-                    setFilterCategory(filterCategory === category ? null : category);
+                    setFilterType(filterType === type ? null : type);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                 >
                   <FontAwesome5 
-                    name={CATEGORY_ICONS[category] || "ellipsis-h"} 
+                    name={TYPE_ICONS[type] || "ellipsis-h"} 
                     size={14} 
-                    color={filterCategory === category ? theme.white : theme.textSecondary} 
-                    style={styles.filterCategoryIcon}
+                    color={filterType === type ? theme.white : theme.textSecondary} 
+                    style={styles.filterTypeIcon}
                   />
                   <Text style={[
-                    styles.filterCategoryChipText,
-                    filterCategory === category && styles.filterCategoryChipTextSelected
-                  ]}>{category}</Text>
+                    styles.filterTypeChipText,
+                    filterType === type && styles.filterTypeChipTextSelected
+                  ]}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1144,7 +1140,7 @@ export default function RosaryIntentions() {
     </Modal>
   );
 
-  // Enhanced Add Modal
+  // New Add Modal (Community Style)
   const renderAddModal = () => (
     <Modal
       visible={showAddModal}
@@ -1153,362 +1149,6 @@ export default function RosaryIntentions() {
       onRequestClose={() => setShowAddModal(false)}
     >
       <KeyboardAvoidingView 
-        style={styles.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.enhancedModalCard}>
-          <View style={styles.enhancedModalHeader}>
-            <Text style={styles.enhancedModalTitle}>New Prayer Intention</Text>
-            <TouchableOpacity 
-              style={styles.enhancedModalCloseButton}
-              onPress={() => setShowAddModal(false)}
-            >
-              <AntDesign name="close" size={20} color="#333" />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.modalBody}>
-            {/* Category Selection - Now First */}
-            <Text style={styles.enhancedInputLabel}>Category</Text>
-            <TouchableOpacity
-              style={styles.enhancedCategorySelector}
-              onPress={() => {
-                setShowCategoryModal(true);
-              }}
-            >
-              <View style={styles.categoryDisplay}>
-                <View style={[
-                  styles.enhancedCategorySelectorIcon,
-                  { backgroundColor: getCategoryColor(newPrayerIntention.category)[0] }
-                ]}>
-                  <FontAwesome5 
-                    name={CATEGORY_ICONS[newPrayerIntention.category] || "ellipsis-h"} 
-                    size={16} 
-                    color="#FFFFFF" 
-                  />
-                </View>
-                <Text style={styles.enhancedCategoryDisplayText}>{newPrayerIntention.category}</Text>
-              </View>
-              <AntDesign name="down" size={16} color="#666" />
-            </TouchableOpacity>
-            
-            {/* Title Input */}
-            <Text style={styles.enhancedInputLabel}>Title *</Text>
-            <TextInput
-              style={styles.enhancedTextInput}
-              placeholder="What would you like to pray for?"
-              value={newPrayerIntention.title}
-              onChangeText={(text) => setNewPrayerIntention({...newPrayerIntention, title: text})}
-              maxLength={100}
-            />
-            
-            {/* Description Input */}
-            <Text style={styles.enhancedInputLabel}>Description (optional)</Text>
-            <TextInput
-              style={[styles.enhancedTextInput, styles.enhancedTextArea]}
-              placeholder="Add more details about your intention..."
-              value={newPrayerIntention.description}
-              onChangeText={(text) => setNewPrayerIntention({...newPrayerIntention, description: text})}
-              multiline={true}
-              numberOfLines={4}
-              maxLength={500}
-            />
-            
-            {/* Visibility Selection */}
-            <Text style={styles.enhancedInputLabel}>Visibility</Text>
-            <TouchableOpacity
-              style={styles.enhancedCategorySelector}
-              onPress={() => {
-                setShowVisibilityModal(true);
-              }}
-            >
-              <View style={styles.categoryDisplay}>
-                <View style={styles.enhancedVisibilitySelectorIcon}>
-                  <Feather 
-                    name={
-                      newPrayerIntention.visibility === "Just Me" ? "user" : 
-                      newPrayerIntention.visibility === "Certain Groups" ? "grid" :
-                      newPrayerIntention.visibility === "Friends & Groups" ? "globe" : "users"
-                    } 
-                    size={16} 
-                    color="#FFFFFF" 
-                  />
-                </View>
-                <Text style={styles.enhancedCategoryDisplayText}>{newPrayerIntention.visibility}</Text>
-              </View>
-              <AntDesign name="down" size={16} color="#666" />
-            </TouchableOpacity>
-            
-            {/* If Certain Groups is selected, show group selection */}
-            {newPrayerIntention.visibility === "Certain Groups" && (
-              <View style={styles.enhancedGroupSelector}>
-                <Text style={styles.enhancedGroupSelectorTitle}>Select Groups</Text>
-                {userGroups.length > 0 ? (
-                  <View style={styles.enhancedGroupList}>
-                    {userGroups.map((group) => (
-                      <TouchableOpacity
-                        key={group.id}
-                        style={[
-                          styles.enhancedGroupChip,
-                          selectedGroups.includes(group.id) && styles.enhancedGroupChipSelected
-                        ]}
-                        onPress={() => toggleGroupSelection(group.id)}
-                      >
-                        <Text style={[
-                          styles.enhancedGroupChipText,
-                          selectedGroups.includes(group.id) && styles.enhancedGroupChipTextSelected
-                        ]}>{group.name}</Text>
-                        {selectedGroups.includes(group.id) && (
-                          <AntDesign name="check" size={14} color={theme.white} style={styles.enhancedGroupChipIcon} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.enhancedNoGroupsText}>You don't have any groups yet.</Text>
-                )}
-              </View>
-            )}
-            
-            <View style={styles.enhancedOptionsContainer}>
-              <Text style={styles.enhancedOptionsSectionTitle}>Additional Options</Text>
-              <View style={styles.enhancedOptionsRow}>
-                <Text style={styles.enhancedOptionLabel}>Mark as favorite</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.enhancedFavoriteToggle,
-                    newPrayerIntention.favorite && { backgroundColor: `${theme.primary}20` }
-                  ]}
-                  onPress={() => {
-                    setNewPrayerIntention({...newPrayerIntention, favorite: !newPrayerIntention.favorite});
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <AntDesign 
-                    name={newPrayerIntention.favorite ? "heart" : "hearto"} 
-                    size={20} 
-                    color={theme.primary} 
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-          
-          <View style={styles.enhancedModalFooter}>
-            <TouchableOpacity
-              style={[styles.enhancedCancelButton, { borderColor: theme.lightGray }]}
-              onPress={() => setShowAddModal(false)}
-            >
-              <Text style={[styles.enhancedCancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.enhancedSaveButton, { backgroundColor: theme.primary }]}
-              onPress={addIntention}
-            >
-              <Text style={styles.enhancedSaveButtonText}>Add Intention</Text>
-              <AntDesign name="arrowright" size={20} color="#FFFFFF" style={styles.enhancedButtonIcon} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-  
-  // Enhanced Category selection modal
-  const renderCategoryModal = () => {
-    const categories = Object.keys(CATEGORY_ICONS);
-    
-    return (
-      <Modal
-        visible={showCategoryModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowCategoryModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.enhancedModalCard}>
-            <View style={styles.enhancedModalHeader}>
-              <Text style={styles.enhancedModalTitle}>Select Category</Text>
-              <TouchableOpacity 
-                style={styles.enhancedModalCloseButton}
-                onPress={() => setShowCategoryModal(false)}
-              >
-                <AntDesign name="close" size={20} color="#333" />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={categories}
-              keyExtractor={(item) => item}
-              contentContainerStyle={styles.enhancedCategoryList}
-              renderItem={({ item }) => {
-                let isSelected;
-                
-                if (editingIntention) {
-                  isSelected = editingIntention.category === item;
-                } else {
-                  isSelected = newPrayerIntention.category === item;
-                }
-                
-                const categoryColors = getCategoryColor(item);
-                
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.enhancedCategoryItem,
-                      isSelected && styles.enhancedCategoryItemSelected
-                    ]}
-                    onPress={() => {
-                      if (editingIntention) {
-                        setEditingIntention({...editingIntention, category: item});
-                      } else {
-                        setNewPrayerIntention({...newPrayerIntention, category: item});
-                      }
-                      
-                      setShowCategoryModal(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <LinearGradient
-                      colors={categoryColors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[
-                        styles.enhancedCategoryGradient,
-                        isSelected && { opacity: 1 }
-                      ]}
-                    />
-                    
-                    <View style={styles.enhancedCategoryContent}>
-                      <View style={[
-                        styles.enhancedCategoryIconContainer,
-                        { backgroundColor: isSelected ? 'transparent' : categoryColors[0] }
-                      ]}>
-                        <FontAwesome5 
-                          name={CATEGORY_ICONS[item]} 
-                          size={20} 
-                          color="#FFFFFF" 
-                        />
-                      </View>
-                      
-                      <Text style={[
-                        styles.enhancedCategoryText,
-                        isSelected && { color: "#FFFFFF", fontWeight: "700" }
-                      ]}>{item}</Text>
-                      
-                      {isSelected && (
-                        <View style={styles.enhancedCategoryCheck}>
-                          <AntDesign name="check" size={16} color="#FFFFFF" />
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-  
-  // Enhanced Visibility selection modal
-  const renderVisibilityModal = () => {
-    return (
-      <Modal
-        visible={showVisibilityModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowVisibilityModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.enhancedModalCard}>
-            <View style={styles.enhancedModalHeader}>
-              <Text style={styles.enhancedModalTitle}>Select Visibility</Text>
-              <TouchableOpacity 
-                style={styles.enhancedModalCloseButton}
-                onPress={() => setShowVisibilityModal(false)}
-              >
-                <AntDesign name="close" size={20} color="#333" />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={VISIBILITY_OPTIONS}
-              keyExtractor={(item) => item.label}
-              contentContainerStyle={styles.enhancedVisibilityList}
-              renderItem={({ item }) => {
-                let isSelected;
-                
-                if (editingIntention) {
-                  isSelected = editingIntention.visibility === item.label;
-                } else {
-                  isSelected = newPrayerIntention.visibility === item.label;
-                }
-                
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.enhancedVisibilityItem,
-                      isSelected && styles.enhancedVisibilityItemSelected
-                    ]}
-                    onPress={() => {
-                      if (editingIntention) {
-                        setEditingIntention({...editingIntention, visibility: item.label});
-                        if (item.label !== "Certain Groups") {
-                          setSelectedGroups([]);
-                        }
-                      } else {
-                        setNewPrayerIntention({...newPrayerIntention, visibility: item.label});
-                        if (item.label !== "Certain Groups") {
-                          setSelectedGroups([]);
-                        }
-                      }
-                      
-                      setShowVisibilityModal(false);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <View style={styles.enhancedVisibilityContent}>
-                      <View style={styles.enhancedVisibilityIconContainer}>
-                        <Feather 
-                          name={item.icon}
-                          size={20} 
-                          color="#FFFFFF" 
-                        />
-                      </View>
-                      
-                      <View style={styles.enhancedVisibilityTextContainer}>
-                        <Text style={styles.enhancedVisibilityTitle}>{item.label}</Text>
-                        <Text style={styles.enhancedVisibilityDescription}>{item.description}</Text>
-                      </View>
-                      
-                      {isSelected && (
-                        <View style={[styles.enhancedVisibilityCheck, { backgroundColor: theme.primary }]}>
-                          <AntDesign name="check" size={14} color="#FFFFFF" />
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-  
-  // Post to Community Modal (similar to Community page)
-  const renderPostIntentionModal = () => (
-    <Modal
-      visible={showPostIntentionModal}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowPostIntentionModal(false)}
-    >
-      <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
@@ -1518,12 +1158,12 @@ export default function RosaryIntentions() {
         >
           <View style={styles.postModalOverlay}>
             <View style={styles.postModalContent}>
-              <Text style={styles.postModalTitle}>Share Intention with Community</Text>
+              <Text style={styles.postModalTitle}>New Prayer Intention</Text>
               
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Type</Text>
                 <View style={styles.pickerContainer}>
-                  {["prayer", "resolution", "goal"].map((type) => (
+                  {Object.keys(TYPE_ICONS).map((type) => (
                     <TouchableOpacity
                       key={type}
                       style={[
@@ -1537,7 +1177,16 @@ export default function RosaryIntentions() {
                         })
                       }
                     >
-                      <Text style={styles.typeOptionText}>
+                      <FontAwesome5 
+                        name={TYPE_ICONS[type]} 
+                        size={14} 
+                        color={newIntention.type === type ? "#2D2D3A" : "#FFFFFF"} 
+                        style={styles.typeOptionIcon}
+                      />
+                      <Text style={[
+                        styles.typeOptionText,
+                        newIntention.type === type && styles.selectedTypeOptionText
+                      ]}>
                         {type.charAt(0).toUpperCase() + type.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -1545,31 +1194,7 @@ export default function RosaryIntentions() {
                 </View>
               </View>
               
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Category</Text>
-                <TouchableOpacity
-                  style={styles.enhancedCommunitySelector}
-                  onPress={() => {
-                    setShowCategoryModal(true);
-                  }}
-                >
-                  <View style={styles.categoryDisplay}>
-                    <View style={[
-                      styles.enhancedCommunityCategoryIcon,
-                      { backgroundColor: getCategoryColor(newIntention.category)[0] }
-                    ]}>
-                      <FontAwesome5 
-                        name={CATEGORY_ICONS[newIntention.category] || "ellipsis-h"} 
-                        size={16} 
-                        color="#FFFFFF" 
-                      />
-                    </View>
-                    <Text style={styles.enhancedCommunityCategoryText}>{newIntention.category}</Text>
-                  </View>
-                  <AntDesign name="down" size={16} color="#FAC898" />
-                </TouchableOpacity>
-              </View>
-              
+              {/* Rest of the modal content remains the same */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Visibility</Text>
                 <TouchableOpacity
@@ -1577,14 +1202,14 @@ export default function RosaryIntentions() {
                   onPress={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
                 >
                   <View style={styles.dropdownContent}>
-                    <Feather
+                    <Feather 
                       name={
                         newIntention.visibility === "Just Me" ? "user" : 
                         newIntention.visibility === "Certain Groups" ? "grid" :
                         newIntention.visibility === "Friends & Groups" ? "globe" : "users"
-                      }
-                      size={16}
-                      color="#FFFFFF"
+                      } 
+                      size={16} 
+                      color="#FFFFFF" 
                     />
                     <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
                       {newIntention.visibility}
@@ -1641,7 +1266,7 @@ export default function RosaryIntentions() {
                               ? styles.groupOptionSelected
                               : null,
                           ]}
-                          onPress={() => toggleNewGroupSelection(group.id)}
+                          onPress={() => toggleGroupSelection(group.id)}
                         >
                           <Text style={styles.groupOptionText}>
                             {group.name}
@@ -1669,24 +1294,37 @@ export default function RosaryIntentions() {
               
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Description</Text>
-                <TextInput
-                  style={[
-                    styles.formTextarea,
-                    postDescriptionFocused && styles.formTextareaFocused,
-                  ]}
-                  value={newIntention.description}
-                  onChangeText={(text) =>
-                    setNewIntention({ ...newIntention, description: text })
-                  }
-                  placeholder="Enter description..."
-                  placeholderTextColor="rgba(250, 200, 152, 0.5)"
-                  multiline={true}
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  inputAccessoryViewID="accessoryViewID"
-                  onFocus={() => setPostDescriptionFocused(true)}
-                  onBlur={() => setPostDescriptionFocused(false)}
-                />
+                <View style={styles.textInputContainer}>
+                  <TextInput
+                    style={[
+                      styles.formTextarea,
+                      postDescriptionFocused && styles.formTextareaFocused,
+                    ]}
+                    value={newIntention.description}
+                    onChangeText={(text) =>
+                      setNewIntention({ ...newIntention, description: text })
+                    }
+                    placeholder="Enter description..."
+                    placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                    multiline={true}
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                    inputAccessoryViewID="accessoryViewID"
+                    onFocus={() => setPostDescriptionFocused(true)}
+                    onBlur={() => setPostDescriptionFocused(false)}
+                  />
+                  {postDescriptionFocused && (
+                    <TouchableOpacity 
+                      style={styles.closeButton}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setPostDescriptionFocused(false);
+                      }}
+                    >
+                      <Feather name="check" size={20} color="#FAC898" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
               
               {Platform.OS === 'ios' && (
@@ -1702,16 +1340,16 @@ export default function RosaryIntentions() {
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.enhancedCommunityCancel}
-                  onPress={() => setShowPostIntentionModal(false)}
+                  onPress={() => setShowAddModal(false)}
                 >
                   <Text style={styles.enhancedCommunityCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={styles.enhancedCommunityShare}
-                  onPress={handlePostIntention}
+                  onPress={handleCreateIntention}
                 >
-                  <Text style={styles.enhancedCommunityShareText}>Share with Community</Text>
+                  <Text style={styles.enhancedCommunityShareText}>Add Intention</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1748,24 +1386,24 @@ export default function RosaryIntentions() {
             </View>
             
             <ScrollView style={styles.modalBody}>
-              {/* Category Selection - Now First */}
-              <Text style={styles.enhancedInputLabel}>Category</Text>
+              {/* Type Selection - Now First */}
+              <Text style={styles.enhancedInputLabel}>Type</Text>
               <TouchableOpacity
                 style={styles.enhancedCategorySelector}
-                onPress={() => setShowCategoryModal(true)}
+                onPress={() => setShowTypeModal(true)}
               >
                 <View style={styles.categoryDisplay}>
                   <View style={[
                     styles.enhancedCategorySelectorIcon,
-                    { backgroundColor: getCategoryColor(editingIntention.category)[0] }
+                    { backgroundColor: getTypeColor(editingIntention.type)[0] }
                   ]}>
                     <FontAwesome5 
-                      name={CATEGORY_ICONS[editingIntention.category] || "ellipsis-h"} 
+                      name={TYPE_ICONS[editingIntention.type] || "ellipsis-h"} 
                       size={16} 
                       color="#FFFFFF" 
                     />
                   </View>
-                  <Text style={styles.enhancedCategoryDisplayText}>{editingIntention.category}</Text>
+                  <Text style={styles.enhancedCategoryDisplayText}>{editingIntention.type}</Text>
                 </View>
                 <AntDesign name="down" size={16} color="#666" />
               </TouchableOpacity>
@@ -1826,15 +1464,15 @@ export default function RosaryIntentions() {
                           key={group.id}
                           style={[
                             styles.enhancedGroupChip,
-                            selectedGroups.includes(group.id) && styles.enhancedGroupChipSelected
+                            editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id) && styles.enhancedGroupChipSelected
                           ]}
-                          onPress={() => toggleGroupSelection(group.id)}
+                          onPress={() => toggleEditGroupSelection(group.id)}
                         >
                           <Text style={[
                             styles.enhancedGroupChipText,
-                            selectedGroups.includes(group.id) && styles.enhancedGroupChipTextSelected
+                            editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id) && styles.enhancedGroupChipTextSelected
                           ]}>{group.name}</Text>
-                          {selectedGroups.includes(group.id) && (
+                          {editingIntention.selectedGroups && editingIntention.selectedGroups.includes(group.id) && (
                             <AntDesign name="check" size={14} color={theme.white} style={styles.enhancedGroupChipIcon} />
                           )}
                         </TouchableOpacity>
@@ -1926,7 +1564,16 @@ export default function RosaryIntentions() {
       <TouchableOpacity
         style={styles.floatingButton}
         onPress={() => {
-          setSelectedGroups([]);
+          setNewIntention({
+            title: "",
+            description: "",
+            type: "prayer",
+            completed: false,
+            favorite: false,
+            visibility: "Friends",
+            selected_groups: null,
+            selectedGroups: []
+          });
           setShowAddModal(true);
         }}
         activeOpacity={0.9}
@@ -1936,21 +1583,6 @@ export default function RosaryIntentions() {
           style={styles.floatingButtonGradient}
         >
           <AntDesign name="plus" size={26} color="#FFFFFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={styles.shareButton}
-        onPress={() => {
-          setShowPostIntentionModal(true);
-        }}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={["#FF9966", "#FF5E62"]}
-          style={styles.shareButtonGradient}
-        >
-          <FontAwesome name="share-alt" size={24} color="#FFFFFF" />
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -1967,8 +1599,8 @@ export default function RosaryIntentions() {
       <FontAwesome5 name="pray" size={60} color={`${theme.primary}70`} />
       <Text style={styles.emptyStateTitle}>No Intentions Found</Text>
       <Text style={styles.emptyStateDescription}>
-        {filterCategory 
-          ? `You don't have any ${activeTab === "completed" ? "completed" : ""} intentions in the ${filterCategory} category.`
+        {filterType 
+          ? `You don't have any ${activeTab === "completed" ? "completed" : ""} intentions in the ${filterType} category.`
           : activeTab === "all" 
             ? "Add your first prayer intention to get started."
             : activeTab === "active"
@@ -1990,21 +1622,6 @@ export default function RosaryIntentions() {
             >
               <AntDesign name="plus" size={20} color="#FFFFFF" />
               <Text style={styles.emptyStateButtonText}>Add Intention</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.emptyStateButton}
-            onPress={() => setShowPostIntentionModal(true)}
-          >
-            <LinearGradient
-              colors={["#FF9966", "#FF5E62"]}
-              style={styles.emptyStateButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <FontAwesome name="share-alt" size={20} color="#FFFFFF" />
-              <Text style={styles.emptyStateButtonText}>Share with Community</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -2035,9 +1652,184 @@ export default function RosaryIntentions() {
     );
   };
   
-  // Group intentions by category
+  // Group intentions by type
   const groupedIntentions = getGroupedIntentions();
-  const groupedCategories = Object.keys(groupedIntentions);
+  const groupedTypes = Object.keys(groupedIntentions);
+  
+  // Enhanced Type selection modal
+  const renderTypeModal = () => {
+    return (
+      <Modal
+        visible={showTypeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.enhancedModalCard}>
+            <View style={styles.enhancedModalHeader}>
+              <Text style={styles.enhancedModalTitle}>Select Type</Text>
+              <TouchableOpacity 
+                style={styles.enhancedModalCloseButton}
+                onPress={() => setShowTypeModal(false)}
+              >
+                <AntDesign name="close" size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.typeModalScrollView}>
+              {Object.keys(TYPE_ICONS).map((type) => {
+                const isSelected = editingIntention 
+                  ? editingIntention.type === type 
+                  : newIntention.type === type;
+                
+                const typeColors = getTypeColor(type);
+                
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.enhancedTypeItem,
+                      isSelected && styles.enhancedTypeItemSelected
+                    ]}
+                    onPress={() => {
+                      if (editingIntention) {
+                        setEditingIntention({...editingIntention, type: type});
+                      } else {
+                        setNewIntention({...newIntention, type: type});
+                      }
+                      
+                      setShowTypeModal(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <LinearGradient
+                      colors={typeColors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[
+                        styles.enhancedTypeGradient,
+                        isSelected && { opacity: 1 }
+                      ]}
+                    />
+                    
+                    <View style={styles.enhancedTypeContent}>
+                      <View style={[
+                        styles.enhancedTypeIconContainer,
+                        { backgroundColor: isSelected ? 'transparent' : typeColors[0] }
+                      ]}>
+                        <FontAwesome5 
+                          name={TYPE_ICONS[type]} 
+                          size={20} 
+                          color="#FFFFFF" 
+                        />
+                      </View>
+                      
+                      <Text style={[
+                        styles.enhancedTypeText,
+                        isSelected && { color: "#FFFFFF", fontWeight: "700" }
+                      ]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                      
+                      {isSelected && (
+                        <View style={styles.enhancedTypeCheck}>
+                          <AntDesign name="check" size={16} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+  
+  // Enhanced Visibility selection modal
+  const renderVisibilityModal = () => {
+    return (
+      <Modal
+        visible={showVisibilityModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowVisibilityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.enhancedModalCard}>
+            <View style={styles.enhancedModalHeader}>
+              <Text style={styles.enhancedModalTitle}>Select Visibility</Text>
+              <TouchableOpacity 
+                style={styles.enhancedModalCloseButton}
+                onPress={() => setShowVisibilityModal(false)}
+              >
+                <AntDesign name="close" size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.enhancedVisibilityList}>
+              {VISIBILITY_OPTIONS.map((option) => {
+                const isSelected = editingIntention 
+                  ? editingIntention.visibility === option.label 
+                  : newIntention.visibility === option.label;
+                
+                return (
+                  <TouchableOpacity
+                    key={option.label}
+                    style={[
+                      styles.enhancedVisibilityItem,
+                      isSelected && styles.enhancedVisibilityItemSelected
+                    ]}
+                    onPress={() => {
+                      if (editingIntention) {
+                        setEditingIntention({
+                          ...editingIntention,
+                          visibility: option.label,
+                          selectedGroups: option.label === "Certain Groups" ? editingIntention.selectedGroups : []
+                        });
+                      } else {
+                        setNewIntention({
+                          ...newIntention,
+                          visibility: option.label,
+                          selectedGroups: option.label === "Certain Groups" ? newIntention.selectedGroups : []
+                        });
+                      }
+                      
+                      setShowVisibilityModal(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <View style={styles.enhancedVisibilityContent}>
+                      <View style={styles.enhancedVisibilityIconContainer}>
+                        <Feather name={option.icon} size={20} color="#FFFFFF" />
+                      </View>
+                      
+                      <View style={styles.enhancedVisibilityTextContainer}>
+                        <Text style={styles.enhancedVisibilityTitle}>
+                          {option.label}
+                        </Text>
+                        <Text style={styles.enhancedVisibilityDescription}>
+                          {option.description}
+                        </Text>
+                      </View>
+                      
+                      {isSelected && (
+                        <View style={styles.enhancedVisibilityCheck}>
+                          <AntDesign name="check" size={16} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
   
   return (
     <SafeAreaView style={styles.container}>
@@ -2074,7 +1866,7 @@ export default function RosaryIntentions() {
             <Feather 
               name="sliders" 
               size={22} 
-              color={filterCategory || activeTab !== "all" || sortOrder !== "newest" ? theme.warning : "#FFF"} 
+              color={filterType || activeTab !== "all" || sortOrder !== "newest" ? theme.warning : "#FFF"} 
             />
           </TouchableOpacity>
         </View>
@@ -2123,10 +1915,10 @@ export default function RosaryIntentions() {
           <Text style={styles.loadingText}>Loading intentions...</Text>
         </View>
       ) : intentions.length > 0 ? (
-        groupedCategories.length > 0 ? (
+        groupedTypes.length > 0 ? (
           <Animated.ScrollView
             style={styles.scrollView}
-            contentContainerStyle={styles.categoriesContainer}
+            contentContainerStyle={styles.typesContainer}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -2134,16 +1926,16 @@ export default function RosaryIntentions() {
             )}
             scrollEventThrottle={16}
           >
-            {groupedCategories.map(category => (
-              <CategorySection
-                key={category}
-                category={category}
-                intentions={groupedIntentions[category]}
+            {groupedTypes.map(type => (
+              <TypeSection
+                key={type}
+                type={type}
+                intentions={groupedIntentions[type]}
                 onToggleFavorite={toggleFavorite}
                 onToggleCompleted={toggleCompleted}
                 onPressIntention={startEditIntention}
-                expanded={expandedCategories.includes(category)}
-                onToggleExpand={() => toggleCategoryExpansion(category)}
+                expanded={expandedTypes.includes(type)}
+                onToggleExpand={() => toggleTypeExpansion(type)}
               />
             ))}
             <View style={styles.bottomPadding} />
@@ -2163,9 +1955,8 @@ export default function RosaryIntentions() {
       
       {/* Modals */}
       {renderAddModal()}
-      {renderPostIntentionModal()}
       {renderEditModal()}
-      {renderCategoryModal()}
+      {renderTypeModal()}
       {renderVisibilityModal()}
       {renderFilterOptions()}
     </SafeAreaView>
@@ -2259,10 +2050,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  categoriesContainer: {
+  typesContainer: {
     padding: 16,
   },
-  categorySectionContainer: {
+  typeSectionContainer: {
     marginBottom: 16,
     borderRadius: 16,
     overflow: "hidden",
@@ -2273,28 +2064,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  categorySectionHeader: {
+  typeSectionHeader: {
     overflow: "hidden",
     borderRadius: 16,
   },
-  categorySectionGradient: {
+  typeSectionGradient: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
   },
-  categorySectionHeaderContent: {
+  typeSectionHeaderContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
   },
-  categoryHeaderLeft: {
+  typeHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
   },
-  categoryHeaderIconContainer: {
+  typeHeaderIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -2303,35 +2094,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  categorySectionTitle: {
+  typeSectionTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  categoryHeaderRight: {
+  typeHeaderRight: {
     flexDirection: "row",
     alignItems: "center",
   },
-  categoryCountBadge: {
+  typeCountBadge: {
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     marginRight: 8,
   },
-  categoryCountText: {
+  typeCountText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  categoryExpandIcon: {
+  typeExpandIcon: {
     marginLeft: 4,
   },
-  categorySectionContent: {
+  typeSectionContent: {
     padding: 16,
     backgroundColor: "#FFFFFF",
   },
-  categoryStatsRow: {
+  typeStatsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 16,
@@ -2339,21 +2130,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
-  categoryStatItem: {
+  typeStatItem: {
     alignItems: "center",
   },
-  categoryStatLabel: {
+  typeStatLabel: {
     fontSize: 12,
     color: "#666666",
     marginBottom: 4,
   },
-  categoryStatValue: {
+  typeStatValue: {
     fontSize: 16,
     fontWeight: "700",
     color: "#333333",
   },
+  typeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  typeIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  typeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
   bottomPadding: {
-    height: 100,
+    height: 180,
   },
   
   // Intention card styles
@@ -2390,11 +2199,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  categoryContainer: {
+  typeContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
-  categoryIconContainer: {
+  typeIconContainer: {
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -2403,7 +2212,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 8,
   },
-  categoryText: {
+  typeText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
@@ -2495,11 +2304,11 @@ const styles = StyleSheet.create({
     color: "#666666",
     marginBottom: 12,
   },
-  filterCategoriesContainer: {
+  filterTypesContainer: {
     flexDirection: "row",
     flexWrap: "nowrap",
   },
-  filterCategoryChip: {
+  filterTypeChip: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
@@ -2508,17 +2317,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
     marginRight: 10,
   },
-  filterCategoryChipSelected: {
+  filterTypeChipSelected: {
     backgroundColor: "#7158e2",
   },
-  filterCategoryIcon: {
+  filterTypeIcon: {
     marginRight: 6,
   },
-  filterCategoryChipText: {
+  filterTypeChipText: {
     fontSize: 14,
     color: "#666666",
   },
-  filterCategoryChipTextSelected: {
+  filterTypeChipTextSelected: {
     color: "#FFFFFF",
     fontWeight: "600",
   },
@@ -2582,7 +2391,7 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     position: "absolute",
     right: 20,
-    bottom: 20,
+    bottom: 100,
   },
   floatingButton: {
     width: 60,
@@ -2597,23 +2406,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   floatingButtonGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  shareButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: "hidden",
-    shadowColor: "#FF5E62",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  shareButtonGradient: {
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -2843,22 +2635,22 @@ const styles = StyleSheet.create({
   },
   
   // Category selection styles
-  enhancedCategoryList: {
+  enhancedTypeList: {
     padding: 16,
   },
-  enhancedCategoryItem: {
+  enhancedTypeItem: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 16,
     marginBottom: 10,
-    height: 70,
+    height: 60,
     position: "relative",
     overflow: "hidden",
   },
-  enhancedCategoryItemSelected: {
+  enhancedTypeItemSelected: {
     backgroundColor: "#7158e2", // Will be overridden by gradient
   },
-  enhancedCategoryGradient: {
+  enhancedTypeGradient: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -2866,27 +2658,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     opacity: 0.2,
   },
-  enhancedCategoryContent: {
+  enhancedTypeContent: {
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
     paddingHorizontal: 16,
   },
-  enhancedCategoryIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  enhancedTypeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
   },
-  enhancedCategoryText: {
-    fontSize: 18,
+  enhancedTypeText: {
+    fontSize: 16,
     fontWeight: "500",
     color: "#333333",
     flex: 1,
   },
-  enhancedCategoryCheck: {
+  enhancedTypeCheck: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -3084,7 +2876,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   
-  // Community modal styles
+  // Community-style modal styles
   postModalBackground: {
     flex: 1,
   },
@@ -3118,23 +2910,33 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    flexWrap: "wrap",
+    gap: 10,
     marginBottom: 10,
   },
   typeOption: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#FAC898",
+    marginBottom: 8,
   },
   selectedTypeOption: {
     backgroundColor: "#FAC898",
+  },
+  typeOptionIcon: {
+    marginRight: 8,
   },
   typeOptionText: {
     fontSize: 14,
     color: "#FFFFFF",
     fontWeight: "600",
+  },
+  selectedTypeOptionText: {
+    color: "#2D2D3A",
   },
   dropdown: {
     flexDirection: "row",
@@ -3300,5 +3102,124 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#2D2D3A",
+  },
+  textInputContainer: { 
+    position: 'relative', 
+  },
+  closeButton: { 
+    position: 'absolute', 
+    right: 10, 
+    top: 10, 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    borderRadius: 20, 
+    width: 36, 
+    height: 36, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: 'rgba(250, 200, 152, 0.4)', 
+  },
+  moreTypesButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    marginTop: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(250, 200, 152, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.3)",
+  },
+  moreTypesButtonText: {
+    color: "#FAC898",
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 8,
+  },
+  typeModalScrollView: {
+    padding: 16,
+  },
+  typeGroupSection: {
+    marginBottom: 20,
+  },
+  typeGroupTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#333333",
+    marginBottom: 12,
+    paddingLeft: 8,
+  },
+  enhancedTypeItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    marginBottom: 10,
+    height: 60,
+    position: "relative",
+    overflow: "hidden",
+  },
+  enhancedTypeItemSelected: {
+    backgroundColor: "#7158e2", // Will be overridden by gradient
+  },
+  enhancedTypeGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.2,
+  },
+  enhancedTypeContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 16,
+  },
+  enhancedTypeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  enhancedTypeText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333333",
+    flex: 1,
+  },
+  enhancedTypeCheck: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  filterTypesContainer: {
+    flexDirection: "row",
+    flexWrap: "nowrap",
+  },
+  filterTypeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F0F0F0",
+    marginRight: 10,
+  },
+  filterTypeChipSelected: {
+    backgroundColor: "#7158e2",
+  },
+  filterTypeIcon: {
+    marginRight: 6,
+  },
+  filterTypeChipText: {
+    fontSize: 14,
+    color: "#666666",
+  },
+  filterTypeChipTextSelected: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });
