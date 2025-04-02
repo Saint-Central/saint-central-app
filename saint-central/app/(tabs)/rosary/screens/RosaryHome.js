@@ -196,7 +196,7 @@ export default function RosaryHome() {
   // Start praying today's mystery
   const startTodayRosary = () => {
     router.push({
-      pathname: "../prayer-screens/RosaryPrayer",
+      pathname: "/rosary/prayer-screens/RosaryPrayer",
       params: {
         mysteryType: dayMystery.type,
         mysteryKey: dayMystery.key,

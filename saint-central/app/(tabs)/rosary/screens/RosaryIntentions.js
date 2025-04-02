@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  FlatList,
   Alert,
   Animated,
   KeyboardAvoidingView,
@@ -16,56 +15,51 @@ import {
   ActivityIndicator,
   Dimensions,
   StatusBar,
-  Vibration,
-  ImageBackground,
-  Keyboard,
-  Image,
+  FlatList,
   Pressable,
 } from "react-native";
-import { AntDesign, FontAwesome5, Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { AntDesign, FontAwesome5, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../../../supabaseClient";
 import { BlurView } from "expo-blur";
-// Using only packages that are already in the project
 
 // Get device dimensions
 const { width, height } = Dimensions.get("window");
 
-// Updated theme colors - Fresh palette with deeper contrast
+// New theme colors - More vibrant with better contrast
 const theme = {
-  primary: "#4F46E5", // Indigo
-  secondary: "#312E81", // Dark indigo
-  tertiary: "#818CF8", // Light indigo
-  background: "#F8FAFC", // Very light gray/blue
+  primary: "#7C5DFA", // Vibrant purple
+  secondary: "#5E48E8", // Deep purple
+  background: "#F8F8FB", // Light background
   surface: "#FFFFFF", // White
-  surfaceVariant: "#F1F5F9", // Off-white with blue tint
+  surfaceVariant: "#F3F3F9", // Very light purple
   error: "#EF4444", // Red
-  success: "#10B981", // Green
-  warning: "#F59E0B", // Yellow/Amber
-  textPrimary: "#111827", // Very dark gray/black
-  textSecondary: "#374151", // Dark gray
-  textTertiary: "#6B7280", // Medium gray
-  divider: "#E5E7EB", // Light gray for borders/dividers
-  cardShadow: "#0000001A", // Shadow for cards
-  icon: "#64748B", // Slate for icons
-  highlight: "#EEF2FF", // Very light indigo highlight
+  success: "#3ECF8E", // Green
+  warning: "#F7B955", // Yellow
+  textPrimary: "#1A1F36", // Dark blue-black
+  textSecondary: "#7A7C8C", // Medium gray
+  textTertiary: "#ABAFC7", // Light gray
+  divider: "#EBE9F1", // Very light gray
+  cardShadow: "#00000014", // Light shadow
+  icon: "#5A607F", // Dark blue-gray
+  highlight: "#F4F1FF", // Very light purple
 };
 
-// Enhanced type icons and colors with modern gradient combinations
+// Type icons with improved visual identity
 const TYPE_ICONS = {
-  "prayer": { name: "pray", style: "fa5", color: ["#4F46E5", "#312E81"] }, // Indigo gradient
-  "resolution": { name: "notebook", style: "ion", color: ["#8B5CF6", "#6D28D9"] }, // Purple gradient
-  "goal": { name: "target", style: "feather", color: ["#EC4899", "#BE185D"] }, // Pink gradient
-  "spiritual": { name: "church", style: "fa5", color: ["#10B981", "#047857"] }, // Emerald gradient
-  "family": { name: "people", style: "ion", color: ["#F59E0B", "#B45309"] }, // Amber gradient
-  "health": { name: "heart", style: "fa5", color: ["#EF4444", "#B91C1C"] }, // Red gradient
-  "work": { name: "briefcase", style: "fa5", color: ["#3B82F6", "#1E40AF"] }, // Blue gradient
-  "friends": { name: "users", style: "fa5", color: ["#14B8A6", "#0F766E"] }, // Teal gradient
-  "world": { name: "globe", style: "fa5", color: ["#0EA5E9", "#0369A1"] }, // Sky blue gradient
-  "personal": { name: "person", style: "ion", color: ["#8B5CF6", "#6D28D9"] }, // Purple gradient
-  "other": { name: "options", style: "ion", color: ["#6B7280", "#4B5563"] }, // Gray gradient
+  "prayer": { name: "pray", style: "fa5", color: ["#7C5DFA", "#5E48E8"] }, // Purple
+  "resolution": { name: "checkbox-outline", style: "ion", color: ["#6E8EFA", "#4865DD"] }, // Blue
+  "goal": { name: "target", style: "feather", color: ["#F087B3", "#E44A89"] }, // Pink
+  "spiritual": { name: "church", style: "fa5", color: ["#43B883", "#2E9D74"] }, // Green
+  "family": { name: "people", style: "ion", color: ["#F7B955", "#F59C22"] }, // Orange
+  "health": { name: "heart", style: "fa5", color: ["#FF6B6B", "#EE5253"] }, // Red
+  "work": { name: "briefcase", style: "fa5", color: ["#4192E3", "#2E73B8"] }, // Blue
+  "friends": { name: "users", style: "fa5", color: ["#38CEC3", "#27A59A"] }, // Teal
+  "world": { name: "globe", style: "fa5", color: ["#4CB8FF", "#0A84FF"] }, // Sky
+  "personal": { name: "person", style: "ion", color: ["#AC8AFE", "#8A5CFF"] }, // Light Purple
+  "other": { name: "options", style: "ion", color: ["#9CA3AF", "#6B7280"] }, // Gray
 };
 
 // Helper function to render icon based on type
@@ -84,7 +78,7 @@ const renderTypeIcon = (type, size = 20, color = "#FFFFFF") => {
   }
 };
 
-// Enhanced visibility options with nicer color scheme
+// Visibility options
 const VISIBILITY_OPTIONS = [
   {
     id: "just-me",
@@ -100,7 +94,7 @@ const VISIBILITY_OPTIONS = [
     icon: "people",
     style: "ion",
     description: "Share with your friends",
-    color: "#4F46E5"
+    color: "#7C5DFA"
   },
   {
     id: "groups",
@@ -108,7 +102,7 @@ const VISIBILITY_OPTIONS = [
     icon: "globe",
     style: "fa5",
     description: "Share with friends and all your groups",
-    color: "#8B5CF6"
+    color: "#AC8AFE"
   },
   {
     id: "certain-groups",
@@ -116,11 +110,11 @@ const VISIBILITY_OPTIONS = [
     icon: "people-circle",
     style: "ion",
     description: "Select specific groups to share with",
-    color: "#10B981"
+    color: "#43B883"
   }
 ];
 
-// Parse selected groups helper function
+// Helper functions
 const parseSelectedGroups = (selected_groups) => {
   if (Array.isArray(selected_groups)) {
     return selected_groups;
@@ -138,7 +132,6 @@ const parseSelectedGroups = (selected_groups) => {
   return [];
 };
 
-// Format date for display
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -160,7 +153,7 @@ const formatDate = (dateString) => {
   }
 };
 
-// Intention Card Component - Completely redesigned with more modern aesthetic
+// COMPLETELY REDESIGNED: Intention Card Component
 const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCompleted, index }) => {
   const iconInfo = TYPE_ICONS[item.type] || TYPE_ICONS["other"];
   const animation = useRef(new Animated.Value(0)).current;
@@ -168,15 +161,15 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
   useEffect(() => {
     Animated.timing(animation, {
       toValue: 1,
-      duration: 400,
-      delay: index * 70, // Slightly faster animation sequence
+      duration: 300,
+      delay: index * 50,
       useNativeDriver: true,
     }).start();
   }, []);
   
   const translateY = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [40, 0], // Reduced movement for subtler animation
+    outputRange: [30, 0],
   });
   
   const opacity = animation.interpolate({
@@ -192,240 +185,144 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
       ]}
     >
       <Pressable
-        style={[
-          styles.intentionCardInner,
-          item.completed && styles.completedCard
-        ]}
+        style={styles.intentionCardInner}
         onPress={() => onPress(item)}
         android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
       >
-        <View style={styles.cardHeader}>
+        <View style={styles.cardContent}>
+          {/* Left side with icon */}
           <LinearGradient
             colors={iconInfo.color}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.typeIconContainer}
+            style={styles.cardIconContainer}
           >
-            {renderTypeIcon(item.type, 14)}
+            {renderTypeIcon(item.type, 16)}
           </LinearGradient>
           
+          {/* Middle - title and description */}
+          <View style={styles.cardTextContainer}>
+            <Text 
+              style={[
+                styles.cardTitle,
+                item.completed && styles.completedText
+              ]}
+              numberOfLines={1}
+            >
+              {item.title}
+            </Text>
+            
+            {item.description ? (
+              <Text 
+                style={styles.cardDescription}
+                numberOfLines={1}
+              >
+                {item.description}
+              </Text>
+            ) : null}
+            
+            <View style={styles.cardMetaRow}>
+              <View style={styles.visibilityContainer}>
+                {item.visibility === "Just Me" ? (
+                  <Ionicons name="lock-closed" size={10} color={theme.textTertiary} />
+                ) : item.visibility === "Friends" ? (
+                  <Ionicons name="people" size={10} color={theme.textTertiary} />
+                ) : item.visibility === "Friends & Groups" ? (
+                  <FontAwesome5 name="globe" size={9} color={theme.textTertiary} />
+                ) : (
+                  <Ionicons name="people-circle" size={10} color={theme.textTertiary} />
+                )}
+                <Text style={styles.metaText}>{item.visibility}</Text>
+              </View>
+              
+              <Text style={styles.metaText}>{formatDate(item.date)}</Text>
+            </View>
+          </View>
+          
+          {/* Right side actions */}
           <View style={styles.cardActions}>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, item.favorite && styles.actionButtonActive]}
               onPress={() => onToggleFavorite(item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <AntDesign 
                 name={item.favorite ? "heart" : "hearto"} 
-                size={18} 
+                size={16} 
                 color={item.favorite ? theme.error : theme.textTertiary} 
               />
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, item.completed && styles.actionButtonActive]}
               onPress={() => onToggleCompleted(item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons 
                 name={item.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
-                size={18} 
+                size={16} 
                 color={item.completed ? theme.success : theme.textTertiary} 
               />
             </TouchableOpacity>
           </View>
-        </View>
-        
-        <View style={styles.cardContent}>
-          <Text 
-            style={[
-              styles.cardTitle,
-              item.completed && styles.completedText
-            ]}
-            numberOfLines={2}
-          >
-            {item.title}
-          </Text>
-          
-          {item.description ? (
-            <Text 
-              style={[
-                styles.cardDescription,
-                item.completed && styles.completedText
-              ]}
-              numberOfLines={2}
-            >
-              {item.description}
-            </Text>
-          ) : null}
-        </View>
-        
-        <View style={styles.cardFooter}>
-          <View style={styles.visibilityContainer}>
-            {item.visibility === "Just Me" ? (
-              <Ionicons name="lock-closed" size={12} color={theme.textTertiary} />
-            ) : item.visibility === "Friends" ? (
-              <Ionicons name="people" size={12} color={theme.textTertiary} />
-            ) : item.visibility === "Friends & Groups" ? (
-              <FontAwesome5 name="globe" size={10} color={theme.textTertiary} />
-            ) : (
-              <Ionicons name="people-circle" size={12} color={theme.textTertiary} />
-            )}
-            <Text style={styles.visibilityText}>{item.visibility}</Text>
-          </View>
-          
-          <Text style={styles.dateText}>{formatDate(item.date)}</Text>
         </View>
       </Pressable>
     </Animated.View>
   );
 });
 
-// Intention Group Component - Redesigned for more modern appearance
-const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted, onPressIntention, expanded, onToggleExpand }) => {
+// Type Option Item for the redesigned filter drawer
+const TypeFilterItem = ({ type, isSelected, onSelect }) => {
   const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
-  const activeCount = intentions.filter(i => !i.completed).length;
-  const completedCount = intentions.filter(i => i.completed).length;
-  const rotateAnim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
-  
-  useEffect(() => {
-    Animated.timing(rotateAnim, {
-      toValue: expanded ? 1 : 0,
-      duration: 250, // Slightly faster rotation
-      useNativeDriver: true,
-    }).start();
-  }, [expanded]);
-  
-  const rotateIcon = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-  
-  return (
-    <View style={styles.groupContainer}>
-      <TouchableOpacity
-        style={styles.groupHeader}
-        onPress={onToggleExpand}
-        activeOpacity={0.7}
-      >
-        <View style={styles.groupHeaderLeft}>
-          <LinearGradient
-            colors={iconInfo.color}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.groupIconContainer}
-          >
-            {renderTypeIcon(type, 18)}
-          </LinearGradient>
-          <View style={styles.groupTitleContainer}>
-            <Text style={styles.groupTitle}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
-            <Text style={styles.groupCount}>{intentions.length} intention{intentions.length !== 1 ? 's' : ''}</Text>
-          </View>
-        </View>
-        
-        <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
-          <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
-        </Animated.View>
-      </TouchableOpacity>
-      
-      {expanded && (
-        <Animated.View style={styles.groupContent}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{activeCount}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{completedCount}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-          </View>
-          
-          {intentions.map((intention, index) => (
-            <IntentionCard 
-              key={intention.id}
-              item={intention}
-              index={index}
-              onPress={onPressIntention}
-              onToggleFavorite={onToggleFavorite}
-              onToggleCompleted={onToggleCompleted}
-            />
-          ))}
-        </Animated.View>
-      )}
-    </View>
-  );
-};
-
-// Filter Chip Component - Improved visual design
-const FilterChip = ({ label, icon, active, onPress, IconComponent = Ionicons }) => (
-  <TouchableOpacity
-    style={[
-      styles.filterChip,
-      active && styles.filterChipActive
-    ]}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <IconComponent 
-      name={icon} 
-      size={16} 
-      color={active ? theme.primary : theme.textSecondary} 
-      style={styles.filterChipIcon}
-    />
-    <Text 
-      style={[
-        styles.filterChipText,
-        active && styles.filterChipTextActive
-      ]}
-    >
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
-// AnimatedIconButton Component - Enhanced for better visual feedback
-const AnimatedIconButton = ({ icon, onPress, style, size = 24, color = "white", backgroundColor = theme.primary }) => {
-  const scale = useRef(new Animated.Value(1)).current;
-  
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
-  };
-  
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 5,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
   
   return (
     <TouchableOpacity
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={1}
-      style={style}
+      style={[styles.typeFilterItem, isSelected && styles.typeFilterItemSelected]}
+      onPress={() => onSelect(type)}
+      activeOpacity={0.7}
     >
-      <Animated.View
-        style={[
-          styles.animatedButtonContainer,
-          { transform: [{ scale }], backgroundColor },
-        ]}
-      >
-        <Ionicons name={icon} size={size} color={color} />
-      </Animated.View>
+      <View style={styles.typeFilterIconWrapper}>
+        <LinearGradient
+          colors={iconInfo.color}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.typeFilterIcon}
+        >
+          {renderTypeIcon(type, 14, "#FFFFFF")}
+        </LinearGradient>
+      </View>
+      
+      <Text style={[
+        styles.typeFilterText,
+        isSelected && styles.typeFilterTextSelected
+      ]}>
+        {type.charAt(0).toUpperCase() + type.slice(1)}
+      </Text>
+      
+      {isSelected && (
+        <Ionicons name="checkmark" size={16} color={theme.primary} style={styles.typeFilterCheckmark} />
+      )}
     </TouchableOpacity>
   );
 };
 
-// VisibilityOption Component - Redesigned with cleaner visuals
+// Sort Option for filter drawer
+const SortOption = ({ label, sortKey, currentSort, onSelect }) => (
+  <TouchableOpacity
+    style={[styles.sortOption, currentSort === sortKey && styles.sortOptionSelected]}
+    onPress={() => onSelect(sortKey)}
+  >
+    <Text style={[styles.sortOptionText, currentSort === sortKey && styles.sortOptionTextSelected]}>
+      {label}
+    </Text>
+    
+    {currentSort === sortKey && (
+      <Ionicons name="checkmark" size={16} color={theme.primary} />
+    )}
+  </TouchableOpacity>
+);
+
+// Visibility Option Component for the add/edit modal
 const VisibilityOption = ({ option, selected, onSelect }) => {
   const IconComponent = option.style === "ion" ? Ionicons : FontAwesome5;
   
@@ -438,30 +335,32 @@ const VisibilityOption = ({ option, selected, onSelect }) => {
       onPress={() => onSelect(option)}
       activeOpacity={0.7}
     >
-      <View 
-        style={[
-          styles.visibilityIconContainer,
-          { backgroundColor: option.color + '15' }
-        ]}
-      >
-        <IconComponent name={option.icon} size={18} color={option.color} />
-      </View>
-      
-      <View style={styles.visibilityTextContainer}>
-        <Text style={styles.visibilityLabel}>{option.label}</Text>
-        <Text style={styles.visibilityDescription}>{option.description}</Text>
+      <View style={styles.visibilityOptionContent}>
+        <View 
+          style={[
+            styles.visibilityIconContainer,
+            { backgroundColor: option.color + '15' }
+          ]}
+        >
+          <IconComponent name={option.icon} size={18} color={option.color} />
+        </View>
+        
+        <View style={styles.visibilityTextContainer}>
+          <Text style={styles.visibilityLabel}>{option.label}</Text>
+          <Text style={styles.visibilityDescription}>{option.description}</Text>
+        </View>
       </View>
       
       {selected && (
         <View style={styles.visibilitySelectedIndicator}>
-          <Ionicons name="checkmark" size={16} color={theme.primary} />
+          <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
         </View>
       )}
     </TouchableOpacity>
   );
 };
 
-// TypeOption Component - Refined design
+// Type Option Component for the add/edit modal
 const TypeOption = ({ type, selected, onSelect }) => {
   const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
   const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
@@ -475,27 +374,25 @@ const TypeOption = ({ type, selected, onSelect }) => {
       onPress={() => onSelect(type)}
       activeOpacity={0.7}
     >
-      <View 
-        style={[
-          styles.typeOptionIconContainer,
-          { backgroundColor: iconInfo.color[0] + '15' }
-        ]}
+      <LinearGradient
+        colors={iconInfo.color}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.typeOptionIconContainer}
       >
-        {renderTypeIcon(type, 18, iconInfo.color[0])}
-      </View>
+        {renderTypeIcon(type, 16, "#FFFFFF")}
+      </LinearGradient>
       
       <Text style={styles.typeOptionLabel}>{typeLabel}</Text>
       
       {selected && (
-        <View style={styles.typeOptionSelectedIndicator}>
-          <Ionicons name="checkmark" size={16} color={theme.primary} />
-        </View>
+        <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
       )}
     </TouchableOpacity>
   );
 };
 
-// GroupOption Component - Updated design
+// Group Option Component for the add/edit modal
 const GroupOption = ({ group, selected, onSelect }) => (
   <TouchableOpacity
     style={[
@@ -518,17 +415,17 @@ const GroupOption = ({ group, selected, onSelect }) => (
   </TouchableOpacity>
 );
 
-// Empty State Component - Reimagined design with illustrations
+// Empty State Component
 const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
   return (
     <View style={styles.emptyStateContainer}>
-      <View style={styles.emptyAnimationContainer}>
+      <View style={styles.emptyIconContainer}>
         <Ionicons 
           name={
-            activeTab === "completed" ? "checkmark-done-circle-outline" : 
-            activeTab === "active" ? "time-outline" : "create-outline"
+            activeTab === "completed" ? "checkmark-done-circle" : 
+            activeTab === "active" ? "time-outline" : "prayer"
           } 
-          size={70} 
+          size={56} 
           color={theme.primary} 
         />
       </View>
@@ -557,7 +454,6 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
         <TouchableOpacity
           style={styles.emptyStateButton}
           onPress={onAddIntention}
-          activeOpacity={0.8}
         >
           <LinearGradient
             colors={[theme.primary, theme.secondary]}
@@ -576,7 +472,7 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
   );
 };
 
-// Toast Notification Component - Enhanced modern design
+// Toast Notification Component
 const ToastNotification = ({ message, type, onDismiss }) => {
   const slideAnim = useRef(new Animated.Value(-100)).current;
   
@@ -609,7 +505,7 @@ const ToastNotification = ({ message, type, onDismiss }) => {
       <View style={styles.toastContent}>
         <Ionicons 
           name={type === "error" ? "alert-circle" : "checkmark-circle"} 
-          size={22} 
+          size={20} 
           color="white" 
         />
         <Text style={styles.toastMessage}>{message}</Text>
@@ -618,12 +514,11 @@ const ToastNotification = ({ message, type, onDismiss }) => {
   );
 };
 
+// Main Component
 export default function RosaryIntentions() {
   const router = useRouter();
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const addButtonAnimation = useRef(new Animated.Value(0)).current;
   
-  // State variables - maintained from original component
+  // State variables
   const [intentions, setIntentions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all"); // "all", "active", "completed"
@@ -632,14 +527,15 @@ export default function RosaryIntentions() {
   const [notification, setNotification] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showTypeModal, setShowTypeModal] = useState(false);
-  const [showVisibilityModal, setShowVisibilityModal] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [expandedTypes, setExpandedTypes] = useState([]);
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Animation values
+  const filterDrawerAnim = useRef(new Animated.Value(0)).current;
+  const searchBarAnim = useRef(new Animated.Value(0)).current;
   
   // Form states
   const [newIntention, setNewIntention] = useState({
@@ -654,52 +550,19 @@ export default function RosaryIntentions() {
   
   const [editingIntention, setEditingIntention] = useState(null);
   
-  // Header animations - adjusted for new design
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [190, 100], // Reduced header height
-    extrapolate: 'clamp',
-  });
-  
-  const headerTitleOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 80],
-    outputRange: [0, 0.5, 1],
-    extrapolate: 'clamp',
-  });
-  
-  const headerContentOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 80],
-    outputRange: [1, 0.5, 0],
-    extrapolate: 'clamp',
-  });
-  
-  // Add button animations
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(addButtonAnimation, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(addButtonAnimation, {
-          toValue: 0,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
-  
-  const addButtonScale = addButtonAnimation.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [1, 1.08, 1],
-  });
-  
   // Check authentication on mount
   useEffect(() => {
     checkAuth();
   }, []);
+  
+  // Filter drawer animation
+  useEffect(() => {
+    Animated.timing(filterDrawerAnim, {
+      toValue: showFilterDrawer ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [showFilterDrawer]);
   
   // Cleanup notification after timeout
   useEffect(() => {
@@ -711,7 +574,7 @@ export default function RosaryIntentions() {
     }
   }, [notification]);
   
-  // Authentication function - same as original
+  // Authentication function
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -730,7 +593,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Fetch user groups function - same as original
+  // Fetch user groups function
   const fetchUserGroups = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -749,7 +612,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Load intentions function - same as original
+  // Load intentions function
   const loadIntentions = async (userId) => {
     try {
       setIsLoading(true);
@@ -777,12 +640,6 @@ export default function RosaryIntentions() {
         }));
         
         setIntentions(formattedData);
-        
-        // Set the first type as expanded by default
-        const types = [...new Set(formattedData.map(item => item.type))];
-        if (types.length > 0) {
-          setExpandedTypes([types[0]]);
-        }
       } else {
         setIntentions([]);
       }
@@ -797,7 +654,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Create new intention function - same as original
+  // Create new intention function
   const handleCreateIntention = async () => {
     if (!newIntention.title.trim()) {
       setNotification({
@@ -855,11 +712,6 @@ export default function RosaryIntentions() {
         // Update state
         setIntentions([newItem, ...intentions]);
         
-        // Make sure the new intention's type is expanded
-        if (!expandedTypes.includes(newItem.type)) {
-          setExpandedTypes([...expandedTypes, newItem.type]);
-        }
-        
         // Reset form and close modal
         setNewIntention({
           title: "",
@@ -890,7 +742,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Edit intention function - same as original
+  // Edit intention function
   const startEditIntention = (intention) => {
     let parsedGroups = [];
     if (intention.selected_groups) {
@@ -912,7 +764,7 @@ export default function RosaryIntentions() {
     setShowEditModal(true);
   };
   
-  // Update intention function - same as original
+  // Update intention function
   const updateIntention = async () => {
     if (!editingIntention.title.trim()) {
       setNotification({
@@ -949,12 +801,6 @@ export default function RosaryIntentions() {
       );
       
       setIntentions(updatedIntentions);
-      
-      // If the type has changed, make sure the new type is expanded
-      if (!expandedTypes.includes(editingIntention.type)) {
-        setExpandedTypes([...expandedTypes, editingIntention.type]);
-      }
-      
       setShowEditModal(false);
       setEditingIntention(null);
       
@@ -974,7 +820,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Delete intention function - same as original
+  // Delete intention function
   const deleteIntention = (intentionId) => {
     Alert.alert(
       "Delete Intention",
@@ -1024,7 +870,7 @@ export default function RosaryIntentions() {
     );
   };
   
-  // Toggle completion function - same as original
+  // Toggle completion function
   const toggleCompleted = async (intentionId) => {
     try {
       const intention = intentions.find(item => item.id === intentionId);
@@ -1059,7 +905,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Toggle favorite function - same as original
+  // Toggle favorite function
   const toggleFavorite = async (intentionId) => {
     try {
       const intention = intentions.find(item => item.id === intentionId);
@@ -1094,7 +940,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Group selection toggles - same as original
+  // Group selection toggles
   const toggleGroupSelection = (groupId) => {
     if (newIntention.selectedGroups.includes(groupId)) {
       setNewIntention({
@@ -1125,17 +971,7 @@ export default function RosaryIntentions() {
     }
   };
   
-  // Toggle type expansion
-  const toggleTypeExpansion = (type) => {
-    if (expandedTypes.includes(type)) {
-      setExpandedTypes(expandedTypes.filter(t => t !== type));
-    } else {
-      setExpandedTypes([...expandedTypes, type]);
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-  
-  // Filter and group intentions
+  // Filter and sort intentions
   const getFilteredIntentions = () => {
     let filtered = [...intentions];
     
@@ -1172,21 +1008,6 @@ export default function RosaryIntentions() {
     return filtered;
   };
   
-  // Group intentions by type
-  const getGroupedIntentions = () => {
-    const filtered = getFilteredIntentions();
-    
-    const grouped = {};
-    filtered.forEach(intention => {
-      if (!grouped[intention.type]) {
-        grouped[intention.type] = [];
-      }
-      grouped[intention.type].push(intention);
-    });
-    
-    return grouped;
-  };
-  
   // Get unique types
   const getTypes = () => {
     const types = new Set(intentions.map(item => item.type));
@@ -1202,258 +1023,170 @@ export default function RosaryIntentions() {
     
     return { total, active, completed, favorites };
   };
+
+  // Toggle search bar
+  const toggleSearchBar = () => {
+    if (isSearching) {
+      // Clear search and hide
+      setSearchQuery("");
+      setIsSearching(false);
+      Animated.timing(searchBarAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      // Show search bar
+      setIsSearching(true);
+      Animated.timing(searchBarAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
   
-  // Render functions for UI components
+  // REDESIGNED: Header Component
   const renderHeader = () => (
-    <Animated.View style={[styles.header, { height: headerHeight }]}>
+    <View style={styles.header}>
       <LinearGradient
         colors={[theme.primary, theme.secondary]}
-        style={styles.headerGradient}
-        start={{ x: 0.3, y: 0 }}
+        style={styles.headerBackground}
+        start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-      />
-      
-      {/* Fixed header top */}
-      <View style={styles.headerTop}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={22} color="white" />
-        </TouchableOpacity>
-        
-        <Animated.Text style={[styles.headerTitle, { opacity: headerTitleOpacity }]}>
-          Prayer Intentions
-        </Animated.Text>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterModal(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons 
-            name="options-outline" 
-            size={22} 
-            color={filterType || activeTab !== "all" || sortOrder !== "newest" ? theme.warning : "white"} 
-          />
-        </TouchableOpacity>
-      </View>
-      
-      {/* Header collapsible content */}
-      <Animated.View 
-        style={[
-          styles.headerContent, 
-          { opacity: headerContentOpacity }
-        ]}
       >
-        <Text style={styles.headerMainTitle}>Prayer Intentions</Text>
-        <Text style={styles.headerSubtitle}>Lift your prayers and intentions to God</Text>
-        
-        {/* Stats cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <View style={styles.statIconWrapper}>
-              <Ionicons name="list" size={16} color={theme.primary} />
+        <SafeAreaView style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={22} color="white" />
+            </TouchableOpacity>
+            
+            <Text style={styles.headerTitle}>Prayer Intentions</Text>
+            
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={toggleSearchBar}
+              >
+                <Ionicons name="search" size={22} color="white" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => setShowFilterDrawer(true)}
+              >
+                <Ionicons 
+                  name="options" 
+                  size={22} 
+                  color={filterType || activeTab !== "all" || sortOrder !== "newest" ? theme.warning : "white"} 
+                />
+              </TouchableOpacity>
             </View>
-            <View style={styles.statTextContainer}>
+          </View>
+          
+          <Animated.View 
+            style={[
+              styles.searchBarContainer, 
+              {
+                maxHeight: searchBarAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 50]
+                }),
+                opacity: searchBarAnim
+              }
+            ]}
+          >
+            <View style={styles.searchInputWrapper}>
+              <Ionicons name="search" size={18} color={theme.textTertiary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search intentions..."
+                placeholderTextColor={theme.textTertiary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearSearchButton}
+                  onPress={() => setSearchQuery("")}
+                >
+                  <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+          
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
               <Text style={styles.statValue}>{getStats().total}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIconWrapper, styles.activeIconWrapper]}>
-              <Ionicons name="hourglass-outline" size={16} color="#F59E0B" />
-            </View>
-            <View style={styles.statTextContainer}>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
               <Text style={styles.statValue}>{getStats().active}</Text>
               <Text style={styles.statLabel}>Active</Text>
             </View>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIconWrapper, styles.completedIconWrapper]}>
-              <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
-            </View>
-            <View style={styles.statTextContainer}>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
               <Text style={styles.statValue}>{getStats().completed}</Text>
               <Text style={styles.statLabel}>Completed</Text>
             </View>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIconWrapper, styles.favoriteIconWrapper]}>
-              <Ionicons name="heart-outline" size={16} color="#EF4444" />
-            </View>
-            <View style={styles.statTextContainer}>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
               <Text style={styles.statValue}>{getStats().favorites}</Text>
               <Text style={styles.statLabel}>Favorites</Text>
             </View>
           </View>
-        </View>
-      </Animated.View>
+        </SafeAreaView>
+      </LinearGradient>
       
-      {/* Search container */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={18} color={theme.textTertiary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search intentions..."
-            placeholderTextColor={theme.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={() => setIsSearching(true)}
-            onBlur={() => setIsSearching(false)}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity 
-              style={styles.clearSearchButton}
-              onPress={() => setSearchQuery("")}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
-            </TouchableOpacity>
-          )}
-        </View>
+      {/* Status Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "all" && styles.activeTab]}
+          onPress={() => {
+            setActiveTab("all");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === "all" && styles.activeTabText]}>All</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "active" && styles.activeTab]}
+          onPress={() => {
+            setActiveTab("active");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === "active" && styles.activeTabText]}>Active</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "completed" && styles.activeTab]}
+          onPress={() => {
+            setActiveTab("completed");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === "completed" && styles.activeTabText]}>Completed</Text>
+        </TouchableOpacity>
       </View>
-    </Animated.View>
-  );
-  
-  const renderTabs = () => (
-    <View style={styles.tabsContainer}>
-      <TouchableOpacity
-        style={[
-          styles.tab,
-          activeTab === "all" && styles.activeTab
-        ]}
-        onPress={() => setActiveTab("all")}
-        activeOpacity={0.7}
-      >
-        <Ionicons 
-          name="grid-outline" 
-          size={16} 
-          color={activeTab === "all" ? theme.primary : theme.textSecondary} 
-        />
-        <Text style={[
-          styles.tabText,
-          activeTab === "all" && styles.activeTabText
-        ]}>All</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[
-          styles.tab,
-          activeTab === "active" && styles.activeTab
-        ]}
-        onPress={() => setActiveTab("active")}
-        activeOpacity={0.7}
-      >
-        <Ionicons 
-          name="hourglass-outline" 
-          size={16} 
-          color={activeTab === "active" ? theme.primary : theme.textSecondary} 
-        />
-        <Text style={[
-          styles.tabText,
-          activeTab === "active" && styles.activeTabText
-        ]}>Active</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[
-          styles.tab,
-          activeTab === "completed" && styles.activeTab
-        ]}
-        onPress={() => setActiveTab("completed")}
-        activeOpacity={0.7}
-      >
-        <Ionicons 
-          name="checkmark-circle-outline" 
-          size={16} 
-          color={activeTab === "completed" ? theme.primary : theme.textSecondary} 
-        />
-        <Text style={[
-          styles.tabText,
-          activeTab === "completed" && styles.activeTabText
-        ]}>Completed</Text>
-      </TouchableOpacity>
     </View>
   );
   
-  const renderTypeFilters = () => {
-    const types = getTypes();
-    if (types.length === 0) return null;
-    
-    return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.typeFiltersContainer}
-      >
-        <FilterChip
-          label="All Types"
-          icon="apps"
-          active={!filterType}
-          onPress={() => setFilterType(null)}
-        />
-        
-        {types.map(type => (
-          <FilterChip
-            key={type}
-            label={type.charAt(0).toUpperCase() + type.slice(1)}
-            icon={TYPE_ICONS[type]?.name || "options"}
-            IconComponent={TYPE_ICONS[type]?.style === "ion" ? Ionicons : 
-                          TYPE_ICONS[type]?.style === "feather" ? Feather : FontAwesome5}
-            active={filterType === type}
-            onPress={() => setFilterType(filterType === type ? null : type)}
-          />
-        ))}
-      </ScrollView>
-    );
-  };
-  
-  // Modified render function for the Add Button (moved higher up in the UI)
-  const renderAddButton = () => (
-    <Animated.View 
-      style={[
-        styles.addButtonContainer,
-        { transform: [{ scale: addButtonScale }] }
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => {
-          setNewIntention({
-            title: "",
-            description: "",
-            type: "prayer",
-            completed: false,
-            favorite: false,
-            visibility: "Just Me",
-            selectedGroups: []
-          });
-          setShowAddModal(true);
-        }}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={[theme.primary, theme.secondary]}
-          style={styles.addButtonGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-  
+  // COMPLETELY REDESIGNED: Main content with list instead of grouping
   const renderMainContent = () => {
     const filteredIntentions = getFilteredIntentions();
-    const groupedIntentions = getGroupedIntentions();
-    const groupedTypes = Object.keys(groupedIntentions);
     
     if (isLoading) {
       return (
@@ -1475,54 +1208,162 @@ export default function RosaryIntentions() {
     }
     
     return (
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
+      <FlatList
+        data={filteredIntentions}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item, index }) => (
+          <IntentionCard 
+            item={item}
+            index={index}
+            onPress={startEditIntention}
+            onToggleFavorite={toggleFavorite}
+            onToggleCompleted={toggleCompleted}
+          />
+        )}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
-        {searchQuery.trim() ? (
-          <View style={styles.searchResultsContainer}>
-            <Text style={styles.searchResultsTitle}>
-              Search Results: {filteredIntentions.length} {filteredIntentions.length === 1 ? 'intention' : 'intentions'}
-            </Text>
-            
-            {filteredIntentions.map((intention, index) => (
-              <IntentionCard 
-                key={intention.id}
-                item={intention}
-                index={index}
-                onPress={startEditIntention}
-                onToggleFavorite={toggleFavorite}
-                onToggleCompleted={toggleCompleted}
-              />
-            ))}
-          </View>
-        ) : (
-          groupedTypes.map(type => (
-            <IntentionGroup
-              key={type}
-              type={type}
-              intentions={groupedIntentions[type]}
-              onToggleFavorite={toggleFavorite}
-              onToggleCompleted={toggleCompleted}
-              onPressIntention={startEditIntention}
-              expanded={expandedTypes.includes(type)}
-              onToggleExpand={() => toggleTypeExpansion(type)}
-            />
-          ))
-        )}
-        
-        <View style={styles.bottomPadding} />
-      </Animated.ScrollView>
+        ListFooterComponent={<View style={{ height: 100 }} />}
+      />
     );
   };
   
-  // Modal rendering functions
+  // REDESIGNED: Filter drawer instead of modal
+  const renderFilterDrawer = () => {
+    const translateX = filterDrawerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [width, 0],
+    });
+    
+    return (
+      <Animated.View 
+        style={[
+          styles.filterDrawerContainer,
+          { transform: [{ translateX }] }
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.filterDrawerOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFilterDrawer(false)}
+        />
+        
+        <View style={styles.filterDrawer}>
+          <View style={styles.filterDrawerHeader}>
+            <Text style={styles.filterDrawerTitle}>Filters & Sorting</Text>
+            <TouchableOpacity
+              style={styles.filterDrawerCloseButton}
+              onPress={() => setShowFilterDrawer(false)}
+            >
+              <Ionicons name="close" size={22} color={theme.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.filterDrawerContent}>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Filter by Type</Text>
+              
+              <TypeFilterItem
+                type="all"
+                isSelected={!filterType}
+                onSelect={() => setFilterType(null)}
+              />
+              
+              {getTypes().map(type => (
+                <TypeFilterItem
+                  key={type}
+                  type={type}
+                  isSelected={filterType === type}
+                  onSelect={(selectedType) => {
+                    setFilterType(filterType === selectedType ? null : selectedType);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                />
+              ))}
+            </View>
+            
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Sort By</Text>
+              
+              <SortOption
+                label="Newest First"
+                sortKey="newest"
+                currentSort={sortOrder}
+                onSelect={(option) => {
+                  setSortOrder(option);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              />
+              
+              <SortOption
+                label="Oldest First"
+                sortKey="oldest"
+                currentSort={sortOrder}
+                onSelect={(option) => {
+                  setSortOrder(option);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              />
+              
+              <SortOption
+                label="Alphabetical (A-Z)"
+                sortKey="alphabetical"
+                currentSort={sortOrder}
+                onSelect={(option) => {
+                  setSortOrder(option);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              />
+            </View>
+          </ScrollView>
+          
+          <TouchableOpacity
+            style={styles.applyFiltersButton}
+            onPress={() => setShowFilterDrawer(false)}
+          >
+            <LinearGradient
+              colors={[theme.primary, theme.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.applyFiltersButtonGradient}
+            >
+              <Text style={styles.applyFiltersButtonText}>Apply Filters</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  };
+  
+  // REDESIGNED: Floating action button
+  const renderFloatingButton = () => (
+    <TouchableOpacity
+      style={styles.floatingButton}
+      onPress={() => {
+        setNewIntention({
+          title: "",
+          description: "",
+          type: "prayer",
+          completed: false,
+          favorite: false,
+          visibility: "Just Me",
+          selectedGroups: []
+        });
+        setShowAddModal(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }}
+    >
+      <LinearGradient
+        colors={[theme.primary, theme.secondary]}
+        style={styles.floatingButtonGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Ionicons name="add" size={28} color="white" />
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+  
+  // Add modal with the same functionality but improved design
   const renderAddModal = () => (
     <Modal
       visible={showAddModal}
@@ -1534,7 +1375,7 @@ export default function RosaryIntentions() {
         style={styles.modalContainer} 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
+        <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
         
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -1542,7 +1383,6 @@ export default function RosaryIntentions() {
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowAddModal(false)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="close" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -1552,11 +1392,7 @@ export default function RosaryIntentions() {
             {/* Type Selection */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Type</Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.typeOptionsContainer}
-              >
+              <View style={styles.typeOptionsGrid}>
                 {Object.keys(TYPE_ICONS).map(type => (
                   <TypeOption 
                     key={type} 
@@ -1568,7 +1404,35 @@ export default function RosaryIntentions() {
                     }}
                   />
                 ))}
-              </ScrollView>
+              </View>
+            </View>
+            
+            {/* Title Input */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Title <Text style={styles.requiredIndicator}>*</Text></Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="What is your prayer intention?"
+                placeholderTextColor={theme.textTertiary}
+                value={newIntention.title}
+                onChangeText={(text) => setNewIntention({...newIntention, title: text})}
+                maxLength={100}
+              />
+            </View>
+            
+            {/* Description Input */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Description <Text style={styles.optionalIndicator}>(optional)</Text></Text>
+              <TextInput
+                style={[styles.formInput, styles.textArea]}
+                placeholder="Add details about your intention..."
+                placeholderTextColor={theme.textTertiary}
+                value={newIntention.description}
+                onChangeText={(text) => setNewIntention({...newIntention, description: text})}
+                multiline={true}
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
             </View>
             
             {/* Visibility Selection */}
@@ -1616,34 +1480,6 @@ export default function RosaryIntentions() {
               )}
             </View>
             
-            {/* Title Input */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Title <Text style={styles.requiredIndicator}>*</Text></Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder="What is your prayer intention?"
-                placeholderTextColor={theme.textTertiary}
-                value={newIntention.title}
-                onChangeText={(text) => setNewIntention({...newIntention, title: text})}
-                maxLength={100}
-              />
-            </View>
-            
-            {/* Description Input */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Description <Text style={styles.optionalIndicator}>(optional)</Text></Text>
-              <TextInput
-                style={[styles.formInput, styles.textArea]}
-                placeholder="Add details about your intention..."
-                placeholderTextColor={theme.textTertiary}
-                value={newIntention.description}
-                onChangeText={(text) => setNewIntention({...newIntention, description: text})}
-                multiline={true}
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-            
             {/* Additional Options */}
             <View style={styles.additionalOptions}>
               <Text style={styles.additionalOptionsTitle}>Additional Options</Text>
@@ -1660,8 +1496,8 @@ export default function RosaryIntentions() {
                   styles.optionToggle,
                   newIntention.favorite && styles.optionToggleActive
                 ]}>
-                  <Ionicons 
-                    name={newIntention.favorite ? "heart" : "heart-outline"} 
+                  <AntDesign 
+                    name={newIntention.favorite ? "heart" : "hearto"} 
                     size={18} 
                     color={newIntention.favorite ? theme.error : theme.textSecondary} 
                   />
@@ -1717,6 +1553,7 @@ export default function RosaryIntentions() {
     </Modal>
   );
   
+  // Edit modal with same functionality but improved design
   const renderEditModal = () => {
     if (!editingIntention) return null;
     
@@ -1731,7 +1568,7 @@ export default function RosaryIntentions() {
           style={styles.modalContainer} 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
           
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -1739,7 +1576,6 @@ export default function RosaryIntentions() {
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setShowEditModal(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -1749,11 +1585,7 @@ export default function RosaryIntentions() {
               {/* Type Selection */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Type</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.typeOptionsContainer}
-                >
+                <View style={styles.typeOptionsGrid}>
                   {Object.keys(TYPE_ICONS).map(type => (
                     <TypeOption 
                       key={type} 
@@ -1765,7 +1597,35 @@ export default function RosaryIntentions() {
                       }}
                     />
                   ))}
-                </ScrollView>
+                </View>
+              </View>
+              
+              {/* Title Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Title <Text style={styles.requiredIndicator}>*</Text></Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="What is your prayer intention?"
+                  placeholderTextColor={theme.textTertiary}
+                  value={editingIntention.title}
+                  onChangeText={(text) => setEditingIntention({...editingIntention, title: text})}
+                  maxLength={100}
+                />
+              </View>
+              
+              {/* Description Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description <Text style={styles.optionalIndicator}>(optional)</Text></Text>
+                <TextInput
+                  style={[styles.formInput, styles.textArea]}
+                  placeholder="Add details about your intention..."
+                  placeholderTextColor={theme.textTertiary}
+                  value={editingIntention.description}
+                  onChangeText={(text) => setEditingIntention({...editingIntention, description: text})}
+                  multiline={true}
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
               </View>
               
               {/* Visibility Selection */}
@@ -1813,34 +1673,6 @@ export default function RosaryIntentions() {
                 )}
               </View>
               
-              {/* Title Input */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Title <Text style={styles.requiredIndicator}>*</Text></Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="What is your prayer intention?"
-                  placeholderTextColor={theme.textTertiary}
-                  value={editingIntention.title}
-                  onChangeText={(text) => setEditingIntention({...editingIntention, title: text})}
-                  maxLength={100}
-                />
-              </View>
-              
-              {/* Description Input */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Description <Text style={styles.optionalIndicator}>(optional)</Text></Text>
-                <TextInput
-                  style={[styles.formInput, styles.textArea]}
-                  placeholder="Add details about your intention..."
-                  placeholderTextColor={theme.textTertiary}
-                  value={editingIntention.description}
-                  onChangeText={(text) => setEditingIntention({...editingIntention, description: text})}
-                  multiline={true}
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-              
               {/* Additional Options */}
               <View style={styles.additionalOptions}>
                 <Text style={styles.additionalOptionsTitle}>Additional Options</Text>
@@ -1857,8 +1689,8 @@ export default function RosaryIntentions() {
                     styles.optionToggle,
                     editingIntention.favorite && styles.optionToggleActive
                   ]}>
-                    <Ionicons 
-                      name={editingIntention.favorite ? "heart" : "heart-outline"} 
+                    <AntDesign 
+                      name={editingIntention.favorite ? "heart" : "hearto"} 
                       size={18} 
                       color={editingIntention.favorite ? theme.error : theme.textSecondary} 
                     />
@@ -1922,223 +1754,21 @@ export default function RosaryIntentions() {
     );
   };
   
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowFilterModal(false)}
-    >
-      <View style={styles.filterModalContainer}>
-        <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
-        
-        <View style={styles.filterModalContent}>
-          <View style={styles.filterModalHeader}>
-            <Text style={styles.filterModalTitle}>Filter & Sort</Text>
-            <TouchableOpacity
-              style={styles.filterModalCloseButton}
-              onPress={() => setShowFilterModal(false)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close" size={20} color={theme.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.filterModalScrollView}>
-            {/* Status Filter */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Status</Text>
-              <View style={styles.filterOptionsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterStatusOption,
-                    activeTab === "all" && styles.filterStatusOptionActive
-                  ]}
-                  onPress={() => setActiveTab("all")}
-                >
-                  <Ionicons 
-                    name="grid-outline" 
-                    size={18} 
-                    color={activeTab === "all" ? "white" : theme.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.filterStatusOptionText,
-                    activeTab === "all" && styles.filterStatusOptionTextActive
-                  ]}>All</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.filterStatusOption,
-                    activeTab === "active" && [styles.filterStatusOptionActive, { backgroundColor: "#F59E0B" }]
-                  ]}
-                  onPress={() => setActiveTab("active")}
-                >
-                  <Ionicons 
-                    name="hourglass-outline" 
-                    size={18} 
-                    color={activeTab === "active" ? "white" : theme.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.filterStatusOptionText,
-                    activeTab === "active" && styles.filterStatusOptionTextActive
-                  ]}>Active</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.filterStatusOption,
-                    activeTab === "completed" && [styles.filterStatusOptionActive, { backgroundColor: "#10B981" }]
-                  ]}
-                  onPress={() => setActiveTab("completed")}
-                >
-                  <Ionicons 
-                    name="checkmark-circle-outline" 
-                    size={18} 
-                    color={activeTab === "completed" ? "white" : theme.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.filterStatusOptionText,
-                    activeTab === "completed" && styles.filterStatusOptionTextActive
-                  ]}>Completed</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            
-            {/* Type Filter */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Type</Text>
-              <View style={styles.filterTypeOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterTypeOption,
-                    !filterType && styles.filterTypeOptionActive
-                  ]}
-                  onPress={() => setFilterType(null)}
-                >
-                  <Ionicons 
-                    name="apps" 
-                    size={18} 
-                    color={!filterType ? "white" : theme.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.filterTypeOptionText,
-                    !filterType && styles.filterTypeOptionTextActive
-                  ]}>All Types</Text>
-                </TouchableOpacity>
-                
-                {Object.keys(TYPE_ICONS).map(type => {
-                  const iconInfo = TYPE_ICONS[type];
-                  const IconComponent = iconInfo.style === "ion" ? Ionicons : 
-                                       iconInfo.style === "feather" ? Feather : FontAwesome5;
-                  return (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.filterTypeOption,
-                        filterType === type && styles.filterTypeOptionActive,
-                        filterType === type && { backgroundColor: iconInfo.color[0] }
-                      ]}
-                      onPress={() => setFilterType(filterType === type ? null : type)}
-                    >
-                      <IconComponent 
-                        name={iconInfo.name} 
-                        size={18} 
-                        color={filterType === type ? "white" : theme.textSecondary} 
-                      />
-                      <Text style={[
-                        styles.filterTypeOptionText,
-                        filterType === type && styles.filterTypeOptionTextActive
-                      ]}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-            
-            {/* Sort Options */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Sort By</Text>
-              <View style={styles.sortOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    sortOrder === "newest" && styles.sortOptionActive
-                  ]}
-                  onPress={() => setSortOrder("newest")}
-                >
-                  <Text style={[
-                    styles.sortOptionText,
-                    sortOrder === "newest" && styles.sortOptionTextActive
-                  ]}>Newest First</Text>
-                  {sortOrder === "newest" && (
-                    <Ionicons name="checkmark" size={16} color={theme.primary} />
-                  )}
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    sortOrder === "oldest" && styles.sortOptionActive
-                  ]}
-                  onPress={() => setSortOrder("oldest")}
-                >
-                  <Text style={[
-                    styles.sortOptionText,
-                    sortOrder === "oldest" && styles.sortOptionTextActive
-                  ]}>Oldest First</Text>
-                  {sortOrder === "oldest" && (
-                    <Ionicons name="checkmark" size={16} color={theme.primary} />
-                  )}
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    sortOrder === "alphabetical" && styles.sortOptionActive
-                  ]}
-                  onPress={() => setSortOrder("alphabetical")}
-                >
-                  <Text style={[
-                    styles.sortOptionText,
-                    sortOrder === "alphabetical" && styles.sortOptionTextActive
-                  ]}>Alphabetical (A-Z)</Text>
-                  {sortOrder === "alphabetical" && (
-                    <Ionicons name="checkmark" size={16} color={theme.primary} />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-          
-          <TouchableOpacity
-            style={styles.applyFiltersButton}
-            onPress={() => setShowFilterModal(false)}
-          >
-            <LinearGradient
-              colors={[theme.primary, theme.secondary]}
-              style={styles.applyFiltersButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={styles.applyFiltersButtonText}>Apply Filters</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-  
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
       
+      {/* Main UI Components */}
       {renderHeader()}
-      {renderTabs()}
-      {renderTypeFilters()}
       {renderMainContent()}
-      {renderAddButton()}
+      {renderFloatingButton()}
+      {renderFilterDrawer()}
       
+      {/* Modals */}
+      {renderAddModal()}
+      {renderEditModal()}
+      
+      {/* Toast */}
       {notification && (
         <ToastNotification
           message={notification.message}
@@ -2146,143 +1776,99 @@ export default function RosaryIntentions() {
           onDismiss={() => setNotification(null)}
         />
       )}
-      
-      {renderAddModal()}
-      {renderEditModal()}
-      {renderFilterModal()}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Main container
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   
-  // Header styles - Refined design
+  // REDESIGNED: Header
   header: {
     width: "100%",
-    overflow: "hidden",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
   },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  headerBackground: {
+    paddingBottom: 15,
+  },
+  headerContent: {
+    paddingTop: Platform.OS === 'ios' ? 0 : 10,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 8 : 16,
-    height: 55,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  filterButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  headerActions: {
+    flexDirection: "row",
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    paddingTop: 5,
-  },
-  headerMainTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 16,
+    marginLeft: 10,
   },
   
-  // Stats styles - More compact
-  statsContainer: {
+  // Stats row
+  statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  statCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    borderRadius: 16,
-    padding: 10,
-    width: (width - 60) / 4,
     alignItems: "center",
-  },
-  statIconWrapper: {
-    width: 32,
-    height: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 16,
-    backgroundColor: "rgba(59, 130, 246, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
+    marginHorizontal: 16,
+    padding: 12,
+    marginTop: 10,
   },
-  activeIconWrapper: {
-    backgroundColor: "rgba(245, 158, 11, 0.2)",
-  },
-  completedIconWrapper: {
-    backgroundColor: "rgba(16, 185, 129, 0.2)",
-  },
-  favoriteIconWrapper: {
-    backgroundColor: "rgba(239, 68, 68, 0.2)",
-  },
-  statTextContainer: {
+  statItem: {
+    flex: 1,
     alignItems: "center",
   },
   statValue: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   statLabel: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   
-  // Search styles - Enhanced appearance
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 15,
+  // Search bar
+  searchBarContainer: {
+    paddingHorizontal: 16,
+    marginTop: 10,
+    overflow: "hidden",
   },
-  searchInputContainer: {
+  searchInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 24,
     paddingHorizontal: 15,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    height: 44,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
@@ -2293,284 +1879,294 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   
-  // Tabs styles - More refined
+  // REDESIGNED: Tabs
   tabsContainer: {
     flexDirection: "row",
     backgroundColor: theme.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    marginTop: -10,
-    borderRadius: 20,
+    borderRadius: 24,
     marginHorizontal: 16,
+    marginTop: -20,
+    marginBottom: 12,
+    padding: 4,
     shadowColor: theme.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
   },
   tab: {
     flex: 1,
-    flexDirection: "row",
+    paddingVertical: 10,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: 20,
   },
   activeTab: {
-    backgroundColor: `${theme.primary}15`,
+    backgroundColor: theme.primary,
   },
   tabText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: theme.textSecondary,
-    marginLeft: 5,
-  },
-  activeTabText: {
-    color: theme.primary,
-  },
-  
-  // Type filters styles - More compact but elegant
-  typeFiltersContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: theme.surface,
-  },
-  filterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: `${theme.textTertiary}10`,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: `${theme.textTertiary}20`,
-  },
-  filterChipActive: {
-    backgroundColor: `${theme.primary}15`,
-    borderColor: `${theme.primary}30`,
-  },
-  filterChipIcon: {
-    marginRight: 4,
-  },
-  filterChipText: {
-    fontSize: 12,
-    color: theme.textSecondary,
-  },
-  filterChipTextActive: {
-    fontWeight: "600",
-    color: theme.primary,
-  },
-  
-  // Main content styles
-  scrollView: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  scrollViewContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 100,
-  },
-  
-  // Search results styles
-  searchResultsContainer: {
-    marginBottom: 16,
-  },
-  searchResultsTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: theme.textSecondary,
-    marginBottom: 12,
+  },
+  activeTabText: {
+    color: "white",
   },
   
-  // Intention card styles - More elegant with softer corners
+  // REDESIGNED: List content
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  
+  // COMPLETELY REDESIGNED: Intention card
   intentionCard: {
     marginBottom: 10,
   },
   intentionCardInner: {
     backgroundColor: theme.surface,
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     shadowColor: theme.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: `${theme.divider}80`,
-  },
-  completedCard: {
-    opacity: 0.75,
-    backgroundColor: `${theme.success}05`,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  typeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  typeIconContainer: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  typeText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: theme.textPrimary,
-  },
-  cardActions: {
-    flexDirection: "row",
-  },
-  actionButton: {
-    marginLeft: 12,
+    borderColor: theme.divider,
   },
   cardContent: {
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: theme.textPrimary,
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: theme.textSecondary,
-    lineHeight: 18,
-  },
-  completedText: {
-    textDecorationLine: "line-through",
-    opacity: 0.7,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.divider,
-  },
-  visibilityContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
-  visibilityText: {
-    fontSize: 11,
-    color: theme.textTertiary,
-    marginLeft: 4,
-  },
-  dateText: {
-    fontSize: 11,
-    color: theme.textTertiary,
-  },
-  
-  // Intention group styles - More elegant appearance
-  groupContainer: {
-    marginBottom: 14,
-    backgroundColor: theme.surface,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: theme.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: `${theme.divider}50`,
-  },
-  groupHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
-  },
-  groupHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  groupIconContainer: {
+  cardIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 12,
   },
-  groupTitleContainer: {
-    justifyContent: "center",
+  cardTextContainer: {
+    flex: 1,
+    marginRight: 6,
   },
-  groupTitle: {
+  cardTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "600",
     color: theme.textPrimary,
+    marginBottom: 2,
   },
-  groupCount: {
-    fontSize: 12,
-    color: theme.textTertiary,
+  cardDescription: {
+    fontSize: 13,
+    color: theme.textSecondary,
+    marginBottom: 4,
   },
-  groupContent: {
-    padding: 14,
+  completedText: {
+    textDecorationLine: "line-through",
+    opacity: 0.7,
   },
-  statsRow: {
+  cardMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  visibilityContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  metaText: {
+    fontSize: 11,
+    color: theme.textTertiary,
+    marginLeft: 4,
+  },
+  cardActions: {
+    flexDirection: "row",
+  },
+  actionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: "center",
-    marginBottom: 12,
-    paddingBottom: 12,
+    alignItems: "center",
+    marginLeft: 4,
+    backgroundColor: theme.surfaceVariant,
+  },
+  actionButtonActive: {
+    backgroundColor: `${theme.primary}15`,
+  },
+  
+  // REDESIGNED: Filter drawer
+  filterDrawerContainer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    zIndex: 1000,
+  },
+  filterDrawerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  filterDrawer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: width * 0.85,
+    backgroundColor: theme.surface,
+    shadowColor: "#000",
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  filterDrawerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
   },
-  statItem: {
-    alignItems: "center",
-    flex: 1,
+  filterDrawerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.textPrimary,
   },
-  statDivider: {
-    height: 24,
-    width: 1,
-    backgroundColor: theme.divider,
+  filterDrawerCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterDrawerContent: {
+    flex: 1,
+    padding: 16,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.textPrimary,
+    marginBottom: 10,
   },
   
-  // Add button styles - Moved higher up in the UI
-  addButtonContainer: {
-    position: "absolute",
-    right: 20,
-    bottom: 140, // Raised position
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  emptyStateButtonGradient: {
+  // Type filter item in drawer
+  typeFilterItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: theme.background,
   },
-  emptyStateButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "white",
-    marginLeft: 8,
+  typeFilterItemSelected: {
+    backgroundColor: `${theme.primary}10`,
+    borderWidth: 1,
+    borderColor: theme.primary,
+  },
+  typeFilterIconWrapper: {
+    marginRight: 10,
+  },
+  typeFilterIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  typeFilterText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.textPrimary,
+  },
+  typeFilterTextSelected: {
+    color: theme.primary,
+    fontWeight: "700",
+  },
+  typeFilterCheckmark: {
+    marginLeft: 6,
   },
   
-  // Toast notification styles - Modern clean design
+  // Sort options
+  sortOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: theme.background,
+  },
+  sortOptionSelected: {
+    backgroundColor: `${theme.primary}10`,
+    borderWidth: 1,
+    borderColor: theme.primary,
+  },
+  sortOptionText: {
+    fontSize: 14,
+    color: theme.textPrimary,
+  },
+  sortOptionTextSelected: {
+    color: theme.primary,
+    fontWeight: "700",
+  },
+  
+  // Apply filters button
+  applyFiltersButton: {
+    margin: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  applyFiltersButtonGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  applyFiltersButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "white",
+  },
+  
+  // REDESIGNED: Floating action button
+  floatingButton: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  floatingButtonGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  
+  // Toast notification styles
   toastContainer: {
     position: "absolute",
-    top: 15,
-    left: 15,
-    right: 15,
+    top: 60,
+    left: 20,
+    right: 20,
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
@@ -2599,7 +2195,72 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  // Modal styles - Refined design
+  // Loading container
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: theme.textSecondary,
+  },
+  
+  // Empty state styles
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: `${theme.primary}15`,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.textPrimary,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyStateDescription: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  emptyStateButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  emptyStateButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  emptyStateButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "white",
+    marginLeft: 8,
+  },
+  
+  // Modal styles
   modalContainer: {
     flex: 1,
     justifyContent: "flex-end",
@@ -2620,13 +2281,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "700",
     color: theme.textPrimary,
   },
   modalCloseButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: theme.background,
     justifyContent: "center",
     alignItems: "center",
@@ -2635,13 +2296,13 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   
-  // Form styles - Enhanced visual design
+  // Form styles
   formGroup: {
-    marginBottom: 18,
+    marginBottom: 20,
   },
   formLabel: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
     color: theme.textPrimary,
     marginBottom: 8,
   },
@@ -2649,7 +2310,7 @@ const styles = StyleSheet.create({
     color: theme.error,
   },
   optionalIndicator: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "400",
     color: theme.textTertiary,
   },
@@ -2663,63 +2324,69 @@ const styles = StyleSheet.create({
     borderColor: theme.divider,
   },
   textArea: {
-    minHeight: 110,
+    minHeight: 100,
     textAlignVertical: "top",
   },
   
-  // Type options styles - Sleeker appearance
-  typeOptionsContainer: {
-    paddingVertical: 8,
+  // Type options grid for modal
+  typeOptionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -5,
   },
   typeOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginRight: 12,
+    width: "45%",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginHorizontal: "2.5%",
+    marginBottom: 10,
     backgroundColor: theme.background,
     borderWidth: 1,
     borderColor: theme.divider,
   },
   typeOptionSelected: {
-    borderColor: theme.primary,
     backgroundColor: `${theme.primary}10`,
+    borderColor: theme.primary,
   },
   typeOptionIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginRight: 10,
   },
   typeOptionLabel: {
+    flex: 1,
     fontSize: 13,
-    fontWeight: "600",
     color: theme.textPrimary,
-    marginRight: 8,
-  },
-  typeOptionSelectedIndicator: {
-    marginLeft: 'auto',
   },
   
-  // Visibility options styles - Enhanced design
+  // Visibility options
   visibilityOptionsContainer: {
     gap: 10,
   },
   visibilityOption: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    justifyContent: "space-between",
+    padding: 12,
     borderRadius: 12,
     backgroundColor: theme.background,
     borderWidth: 1,
     borderColor: theme.divider,
   },
   visibilityOptionSelected: {
-    borderColor: theme.primary,
     backgroundColor: `${theme.primary}10`,
+    borderColor: theme.primary,
+  },
+  visibilityOptionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   visibilityIconContainer: {
     width: 36,
@@ -2733,22 +2400,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   visibilityLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.textPrimary,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   visibilityDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.textSecondary,
   },
   visibilitySelectedIndicator: {
     marginLeft: 8,
   },
   
-  // Group selection styles - More elegant
+  // Group selection
   groupSelectionContainer: {
-    marginTop: 14,
+    marginTop: 12,
     padding: 14,
     backgroundColor: theme.background,
     borderRadius: 12,
@@ -2756,10 +2423,10 @@ const styles = StyleSheet.create({
     borderColor: theme.divider,
   },
   groupSelectionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.textPrimary,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   groupOptions: {
     gap: 8,
@@ -2768,13 +2435,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: `${theme.textTertiary}08`,
+    borderRadius: 8,
+    backgroundColor: theme.surfaceVariant,
   },
   groupOptionSelected: {
-    backgroundColor: `${theme.primary}10`,
+    backgroundColor: `${theme.primary}15`,
   },
   groupOptionLabel: {
     fontSize: 14,
@@ -2790,9 +2457,9 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   
-  // Additional options styles - More refined
+  // Additional options
   additionalOptions: {
-    marginTop: 8,
+    marginTop: 10,
     padding: 14,
     backgroundColor: theme.background,
     borderRadius: 12,
@@ -2800,7 +2467,7 @@ const styles = StyleSheet.create({
     borderColor: theme.divider,
   },
   additionalOptionsTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.textPrimary,
     marginBottom: 12,
@@ -2821,28 +2488,25 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.background,
-    borderWidth: 1,
-    borderColor: theme.divider,
+    backgroundColor: theme.surfaceVariant,
   },
   optionToggleActive: {
-    backgroundColor: `${theme.primary}10`,
-    borderColor: theme.primary,
+    backgroundColor: `${theme.primary}15`,
   },
   deleteButtonContainer: {
-    padding: 14,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     backgroundColor: `${theme.error}10`,
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 10,
   },
   deleteButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.error,
   },
   
-  // Modal footer styles - Cleaner layout
+  // Modal footer
   modalFooter: {
     flexDirection: "row",
     padding: 18,
@@ -2858,6 +2522,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
+    backgroundColor: theme.surface,
   },
   cancelButtonText: {
     fontSize: 15,
@@ -2880,239 +2545,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "white",
   },
-  
-  // Filter modal styles - Enhanced design
-  filterModalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  filterModalContent: {
-    width: width * 0.9,
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    maxHeight: height * 0.8,
-    shadowColor: theme.cardShadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 7,
-  },
-  filterModalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
-  },
-  filterModalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: theme.textPrimary,
-  },
-  filterModalCloseButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: theme.background,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  filterModalScrollView: {
-    padding: 18,
-    maxHeight: height * 0.5,
-  },
-  filterSection: {
-    marginBottom: 20,
-  },
-  filterSectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: theme.textPrimary,
-    marginBottom: 12,
-  },
-  filterOptionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  filterStatusOption: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: theme.background,
-    marginHorizontal: 4,
-  },
-  filterStatusOptionActive: {
-    backgroundColor: theme.primary,
-  },
-  filterStatusOptionText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: theme.textSecondary,
-    marginLeft: 6,
-  },
-  filterStatusOptionTextActive: {
-    color: "white",
-  },
-  filterTypeOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  filterTypeOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: theme.background,
-    marginBottom: 8,
-  },
-  filterTypeOptionActive: {
-    backgroundColor: theme.primary,
-  },
-  filterTypeOptionText: {
-    fontSize: 13,
-    color: theme.textSecondary,
-    marginLeft: 5,
-  },
-  filterTypeOptionTextActive: {
-    color: "white",
-  },
-  sortOptions: {
-    gap: 8,
-  },
-  sortOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: theme.background,
-    borderWidth: 1,
-    borderColor: theme.divider,
-  },
-  sortOptionActive: {
-    borderColor: theme.primary,
-    backgroundColor: `${theme.primary}10`,
-  },
-  sortOptionText: {
-    fontSize: 14,
-    color: theme.textPrimary,
-  },
-  sortOptionTextActive: {
-    fontWeight: "600",
-    color: theme.primary,
-  },
-  applyFiltersButton: {
-    margin: 18,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  applyFiltersButtonGradient: {
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  applyFiltersButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "white",
-  },
-  
-  // Animation components
-  animatedButtonContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  
-  // Bottom padding
-  bottomPadding: {
-    height: 100,
-  },
-  addButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    overflow: "hidden",
-    shadowColor: theme.cardShadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  addButtonGradient: {
-    width: 52,
-    height: 52,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  
-  // Loading styles
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingBottom: 50,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: theme.textSecondary,
-    marginTop: 12,
-  },
-  
-  // Empty state styles - More engaging
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 30,
-    paddingBottom: 50,
-  },
-  emptyAnimationContainer: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: `${theme.primary}10`,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: theme.textPrimary,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  emptyStateDescription: {
-    fontSize: 14,
-    color: theme.textSecondary,
-    textAlign: "center",
-    marginBottom: 25,
-    lineHeight: 22,
-  },
-  emptyStateButton: {
-    borderRadius: 20,
-    overflow: "hidden",
-    width: "100%",
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 8,
-  }
 });
