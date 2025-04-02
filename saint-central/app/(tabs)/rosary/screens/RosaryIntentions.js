@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   StatusBar,
   FlatList,
   Pressable,
+  RefreshControl,
 } from "react-native";
 import {
   AntDesign,
@@ -30,6 +31,8 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../../../supabaseClient";
 import { BlurView } from "expo-blur";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 
 // Get device dimensions
 const { width, height } = Dimensions.get("window");
@@ -566,6 +569,63 @@ const ToastNotification = ({ message, type, onDismiss }) => {
   );
 };
 
+// Refresh Feedback Component
+const RefreshFeedback = ({ visible }) => {
+  const translateY = useRef(new Animated.Value(-40)).current;
+  
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(translateY, {
+        toValue: -40,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+  
+  if (!visible) return null;
+  
+  return (
+    <Animated.View 
+      style={[
+        additionalStyles.refreshingOverlay,
+        { transform: [{ translateY }] }
+      ]}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 8 }} />
+        <Text style={additionalStyles.refreshingText}>Syncing intentions...</Text>
+      </View>
+    </Animated.View>
+  );
+};
+
+// Additional styles for refresh feedback
+const additionalStyles = StyleSheet.create({
+  refreshingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  refreshingText: {
+    fontSize: 14,
+    color: theme.textPrimary,
+    fontWeight: '500',
+  }
+});
+
 // Main Component
 export default function RosaryIntentions() {
   const router = useRouter();
@@ -584,6 +644,8 @@ export default function RosaryIntentions() {
   const [userGroups, setUserGroups] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   // Animation values
   const filterDrawerAnim = useRef(new Animated.Value(0)).current;
@@ -602,11 +664,39 @@ export default function RosaryIntentions() {
   });
 
   const [editingIntention, setEditingIntention] = useState(null);
+  
+  // Reference to store the Supabase subscription
+  const supabaseSubscription = useRef(null);
 
-  // Check authentication on mount
+  // Check authentication on mount and setup real-time subscription
   useEffect(() => {
     checkAuth();
+    
+    // Setup network listener to handle offline/online transitions
+    const unsubscribeNetInfo = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected);
+      
+      // If coming back online, refresh data
+      if (state.isConnected && currentUserId) {
+        loadIntentions(currentUserId);
+      }
+    });
+    
+    // Cleanup subscription when component unmounts
+    return () => {
+      if (supabaseSubscription.current) {
+        supabaseSubscription.current.unsubscribe();
+      }
+      unsubscribeNetInfo();
+    };
   }, []);
+  
+  // Setup subscription when user ID changes
+  useEffect(() => {
+    if (currentUserId) {
+      setupRealtimeSubscription();
+    }
+  }, [currentUserId]);
 
   // Filter drawer animation
   useEffect(() => {
@@ -645,6 +735,331 @@ export default function RosaryIntentions() {
     }
   }, [notification]);
 
+  // Setup real-time subscription to listen for changes to the intentions table
+  const setupRealtimeSubscription = async () => {
+    try {
+      // Only set up subscription if we have a user and are online
+      if (!currentUserId || !isOnline) return;
+      
+      console.log("Setting up real-time subscription for intentions...");
+      
+      // Cleanup any existing subscription first
+      if (supabaseSubscription.current) {
+        supabaseSubscription.current.unsubscribe();
+      }
+      
+      // Subscribe to all changes on the intentions table
+      supabaseSubscription.current = supabase
+        .channel(`intentions-${currentUserId}`) // Use unique channel name with user ID
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'intentions',
+          },
+          async (payload) => {
+            console.log('Intentions change received:', payload);
+            
+            // Handle different types of changes
+            if (payload.eventType === 'INSERT') {
+              await handleNewIntention(payload.new);
+            } else if (payload.eventType === 'UPDATE') {
+              await handleUpdatedIntention(payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              handleDeletedIntention(payload.old);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to intentions table');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to intentions table');
+            // Try to reconnect after a delay
+            setTimeout(() => {
+              setupRealtimeSubscription();
+            }, 5000);
+          }
+        });
+        
+      // Also store the subscription reference in AsyncStorage for persistence
+      try {
+        await AsyncStorage.setItem('intentionsSubscriptionActive', 'true');
+      } catch (error) {
+        console.error('Error storing subscription status:', error);
+      }
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        setupRealtimeSubscription();
+      }, 5000);
+    }
+  };
+
+  // Handle a new intention being inserted
+  const handleNewIntention = async (newIntention) => {
+    try {
+      // Get current user session to check if this is the creator
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      
+      // Determine if this intention should be visible to current user
+      const shouldBeVisible = await checkIntentionVisibility(newIntention, userId);
+      
+      if (!shouldBeVisible) return;
+      
+      // Check if this intention is already in our state
+      const exists = intentions.some((i) => i.id === newIntention.id.toString());
+      if (exists) return;
+      
+      // Format the intention for our state
+      const formattedIntention = {
+        id: newIntention.id.toString(),
+        title: newIntention.title,
+        description: newIntention.description,
+        type: newIntention.type || "prayer",
+        date: newIntention.created_at,
+        completed: newIntention.completed || false,
+        favorite: newIntention.favorite || false,
+        visibility: newIntention.visibility || "Just Me",
+        selected_groups: newIntention.selected_groups,
+        selectedGroups: parseSelectedGroups(newIntention.selected_groups),
+        user_id: newIntention.user_id, // Make sure to include the user_id
+      };
+      
+      // Add to state
+      setIntentions(prev => [formattedIntention, ...prev]);
+      
+      // Save to local storage for offline access
+      try {
+        const existingIntentions = await AsyncStorage.getItem('cachedIntentions');
+        const parsedIntentions = existingIntentions ? JSON.parse(existingIntentions) : [];
+        await AsyncStorage.setItem('cachedIntentions', JSON.stringify([formattedIntention, ...parsedIntentions]));
+      } catch (error) {
+        console.error('Error saving intention to local storage:', error);
+      }
+      
+      // Provide feedback if the intention was created by someone else
+      if (newIntention.user_id !== userId) {
+        setNotification({
+          message: "New intention added",
+          type: "success"
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error("Error handling new intention:", error);
+    }
+  };
+
+  // Handle an intention being updated
+  const handleUpdatedIntention = async (updatedIntention) => {
+    try {
+      // Get current user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      
+      // Determine if this intention should be visible to current user
+      const shouldBeVisible = await checkIntentionVisibility(updatedIntention, userId);
+      
+      // Format the intention for our state
+      const formattedIntention = {
+        id: updatedIntention.id.toString(),
+        title: updatedIntention.title,
+        description: updatedIntention.description,
+        type: updatedIntention.type || "prayer",
+        date: updatedIntention.created_at,
+        completed: updatedIntention.completed || false,
+        favorite: updatedIntention.favorite || false,
+        visibility: updatedIntention.visibility || "Just Me",
+        selected_groups: updatedIntention.selected_groups,
+        selectedGroups: parseSelectedGroups(updatedIntention.selected_groups),
+        user_id: updatedIntention.user_id, // Make sure to include the user_id
+      };
+      
+      // Update in AsyncStorage regardless of visibility
+      try {
+        const existingIntentions = await AsyncStorage.getItem('cachedIntentions');
+        if (existingIntentions) {
+          const parsedIntentions = JSON.parse(existingIntentions);
+          const updatedIntentions = parsedIntentions.map(item => 
+            item.id === formattedIntention.id ? formattedIntention : item
+          );
+          await AsyncStorage.setItem('cachedIntentions', JSON.stringify(updatedIntentions));
+        }
+      } catch (error) {
+        console.error('Error updating intention in local storage:', error);
+      }
+      
+      // If intention is visible, update in state
+      if (shouldBeVisible) {
+        setIntentions(prev => 
+          prev.map((item) => (item.id === formattedIntention.id ? formattedIntention : item))
+        );
+        
+        // If this was updated by someone else and it's a completion status change
+        if (updatedIntention.user_id !== userId && 
+            intentions.some(i => i.id === formattedIntention.id && i.completed !== formattedIntention.completed)) {
+          setNotification({
+            message: formattedIntention.completed ? 
+              "An intention was marked as completed" : 
+              "An intention was reopened",
+            type: "success"
+          });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      } else {
+        // Remove from state if it's no longer visible to this user
+        setIntentions(prev => prev.filter((item) => item.id !== formattedIntention.id));
+      }
+    } catch (error) {
+      console.error("Error handling updated intention:", error);
+    }
+  };
+
+  // Handle an intention being deleted
+  const handleDeletedIntention = async (deletedIntention) => {
+    try {
+      // Remove the intention from our state
+      setIntentions(prev => prev.filter((item) => item.id !== deletedIntention.id.toString()));
+      
+      // Remove from AsyncStorage
+      try {
+        const existingIntentions = await AsyncStorage.getItem('cachedIntentions');
+        if (existingIntentions) {
+          const parsedIntentions = JSON.parse(existingIntentions);
+          const filteredIntentions = parsedIntentions.filter(item => 
+            item.id !== deletedIntention.id.toString()
+          );
+          await AsyncStorage.setItem('cachedIntentions', JSON.stringify(filteredIntentions));
+        }
+      } catch (error) {
+        console.error('Error removing intention from local storage:', error);
+      }
+      
+      // If we are currently editing this intention, close the modal
+      if (showEditModal && editingIntention && editingIntention.id === deletedIntention.id.toString()) {
+        setShowEditModal(false);
+        setEditingIntention(null);
+      }
+      
+      // Notify if it wasn't deleted by the current user
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      
+      if (deletedIntention.user_id !== userId) {
+        setNotification({
+          message: "An intention was removed",
+          type: "info"
+        });
+      }
+    } catch (error) {
+      console.error("Error handling deleted intention:", error);
+    }
+  };
+
+  // Check if an intention should be visible to the current user
+  const checkIntentionVisibility = async (intention, userId) => {
+    try {
+      // Own intentions are always visible
+      if (intention.user_id === userId) return true;
+      
+      // Based on visibility setting, check if user should see this
+      switch (intention.visibility) {
+        case "Just Me":
+          // Only visible to creator
+          return false;
+          
+        case "Friends":
+          // Check if user is friends with the creator
+          const { data: sentFriends } = await supabase
+            .from("friends")
+            .select("user_id_2")
+            .eq("user_id_1", userId)
+            .eq("user_id_2", intention.user_id)
+            .eq("status", "accepted");
+            
+          const { data: receivedFriends } = await supabase
+            .from("friends")
+            .select("user_id_1")
+            .eq("user_id_2", userId)
+            .eq("user_id_1", intention.user_id)
+            .eq("status", "accepted");
+            
+          return (sentFriends && sentFriends.length > 0) || 
+                 (receivedFriends && receivedFriends.length > 0);
+        
+        case "Certain Groups":
+          // Check if user is in any of the selected groups
+          const selectedGroups = parseSelectedGroups(intention.selected_groups);
+          
+          if (!selectedGroups || selectedGroups.length === 0) return false;
+          
+          const { data: userGroups } = await supabase
+            .from("group_members")
+            .select("group_id")
+            .eq("user_id", userId);
+            
+          if (!userGroups || userGroups.length === 0) return false;
+          
+          const userGroupIds = userGroups.map(g => g.group_id);
+          return selectedGroups.some(groupId => 
+            userGroupIds.includes(Number(groupId))
+          );
+          
+        case "Friends & Groups":
+          // Check if user is friends with creator
+          const { data: areFriends1 } = await supabase
+            .from("friends")
+            .select("user_id_2")
+            .eq("user_id_1", userId)
+            .eq("user_id_2", intention.user_id)
+            .eq("status", "accepted");
+            
+          const { data: areFriends2 } = await supabase
+            .from("friends")
+            .select("user_id_1")
+            .eq("user_id_2", userId)
+            .eq("user_id_1", intention.user_id)
+            .eq("status", "accepted");
+            
+          if ((areFriends1 && areFriends1.length > 0) || 
+              (areFriends2 && areFriends2.length > 0)) {
+            return true;
+          }
+          
+          // Check if user is in same group as creator
+          const { data: creatorGroups } = await supabase
+            .from("group_members")
+            .select("group_id")
+            .eq("user_id", intention.user_id);
+            
+          const { data: currentUserGroups } = await supabase
+            .from("group_members")
+            .select("group_id")
+            .eq("user_id", userId);
+            
+          if (!creatorGroups || !currentUserGroups) return false;
+          
+          const creatorGroupIds = creatorGroups.map(g => g.group_id);
+          const currentUserGroupIds = currentUserGroups.map(g => g.group_id);
+          
+          return creatorGroupIds.some(groupId => 
+            currentUserGroupIds.includes(groupId)
+          );
+          
+        default:
+          return false;
+      }
+    } catch (error) {
+      console.error("Error checking intention visibility:", error);
+      return false;
+    }
+  };
+
   // Authentication function
   const checkAuth = async () => {
     try {
@@ -655,6 +1070,19 @@ export default function RosaryIntentions() {
         setCurrentUserId(user.id);
         await fetchUserGroups(user.id);
         await loadIntentions(user.id);
+        
+        // Check if we had an active subscription before
+        try {
+          const wasSubscribed = await AsyncStorage.getItem('intentionsSubscriptionActive');
+          if (wasSubscribed === 'true') {
+            // Setup real-time subscription immediately
+            setupRealtimeSubscription();
+          }
+        } catch (error) {
+          console.error('Error checking subscription status:', error);
+          // Setup subscription anyway
+          setupRealtimeSubscription();
+        }
       } else {
         Alert.alert(
           "Authentication Required",
@@ -668,6 +1096,56 @@ export default function RosaryIntentions() {
       setIsLoading(false);
     }
   };
+
+  // Pull-to-refresh function
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    
+    try {
+      // Vibrate to give tactile feedback that refresh has started
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Check online status
+      const netInfo = await NetInfo.fetch();
+      
+      if (netInfo.isConnected) {
+        // If online, reload intentions from server
+        if (currentUserId) {
+          await loadIntentions(currentUserId);
+        }
+        
+        // Reconnect subscription if needed
+        if (!supabaseSubscription.current) {
+          setupRealtimeSubscription();
+        }
+        
+        // Show success toast after 1 second
+        setTimeout(() => {
+          setNotification({
+            message: "Intentions refreshed successfully",
+            type: "success"
+          });
+        }, 1000);
+      } else {
+        // If offline, show a message
+        setNotification({
+          message: "You're offline. Using cached data.",
+          type: "info"
+        });
+      }
+    } catch (error) {
+      console.error("Error during refresh:", error);
+      setNotification({
+        message: "Failed to refresh data",
+        type: "error"
+      });
+    } finally {
+      // Give a slight delay so the user can see the spinner and feedback
+      setTimeout(() => {
+        setRefreshing(false);
+      }, 1500);
+    }
+  }, [currentUserId]);
 
   // Fetch user groups function
   const fetchUserGroups = async (userId) => {
@@ -688,10 +1166,26 @@ export default function RosaryIntentions() {
     }
   };
 
-  // Load intentions function
+  // Load intentions function with offline support
   const loadIntentions = async (userId) => {
     try {
       setIsLoading(true);
+
+      // Check if we're online
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        // Load from AsyncStorage if offline
+        try {
+          const cachedIntentions = await AsyncStorage.getItem('cachedIntentions');
+          if (cachedIntentions) {
+            setIntentions(JSON.parse(cachedIntentions));
+          }
+          setIsLoading(false);
+          return;
+        } catch (error) {
+          console.error('Error loading cached intentions:', error);
+        }
+      }
 
       // Get user's friends
       const { data: sentFriends, error: sentError } = await supabase
@@ -812,9 +1306,17 @@ export default function RosaryIntentions() {
             visibility: item.visibility || "Just Me",
             selected_groups: item.selected_groups,
             selectedGroups: parseSelectedGroups(item.selected_groups),
+            user_id: item.user_id, // Make sure to include the user_id
           }));
 
         setIntentions(formattedData);
+        
+        // Cache intentions for offline use
+        try {
+          await AsyncStorage.setItem('cachedIntentions', JSON.stringify(formattedData));
+        } catch (error) {
+          console.error('Error caching intentions:', error);
+        }
       } else {
         setIntentions([]);
       }
@@ -824,6 +1326,16 @@ export default function RosaryIntentions() {
         message: "Failed to load intentions",
         type: "error",
       });
+      
+      // Try to load from cache if online load fails
+      try {
+        const cachedIntentions = await AsyncStorage.getItem('cachedIntentions');
+        if (cachedIntentions) {
+          setIntentions(JSON.parse(cachedIntentions));
+        }
+      } catch (cacheError) {
+        console.error('Error loading cached intentions after online failure:', cacheError);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -884,6 +1396,7 @@ export default function RosaryIntentions() {
           visibility: data[0].visibility,
           selected_groups: data[0].selected_groups,
           selectedGroups: parseSelectedGroups(data[0].selected_groups),
+          user_id: data[0].user_id,
         };
 
         // Update state
@@ -991,7 +1504,7 @@ export default function RosaryIntentions() {
       setShowEditModal(false);
       setEditingIntention(null);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackStyle.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setNotification({
         message: "Prayer intention updated successfully",
         type: "success",
@@ -1033,7 +1546,7 @@ export default function RosaryIntentions() {
               setEditingIntention(null);
             }
 
-            Haptics.notificationAsync(Haptics.NotificationFeedbackStyle.Success);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setNotification({
               message: "Prayer intention deleted successfully",
               type: "success",
@@ -1392,11 +1905,25 @@ export default function RosaryIntentions() {
 
     if (filteredIntentions.length === 0) {
       return (
-        <EmptyState
-          filterType={filterType}
-          activeTab={activeTab}
-          onAddIntention={() => setShowAddModal(true)}
-        />
+        <ScrollView
+          contentContainerStyle={styles.emptyStateContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.primary, theme.secondary]}
+              tintColor={theme.primary}
+              title="Pull to refresh"
+              titleColor={theme.textSecondary}
+            />
+          }
+        >
+          <EmptyState
+            filterType={filterType}
+            activeTab={activeTab}
+            onAddIntention={() => setShowAddModal(true)}
+          />
+        </ScrollView>
       );
     }
 
@@ -1416,11 +1943,22 @@ export default function RosaryIntentions() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={<View style={{ height: 100 }} />}
+        // Add pull-to-refresh functionality
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.primary, theme.secondary]}
+            tintColor={theme.primary}
+            title="Pull to refresh"
+            titleColor={theme.textSecondary}
+          />
+        }
       />
     );
   };
 
-  // ***** THE ONLY CHANGE: Filter drawer now lists all types (including "goal") *****
+  // Filter drawer
   const renderFilterDrawer = () => {
     const translateX = filterDrawerAnim.interpolate({
       inputRange: [0, 1],
@@ -2090,6 +2628,8 @@ export default function RosaryIntentions() {
 
       {/* Main UI Components */}
       {renderHeader()}
+      {/* Refresh Feedback Overlay */}
+      <RefreshFeedback visible={refreshing} />
       {renderMainContent()}
       {renderAddButton()}
       {renderFilterDrawer()}
@@ -2182,6 +2722,8 @@ const styles = StyleSheet.create({
     height: 30,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
+
+  // Search bar
 
   // Search bar
   searchBarContainer: {

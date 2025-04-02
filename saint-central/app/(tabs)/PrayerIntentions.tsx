@@ -16,7 +16,6 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   StatusBar,
-
   Easing,
   Dimensions
 } from "react-native";
@@ -303,11 +302,124 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Animation refs
   const intentionFavoriteScale = useRef(new Animated.Value(1)).current;
   const modalSlideUp = useRef(new Animated.Value(100)).current;
+  
+  // Reference to store the Supabase subscription
+  const supabaseSubscription = useRef<any>(null);
 
-  // Load intentions on component mount
+  // Load intentions on component mount and setup real-time subscription
   useEffect(() => {
     loadIntentions();
+    setupRealtimeSubscription();
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      if (supabaseSubscription.current) {
+        supabase.channel('intentions-changes').unsubscribe();
+      }
+    };
   }, []);
+
+  // Setup real-time subscription to listen for changes to the intentions table
+  const setupRealtimeSubscription = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.log("User not logged in, skipping real-time subscription");
+        return;
+      }
+
+      // Subscribe to all changes to the intentions table
+      supabaseSubscription.current = supabase
+        .channel('intentions-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'intentions',
+          },
+          (payload) => {
+            console.log('Intentions change received:', payload);
+            
+            // Handle different types of changes
+            if (payload.eventType === 'INSERT') {
+              handleNewIntention(payload.new);
+            } else if (payload.eventType === 'UPDATE') {
+              handleUpdatedIntention(payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              handleDeletedIntention(payload.old);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to intentions table');
+          }
+        });
+      
+      console.log('Set up real-time subscription:', supabaseSubscription.current);
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+    }
+  };
+
+  // Handle a new intention being inserted
+  const handleNewIntention = async (newIntention: any) => {
+    // Convert the created_at string to a Date object
+    const formattedIntention: PrayerIntention = {
+      ...newIntention,
+      created_at: new Date(newIntention.created_at),
+    };
+
+    // Check if this intention is already in our state
+    const exists = intentions.some((i) => i.id === formattedIntention.id);
+    if (!exists) {
+      setIntentions((prev) => [formattedIntention, ...prev]);
+      
+      // Provide subtle feedback if the intention was created by someone else
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (formattedIntention.user_id !== sessionData?.session?.user?.id) {
+        showFeedback("New intention added");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      
+      // Update AsyncStorage
+      saveIntentionsToStorage([formattedIntention, ...intentions]);
+    }
+  };
+
+  // Handle an intention being updated
+  const handleUpdatedIntention = (updatedIntention: any) => {
+    // Convert the created_at string to a Date object
+    const formattedIntention: PrayerIntention = {
+      ...updatedIntention,
+      created_at: new Date(updatedIntention.created_at),
+    };
+
+    // Update the intention in our state
+    setIntentions((prev) =>
+      prev.map((i) => (i.id === formattedIntention.id ? formattedIntention : i))
+    );
+
+    // Update AsyncStorage
+    const updatedIntentions = intentions.map((i) => 
+      (i.id === formattedIntention.id ? formattedIntention : i)
+    );
+    saveIntentionsToStorage(updatedIntentions);
+  };
+
+  // Handle an intention being deleted
+  const handleDeletedIntention = (deletedIntention: any) => {
+    // Remove the intention from our state
+    setIntentions((prev) => prev.filter((i) => i.id !== deletedIntention.id));
+
+    // Update AsyncStorage
+    const updatedIntentions = intentions.filter((i) => i.id !== deletedIntention.id);
+    saveIntentionsToStorage(updatedIntentions);
+  };
 
   // Get color for intention type
   const getIntentionColor = (type: IntentionType): string => {
@@ -674,8 +786,6 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       showFeedback("Failed to delete intention");
     }
   };
-
-  // Removed shareIntentions function
 
   // Get filtered and sorted intentions
   const getFilteredIntentions = useCallback(() => {
@@ -1577,8 +1687,6 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             onRefresh={handleRefresh}
           />
         )}
-
-        {/* Filter button moved to header */}
 
         {/* New Add Prayer Button */}
         <AddPrayerButton 
