@@ -141,6 +141,10 @@ function EventsComponent() {
   // Animation for calendar days
   const dayAnimations = useRef<{[key: string]: Animated.Value}>({}).current;
   
+  // New state variables
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState("");
+  
   // Generate calendar data
   const generateCalendarData = (date: Date, eventsData: Event[]) => {
     const year = date.getFullYear();
@@ -685,33 +689,46 @@ function EventsComponent() {
     return { icon: "calendar", color: THEME.accent1 };
   };
 
+  const openImageViewer = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+    setShowImageModal(true);
+  };
+
   const renderEventCard = (event: Event, isDetail: boolean = false) => {
     const { icon, color } = getEventIconAndColor(event);
     const hasImage = event.image_url && event.image_url.trim().length > 0;
+    
     return (
-      <View key={event.id} style={styles.eventCard}>
+      <View key={event.id} style={[
+        styles.eventCard,
+        { height: 140 }
+      ]}>
         {hasImage ? (
-          <View style={styles.eventImageContainer}>
+          <TouchableOpacity 
+            style={styles.eventImageContainer} 
+            onPress={() => openImageViewer(event.image_url)}
+            activeOpacity={0.9}
+          >
             <Image source={{ uri: event.image_url }} style={styles.eventImage} resizeMode="cover" />
             <View style={[styles.eventIconOverlay, { backgroundColor: color }]}>
               <Feather name={icon} size={18} color={THEME.primary} />
             </View>
-          </View>
+          </TouchableOpacity>
         ) : (
           <View style={[styles.eventIconContainer, { backgroundColor: color }]}>
             <Feather name={icon} size={28} color={THEME.primary} />
           </View>
         )}
         <View style={styles.eventContent}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
+          <Text style={styles.eventTitle} numberOfLines={1} ellipsizeMode="tail">{event.title}</Text>
           <View style={styles.eventTimeLocationContainer}>
-            <Text style={styles.eventDateTime}>
+            <Text style={styles.eventDateTime} numberOfLines={1}>
               {formatEventDay(event.time)}, {formatEventMonth(event.time)} {formatEventDate(event.time)}  {formatEventTime(event.time)}
             </Text>
-            <Text style={styles.eventLocation}>{event.author_name || "Community Church"}</Text>
+            <Text style={styles.eventLocation} numberOfLines={1} ellipsizeMode="tail">{event.author_name || "Community Church"}</Text>
           </View>
           {event.excerpt && (
-            <Text style={styles.eventDescription} numberOfLines={2}>
+            <Text style={styles.eventDescription} numberOfLines={2} ellipsizeMode="tail">
               {event.excerpt}
             </Text>
           )}
@@ -1539,6 +1556,29 @@ function EventsComponent() {
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Full Image Viewer Modal */}
+        <Modal
+          visible={showImageModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowImageModal(false)}
+        >
+          <View style={styles.imageViewerContainer}>
+            <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
+            <TouchableOpacity 
+              style={styles.imageViewerCloseButton}
+              onPress={() => setShowImageModal(false)}
+            >
+              <AntDesign name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Image 
+              source={{ uri: selectedImage }} 
+              style={styles.fullImage} 
+              resizeMode="contain" 
+            />
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -1651,7 +1691,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 60,
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: 6,
     borderRadius: 10,
   },
   calendarDayOtherMonth: {
@@ -1691,20 +1731,22 @@ const styles = StyleSheet.create({
   },
   eventIndicatorContainer: {
     flexDirection: 'row',
-    marginTop: 5,
+    marginTop: 4,
     justifyContent: 'center',
+    maxWidth: 32,
+    flexWrap: 'wrap',
   },
   eventIndicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginHorizontal: 1,
+    margin: 1,
   },
   multipleEventsIndicator: {
     backgroundColor: THEME.buttonPrimary,
     borderRadius: 10,
     paddingHorizontal: 5,
-    paddingVertical: 2,
+    paddingVertical: 1,
   },
   multipleEventsText: {
     color: THEME.buttonText,
@@ -1774,6 +1816,8 @@ const styles = StyleSheet.create({
   eventIconContainer: {
     width: 90,
     height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -1819,32 +1863,32 @@ const styles = StyleSheet.create({
   },
   eventContent: {
     flex: 1,
-    padding: 16,
-    paddingLeft: 15,
-    justifyContent: 'center',
+    padding: 12,
+    justifyContent: 'space-between',
   },
   eventTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: THEME.primary,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   eventTimeLocationContainer: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   eventDateTime: {
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.secondary,
     marginBottom: 2,
   },
   eventLocation: {
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.secondary,
   },
   eventDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.light,
-    marginBottom: 12,
+    marginBottom: 8,
+    lineHeight: 18,
   },
   eventActions: {
     flexDirection: 'row',
@@ -2270,5 +2314,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: THEME.buttonText,
+  },
+  // Image Viewer Modal Styles
+  imageViewerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.9)',
+  },
+  imageViewerCloseButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  fullImage: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height * 0.8,
   },
 });
