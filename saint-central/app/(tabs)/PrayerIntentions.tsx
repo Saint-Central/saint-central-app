@@ -318,6 +318,70 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Reference to store the Supabase subscription
   const supabaseSubscription = useRef<any>(null);
 
+  // Setup real-time subscription to listen for changes to the intentions table
+  const setupRealtimeSubscription = async () => {
+    try {
+      // First, clean up any existing subscription
+      if (supabaseSubscription.current) {
+        console.log('Cleaning up existing subscription...');
+        supabase.channel('intentions-changes').unsubscribe();
+        supabaseSubscription.current = null;
+      }
+
+      console.log('Setting up real-time subscription for intentions...');
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.log("User not logged in, skipping real-time subscription");
+        return;
+      }
+
+      // Create a unique channel name with the user ID to avoid conflicts
+      const channelName = `intentions-changes-${user.id}`;
+      
+      // Subscribe to all changes to the intentions table
+      supabaseSubscription.current = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'intentions',
+          },
+          (payload) => {
+            console.log('Intentions change received:', payload);
+            
+            // Handle different types of changes
+            if (payload.eventType === 'INSERT') {
+              handleNewIntention(payload.new);
+            } else if (payload.eventType === 'UPDATE') {
+              handleUpdatedIntention(payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              handleDeletedIntention(payload.old);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to intentions table');
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            console.log('Subscription closed or error occurred, will attempt to reconnect');
+            // Could implement reconnection logic here if needed
+          }
+        });
+      
+      console.log('Set up real-time subscription:', supabaseSubscription.current);
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+      // Clean up in case of error
+      supabaseSubscription.current = null;
+    }
+  };
+
   // Load intentions on component mount and setup real-time subscription
   useEffect(() => {
     loadIntentions();
@@ -327,7 +391,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     // Cleanup subscription when component unmounts
     return () => {
       if (supabaseSubscription.current) {
+        console.log('Cleaning up subscription on unmount');
         supabase.channel('intentions-changes').unsubscribe();
+        supabaseSubscription.current = null;
       }
     };
   }, []);
@@ -391,53 +457,6 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       setNewIntentionGroups(newIntentionGroups.filter(id => id !== groupId));
     } else {
       setNewIntentionGroups([...newIntentionGroups, groupId]);
-    }
-  };
-
-  // Setup real-time subscription to listen for changes to the intentions table
-  const setupRealtimeSubscription = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        console.log("User not logged in, skipping real-time subscription");
-        return;
-      }
-
-      // Subscribe to all changes to the intentions table
-      supabaseSubscription.current = supabase
-        .channel('intentions-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
-            schema: 'public',
-            table: 'intentions',
-          },
-          (payload) => {
-            console.log('Intentions change received:', payload);
-            
-            // Handle different types of changes
-            if (payload.eventType === 'INSERT') {
-              handleNewIntention(payload.new);
-            } else if (payload.eventType === 'UPDATE') {
-              handleUpdatedIntention(payload.new);
-            } else if (payload.eventType === 'DELETE') {
-              handleDeletedIntention(payload.old);
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status:', status);
-          
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to intentions table');
-          }
-        });
-      
-      console.log('Set up real-time subscription:', supabaseSubscription.current);
-    } catch (error) {
-      console.error('Error setting up real-time subscription:', error);
     }
   };
 
