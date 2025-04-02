@@ -1,5 +1,5 @@
 // PrayerIntentions.tsx
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,13 +11,22 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  ToastAndroid,
   Animated,
   ScrollView,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  StatusBar,
+  Share,
+  Easing,
+  Dimensions
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import Toast from "react-native-toast-message";
+import { useNavigation } from "@react-navigation/native";
+import * as Haptics from "expo-haptics";
 
 // Interfaces
 export interface PrayerIntention {
@@ -35,8 +44,8 @@ export interface PrayerIntention {
 
 export type IntentionType =
   | "prayer"
-  | "resolution"
   | "goal"
+  | "resolution"
   | "spiritual"
   | "family"
   | "health"
@@ -56,12 +65,12 @@ export type IntentionsTabView = "all" | "active" | "completed";
 export type IntentionsSorting = "newest" | "oldest" | "alphabetical";
 export type IntentionsFilter = IntentionType | "all";
 
-// Type for theme and font size props from the parent component
+// Props interface
 interface IntentionsProps {
-  themeStyles: any;
-  fontSizeStyles: any;
-  readingTheme: "paper" | "sepia" | "night";
-  showFeedback: (message: string) => void;
+  themeStyles?: any;
+  fontSizeStyles?: any;
+  readingTheme?: "paper" | "sepia" | "night";
+  showFeedback?: (message: string) => void;
 }
 
 // Intention type icons
@@ -69,7 +78,7 @@ const intentionTypeIcons: { [key in IntentionType]: string } = {
   prayer: "user",
   resolution: "check-square",
   goal: "target",
-  spiritual: "church",
+  spiritual: "heart",
   family: "users",
   health: "heart",
   work: "briefcase",
@@ -79,12 +88,195 @@ const intentionTypeIcons: { [key in IntentionType]: string } = {
   other: "more-horizontal",
 };
 
+// SVG components for the prayer-inspired design
+const PrayerButtonSVG = () => (
+  <View style={addButtonStyles.svgContainer}>
+    <View style={addButtonStyles.circle1} />
+    <View style={addButtonStyles.circle2} />
+    <View style={addButtonStyles.droplet} />
+    <View style={addButtonStyles.dot1} />
+    <View style={addButtonStyles.dot2} />
+    <View style={addButtonStyles.dot3} />
+  </View>
+);
+
+// Add Prayer Button Component
+const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' | 'sepia' }> = ({ onPress, theme = 'light' }) => {
+  // Animation values
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const textOpacityAnim = useRef(new Animated.Value(0)).current;
+  
+  // Define colors based on theme
+  const colors = {
+    light: {
+      primary: '#6A478F',
+      secondary: '#8860B2',
+      highlight: '#A578D5',
+      background: '#FFFFFF',
+      text: '#FFFFFF',
+    },
+    dark: {
+      primary: '#9C64A6',
+      secondary: '#7A4A8C',
+      highlight: '#BF89CE',
+      background: '#2D2D2D',
+      text: '#FFFFFF',
+    },
+    sepia: {
+      primary: '#7A503E',
+      secondary: '#A46E58',
+      highlight: '#C5917C',
+      background: '#F8F0E3',
+      text: '#F8F0E3',
+    }
+  };
+  
+  const themeColors = colors[theme as 'light' | 'dark' | 'sepia'];
+
+  // Start animations when component mounts
+  useEffect(() => {
+    // Entrance animation
+    Animated.timing(opacityAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.cubic)
+    }).start();
+    
+    // Delayed text appearance
+    Animated.timing(textOpacityAnim, {
+      toValue: 1,
+      duration: 300,
+      delay: 400,
+      useNativeDriver: true,
+    }).start();
+
+    // Infinite floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: -6,
+          duration: 1500,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.sin),
+        }),
+      ])
+    ).start();
+
+    // Subtle pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 2000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Handle button press with appropriate feedback
+  const handlePress = () => {
+    // Provide haptic feedback based on device capabilities
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    // Visual feedback animation
+    Animated.sequence([
+      Animated.timing(pulseAnim, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1.2,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Call the provided callback
+    if (onPress) {
+      onPress();
+    }
+  };
+
+  return (
+    <Animated.View 
+      style={[
+        addButtonStyles.container,
+        {
+          opacity: opacityAnim,
+          transform: [
+            { translateY: floatAnim },
+            { scale: pulseAnim }
+          ]
+        }
+      ]}
+    >
+      {/* Text label that appears above button */}
+      <Animated.View 
+        style={[
+          addButtonStyles.labelContainer,
+          { 
+            backgroundColor: themeColors.primary,
+            opacity: textOpacityAnim,
+          }
+        ]}
+      >
+        <Text style={addButtonStyles.labelText}>Add Prayer</Text>
+      </Animated.View>
+
+      {/* Main button */}
+      <TouchableOpacity
+        style={[addButtonStyles.button, { backgroundColor: themeColors.primary }]}
+        onPress={handlePress}
+        activeOpacity={0.85}
+      >
+        {/* Background decorative elements */}
+        <PrayerButtonSVG />
+        
+        {/* Center plus icon */}
+        <View style={addButtonStyles.iconContainer}>
+          <Feather name="plus" size={28} color={themeColors.text} />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const PrayerIntentions: React.FC<IntentionsProps> = ({
-  themeStyles,
-  fontSizeStyles,
-  readingTheme,
-  showFeedback,
+  themeStyles = defaultThemes.light,
+  fontSizeStyles = defaultFontSizes.medium,
+  readingTheme = "paper",
+  showFeedback = (message) => Toast.show({ type: "success", text1: message }),
 }) => {
+  // Navigation
+  const navigation = useNavigation();
+  
   // State management
   const [intentions, setIntentions] = useState<PrayerIntention[]>([]);
   const [intentionsLoading, setIntentionsLoading] = useState<boolean>(true);
@@ -92,8 +284,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [showNewIntentionModal, setShowNewIntentionModal] = useState<boolean>(false);
   const [showIntentionFilterModal, setShowIntentionFilterModal] = useState<boolean>(false);
   const [offlineMode, setOfflineMode] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // New intention form state
+  // New intention form state - all in one form now
   const [newIntentionTitle, setNewIntentionTitle] = useState<string>("");
   const [newIntentionDescription, setNewIntentionDescription] = useState<string>("");
   const [newIntentionType, setNewIntentionType] = useState<IntentionType>("prayer");
@@ -101,6 +294,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionGroups, setNewIntentionGroups] = useState<string[]>([]);
   const [newIntentionComplete, setNewIntentionComplete] = useState<boolean>(false);
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Intention filtering and sorting state
   const [intentionFilter, setIntentionFilter] = useState<IntentionsFilter>("all");
@@ -108,6 +302,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Animation refs
   const intentionFavoriteScale = useRef(new Animated.Value(1)).current;
+  const modalSlideUp = useRef(new Animated.Value(100)).current;
 
   // Load intentions on component mount
   useEffect(() => {
@@ -177,7 +372,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         return;
       }
 
-      // Get intentions where user is the owner or where shared with user
+      // Get intentions where user is the owner or shared with them
       const { data, error } = await supabase
         .from("intentions")
         .select("*")
@@ -213,7 +408,14 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       setOfflineMode(true);
     } finally {
       setIntentionsLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  // Refresh intentions list
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadIntentions();
   };
 
   // Load intentions from AsyncStorage (offline fallback)
@@ -246,10 +448,15 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Add new prayer intention
   const addIntention = async () => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
+      
       // Validate form
       if (!newIntentionTitle.trim()) {
         showFeedback("Please enter a title for your prayer intention");
+        setIsSubmitting(false);
         return;
       }
 
@@ -263,18 +470,24 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         showFeedback("You're in offline mode. This will be saved locally.");
       }
 
-      // Create new intention object
-      const newIntention: PrayerIntention = {
-        id: Math.random().toString(36).substr(2, 9), // Temporary ID
+      // Prepare data for Supabase
+      const intentionData = {
         user_id: user?.id || "offline-user",
         title: newIntentionTitle,
         description: newIntentionDescription,
         type: newIntentionType,
-        created_at: new Date(),
+        created_at: new Date().toISOString(),
         visibility: newIntentionVisibility,
         selected_groups: newIntentionGroups,
         completed: newIntentionComplete,
         favorite: newIntentionFavorite,
+      };
+
+      // Create new intention object for local state
+      const newIntention: PrayerIntention = {
+        ...intentionData,
+        id: Math.random().toString(36).substr(2, 9), // Temporary ID
+        created_at: new Date(),
       };
 
       // Add to state immediately for UI responsiveness
@@ -285,17 +498,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       if (!offlineMode && user) {
         const { data, error } = await supabase
           .from("intentions")
-          .insert([{
-            user_id: user.id,
-            title: newIntentionTitle,
-            description: newIntentionDescription,
-            type: newIntentionType,
-            created_at: new Date().toISOString(),
-            visibility: newIntentionVisibility,
-            selected_groups: newIntentionGroups,
-            completed: newIntentionComplete,
-            favorite: newIntentionFavorite,
-          }])
+          .insert([intentionData])
           .select();
 
         if (error) throw error;
@@ -319,6 +522,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       // Save to AsyncStorage as backup
       await saveIntentionsToStorage(updatedIntentions);
 
+      // Provide haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
       // Reset form and close modal
       resetIntentionForm();
       setShowNewIntentionModal(false);
@@ -326,6 +532,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     } catch (error) {
       console.error("Error adding intention:", error);
       showFeedback("Failed to add prayer intention");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -338,6 +547,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     setNewIntentionGroups([]);
     setNewIntentionComplete(false);
     setNewIntentionFavorite(false);
+    setIsSubmitting(false);
   };
 
   // Toggle intention completed status
@@ -347,14 +557,15 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       const intention = intentions.find((i) => i.id === id);
       if (!intention) return;
 
-      // Update state first
+      // Update state first for responsive UI
       const updatedIntentions = intentions.map((i) => 
         i.id === id ? { ...i, completed: !i.completed } : i
       );
       setIntentions(updatedIntentions);
 
-      // Show animation
+      // Show animation and haptic feedback
       animateIntentionFavorite();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       if (offlineMode) {
         // Save to AsyncStorage
@@ -391,8 +602,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       );
       setIntentions(updatedIntentions);
 
-      // Show animation
+      // Show animation and haptic feedback
       animateIntentionFavorite();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       if (offlineMode) {
         // Save to AsyncStorage
@@ -433,6 +645,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               const updatedIntentions = intentions.filter((i) => i.id !== id);
               setIntentions(updatedIntentions);
 
+              // Haptic feedback
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
               if (offlineMode) {
                 // Save to AsyncStorage
                 await saveIntentionsToStorage(updatedIntentions);
@@ -457,6 +672,43 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     } catch (error) {
       console.error("Error deleting intention:", error);
       showFeedback("Failed to delete intention");
+    }
+  };
+
+  // Share intentions function
+  const shareIntentions = async () => {
+    try {
+      // Get filtered intentions based on current view
+      const filteredIntentions = getFilteredIntentions();
+      
+      // Create a formatted text of intentions to share
+      let intentionsText = "My Prayer Intentions\n\n";
+      
+      // Add each intention to the text
+      filteredIntentions.forEach((intention, index) => {
+        intentionsText += `${index + 1}. ${intention.title}`;
+        if (intention.description) {
+          intentionsText += ` - ${intention.description}`;
+        }
+        intentionsText += `\nType: ${intention.type}\nStatus: ${intention.completed ? "Completed" : "Active"}\n\n`;
+      });
+      
+      // Add a message at the end
+      intentionsText += "Shared from my Prayer Intentions App";
+      
+      // Show share dialog
+      await Share.share({
+        message: intentionsText,
+        title: "My Prayer Intentions",
+      });
+      
+      // Haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+    } catch (error) {
+      console.error("Error sharing intentions:", error);
+      showFeedback("Failed to share intentions");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
@@ -505,76 +757,429 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     ]).start();
   };
 
-  // Render New Intention Modal
+  // Animation for modal open
+  const animateModalOpen = () => {
+    Animated.timing(modalSlideUp, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Open the new intention modal
+  const openNewIntentionModal = () => {
+    setShowNewIntentionModal(true);
+    modalSlideUp.setValue(100);
+    animateModalOpen();
+  };
+
+  // Open the filter modal
+  const openFilterModal = () => {
+    setShowIntentionFilterModal(true);
+    modalSlideUp.setValue(100);
+    animateModalOpen();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // Render New Intention Modal - All in one page now
   const renderNewIntentionModal = () => (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={showNewIntentionModal}
-      onRequestClose={() => setShowNewIntentionModal(false)}
+      onRequestClose={() => {
+        setShowNewIntentionModal(false);
+        resetIntentionForm();
+      }}
     >
-      <View 
-        style={[
-          styles.intentionModalContainer,
-          {
-            backgroundColor: themeStyles.backgroundColor,
-          },
-        ]}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <View 
+        <View style={styles.modalOverlay}>
+          <Animated.View 
+            style={[
+              styles.intentionModalContainer,
+              {
+                backgroundColor: themeStyles.backgroundColor,
+                transform: [{ translateY: modalSlideUp }]
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['#6A478F', '#8860B2']}
+              style={styles.intentionModalHeader}
+            >
+              <Text style={styles.intentionModalTitle}>
+                New Prayer Intention
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  setShowNewIntentionModal(false);
+                  resetIntentionForm();
+                }}
+              >
+                <Feather name="x" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </LinearGradient>
+            
+            <ScrollView 
+              style={styles.intentionModalContent}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {/* Type Selection */}
+              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>
+                Type
+              </Text>
+              <View style={styles.typeGrid}>
+                {(["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"] as IntentionType[]).map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.typeOption,
+                      newIntentionType === type && [
+                        styles.activeTypeOption,
+                        { 
+                          backgroundColor: `${getIntentionColor(type)}20`,
+                          borderColor: getIntentionColor(type),
+                        },
+                      ],
+                      {
+                        backgroundColor: themeStyles.cardColor,
+                        borderColor: themeStyles.borderColor,
+                      }
+                    ]}
+                    onPress={() => setNewIntentionType(type)}
+                  >
+                    <View
+                      style={[
+                        styles.typeIconContainer,
+                        {
+                          backgroundColor: `${getIntentionColor(type)}20`,
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={intentionTypeIcons[type] as keyof typeof Feather.glyphMap}
+                        size={20}
+                        color={getIntentionColor(type)}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.typeText,
+                        {
+                          color: newIntentionType === type
+                            ? getIntentionColor(type)
+                            : themeStyles.textColor,
+                        },
+                      ]}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Title and Description */}
+              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                Title <Text style={{ color: "#E91E63" }}>*</Text>
+              </Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  {
+                    color: themeStyles.textColor,
+                    backgroundColor: themeStyles.cardColor,
+                    borderColor: themeStyles.borderColor,
+                  },
+                ]}
+                placeholder="What is your prayer intention?"
+                placeholderTextColor={readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
+                value={newIntentionTitle}
+                onChangeText={setNewIntentionTitle}
+              />
+
+              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                Description <Text style={{ color: themeStyles.textColor, opacity: 0.5 }}>(optional)</Text>
+              </Text>
+              <TextInput
+                style={[
+                  styles.formTextArea,
+                  {
+                    color: themeStyles.textColor,
+                    backgroundColor: themeStyles.cardColor,
+                    borderColor: themeStyles.borderColor,
+                  },
+                ]}
+                placeholder="Add details about your intention..."
+                placeholderTextColor={readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
+                value={newIntentionDescription}
+                onChangeText={setNewIntentionDescription}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+
+              {/* Visibility Options */}
+              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                Visibility
+              </Text>
+              <View style={styles.visibilityContainer}>
+                {(["Just Me", "Friends", "Friends & Groups", "Certain Groups"] as IntentionVisibility[]).map((visibility) => (
+                  <TouchableOpacity
+                    key={visibility}
+                    style={[
+                      styles.visibilityOption,
+                      newIntentionVisibility === visibility && [
+                        styles.activeVisibilityOption,
+                        {
+                          borderColor: themeStyles.accentColor,
+                          backgroundColor: `${themeStyles.accentColor}15`,
+                        },
+                      ],
+                      {
+                        backgroundColor: themeStyles.cardColor,
+                        borderColor: themeStyles.borderColor,
+                      }
+                    ]}
+                    onPress={() => setNewIntentionVisibility(visibility)}
+                  >
+                    <View
+                      style={[
+                        styles.visibilityIconContainer,
+                        {
+                          backgroundColor: newIntentionVisibility === visibility
+                            ? `${themeStyles.accentColor}20`
+                            : themeStyles.cardColor,
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={
+                          visibility === "Just Me" ? "lock" :
+                          visibility === "Friends" ? "users" :
+                          visibility === "Friends & Groups" ? "globe" :
+                          "users"
+                        }
+                        size={20}
+                        color={newIntentionVisibility === visibility ? themeStyles.accentColor : themeStyles.textColor}
+                      />
+                    </View>
+                    <View style={styles.visibilityTextContainer}>
+                      <Text
+                        style={[
+                          styles.visibilityTitle,
+                          {
+                            color: newIntentionVisibility === visibility
+                              ? themeStyles.accentColor
+                              : themeStyles.textColor,
+                            fontWeight: newIntentionVisibility === visibility ? "600" : "400",
+                          },
+                        ]}
+                      >
+                        {visibility}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.visibilityDescription,
+                          {
+                            color: themeStyles.textColor,
+                            opacity: 0.7,
+                          },
+                        ]}
+                      >
+                        {visibility === "Just Me" && "Only visible to you"}
+                        {visibility === "Friends" && "Share with your friends"}
+                        {visibility === "Friends & Groups" && "Share with friends and all your groups"}
+                        {visibility === "Certain Groups" && "Select specific groups to share with"}
+                      </Text>
+                    </View>
+                    {newIntentionVisibility === visibility && (
+                      <View
+                        style={[
+                          styles.selectedVisibilityMark,
+                          {
+                            backgroundColor: themeStyles.accentColor,
+                          },
+                        ]}
+                      >
+                        <Feather name="check" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Additional Options */}
+              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                Additional Options
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.optionRow,
+                  {
+                    borderBottomColor: themeStyles.borderColor,
+                    borderBottomWidth: 1,
+                  },
+                ]}
+                onPress={() => setNewIntentionFavorite(!newIntentionFavorite)}
+              >
+                <Text style={[styles.optionText, { color: themeStyles.textColor }]}>
+                  Mark as favorite
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setNewIntentionFavorite(!newIntentionFavorite)}
+                  style={styles.favoriteCheckbox}
+                >
+                  <Feather 
+                    name="heart"
+                    size={24} 
+                    color={newIntentionFavorite ? themeStyles.favoriteColor : themeStyles.borderColor} 
+                    solid={newIntentionFavorite}
+                  />
+                </TouchableOpacity>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionRow}
+                onPress={() => setNewIntentionComplete(!newIntentionComplete)}
+              >
+                <Text style={[styles.optionText, { color: themeStyles.textColor }]}>
+                  Mark as completed
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setNewIntentionComplete(!newIntentionComplete)}
+                  style={styles.completeCheckbox}
+                >
+                  <Feather 
+                    name={newIntentionComplete ? "check-circle" : "circle"}
+                    size={24} 
+                    color={newIntentionComplete ? themeStyles.accentColor : themeStyles.borderColor} 
+                  />
+                </TouchableOpacity>
+              </TouchableOpacity>
+
+              {/* Submit Button */}
+              <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.cancelButton,
+                    {
+                      borderColor: themeStyles.borderColor,
+                    },
+                  ]}
+                  onPress={() => {
+                    setShowNewIntentionModal(false);
+                    resetIntentionForm();
+                  }}
+                >
+                  <Text style={{ color: themeStyles.textColor }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.createButton,
+                    {
+                      backgroundColor: themeStyles.accentColor,
+                      opacity: (newIntentionTitle.trim() && !isSubmitting) ? 1 : 0.7,
+                    },
+                  ]}
+                  onPress={addIntention}
+                  disabled={!newIntentionTitle.trim() || isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Create Intention</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  // Render Filter Modal
+  const renderFilterModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={showIntentionFilterModal}
+      onRequestClose={() => setShowIntentionFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <Animated.View 
           style={[
-            styles.intentionModalHeader,
+            styles.intentionModalContainer,
             {
-              backgroundColor: themeStyles.headerColor,
-              borderBottomColor: themeStyles.borderColor,
+              backgroundColor: themeStyles.backgroundColor,
+              transform: [{ translateY: modalSlideUp }]
             },
           ]}
         >
-          <Text 
-            style={[
-              styles.intentionModalTitle,
-              { color: themeStyles.textColor },
-            ]}
+          <LinearGradient
+            colors={['#6A478F', '#8860B2']}
+            style={styles.intentionModalHeader}
           >
-            New Prayer Intention
-          </Text>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowNewIntentionModal(false)}
-          >
-            <Feather name="x" size={24} color={themeStyles.textColor} />
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView style={styles.intentionModalContent}>
-          {/* Intention Type Selection */}
-          <View style={styles.formSection}>
-            <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>
-              Type
+            <Text style={styles.intentionModalTitle}>
+              Filters & Sorting
             </Text>
-            <View style={styles.typeGrid}>
-              {(["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"] as IntentionType[]).map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeOption,
-                    newIntentionType === type && [
-                      styles.activeTypeOption,
-                      { 
-                        backgroundColor: `${getIntentionColor(type)}20`,
-                        borderColor: getIntentionColor(type),
-                      },
-                    ],
-                    {
-                      backgroundColor: themeStyles.cardColor,
-                      borderColor: themeStyles.borderColor,
-                    }
-                  ]}
-                  onPress={() => setNewIntentionType(type)}
-                >
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowIntentionFilterModal(false)}
+            >
+              <Feather name="x" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </LinearGradient>
+          
+          <ScrollView style={styles.intentionModalContent}>
+            <Text style={[styles.filterSectionTitle, { color: themeStyles.textColor }]}>
+              Filter by Type
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.filterOptionAll,
+                intentionFilter === "all" && {
+                  borderColor: themeStyles.accentColor,
+                  backgroundColor: `${themeStyles.accentColor}10`,
+                },
+                {
+                  backgroundColor: themeStyles.cardColor,
+                },
+              ]}
+              onPress={() => setIntentionFilter("all")}
+            >
+              <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>
+                All
+              </Text>
+              {intentionFilter === "all" && (
+                <Feather name="check" size={20} color={themeStyles.accentColor} />
+              )}
+            </TouchableOpacity>
+
+            {(["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"] as IntentionType[]).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.filterOption,
+                  intentionFilter === type && {
+                    borderColor: getIntentionColor(type),
+                    backgroundColor: `${getIntentionColor(type)}10`,
+                  },
+                  {
+                    backgroundColor: themeStyles.cardColor,
+                  },
+                ]}
+                onPress={() => setIntentionFilter(type)}
+              >
+                <View style={styles.filterOptionContent}>
                   <View
                     style={[
-                      styles.typeIconContainer,
+                      styles.filterIconContainer,
                       {
                         backgroundColor: `${getIntentionColor(type)}20`,
                       },
@@ -586,925 +1191,646 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       color={getIntentionColor(type)}
                     />
                   </View>
-                  <Text
-                    style={[
-                      styles.typeText,
-                      {
-                        color: newIntentionType === type
-                          ? getIntentionColor(type)
-                          : themeStyles.textColor,
-                      },
-                    ]}
-                  >
+                  <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Title and Description */}
-          <View style={styles.formSection}>
-            <Text style={[styles.formLabel, { color: themeStyles.textColor }]}>
-              Title <Text style={{ color: "#E91E63" }}>*</Text>
-            </Text>
-            <TextInput
-              style={[
-                styles.formInput,
-                {
-                  color: themeStyles.textColor,
-                  backgroundColor: themeStyles.cardColor,
-                  borderColor: themeStyles.borderColor,
-                },
-              ]}
-              placeholder="What is your prayer intention?"
-              placeholderTextColor={readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
-              value={newIntentionTitle}
-              onChangeText={setNewIntentionTitle}
-            />
-
-            <Text style={[styles.formLabel, { color: themeStyles.textColor, marginTop: 16 }]}>
-              Description <Text style={{ color: themeStyles.textColor, opacity: 0.5 }}>(optional)</Text>
-            </Text>
-            <TextInput
-              style={[
-                styles.formTextArea,
-                {
-                  color: themeStyles.textColor,
-                  backgroundColor: themeStyles.cardColor,
-                  borderColor: themeStyles.borderColor,
-                },
-              ]}
-              placeholder="Add details about your intention..."
-              placeholderTextColor={readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
-              value={newIntentionDescription}
-              onChangeText={setNewIntentionDescription}
-              multiline
-              numberOfLines={4}
-            />
-          </View>
-
-          {/* Visibility */}
-          <View style={styles.formSection}>
-            <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>
-              Visibility
-            </Text>
-            {(["Just Me", "Friends", "Friends & Groups", "Certain Groups"] as IntentionVisibility[]).map((visibility) => (
-              <TouchableOpacity
-                key={visibility}
-                style={[
-                  styles.visibilityOption,
-                  newIntentionVisibility === visibility && [
-                    styles.activeVisibilityOption,
-                    {
-                      borderColor: themeStyles.accentColor,
-                      backgroundColor: `${themeStyles.accentColor}15`,
-                    },
-                  ],
-                  {
-                    backgroundColor: themeStyles.cardColor,
-                    borderColor: themeStyles.borderColor,
-                  }
-                ]}
-                onPress={() => setNewIntentionVisibility(visibility)}
-              >
-                <View
-                  style={[
-                    styles.visibilityIconContainer,
-                    {
-                      backgroundColor: newIntentionVisibility === visibility
-                        ? `${themeStyles.accentColor}20`
-                        : themeStyles.cardColor,
-                    },
-                  ]}
-                >
-                  <Feather
-                    name={
-                      visibility === "Just Me" ? "lock" :
-                      visibility === "Friends" ? "users" :
-                      visibility === "Friends & Groups" ? "globe" :
-                      "users"
-                    }
-                    size={20}
-                    color={newIntentionVisibility === visibility ? themeStyles.accentColor : themeStyles.textColor}
-                  />
                 </View>
-                <View style={styles.visibilityTextContainer}>
-                  <Text
-                    style={[
-                      styles.visibilityTitle,
-                      {
-                        color: newIntentionVisibility === visibility
-                          ? themeStyles.accentColor
-                          : themeStyles.textColor,
-                        fontWeight: newIntentionVisibility === visibility ? "600" : "400",
-                      },
-                    ]}
-                  >
-                    {visibility}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.visibilityDescription,
-                      {
-                        color: themeStyles.textColor,
-                        opacity: 0.7,
-                      },
-                    ]}
-                  >
-                    {visibility === "Just Me" && "Only visible to you"}
-                    {visibility === "Friends" && "Share with your friends"}
-                    {visibility === "Friends & Groups" && "Share with friends and all your groups"}
-                    {visibility === "Certain Groups" && "Select specific groups to share with"}
-                  </Text>
-                </View>
-                {newIntentionVisibility === visibility && (
-                  <View
-                    style={[
-                      styles.selectedVisibilityMark,
-                      {
-                        backgroundColor: themeStyles.accentColor,
-                      },
-                    ]}
-                  >
-                    <Feather name="check" size={16} color="#FFFFFF" />
-                  </View>
+                {intentionFilter === type && (
+                  <Feather name="check" size={20} color={getIntentionColor(type)} />
                 )}
               </TouchableOpacity>
             ))}
-          </View>
 
-          {/* Additional Options */}
-          <View style={styles.formSection}>
-            <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>
-              Additional Options
+            <Text style={[styles.filterSectionTitle, { color: themeStyles.textColor, marginTop: 24 }]}>
+              Sort By
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.optionRow,
-                {
-                  borderBottomColor: themeStyles.borderColor,
-                },
-              ]}
-              onPress={() => setNewIntentionFavorite(!newIntentionFavorite)}
-            >
-              <Text style={[styles.optionText, { color: themeStyles.textColor }]}>
-                Mark as favorite
-              </Text>
-              <TouchableOpacity 
-                onPress={() => setNewIntentionFavorite(!newIntentionFavorite)}
-                style={styles.favoriteCheckbox}
+
+            {[
+              { value: "newest", label: "Newest First" },
+              { value: "oldest", label: "Oldest First" },
+              { value: "alphabetical", label: "Alphabetical (A-Z)" },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.filterOptionSort,
+                  intentionSorting === option.value && {
+                    borderColor: themeStyles.accentColor,
+                    backgroundColor: `${themeStyles.accentColor}10`,
+                  },
+                  {
+                    backgroundColor: themeStyles.cardColor,
+                  },
+                ]}
+                onPress={() => setIntentionSorting(option.value as IntentionsSorting)}
               >
-                <Feather 
-                  name={newIntentionFavorite ? "heart" : "heart"}
-                  size={24} 
-                  color={newIntentionFavorite ? themeStyles.favoriteColor : themeStyles.borderColor} 
-                  solid={newIntentionFavorite}
-                />
-              </TouchableOpacity>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.optionRow}
-              onPress={() => setNewIntentionComplete(!newIntentionComplete)}
-            >
-              <Text style={[styles.optionText, { color: themeStyles.textColor }]}>
-                Mark as completed
-              </Text>
-              <TouchableOpacity 
-                onPress={() => setNewIntentionComplete(!newIntentionComplete)}
-                style={styles.completeCheckbox}
-              >
-                <Feather 
-                  name={newIntentionComplete ? "check-circle" : "circle"}
-                  size={24} 
-                  color={newIntentionComplete ? themeStyles.accentColor : themeStyles.borderColor} 
-                  solid={newIntentionComplete}
-                />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        <View style={styles.intentionModalFooter}>
-          <TouchableOpacity
-            style={[
-              styles.cancelButton,
-              {
-                borderColor: themeStyles.borderColor,
-              },
-            ]}
-            onPress={() => setShowNewIntentionModal(false)}
-          >
-            <Text style={{ color: themeStyles.textColor }}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.createButton,
-              {
-                backgroundColor: themeStyles.accentColor,
-                opacity: newIntentionTitle.trim() ? 1 : 0.7,
-              },
-            ]}
-            onPress={addIntention}
-            disabled={!newIntentionTitle.trim()}
-          >
-            <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Create Intention</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  // Render Filter Modal
-  const renderFilterModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showIntentionFilterModal}
-      onRequestClose={() => setShowIntentionFilterModal(false)}
-    >
-      <View 
-        style={[
-          styles.intentionModalContainer,
-          {
-            backgroundColor: themeStyles.backgroundColor,
-          },
-        ]}
-      >
-        <View 
-          style={[
-            styles.intentionModalHeader,
-            {
-              backgroundColor: themeStyles.headerColor,
-              borderBottomColor: themeStyles.borderColor,
-            },
-          ]}
-        >
-          <Text 
-            style={[
-              styles.intentionModalTitle,
-              { color: themeStyles.textColor },
-            ]}
-          >
-            Filters & Sorting
-          </Text>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowIntentionFilterModal(false)}
-          >
-            <Feather name="x" size={24} color={themeStyles.textColor} />
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView style={styles.intentionModalContent}>
-          <Text style={[styles.filterSectionTitle, { color: themeStyles.textColor }]}>
-            Filter by Type
-          </Text>
-
-          <TouchableOpacity
-            style={[
-              styles.filterOption,
-              intentionFilter === "all" && {
-                borderColor: themeStyles.accentColor,
-              },
-              {
-                backgroundColor: themeStyles.cardColor,
-              },
-            ]}
-            onPress={() => setIntentionFilter("all")}
-          >
-            <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>
-              All
-            </Text>
-            {intentionFilter === "all" && (
-              <Feather name="check" size={20} color={themeStyles.accentColor} />
-            )}
-          </TouchableOpacity>
-
-          {(["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"] as IntentionType[]).map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.filterOption,
-                intentionFilter === type && {
-                  borderColor: getIntentionColor(type),
-                },
-                {
-                  backgroundColor: themeStyles.cardColor,
-                },
-              ]}
-              onPress={() => setIntentionFilter(type)}
-            >
-              <View style={styles.filterOptionContent}>
-                <View
-                  style={[
-                    styles.filterIconContainer,
-                    {
-                      backgroundColor: `${getIntentionColor(type)}20`,
-                    },
-                  ]}
-                >
-                  <Feather
-                    name={intentionTypeIcons[type] as keyof typeof Feather.glyphMap}
-                    size={20}
-                    color={getIntentionColor(type)}
-                  />
-                </View>
                 <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {option.label}
                 </Text>
-              </View>
-              {intentionFilter === type && (
-                <Feather name="check" size={20} color={getIntentionColor(type)} />
-              )}
-            </TouchableOpacity>
-          ))}
+                {intentionSorting === option.value && (
+                  <Feather name="check" size={20} color={themeStyles.accentColor} />
+                )}
+              </TouchableOpacity>
+            ))}
 
-          <Text style={[styles.filterSectionTitle, { color: themeStyles.textColor, marginTop: 24 }]}>
-            Sort By
-          </Text>
-
-          {[
-            { value: "newest", label: "Newest First" },
-            { value: "oldest", label: "Oldest First" },
-            { value: "alphabetical", label: "Alphabetical (A-Z)" },
-          ].map((option) => (
             <TouchableOpacity
-              key={option.value}
               style={[
-                styles.filterOption,
-                intentionSorting === option.value && {
-                  borderColor: themeStyles.accentColor,
-                },
+                styles.applyFilterButton,
                 {
-                  backgroundColor: themeStyles.cardColor,
+                  backgroundColor: themeStyles.accentColor,
                 },
               ]}
-              onPress={() => setIntentionSorting(option.value as IntentionsSorting)}
+              onPress={() => setShowIntentionFilterModal(false)}
             >
-              <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>
-                {option.label}
-              </Text>
-              {intentionSorting === option.value && (
-                <Feather name="check" size={20} color={themeStyles.accentColor} />
-              )}
+              <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Apply Filters</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </ScrollView>
+        </Animated.View>
       </View>
     </Modal>
   );
 
   // Main render
   return (
-    <View style={styles.intentionsContainer}>
-      {/* Intentions stats */}
-      <View 
-        style={[
-          styles.intentionsStatsContainer,
-          { backgroundColor: "#6A478F" } // Keep this purple regardless of theme
-        ]}
-      >
-        <View style={styles.intentionStat}>
-          <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-            {intentions.length}
-          </Text>
-          <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-            Total
-          </Text>
-        </View>
-
-        <View style={styles.intentionStat}>
-          <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-            {intentions.filter(i => !i.completed).length}
-          </Text>
-          <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-            Active
-          </Text>
-        </View>
-
-        <View style={styles.intentionStat}>
-          <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-            {intentions.filter(i => i.completed).length}
-          </Text>
-          <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-            Completed
-          </Text>
-        </View>
-
-        <View style={styles.intentionStat}>
-          <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-            {intentions.filter(i => i.favorite).length}
-          </Text>
-          <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-            Favorites
-          </Text>
-        </View>
-      </View>
-
-      {/* Intentions Tabs */}
-      <View 
-        style={[
-          styles.intentionsTabsContainer,
-          { backgroundColor: readingTheme === "night" ? "#262626" : "#F0F0F0" }
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.intentionTab,
-            intentionsTabView === "all" && [
-              styles.activeIntentionTab,
-              { backgroundColor: themeStyles.cardColor }
-            ],
-          ]}
-          onPress={() => setIntentionsTabView("all")}
+    <SafeAreaView style={[styles.container, { backgroundColor: themeStyles.backgroundColor }]}>
+      <StatusBar barStyle={readingTheme === "night" ? "light-content" : "dark-content"} />
+      
+      <View style={styles.intentionsContainer}>
+        {/* Header with intentions stats */}
+        <LinearGradient
+          colors={['#6A478F', '#8860B2']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.intentionsStatsContainer}
         >
-          <Text
-            style={[
-              styles.intentionTabText,
-              { 
-                color: themeStyles.textColor,
-                opacity: intentionsTabView === "all" ? 1 : 0.6
-              },
-            ]}
-          >
-            All
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.intentionStat}>
+            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+              {intentions.length}
+            </Text>
+            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+              Total
+            </Text>
+          </View>
 
-        <TouchableOpacity
+          <View style={styles.intentionStat}>
+            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+              {intentions.filter(i => !i.completed).length}
+            </Text>
+            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+              Active
+            </Text>
+          </View>
+
+          <View style={styles.intentionStat}>
+            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+              {intentions.filter(i => i.completed).length}
+            </Text>
+            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+              Completed
+            </Text>
+          </View>
+
+          <View style={styles.intentionStat}>
+            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+              {intentions.filter(i => i.favorite).length}
+            </Text>
+            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+              Favorites
+            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* Intentions Tabs */}
+        <View 
           style={[
-            styles.intentionTab,
-            intentionsTabView === "active" && [
-              styles.activeIntentionTab,
-              { backgroundColor: themeStyles.cardColor }
-            ],
+            styles.intentionsTabsContainer,
+            { backgroundColor: readingTheme === "night" ? "#262626" : "#F5F5F5" }
           ]}
-          onPress={() => setIntentionsTabView("active")}
         >
-          <Text
-            style={[
-              styles.intentionTabText,
-              { 
-                color: themeStyles.textColor,
-                opacity: intentionsTabView === "active" ? 1 : 0.6
-              },
-            ]}
-          >
-            Active
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.intentionTab,
-            intentionsTabView === "completed" && [
-              styles.activeIntentionTab,
-              { backgroundColor: themeStyles.cardColor }
-            ],
-          ]}
-          onPress={() => setIntentionsTabView("completed")}
-        >
-          <Text
-            style={[
-              styles.intentionTabText,
-              { 
-                color: themeStyles.textColor,
-                opacity: intentionsTabView === "completed" ? 1 : 0.6
-              },
-            ]}
-          >
-            Completed
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {intentionsLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={themeStyles.accentColor} />
-          <Text style={[styles.loadingText, { color: themeStyles.textColor }]}>
-            Loading your prayer intentions...
-          </Text>
-        </View>
-      ) : getFilteredIntentions().length === 0 ? (
-        <View style={styles.emptyIntentionsContainer}>
-          <Feather
-            name="user"
-            size={64}
-            color={`${themeStyles.textColor}40`}
-            style={styles.emptyIntentionsIcon}
-          />
-          <Text
-            style={[
-              styles.emptyIntentionsText,
-              { color: themeStyles.textColor },
-            ]}
-          >
-            No prayer intentions found
-          </Text>
-          <Text
-            style={[
-              styles.emptyIntentionsSubtext,
-              { color: `${themeStyles.textColor}80` },
-            ]}
-          >
-            {intentionsTabView === "all"
-              ? "Create a new prayer intention by tapping the + button"
-              : intentionsTabView === "active"
-              ? "Your active prayer intentions will appear here"
-              : "Your completed prayer intentions will appear here"}
-          </Text>
           <TouchableOpacity
             style={[
-              styles.emptyIntentionsButton,
-              {
-                backgroundColor: themeStyles.accentColor,
-              },
+              styles.intentionTab,
+              intentionsTabView === "all" && [
+                styles.activeIntentionTab,
+                { backgroundColor: themeStyles.cardColor }
+              ],
             ]}
-            onPress={() => setShowNewIntentionModal(true)}
+            onPress={() => setIntentionsTabView("all")}
           >
-            <Text style={styles.emptyIntentionsButtonText}>
-              Create Prayer Intention
+            <Text
+              style={[
+                styles.intentionTabText,
+                { 
+                  color: themeStyles.textColor,
+                  opacity: intentionsTabView === "all" ? 1 : 0.6
+                },
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.intentionTab,
+              intentionsTabView === "active" && [
+                styles.activeIntentionTab,
+                { backgroundColor: themeStyles.cardColor }
+              ],
+            ]}
+            onPress={() => setIntentionsTabView("active")}
+          >
+            <Text
+              style={[
+                styles.intentionTabText,
+                { 
+                  color: themeStyles.textColor,
+                  opacity: intentionsTabView === "active" ? 1 : 0.6
+                },
+              ]}
+            >
+              Active
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.intentionTab,
+              intentionsTabView === "completed" && [
+                styles.activeIntentionTab,
+                { backgroundColor: themeStyles.cardColor }
+              ],
+            ]}
+            onPress={() => setIntentionsTabView("completed")}
+          >
+            <Text
+              style={[
+                styles.intentionTabText,
+                { 
+                  color: themeStyles.textColor,
+                  opacity: intentionsTabView === "completed" ? 1 : 0.6
+                },
+              ]}
+            >
+              Completed
             </Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={getFilteredIntentions()}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View
+
+        {intentionsLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6A478F" />
+            <Text style={[styles.loadingText, { color: themeStyles.textColor }]}>
+              Loading your prayer intentions...
+            </Text>
+          </View>
+        ) : getFilteredIntentions().length === 0 ? (
+          <View style={styles.emptyIntentionsContainer}>
+            <Feather
+              name="user"
+              size={64}
+              color={`${themeStyles.textColor}40`}
+              style={styles.emptyIntentionsIcon}
+            />
+            <Text
               style={[
-                styles.intentionItem,
-                {
-                  backgroundColor: themeStyles.cardColor,
-                  borderColor: themeStyles.borderColor,
-                  shadowColor: themeStyles.shadowColor,
-                  opacity: item.completed ? 0.8 : 1,
-                },
+                styles.emptyIntentionsText,
+                { color: themeStyles.textColor },
               ]}
             >
-              <View style={styles.intentionItemHeader}>
-                <View
-                  style={[
-                    styles.intentionTypeTag,
-                    {
-                      backgroundColor: `${getIntentionColor(item.type)}20`,
-                    },
-                  ]}
-                >
-                  <Feather
-                    name={intentionTypeIcons[item.type] as keyof typeof Feather.glyphMap}
-                    size={14}
-                    color={getIntentionColor(item.type)}
-                  />
-                  <Text
+              No prayer intentions found
+            </Text>
+            <Text
+              style={[
+                styles.emptyIntentionsSubtext,
+                { color: `${themeStyles.textColor}80` },
+              ]}
+            >
+              {intentionsTabView === "all"
+                ? "Create a new prayer intention by tapping the + button"
+                : intentionsTabView === "active"
+                ? "Your active prayer intentions will appear here"
+                : "Your completed prayer intentions will appear here"}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.emptyIntentionsButton,
+                {
+                  backgroundColor: "#6A478F",
+                },
+              ]}
+              onPress={openNewIntentionModal}
+            >
+              <Text style={styles.emptyIntentionsButtonText}>
+                Create Prayer Intention
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={getFilteredIntentions()}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.intentionItem,
+                  {
+                    backgroundColor: themeStyles.cardColor,
+                    borderColor: themeStyles.borderColor,
+                    shadowColor: themeStyles.shadowColor,
+                    opacity: item.completed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.intentionItemHeader}>
+                  <View
                     style={[
-                      styles.intentionTypeText,
+                      styles.intentionTypeTag,
                       {
-                        color: getIntentionColor(item.type),
+                        backgroundColor: `${getIntentionColor(item.type)}20`,
                       },
                     ]}
                   >
-                    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                  </Text>
-                </View>
-
-                <View style={styles.intentionHeaderActions}>
-                  <Text
-                    style={[
-                      styles.intentionDate,
-                      { color: `${themeStyles.textColor}80` },
-                    ]}
-                  >
-                    {item.created_at.toLocaleDateString()}
-                  </Text>
-
-                  <Animated.View
-                    style={{ transform: [{ scale: intentionFavoriteScale }] }}
-                  >
-                    <TouchableOpacity
-                      style={[
-                        styles.intentionFavoriteButton,
-                        item.favorite && {
-                          backgroundColor: `${themeStyles.favoriteColor}20`,
-                        },
-                      ]}
-                      onPress={() => toggleIntentionFavorite(item.id)}
-                    >
-                      <Feather
-                        name="heart"
-                        size={16}
-                        color={
-                          item.favorite
-                            ? themeStyles.favoriteColor
-                            : `${themeStyles.textColor}60`
-                        }
-                      />
-                    </TouchableOpacity>
-                  </Animated.View>
-                </View>
-              </View>
-
-              <View style={styles.intentionItemContent}>
-                <TouchableOpacity
-                  style={styles.intentionCompletedButton}
-                  onPress={() => toggleIntentionCompleted(item.id)}
-                >
-                  <Feather
-                    name={item.completed ? "check-circle" : "circle"}
-                    size={24}
-                    color={
-                      item.completed
-                        ? themeStyles.accentColor
-                        : `${themeStyles.textColor}40`
-                    }
-                  />
-                </TouchableOpacity>
-
-                <View style={styles.intentionTextContent}>
-                  <Text
-                    style={[
-                      styles.intentionTitle,
-                      {
-                        color: themeStyles.textColor,
-                        textDecorationLine: item.completed
-                          ? "line-through"
-                          : "none",
-                      },
-                    ]}
-                  >
-                    {item.title}
-                  </Text>
-                  {item.description ? (
+                    <Feather
+                      name={intentionTypeIcons[item.type] as keyof typeof Feather.glyphMap}
+                      size={14}
+                      color={getIntentionColor(item.type)}
+                    />
                     <Text
                       style={[
-                        styles.intentionDescription,
+                        styles.intentionTypeText,
+                        {
+                          color: getIntentionColor(item.type),
+                        },
+                      ]}
+                    >
+                      {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.intentionHeaderActions}>
+                    <Text
+                      style={[
+                        styles.intentionDate,
                         { color: `${themeStyles.textColor}80` },
                       ]}
-                      numberOfLines={2}
                     >
-                      {item.description}
+                      {item.created_at.toLocaleDateString()}
                     </Text>
-                  ) : null}
-                </View>
-              </View>
 
-              <View style={styles.intentionItemFooter}>
-                <View
-                  style={[
-                    styles.intentionVisibilityTag,
-                    {
-                      backgroundColor: `${themeStyles.accentColor}10`,
-                    },
-                  ]}
-                >
-                  <Feather
-                    name={
-                      item.visibility === "Just Me"
-                        ? "lock"
-                        : item.visibility === "Friends"
-                        ? "users"
-                        : item.visibility === "Friends & Groups"
-                        ? "globe"
-                        : "users"
-                    }
-                    size={12}
-                    color={themeStyles.accentColor}
-                  />
-                  <Text
+                    <Animated.View
+                      style={{ transform: [{ scale: intentionFavoriteScale }] }}
+                    >
+                      <TouchableOpacity
+                        style={[
+                          styles.intentionFavoriteButton,
+                          item.favorite && {
+                            backgroundColor: `${themeStyles.favoriteColor}20`,
+                          },
+                        ]}
+                        onPress={() => toggleIntentionFavorite(item.id)}
+                      >
+                        <Feather
+                          name="heart"
+                          size={16}
+                          color={
+                            item.favorite
+                              ? themeStyles.favoriteColor
+                              : `${themeStyles.textColor}60`
+                          }
+                        />
+                      </TouchableOpacity>
+                    </Animated.View>
+                  </View>
+                </View>
+
+                <View style={styles.intentionItemContent}>
+                  <TouchableOpacity
+                    style={styles.intentionCompletedButton}
+                    onPress={() => toggleIntentionCompleted(item.id)}
+                  >
+                    <Feather
+                      name={item.completed ? "check-circle" : "circle"}
+                      size={24}
+                      color={
+                        item.completed
+                          ? themeStyles.accentColor
+                          : `${themeStyles.textColor}40`
+                      }
+                    />
+                  </TouchableOpacity>
+
+                  <View style={styles.intentionTextContent}>
+                    <Text
+                      style={[
+                        styles.intentionTitle,
+                        {
+                          color: themeStyles.textColor,
+                          textDecorationLine: item.completed
+                            ? "line-through"
+                            : "none",
+                        },
+                      ]}
+                    >
+                      {item.title}
+                    </Text>
+                    {item.description ? (
+                      <Text
+                        style={[
+                          styles.intentionDescription,
+                          { color: `${themeStyles.textColor}80` },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.description}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.intentionItemFooter}>
+                  <View
                     style={[
-                      styles.intentionVisibilityText,
+                      styles.intentionVisibilityTag,
                       {
-                        color: themeStyles.accentColor,
+                        backgroundColor: `${themeStyles.accentColor}10`,
                       },
                     ]}
                   >
-                    {item.visibility}
-                  </Text>
+                    <Feather
+                      name={
+                        item.visibility === "Just Me"
+                          ? "lock"
+                          : item.visibility === "Friends"
+                          ? "users"
+                          : item.visibility === "Friends & Groups"
+                          ? "globe"
+                          : "users"
+                      }
+                      size={12}
+                      color={themeStyles.accentColor}
+                    />
+                    <Text
+                      style={[
+                        styles.intentionVisibilityText,
+                        {
+                          color: themeStyles.accentColor,
+                        },
+                      ]}
+                    >
+                      {item.visibility}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.intentionDeleteButton}
+                    onPress={() => deleteIntention(item.id)}
+                  >
+                    <Feather
+                      name="trash-2"
+                      size={14}
+                      color={`${themeStyles.textColor}60`}
+                    />
+                  </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                  style={styles.intentionDeleteButton}
-                  onPress={() => deleteIntention(item.id)}
-                >
-                  <Feather
-                    name="trash-2"
-                    size={14}
-                    color={`${themeStyles.textColor}60`}
-                  />
-                </TouchableOpacity>
               </View>
-            </View>
-          )}
-          contentContainerStyle={styles.intentionsList}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+            )}
+            contentContainerStyle={styles.intentionsList}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+        )}
 
-      {/* Filter Button */}
-      <TouchableOpacity
-        style={[
-          styles.intentionFilterButton,
-          {
-            backgroundColor: themeStyles.cardColor,
-            borderColor: themeStyles.borderColor,
-          },
-        ]}
-        onPress={() => setShowIntentionFilterModal(true)}
-      >
-        <Feather name="filter" size={20} color={themeStyles.accentColor} />
-      </TouchableOpacity>
-
-      {/* Add Button */}
-      <TouchableOpacity
-        style={[
-          styles.intentionAddButton,
-          {
-            backgroundColor: themeStyles.accentColor,
-          },
-        ]}
-        onPress={() => setShowNewIntentionModal(true)}
-      >
-        <Feather name="plus" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      {/* Render Modals */}
-      {renderNewIntentionModal()}
-      {renderFilterModal()}
-    </View>
-  );
-};
-
-// Component to render prayer intention previews on home screen
-export const PrayerIntentionPreview: React.FC<{
-  intentions: PrayerIntention[];
-  themeStyles: any;
-  readingTheme: "paper" | "sepia" | "night";
-  onPressIntention: () => void;
-  toggleIntentionCompleted: (id: string) => void;
-}> = ({ intentions, themeStyles, readingTheme, onPressIntention, toggleIntentionCompleted }) => {
-  
-  // Get color for intention type
-  const getIntentionColor = (type: IntentionType): string => {
-    const colors = {
-      paper: {
-        prayer: "#6A478F",
-        resolution: "#4A6FA5",
-        goal: "#E91E63",
-        spiritual: "#26A69A",
-        family: "#FF9800",
-        health: "#F44336",
-        work: "#2196F3",
-        friends: "#00BCD4",
-        world: "#3F51B5",
-        personal: "#9C27B0",
-        other: "#607D8B",
-      },
-      sepia: {
-        prayer: "#7A503E",
-        resolution: "#8B5A2B",
-        goal: "#A94442",
-        spiritual: "#2E7D32",
-        family: "#B36A00",
-        health: "#A94442",
-        work: "#0D47A1",
-        friends: "#00796B",
-        world: "#1A237E",
-        personal: "#4A148C",
-        other: "#37474F",
-      },
-      night: {
-        prayer: "#9C64A6",
-        resolution: "#7B9EB3",
-        goal: "#EF5350",
-        spiritual: "#4DB6AC",
-        family: "#FFB74D",
-        health: "#EF5350",
-        work: "#64B5F6",
-        friends: "#4DD0E1",
-        world: "#7986CB",
-        personal: "#BA68C8",
-        other: "#90A4AE",
-      },
-    };
-
-    return colors[readingTheme][type];
-  };
-
-  return (
-    <FlatList
-      data={intentions.slice(0, 3)}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyExtractor={(item) => `intention-preview-${item.id}`}
-      contentContainerStyle={styles.intentionPreviewList}
-      renderItem={({ item }) => (
+        {/* Share Button */}
         <TouchableOpacity
           style={[
-            styles.intentionPreviewItem,
+            styles.intentionShareButton,
             {
-              backgroundColor: themeStyles.cardColor,
-              borderColor: themeStyles.borderColor,
-              shadowColor: themeStyles.shadowColor,
-              opacity: item.completed ? 0.8 : 1,
+              backgroundColor: "#FFFFFF",
+              borderColor: "#EEEEEE",
             },
           ]}
-          onPress={onPressIntention}
+          onPress={shareIntentions}
         >
-          <View style={styles.intentionPreviewHeader}>
-            <View
-              style={[
-                styles.intentionTypeTag,
-                {
-                  backgroundColor: `${getIntentionColor(item.type)}20`,
-                },
-              ]}
-            >
-              <Feather
-                name={intentionTypeIcons[item.type] as keyof typeof Feather.glyphMap}
-                size={14}
-                color={getIntentionColor(item.type)}
-              />
-              <Text
-                style={[
-                  styles.intentionTypeText,
-                  {
-                    color: getIntentionColor(item.type),
-                  },
-                ]}
-              >
-                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.intentionPreviewContent}>
-            <TouchableOpacity
-              style={styles.intentionCompletedButton}
-              onPress={() => toggleIntentionCompleted(item.id)}
-            >
-              <Feather
-                name={item.completed ? "check-circle" : "circle"}
-                size={22}
-                color={
-                  item.completed
-                    ? themeStyles.accentColor
-                    : `${themeStyles.textColor}40`
-                }
-              />
-            </TouchableOpacity>
-
-            <View style={styles.intentionTextContentPreview}>
-              <Text
-                style={[
-                  styles.intentionTitlePreview,
-                  {
-                    color: themeStyles.textColor,
-                    textDecorationLine: item.completed
-                      ? "line-through"
-                      : "none",
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.title}
-              </Text>
-            </View>
-
-            {item.favorite && (
-              <Feather
-                name="heart"
-                size={16}
-                color={themeStyles.favoriteColor}
-                style={styles.intentionPreviewFavorite}
-              />
-            )}
-          </View>
+          <Feather name="share-2" size={20} color="#6A478F" />
         </TouchableOpacity>
-      )}
-    />
+
+        {/* Filter Button */}
+        <TouchableOpacity
+          style={[
+            styles.intentionFilterButton,
+            {
+              backgroundColor: "#FFFFFF",
+              borderColor: "#EEEEEE",
+            },
+          ]}
+          onPress={openFilterModal}
+        >
+          <Feather name="filter" size={20} color="#6A478F" />
+        </TouchableOpacity>
+
+        {/* New Add Prayer Button */}
+        <AddPrayerButton 
+          onPress={openNewIntentionModal} 
+          theme={readingTheme === "night" ? "dark" : readingTheme === "paper" ? "light" : readingTheme}
+        />
+
+        {/* Render Modals */}
+        {renderNewIntentionModal()}
+        {renderFilterModal()}
+      </View>
+    </SafeAreaView>
   );
 };
 
+// Default themes
+const defaultThemes = {
+  light: {
+    backgroundColor: "#FFFFFF",
+    cardColor: "#FFFFFF",
+    textColor: "#000000",
+    borderColor: "#EEEEEE",
+    headerColor: "#F5F5F5",
+    shadowColor: "#000000",
+    accentColor: "#6A478F",
+    favoriteColor: "#FF4081"
+  },
+  dark: {
+    backgroundColor: "#121212",
+    cardColor: "#1E1E1E",
+    textColor: "#FFFFFF",
+    borderColor: "#333333",
+    headerColor: "#1A1A1A",
+    shadowColor: "#000000",
+    accentColor: "#9C64A6",
+    favoriteColor: "#FF80AB"
+  },
+  sepia: {
+    backgroundColor: "#F8F0E3",
+    cardColor: "#FFF8E9",
+    textColor: "#442C2E",
+    borderColor: "#E0D6C2",
+    headerColor: "#F0E6D2",
+    shadowColor: "#442C2E",
+    accentColor: "#7A503E",
+    favoriteColor: "#A94442"
+  }
+};
+
+// Default font sizes
+const defaultFontSizes = {
+  small: {
+    title: 16,
+    body: 14,
+    caption: 12
+  },
+  medium: {
+    title: 18,
+    body: 16,
+    caption: 14
+  },
+  large: {
+    title: 20,
+    body: 18,
+    caption: 16
+  }
+};
+
+// Add Button Styles
+const addButtonStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  labelContainer: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  labelText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  button: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  iconContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  svgContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.5,
+  },
+  // Decorative elements inspired by prayer symbols
+  circle1: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    top: 14,
+    left: 14,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    top: 6,
+    left: 6,
+  },
+  droplet: {
+    position: 'absolute',
+    width: 18,
+    height: 25,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    transform: [{ rotate: '45deg' }],
+    bottom: 10,
+    right: 12,
+  },
+  dot1: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    top: 15,
+    right: 20,
+  },
+  dot2: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    top: 8,
+    right: 28,
+  },
+  dot3: {
+    position: 'absolute',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    bottom: 18,
+    left: 15,
+  },
+});
+
+// Main component styles
 const styles = StyleSheet.create({
   // Main container
+  container: {
+    flex: 1,
+  },
   intentionsContainer: {
     flex: 1,
-    padding: 16,
   },
   
   // Stats container at the top
   intentionsStatsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    padding: 20,
+    elevation: 4,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   intentionStat: {
     alignItems: "center",
@@ -1516,85 +1842,99 @@ const styles = StyleSheet.create({
   intentionStatLabel: {
     fontSize: 12,
     marginTop: 4,
+    fontWeight: "500",
   },
   
   // Tab navigation
   intentionsTabsContainer: {
     flexDirection: "row",
-    borderRadius: 10,
-    marginBottom: 16,
-    padding: 4,
+    padding: 8,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   intentionTab: {
     flex: 1,
-    padding: 10,
+    padding: 12,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,
   },
   activeIntentionTab: {
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
     elevation: 2,
   },
   intentionTabText: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
   },
   
   // Loading and empty states
   loadingContainer: {
-    paddingVertical: 40,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingBottom: 50,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 16,
     fontSize: 16,
+    fontWeight: "500",
   },
   emptyIntentionsContainer: {
-    paddingVertical: 60,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 32,
+    paddingBottom: 50,
   },
   emptyIntentionsIcon: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   emptyIntentionsText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
+    marginBottom: 8,
   },
   emptyIntentionsSubtext: {
-    fontSize: 14,
+    fontSize: 16,
     textAlign: "center",
-    marginVertical: 10,
-    paddingHorizontal: 20,
+    marginBottom: 24,
+    lineHeight: 22,
   },
   emptyIntentionsButton: {
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   emptyIntentionsButtonText: {
     color: "#fff",
     fontWeight: "bold",
+    fontSize: 16,
   },
   
   // Intentions list
   intentionsList: {
+    padding: 16,
     paddingBottom: 100, // Extra space for floating buttons
   },
   intentionItem: {
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
+    elevation: 2,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 3,
   },
   intentionItemHeader: {
     flexDirection: "row",
@@ -1604,14 +1944,14 @@ const styles = StyleSheet.create({
   intentionTypeTag: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   intentionTypeText: {
     fontSize: 12,
-    fontWeight: "500",
-    marginLeft: 4,
+    fontWeight: "600",
+    marginLeft: 6,
   },
   intentionHeaderActions: {
     flexDirection: "row",
@@ -1619,19 +1959,19 @@ const styles = StyleSheet.create({
   },
   intentionDate: {
     fontSize: 12,
-    marginRight: 8,
+    marginRight: 10,
   },
   intentionFavoriteButton: {
-    padding: 4,
-    borderRadius: 4,
+    padding: 6,
+    borderRadius: 20,
   },
   intentionItemContent: {
     flexDirection: "row",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   intentionCompletedButton: {
     padding: 6,
-    marginRight: 8,
+    marginRight: 10,
   },
   intentionTextContent: {
     flex: 1,
@@ -1639,7 +1979,8 @@ const styles = StyleSheet.create({
   intentionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 22,
   },
   intentionDescription: {
     fontSize: 14,
@@ -1653,22 +1994,40 @@ const styles = StyleSheet.create({
   intentionVisibilityTag: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   intentionVisibilityText: {
     fontSize: 12,
-    marginLeft: 4,
+    marginLeft: 6,
+    fontWeight: "500",
   },
   intentionDeleteButton: {
-    padding: 4,
+    padding: 6,
   },
   
-  // Filter and Add buttons
+  // Share Button
+  intentionShareButton: {
+    position: "absolute",
+    right: 90, // Position to the left of the filter button
+    bottom: 90, // Same height as the filter button
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 1,
+  },
+  
+  // Filter Button
   intentionFilterButton: {
     position: "absolute",
-    right: 20,
+    right: 24,
     bottom: 90,
     width: 50,
     height: 50,
@@ -1676,58 +2035,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-    zIndex: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
     borderWidth: 1,
-  },
-  intentionAddButton: {
-    position: "absolute",
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-    zIndex: 10,
   },
   
   // Modal styles
-  intentionModalContainer: {
+  modalOverlay: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  intentionModalContainer: {
+    width: '90%',
+    maxWidth: 500,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    maxHeight: Platform.OS === "ios" ? '80%' : '90%',
   },
   intentionModalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
-    borderBottomWidth: 1,
   },
   intentionModalTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "#FFFFFF",
   },
   closeButton: {
     padding: 8,
   },
   intentionModalContent: {
-    padding: 16,
+    padding: 20,
   },
   
   // Form styles
-  formSection: {
-    marginBottom: 24,
-  },
   formSectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   typeGrid: {
     flexDirection: "row",
@@ -1739,74 +2093,72 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   activeTypeOption: {
     borderWidth: 2,
   },
   typeIconContainer: {
     padding: 8,
-    borderRadius: 6,
+    borderRadius: 8,
     marginRight: 8,
   },
   typeText: {
     fontSize: 14,
-    fontWeight: "500",
-  },
-  formLabel: {
-    fontSize: 14,
     fontWeight: "600",
-    marginBottom: 8,
   },
   formInput: {
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     fontSize: 16,
   },
   formTextArea: {
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     fontSize: 16,
     minHeight: 100,
     textAlignVertical: "top",
   },
   
   // Visibility options
+  visibilityContainer: {
+    marginBottom: 10,
+  },
   visibilityOption: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: 10,
     position: "relative",
   },
   activeVisibilityOption: {
     borderWidth: 2,
   },
   visibilityIconContainer: {
-    padding: 8,
-    borderRadius: 6,
-    marginRight: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginRight: 12,
   },
   visibilityTextContainer: {
     flex: 1,
   },
   visibilityTitle: {
     fontSize: 16,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   visibilityDescription: {
-    fontSize: 12,
+    fontSize: 13,
   },
   selectedVisibilityMark: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: 12,
+    right: 12,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -1819,104 +2171,95 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
   },
   optionText: {
     fontSize: 16,
   },
   favoriteCheckbox: {
-    padding: 4,
+    padding: 6,
   },
   completeCheckbox: {
-    padding: 4,
+    padding: 6,
   },
   
-  // Modal footer
-  intentionModalFooter: {
+  // Action buttons
+  actionButtonsContainer: {
     flexDirection: "row",
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
+    justifyContent: "space-between",
+    marginTop: 24,
+    marginBottom: 16,
   },
   cancelButton: {
     flex: 1,
     padding: 16,
     alignItems: "center",
-    borderRadius: 8,
+    justifyContent: "center",
+    borderRadius: 12,
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 12,
   },
   createButton: {
     flex: 2,
     padding: 16,
     alignItems: "center",
-    borderRadius: 8,
+    justifyContent: "center",
+    borderRadius: 12,
   },
   
   // Filter modal
   filterSectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
+    marginBottom: 16,
+  },
+  filterOptionAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
     marginBottom: 12,
-    marginTop: 8,
   },
   filterOption: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  filterOptionSort: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
   },
   filterOptionContent: {
     flexDirection: "row",
     alignItems: "center",
   },
   filterIconContainer: {
-    padding: 8,
-    borderRadius: 6,
-    marginRight: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginRight: 12,
   },
   filterOptionText: {
-    fontSize: 14,
-  },
-  
-  // Preview items styles for home screen
-  intentionPreviewList: {
-    paddingBottom: 10,
-  },
-  intentionPreviewItem: {
-    width: 250,
-    padding: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginRight: 10,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  intentionPreviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  intentionPreviewContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  intentionTextContentPreview: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  intentionTitlePreview: {
-    fontWeight: "bold",
     fontSize: 16,
+    fontWeight: "500",
   },
-  intentionPreviewFavorite: {
-    marginLeft: 8,
+  applyFilterButton: {
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 24,
   },
 });
 

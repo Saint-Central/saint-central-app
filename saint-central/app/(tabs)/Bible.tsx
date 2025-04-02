@@ -2893,6 +2893,22 @@ export default function BibleScreen() {
             </Text>
 
             <View style={styles.headerButtons}>
+              {/* Prayer Intentions Button */}
+              <TouchableOpacity
+                style={[
+                  styles.headerButton,
+                  { backgroundColor: `${themeStyles.accentColor}10` },
+                ]}
+                onPress={() => {
+                  router.push('/PrayerIntentions');
+                }}
+              >
+                <Feather
+                  name="heart"
+                  size={22}
+                  color={themeStyles.accentColor}
+                />
+              </TouchableOpacity>
               {/* If in verses view, show a bookmark button for the chapter */}
               {view === "verses" && (
                 <Animated.View
