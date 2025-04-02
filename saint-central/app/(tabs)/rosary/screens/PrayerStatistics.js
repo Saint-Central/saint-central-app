@@ -10,6 +10,7 @@ import {
   Dimensions,
   Animated,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { AntDesign, FontAwesome5, Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -17,6 +18,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
 import { useCallback } from "react";
+import { createClient } from '@supabase/supabase-js';
+import 'react-native-url-polyfill/auto';
+
+// Initialize Supabase client (replace with your Supabase URL and anon key)
+const supabaseUrl = 'https://lzbpsqmtvkimwqmakurg.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6YnBzcW10dmtpbXdxbWFrdXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyMjMxMDQsImV4cCI6MjA1MTc5OTEwNH0.BPMjXAHWqCBVsyklRG3OToXLGAMy346xMIkCR4Sc-YY';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const { width, height } = Dimensions.get("window");
 
@@ -152,10 +160,12 @@ export default function PrayerStatistics() {
   const [streakData, setStreakData] = useState([]);
   const [selectedDataPoint, setSelectedDataPoint] = useState(null);
   const [showDataPointInfo, setShowDataPointInfo] = useState(false);
+  const [isUsingSupabase, setIsUsingSupabase] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   
   // Load prayer data on mount and when screen comes into focus
   useEffect(() => {
-    loadPrayerData();
+    checkDataSource();
   }, []);
   
   // Using useFocusEffect instead of router.addListener
@@ -165,6 +175,25 @@ export default function PrayerStatistics() {
       return () => {}; // Cleanup function if needed
     }, [])
   );
+  
+  // Check data source (Supabase or AsyncStorage)
+  const checkDataSource = async () => {
+    try {
+      const dataSource = await AsyncStorage.getItem('prayerDataSource');
+      if (dataSource === 'supabase') {
+        setIsUsingSupabase(true);
+        loadPrayerDataFromSupabase();
+      } else {
+        setIsUsingSupabase(false);
+        loadPrayerDataFromAsyncStorage();
+      }
+    } catch (error) {
+      console.error("Failed to check data source:", error);
+      // Default to AsyncStorage
+      setIsUsingSupabase(false);
+      loadPrayerDataFromAsyncStorage();
+    }
+  };
   
   // Update filtered history when filters change
   useEffect(() => {
@@ -201,16 +230,114 @@ export default function PrayerStatistics() {
       if (newPrayerFlag === 'true') {
         // Reset the flag
         await AsyncStorage.setItem('newPrayerCompleted', 'false');
-        // Reload prayer data
-        loadPrayerData();
+        
+        // Reload prayer data from the appropriate source
+        if (isUsingSupabase) {
+          loadPrayerDataFromSupabase();
+        } else {
+          loadPrayerDataFromAsyncStorage();
+        }
       }
     } catch (error) {
       console.error("Failed to check for new prayers:", error);
     }
   };
   
+  // Save a prayer session to the appropriate source
+  const savePrayerSession = async (mysteryKey, mysteryType, duration) => {
+    try {
+      const prayerSession = {
+        date: new Date().toISOString(),
+        mysteryKey,
+        mysteryType,
+        duration,
+      };
+      
+      if (isUsingSupabase) {
+        // Save to Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          console.error("User not authenticated");
+          return;
+        }
+        
+        const { data, error } = await supabase
+          .from('prayer_sessions')
+          .insert({
+            user_id: user.id,
+            date: prayerSession.date,
+            mystery_key: prayerSession.mysteryKey,
+            mystery_type: prayerSession.mysteryType,
+            duration: prayerSession.duration || 0,
+          });
+          
+        if (error) {
+          console.error("Error saving prayer session to Supabase:", error);
+        }
+      } else {
+        // Save to AsyncStorage
+        const history = await AsyncStorage.getItem('prayerHistory');
+        let prayerHistoryData = history ? JSON.parse(history) : [];
+        
+        // Add new session
+        prayerHistoryData.push(prayerSession);
+        
+        // Save updated history
+        await AsyncStorage.setItem('prayerHistory', JSON.stringify(prayerHistoryData));
+        
+        // Update statistics
+        const prayerStats = await AsyncStorage.getItem('prayerStatistics');
+        let stats = prayerStats ? JSON.parse(prayerStats) : {
+          streakDays: 0,
+          longestStreak: 0,
+          totalPrayers: 0,
+          totalPrayerTime: 0,
+          streakHistory: [],
+          lastPrayerDate: null,
+        };
+        
+        // Update total counts
+        stats.totalPrayers += 1;
+        stats.totalPrayerTime += (prayerSession.duration || 0);
+        
+        // Calculate streak
+        const today = new Date().setHours(0, 0, 0, 0);
+        const lastPrayerDate = stats.lastPrayerDate ? new Date(stats.lastPrayerDate).setHours(0, 0, 0, 0) : null;
+        
+        if (!lastPrayerDate || lastPrayerDate < today) {
+          if (lastPrayerDate && isConsecutiveDay(lastPrayerDate, today)) {
+            // Consecutive day
+            stats.streakDays += 1;
+          } else {
+            // Not consecutive, reset streak to 1
+            stats.streakDays = 1;
+          }
+          
+          // Update longest streak
+          stats.longestStreak = Math.max(stats.longestStreak, stats.streakDays);
+          
+          // Update streak history
+          stats.streakHistory.push(stats.streakDays);
+          
+          // Update last prayer date
+          stats.lastPrayerDate = new Date().toISOString();
+        }
+        
+        // Save updated stats
+        await AsyncStorage.setItem('prayerStatistics', JSON.stringify(stats));
+      }
+      
+      // Set flag that a new prayer was completed (used by other screens)
+      await AsyncStorage.setItem('newPrayerCompleted', 'true');
+      
+    } catch (error) {
+      console.error("Failed to save prayer session:", error);
+    }
+  };
+  
   // Load prayer data from AsyncStorage
-  const loadPrayerData = async () => {
+  const loadPrayerDataFromAsyncStorage = async () => {
     try {
       setIsLoading(true);
       
@@ -246,8 +373,134 @@ export default function PrayerStatistics() {
       
       setIsLoading(false);
     } catch (error) {
-      console.error("Failed to load prayer data:", error);
+      console.error("Failed to load prayer data from AsyncStorage:", error);
       setIsLoading(false);
+    }
+  };
+  
+  // Load prayer data from Supabase
+  const loadPrayerDataFromSupabase = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("User not authenticated");
+        setIsLoading(false);
+        return;
+      }
+      
+      // Load prayer history from Supabase
+      const { data: prayerHistoryData, error: historyError } = await supabase
+        .from('prayer_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+        
+      if (historyError) {
+        console.error("Failed to load prayer history from Supabase:", historyError);
+      } else if (prayerHistoryData) {
+        // Map Supabase fields to app fields if needed
+        const mappedData = prayerHistoryData.map(item => ({
+          date: item.date,
+          mysteryKey: item.mystery_key,
+          mysteryType: item.mystery_type,
+          duration: item.duration,
+        }));
+        
+        setPrayerHistory(mappedData);
+        setFilteredHistory(mappedData);
+      }
+      
+      // Load prayer statistics from Supabase
+      const { data: statsData, error: statsError } = await supabase
+        .from('prayer_statistics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (statsError && statsError.code !== 'PGRST116') { // Not found error
+        console.error("Failed to load prayer statistics from Supabase:", statsError);
+      } else if (statsData) {
+        setStreakDays(statsData.streak_days || 0);
+        setLongestStreak(statsData.longest_streak || 0);
+        setTotalPrayers(statsData.total_prayers || 0);
+        setTotalPrayerTime(statsData.total_prayer_time || 0);
+        
+        if (statsData.streak_history) {
+          // Parse streak history from JSONB if needed
+          const parsedStreakData = typeof statsData.streak_history === 'string' 
+            ? JSON.parse(statsData.streak_history) 
+            : statsData.streak_history;
+          setStreakData(parsedStreakData);
+        }
+      }
+      
+      // Generate chart data
+      if (prayerHistoryData) {
+        generateChartData(prayerHistoryData.map(item => ({
+          date: item.date,
+          mysteryKey: item.mystery_key,
+          mysteryType: item.mystery_type,
+          duration: item.duration,
+        })));
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to load prayer data from Supabase:", error);
+      setIsLoading(false);
+    }
+  };
+  
+  // Migrate data from AsyncStorage to Supabase
+  const migrateToSupabase = async () => {
+    try {
+      setIsMigrating(true);
+      
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Authentication Required", "Please log in to sync your data to the cloud.");
+        setIsMigrating(false);
+        return;
+      }
+      
+      // Load prayer history from AsyncStorage
+      const history = await AsyncStorage.getItem('prayerHistory');
+      if (history) {
+        const prayerHistoryData = JSON.parse(history);
+        
+        // Insert each prayer session into Supabase
+        for (const session of prayerHistoryData) {
+          const { data, error } = await supabase
+            .from('prayer_sessions')
+            .insert({
+              user_id: user.id,
+              date: new Date(session.date).toISOString(),
+              mystery_key: session.mysteryKey,
+              mystery_type: session.mysteryType,
+              duration: session.duration || 0,
+            });
+            
+          if (error) console.error("Error inserting prayer session:", error);
+        }
+      }
+      
+      // Set data source to Supabase
+      await AsyncStorage.setItem('prayerDataSource', 'supabase');
+      setIsUsingSupabase(true);
+      
+      // Reload data from Supabase
+      await loadPrayerDataFromSupabase();
+      
+      Alert.alert("Migration Complete", "Your prayer data has been successfully migrated to the cloud.");
+      setIsMigrating(false);
+    } catch (error) {
+      console.error("Migration error:", error);
+      Alert.alert("Migration Failed", "There was an error migrating your data. Please try again.");
+      setIsMigrating(false);
     }
   };
   
@@ -926,6 +1179,54 @@ export default function PrayerStatistics() {
     </View>
   );
   
+  // Render cloud storage card/button
+  const renderCloudStorageButton = () => {
+    if (isUsingSupabase) {
+      return (
+        <View style={styles.cloudStorageCardContainer}>
+          <View style={styles.cloudStorageCard}>
+            <View style={styles.cloudStorageIcon}>
+              <AntDesign name="cloud" size={24} color="#7158e2" />
+            </View>
+            <View style={styles.cloudStorageContent}>
+              <Text style={styles.cloudStorageTitle}>Cloud Sync Enabled</Text>
+              <Text style={styles.cloudStorageDescription}>
+                Your prayer data is synced to the cloud
+              </Text>
+            </View>
+          </View>
+        </View>
+      );
+    } else {
+      return (
+        <View style={styles.cloudStorageCardContainer}>
+          <TouchableOpacity
+            style={styles.cloudStorageCard}
+            onPress={migrateToSupabase}
+            disabled={isMigrating}
+          >
+            <View style={styles.cloudStorageIcon}>
+              <AntDesign name="clouduploado" size={24} color="#7158e2" />
+            </View>
+            <View style={styles.cloudStorageContent}>
+              <Text style={styles.cloudStorageTitle}>
+                {isMigrating ? "Syncing to Cloud..." : "Sync to Cloud"}
+              </Text>
+              <Text style={styles.cloudStorageDescription}>
+                {isMigrating ? "Please wait while we sync your data" : "Back up and sync your prayer data across devices"}
+              </Text>
+            </View>
+            {isMigrating ? (
+              <ActivityIndicator size="small" color="#7158e2" />
+            ) : (
+              <AntDesign name="right" size={16} color="#CCCCCC" />
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  };
+  
   // Render statistics tab
   const renderStatsTab = () => (
     <ScrollView 
@@ -933,6 +1234,9 @@ export default function PrayerStatistics() {
       contentContainerStyle={styles.tabContent}
       showsVerticalScrollIndicator={false}
     >
+      {/* Cloud storage button */}
+      {renderCloudStorageButton()}
+      
       {/* Summary cards */}
       <View style={styles.statsCardsContainer}>
         <View style={styles.statsRow}>
@@ -1216,6 +1520,44 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     paddingBottom: 20,
+  },
+  cloudStorageCardContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  cloudStorageCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cloudStorageIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F0ECFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  cloudStorageContent: {
+    flex: 1,
+  },
+  cloudStorageTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#242424",
+    marginBottom: 4,
+  },
+  cloudStorageDescription: {
+    fontSize: 12,
+    color: "#666666",
   },
   statsCardsContainer: {
     paddingHorizontal: 20,
