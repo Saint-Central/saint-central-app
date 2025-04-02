@@ -307,6 +307,18 @@ const getBookColor = (book: string, theme: ReadingTheme): string => {
   return colors[theme][category];
 };
 
+// Define a set of CPDV‑exclusive books (include your desired names)
+const CPDVExclusiveBooks = new Set([
+  "Tobit",
+  "Judith",
+  "1 Maccabees",
+  "2 Maccabees",
+  "Additions to Esther",
+  "Wisdom",
+  "Sirach",
+  "Baruch",
+]);
+
 export default function BibleScreen() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -1007,10 +1019,23 @@ export default function BibleScreen() {
   // BIBLE VERSION
   // ---------------------
   const handleVersionSelect = (table: string) => {
+    // If a book is selected and it's one of the CPDV‑exclusive ones,
+    // prevent switching to a non‑CPDV bible version.
+    if (
+      selectedBook &&
+      CPDVExclusiveBooks.has(selectedBook) &&
+      table !== "CPDV_bible"
+    ) {
+      showFeedback(
+        "This book is only available in the CPDV Bible version. Please continue reading on CPDV."
+      );
+      return;
+    }
+
     setSelectedVersion(table);
     setShowVersionSelector(false);
 
-    // If user is viewing verses, reload the content with the new version
+    // If in verses view, reload verses with the new version.
     if (view === "verses" && selectedBook && selectedChapter) {
       fetchVerses(selectedBook, selectedChapter);
     }
