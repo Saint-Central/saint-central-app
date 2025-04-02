@@ -1086,7 +1086,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
           ]}
         >
           <LinearGradient
-            colors={['#6A478F', '#8860B2']}
+            colors={['#8952D0', '#AD7CEA']}
             style={styles.intentionModalHeader}
           >
             <Text style={styles.intentionModalTitle}>
@@ -1223,7 +1223,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       <View style={styles.intentionsContainer}>
         {/* Header with intentions stats */}
         <LinearGradient
-          colors={['#6A478F', '#8860B2']}
+          colors={['#8952D0', '#AD7CEA']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.intentionsStatsContainer}
@@ -1266,10 +1266,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             </View>
           </View>
           
-          {/* Filter button in header */}
+          {/* Filter button in header with improved styling */}
           <TouchableOpacity
             style={styles.intentionFilterButton}
             onPress={openFilterModal}
+            activeOpacity={0.7}
           >
             <Feather name="filter" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -1593,7 +1594,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   );
 };
 
-// Default themes
+// Default themes with brighter colors
 const defaultThemes = {
   light: {
     backgroundColor: "#FFFFFF",
@@ -1602,8 +1603,8 @@ const defaultThemes = {
     borderColor: "#EEEEEE",
     headerColor: "#F5F5F5",
     shadowColor: "#000000",
-    accentColor: "#6A478F",
-    favoriteColor: "#FF4081"
+    accentColor: "#8952D0", // Brighter purple
+    favoriteColor: "#FF5A93"  // Brighter pink
   },
   dark: {
     backgroundColor: "#121212",
@@ -1612,8 +1613,8 @@ const defaultThemes = {
     borderColor: "#333333",
     headerColor: "#1A1A1A",
     shadowColor: "#000000",
-    accentColor: "#9C64A6",
-    favoriteColor: "#FF80AB"
+    accentColor: "#B27AE8", // Brighter purple
+    favoriteColor: "#FF7EB4" // Brighter pink
   },
   sepia: {
     backgroundColor: "#F8F0E3",
@@ -1622,8 +1623,8 @@ const defaultThemes = {
     borderColor: "#E0D6C2",
     headerColor: "#F0E6D2",
     shadowColor: "#442C2E",
-    accentColor: "#7A503E",
-    favoriteColor: "#A94442"
+    accentColor: "#A66E52", // Brighter brown
+    favoriteColor: "#D05959" // Brighter red
   }
 };
 
@@ -1966,7 +1967,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginLeft: 10,
   },
   
   // Modal styles
