@@ -1091,19 +1091,19 @@ export default function BibleScreen() {
 
       if (error) throw error;
 
-      // Get unique chapters
-      const uniqueChapters = [
-        ...new Set(data.map((item: any) => item.chapter)),
-      ];
-      // Sort chapters numerically
+      // Ensure data exists and filter out any undefined/null chapter values
+      const chaptersArray = data ? data.map((item: any) => item.chapter) : [];
+      const uniqueChapters = Array.from(
+        new Set(chaptersArray.filter((ch) => ch != null))
+      );
+
+      // Sort chapters numerically (assumes chapter values are numeric strings)
       uniqueChapters.sort((a, b) => parseInt(a) - parseInt(b));
 
       setChapters(uniqueChapters);
     } catch (error) {
       console.error("Error fetching chapters:", error);
       showFeedback("Failed to load chapters. Check your connection.");
-
-      // Fallback to empty array
       setChapters([]);
     } finally {
       setLoading(false);
@@ -1122,10 +1122,14 @@ export default function BibleScreen() {
 
       if (error) throw error;
 
-      // Sort verses numerically
-      const sortedVerses = [...data].sort(
-        (a, b) => parseInt(a.verse) - parseInt(b.verse)
-      );
+      // Ensure data is an array and sort verses numerically
+      const versesArray = data || [];
+      const sortedVerses = versesArray.sort((a, b) => {
+        const aNum = parseInt(a.verse) || 0;
+        const bNum = parseInt(b.verse) || 0;
+        return aNum - bNum;
+      });
+
       setVerses(sortedVerses as BibleVerse[]);
 
       // Scroll to top when loading new verses
@@ -1135,11 +1139,75 @@ export default function BibleScreen() {
     } catch (error) {
       console.error("Error fetching verses:", error);
       showFeedback("Failed to load verses. Check your connection.");
-
-      // Fallback to empty array
       setVerses([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to parse search queries like "Genesis" or "Genesis 1"
+  const parseBookQuery = (query: string): { book: string; chapter?: string; verse?: string } | null => {
+    query = query.trim();
+    // Iterate over allBooks (defined earlier in your code)
+    for (const book of allBooks) {
+      if (query.toLowerCase().startsWith(book.toLowerCase())) {
+        const remainder = query.substring(book.length).trim();
+        if (remainder === "") {
+          return { book };
+        }
+        // Look for chapter and possibly verse (separated by colon or whitespace)
+        const parts = remainder.split(/[:\s]+/);
+        if (parts.length >= 1 && /^\d+$/.test(parts[0])) {
+          const chapter = parts[0];
+          let verse = "";
+          if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
+            verse = parts[1];
+          }
+          return { book, chapter, verse };
+        }
+        return { book };
+      }
+    }
+    return null;
+  };
+
+  const searchBible = async (
+    e: NativeSyntheticEvent<TextInputSubmitEditingEventData>
+  ): Promise<void> => {
+    // First, check if the search query looks like a book/chapter search
+    const parsed = parseBookQuery(searchText);
+    if (parsed) {
+      if (parsed.chapter) {
+        // If a chapter is provided (e.g. "Genesis 1"), jump directly to that chapter
+        setSelectedBook(parsed.book);
+        setSelectedChapter(parsed.chapter);
+        fetchVerses(parsed.book, parsed.chapter);
+        setView("verses");
+        setSearchResults([]); // Clear any verse search results
+      } else {
+        // If only the book is provided (e.g. "Genesis"), let the books view display it
+        setSearchResults([]);
+      }
+      return;
+    }
+
+    // Otherwise, perform a normal verse text search
+    setSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from(selectedVersion)
+        .select("*")
+        .ilike("text", `%${searchText}%`);
+
+      if (error) throw error;
+
+      setSearchResults(data as BibleVerse[]);
+    } catch (error) {
+      console.error("Error searching Bible:", error);
+      showFeedback("Failed to search. Check your connection.");
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -2734,28 +2802,6 @@ export default function BibleScreen() {
       )}
     </View>
   );
-
-  const searchBible = async (
-    e: NativeSyntheticEvent<TextInputSubmitEditingEventData>
-  ): Promise<void> => {
-    setSearching(true);
-    try {
-      const { data, error } = await supabase
-        .from(selectedVersion)
-        .select("*")
-        .ilike("text", `%${searchText}%`);
-
-      if (error) throw error;
-
-      setSearchResults(data as BibleVerse[]);
-    } catch (error) {
-      console.error("Error searching Bible:", error);
-      showFeedback("Failed to search. Check your connection.");
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
 
   // ---------------------
   // MAIN RENDER
