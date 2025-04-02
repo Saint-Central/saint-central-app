@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -127,6 +127,7 @@ const isConsecutiveDay = (date1, date2) => {
 export default function PrayerStatistics() {
   const router = useRouter();
   const theme = getMysteryTheme("GLORIOUS"); // Default theme
+  const scrollViewRef = useRef(null);
   
   // State management
   const [isLoading, setIsLoading] = useState(true);
@@ -149,6 +150,8 @@ export default function PrayerStatistics() {
   });
   const [mysteryDistribution, setMysteryDistribution] = useState([]);
   const [streakData, setStreakData] = useState([]);
+  const [selectedDataPoint, setSelectedDataPoint] = useState(null);
+  const [showDataPointInfo, setShowDataPointInfo] = useState(false);
   
   // Load prayer data on mount and when screen comes into focus
   useEffect(() => {
@@ -326,8 +329,10 @@ export default function PrayerStatistics() {
       }
     });
     
+    // Create shorter labels for "year" and "all" view to avoid overcrowding
     const monthLabels = [...monthlyMap.keys()].map(date => {
       const [year, month] = date.split('-');
+      // Use abbreviated format for better spacing
       return `${month}/${year.slice(2)}`;
     });
     
@@ -401,6 +406,46 @@ export default function PrayerStatistics() {
     }
   };
   
+  // Handle data point selection
+  const handleDataPointClick = (data, index) => {
+    // Close tooltip if clicking the same point
+    if (selectedDataPoint && selectedDataPoint.index === index) {
+      setSelectedDataPoint(null);
+      setShowDataPointInfo(false);
+      return;
+    }
+    
+    // Get the appropriate data based on time range
+    const chartData = timeRange === "week" || timeRange === "month" 
+      ? weeklyData 
+      : monthlyData;
+    
+    const label = chartData.labels[index];
+    const value = chartData.datasets[0].data[index];
+    
+    setSelectedDataPoint({
+      index,
+      label,
+      value,
+      x: index * ((width - 40) / (chartData.labels.length - 1)), // Approximate x position
+    });
+    
+    setShowDataPointInfo(true);
+  };
+  
+  // Scroll to Activity Chart
+  const scrollToActivityChart = () => {
+    // Add a small delay to ensure the scroll happens after render
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ 
+          y: 350, // Approximate position of the activity chart
+          animated: true 
+        });
+      }
+    }, 100);
+  };
+  
   // Render chart for the selected time range
   const renderChart = () => {
     const chartConfig = {
@@ -422,26 +467,123 @@ export default function PrayerStatistics() {
     
     if (timeRange === "week" || timeRange === "month") {
       return (
-        <LineChart
-          data={weeklyData}
-          width={width - 40}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={weeklyData}
+            width={width - 40}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+            onDataPointClick={({value, dataset, getColor, index}) => 
+              handleDataPointClick(value, index)
+            }
+            withShadow={false}
+            withHorizontalLines={true}
+            withVerticalLines={false}
+            withDots={true}
+            withInnerLines={false}
+            withOuterLines={true}
+            fromZero={true}
+          />
+          
+          {showDataPointInfo && selectedDataPoint && (
+            <View 
+              style={[
+                styles.dataPointTooltip, 
+                {
+                  left: selectedDataPoint.x,
+                  transform: [{ translateX: -50 }] // Center the tooltip
+                }
+              ]}
+            >
+              <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
+              <Text style={styles.tooltipValue}>
+                {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
+              </Text>
+              <View style={styles.tooltipArrow} />
+            </View>
+          )}
+        </View>
       );
     } else {
+      // For yearly or all-time view, adjust the labels to prevent crowding
+      const yearlyChartConfig = {
+        ...chartConfig,
+        barPercentage: 0.7,
+        barRadius: 5,
+        // Adjust x-axis label properties
+        labelRotation: -45,   // Rotate labels
+        xLabelsOffset: 0,     // Offset to position labels
+        formatXLabel: (label) => {
+          // For "all" range with many labels, display fewer labels
+          if (timeRange === "all" && monthlyData.labels.length > 12) {
+            const index = monthlyData.labels.indexOf(label);
+            // Only show every third label for readability
+            return index % 3 === 0 ? label : '';
+          }
+          return label;
+        },
+        // Reduce font size for label text
+        propsForLabels: {
+          fontSize: 10,
+        }
+      };
+      
       return (
-        <BarChart
-          data={monthlyData}
-          width={width - 40}
-          height={220}
-          chartConfig={chartConfig}
-          style={styles.chart}
-          showValuesOnTopOfBars
-        />
+        <View style={styles.chartContainer}>
+          <BarChart
+            data={monthlyData}
+            width={width - 40}
+            height={220}
+            chartConfig={yearlyChartConfig}
+            style={styles.chart}
+            showValuesOnTopOfBars
+            fromZero
+            flatColor
+            withHorizontalLabels
+            yAxisLabel=""
+            yAxisSuffix=""
+            onDataPointClick={({value, dataset, getColor, index}) => 
+              handleDataPointClick(value, index)
+            }
+            verticalLabelRotation={30}  // Rotate labels for better readability
+            horizontalLabelRotation={-45}
+          />
+          
+          {showDataPointInfo && selectedDataPoint && (
+            <View 
+              style={[
+                styles.dataPointTooltip, 
+                {
+                  left: selectedDataPoint.x,
+                  transform: [{ translateX: -50 }] // Center the tooltip
+                }
+              ]}
+            >
+              <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
+              <Text style={styles.tooltipValue}>
+                {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
+              </Text>
+              <View style={styles.tooltipArrow} />
+            </View>
+          )}
+        </View>
       );
+    }
+  };
+  
+  // Get streak colors based on value
+  const getStreakColor = (value, index) => {
+    // Create a gradient of colors from theme.primary
+    const maxValue = Math.max(...streakData);
+    const normalized = value / maxValue;
+    
+    // Alternate between two colors based on index for a more colorful display
+    if (index % 2 === 0) {
+      return `rgba(113, 88, 226, ${Math.max(0.3, normalized)})`;
+    } else {
+      return `rgba(24, 220, 255, ${Math.max(0.3, normalized)})`;
     }
   };
   
@@ -460,11 +602,6 @@ export default function PrayerStatistics() {
     
     return (
       <View style={styles.streakChartContainer}>
-        <View style={styles.streakLabels}>
-          <Text style={styles.streakLabelText}>1</Text>
-          <Text style={styles.streakLabelText}>{Math.max(15, Math.floor(recentStreakData.length/2))}</Text>
-          <Text style={styles.streakLabelText}>{recentStreakData.length}</Text>
-        </View>
         <View style={styles.streakBarsContainer}>
           {recentStreakData.map((value, index) => (
             <View 
@@ -472,8 +609,9 @@ export default function PrayerStatistics() {
               style={[
                 styles.streakBar,
                 { 
-                  height: Math.max(value * 10, 10), 
-                  backgroundColor: theme.primary 
+                  height: Math.max(value * 6, 4), // Smaller bars (was 10)
+                  backgroundColor: getStreakColor(value, index),
+                  width: 4, // Thinner bars
                 }
               ]}
             />
@@ -574,7 +712,11 @@ export default function PrayerStatistics() {
           styles.filterButton,
           timeRange === "week" && [styles.activeFilterButton, { borderColor: theme.primary }]
         ]}
-        onPress={() => setTimeRange("week")}
+        onPress={() => {
+          setTimeRange("week");
+          setSelectedDataPoint(null);
+          setShowDataPointInfo(false);
+        }}
       >
         <Text style={[
           styles.filterButtonText,
@@ -589,7 +731,11 @@ export default function PrayerStatistics() {
           styles.filterButton,
           timeRange === "month" && [styles.activeFilterButton, { borderColor: theme.primary }]
         ]}
-        onPress={() => setTimeRange("month")}
+        onPress={() => {
+          setTimeRange("month");
+          setSelectedDataPoint(null);
+          setShowDataPointInfo(false);
+        }}
       >
         <Text style={[
           styles.filterButtonText,
@@ -604,7 +750,11 @@ export default function PrayerStatistics() {
           styles.filterButton,
           timeRange === "year" && [styles.activeFilterButton, { borderColor: theme.primary }]
         ]}
-        onPress={() => setTimeRange("year")}
+        onPress={() => {
+          setTimeRange("year");
+          setSelectedDataPoint(null);
+          setShowDataPointInfo(false);
+        }}
       >
         <Text style={[
           styles.filterButtonText,
@@ -619,7 +769,11 @@ export default function PrayerStatistics() {
           styles.filterButton,
           timeRange === "all" && [styles.activeFilterButton, { borderColor: theme.primary }]
         ]}
-        onPress={() => setTimeRange("all")}
+        onPress={() => {
+          setTimeRange("all");
+          setSelectedDataPoint(null);
+          setShowDataPointInfo(false);
+        }}
       >
         <Text style={[
           styles.filterButtonText,
@@ -738,7 +892,11 @@ export default function PrayerStatistics() {
   
   // Render statistics tab
   const renderStatsTab = () => (
-    <ScrollView contentContainerStyle={styles.tabContent}>
+    <ScrollView 
+      ref={scrollViewRef}
+      contentContainerStyle={styles.tabContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Summary cards */}
       <View style={styles.statsCardsContainer}>
         <View style={styles.statsRow}>
@@ -795,9 +953,17 @@ export default function PrayerStatistics() {
       </View>
       
       {/* Activity chart */}
-      <View style={styles.chartSection}>
+      <View style={styles.chartSection} id="activityChart">
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Prayer Activity</Text>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+            <Text style={styles.sectionTitle}>Prayer Activity</Text>
+            <TouchableOpacity 
+              style={styles.scrollToButton}
+              onPress={scrollToActivityChart}
+            >
+              <AntDesign name="arrowdown" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
         
         {renderTimeRangeFilter()}
@@ -810,6 +976,12 @@ export default function PrayerStatistics() {
             <Text style={styles.emptyChartText}>No data available</Text>
           </View>
         )}
+        
+        <View style={styles.chartLegend}>
+          <Text style={styles.chartLegendText}>
+            Tap on data points to see details
+          </Text>
+        </View>
       </View>
       
       {/* Mystery distribution */}
@@ -994,7 +1166,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   tabContent: {
-    flex: 1,
     paddingBottom: 20,
   },
   statsCardsContainer: {
@@ -1054,6 +1225,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#242424",
   },
+  scrollToButton: {
+    backgroundColor: '#7158e2',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
   filterContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1074,9 +1254,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666666",
   },
-  chart: {
+  chartContainer: {
+    position: 'relative',
     marginHorizontal: 20,
+  },
+  chart: {
     borderRadius: 16,
+    elevation: 5,
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+  },
+  dataPointTooltip: {
+    position: 'absolute',
+    backgroundColor: '#333',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+    alignItems: 'center',
+    top: 40, // Position above the chart
+    zIndex: 10,
+  },
+  tooltipDate: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  tooltipValue: {
+    color: '#FFF',
+    fontSize: 12,
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    bottom: -5,
+    width: 10,
+    height: 10,
+    backgroundColor: '#333',
+    transform: [{ rotate: '45deg' }],
+  },
+  chartLegend: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  chartLegendText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   },
   emptyChartContainer: {
     height: 220,
@@ -1091,7 +1313,7 @@ const styles = StyleSheet.create({
     color: "#666666",
   },
   streakChartContainer: {
-    height: 220,
+    height: 150, // Reduced from 220
     marginHorizontal: 20,
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
@@ -1102,15 +1324,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  streakLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  streakLabelText: {
-    fontSize: 12,
-    color: "#666666",
-  },
   streakBarsContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -1118,18 +1331,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
   },
   streakBar: {
-    width: 6,
-    borderRadius: 3,
-    marginHorizontal: 2,
+    width: 4, // Thinner bars
+    borderRadius: 2,
+    marginHorizontal: 1, // Closer together
   },
   streakGraphCaption: {
     fontSize: 12,
     color: "#666666",
     textAlign: "center",
-    marginTop: 16,
+    marginTop: 10,
   },
   emptyStreakContainer: {
-    height: 220,
+    height: 150, // Reduced from 220
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F5F5F5",
