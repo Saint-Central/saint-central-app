@@ -837,7 +837,9 @@ function EventsComponent() {
           </View>
           <Text style={styles.heroTitle}>Community Events</Text>
           <Text style={styles.heroSubtitle}>
-            Stay connected with upcoming events and activities
+          Join Saint Central and our guest speakers for live events, prayer nights, and Bible studies.
+
+
           </Text>
           <TouchableOpacity
             style={styles.addEventButton}
