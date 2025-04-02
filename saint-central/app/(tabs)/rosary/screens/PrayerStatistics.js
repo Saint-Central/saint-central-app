@@ -423,11 +423,25 @@ export default function PrayerStatistics() {
     const label = chartData.labels[index];
     const value = chartData.datasets[0].data[index];
     
+    // Calculate position differently based on chart type
+    let xPosition;
+    const dataPointCount = chartData.labels.length;
+    
+    if (timeRange === "year" || timeRange === "all") {
+      // For bar charts with custom width
+      const barWidth = 30; // Should match what's used in renderChart
+      const chartWidth = Math.max(width - 40, dataPointCount * barWidth);
+      xPosition = (index * chartWidth) / dataPointCount + (barWidth / 2);
+    } else {
+      // For line charts
+      xPosition = index * ((width - 40) / (chartData.labels.length - 1));
+    }
+    
     setSelectedDataPoint({
       index,
       label,
       value,
-      x: index * ((width - 40) / (chartData.labels.length - 1)), // Approximate x position
+      x: xPosition,
     });
     
     setShowDataPointInfo(true);
@@ -467,43 +481,51 @@ export default function PrayerStatistics() {
     
     if (timeRange === "week" || timeRange === "month") {
       return (
-        <View style={styles.chartContainer}>
-          <LineChart
-            data={weeklyData}
-            width={width - 40}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            onDataPointClick={({value, dataset, getColor, index}) => 
-              handleDataPointClick(value, index)
-            }
-            withShadow={false}
-            withHorizontalLines={true}
-            withVerticalLines={false}
-            withDots={true}
-            withInnerLines={false}
-            withOuterLines={true}
-            fromZero={true}
-          />
-          
-          {showDataPointInfo && selectedDataPoint && (
-            <View 
-              style={[
-                styles.dataPointTooltip, 
-                {
-                  left: selectedDataPoint.x,
-                  transform: [{ translateX: -50 }] // Center the tooltip
+        <View style={styles.chartOuterContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={true}
+            contentContainerStyle={styles.scrollableChartContent}
+          >
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={weeklyData}
+                width={width - 40}
+                height={220}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+                onDataPointClick={({value, dataset, getColor, index}) => 
+                  handleDataPointClick(value, index)
                 }
-              ]}
-            >
-              <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
-              <Text style={styles.tooltipValue}>
-                {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
-              </Text>
-              <View style={styles.tooltipArrow} />
+                withShadow={false}
+                withHorizontalLines={true}
+                withVerticalLines={false}
+                withDots={true}
+                withInnerLines={false}
+                withOuterLines={true}
+                fromZero={true}
+              />
+              
+              {showDataPointInfo && selectedDataPoint && (
+                <View 
+                  style={[
+                    styles.dataPointTooltip, 
+                    {
+                      left: selectedDataPoint.x,
+                      transform: [{ translateX: -50 }] // Center the tooltip
+                    }
+                  ]}
+                >
+                  <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
+                  <Text style={styles.tooltipValue}>
+                    {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
+                  </Text>
+                  <View style={styles.tooltipArrow} />
+                </View>
+              )}
             </View>
-          )}
+          </ScrollView>
         </View>
       );
     } else {
@@ -530,44 +552,58 @@ export default function PrayerStatistics() {
         }
       };
       
+      // Calculate width based on number of data points
+      // More data points = wider chart for horizontal scrolling
+      const dataPointCount = monthlyData.labels.length;
+      const barWidth = 30; // Width per bar in pixels
+      const chartWidth = Math.max(width - 40, dataPointCount * barWidth);
+      
       return (
-        <View style={styles.chartContainer}>
-          <BarChart
-            data={monthlyData}
-            width={width - 40}
-            height={220}
-            chartConfig={yearlyChartConfig}
-            style={styles.chart}
-            showValuesOnTopOfBars
-            fromZero
-            flatColor
-            withHorizontalLabels
-            yAxisLabel=""
-            yAxisSuffix=""
-            onDataPointClick={({value, dataset, getColor, index}) => 
-              handleDataPointClick(value, index)
-            }
-            verticalLabelRotation={30}  // Rotate labels for better readability
-            horizontalLabelRotation={-45}
-          />
-          
-          {showDataPointInfo && selectedDataPoint && (
-            <View 
-              style={[
-                styles.dataPointTooltip, 
-                {
-                  left: selectedDataPoint.x,
-                  transform: [{ translateX: -50 }] // Center the tooltip
+        <View style={styles.chartOuterContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={true}
+            contentContainerStyle={styles.scrollableChartContent}
+          >
+            <View style={styles.chartContainer}>
+              <BarChart
+                data={monthlyData}
+                width={chartWidth}
+                height={220}
+                chartConfig={yearlyChartConfig}
+                style={styles.chart}
+                showValuesOnTopOfBars
+                fromZero
+                flatColor
+                withHorizontalLabels
+                yAxisLabel=""
+                yAxisSuffix=""
+                onDataPointClick={({value, dataset, getColor, index}) => 
+                  handleDataPointClick(value, index)
                 }
-              ]}
-            >
-              <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
-              <Text style={styles.tooltipValue}>
-                {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
-              </Text>
-              <View style={styles.tooltipArrow} />
+                verticalLabelRotation={30}  // Rotate labels for better readability
+                horizontalLabelRotation={-45}
+              />
+              
+              {showDataPointInfo && selectedDataPoint && (
+                <View 
+                  style={[
+                    styles.dataPointTooltip, 
+                    {
+                      left: selectedDataPoint.x,
+                      transform: [{ translateX: -50 }] // Center the tooltip
+                    }
+                  ]}
+                >
+                  <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
+                  <Text style={styles.tooltipValue}>
+                    {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
+                  </Text>
+                  <View style={styles.tooltipArrow} />
+                </View>
+              )}
             </View>
-          )}
+          </ScrollView>
         </View>
       );
     }
@@ -1100,6 +1136,19 @@ export default function PrayerStatistics() {
 }
 
 const styles = StyleSheet.create({
+  chartOuterContainer: {
+    marginHorizontal: 20,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollableChartContent: {
+    paddingRight: 20, // Add some padding at the end for better scrolling
+  },
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
