@@ -510,19 +510,12 @@ export default function RosaryHome() {
         />
       </Animated.View>
       
-      {/* Header */}
+      {/* Header - Removed profile icon */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.greetingContainer}>
           <Text style={styles.greeting}>{getGreeting()}</Text>
           <Text style={styles.userName}>{userName}</Text>
         </View>
-        
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={navigateToSettings}
-        >
-          <FontAwesome5 name="user-circle" size={32} color={theme.primary} />
-        </TouchableOpacity>
       </View>
       
       <ScrollView
@@ -591,13 +584,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
     zIndex: 10,
+  },
+  greetingContainer: {
+    // Updated to take full width without the profile button
+    width: '100%',
   },
   greeting: {
     fontSize: 16,
@@ -607,13 +601,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#242424",
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
   },
   scrollContent: {
     paddingBottom: 40,
