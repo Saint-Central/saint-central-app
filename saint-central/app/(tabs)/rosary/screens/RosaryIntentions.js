@@ -536,6 +536,7 @@ export default function RosaryIntentions() {
   // Animation values
   const filterDrawerAnim = useRef(new Animated.Value(0)).current;
   const searchBarAnim = useRef(new Animated.Value(0)).current;
+  const addButtonAnimation = useRef(new Animated.Value(0)).current;
   
   // Form states
   const [newIntention, setNewIntention] = useState({
@@ -563,6 +564,24 @@ export default function RosaryIntentions() {
       useNativeDriver: true,
     }).start();
   }, [showFilterDrawer]);
+  
+  // Add button animations
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(addButtonAnimation, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(addButtonAnimation, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
   
   // Cleanup notification after timeout
   useEffect(() => {
@@ -1023,6 +1042,12 @@ export default function RosaryIntentions() {
     
     return { total, active, completed, favorites };
   };
+  
+  // Add button scale animation
+  const addButtonScale = addButtonAnimation.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1.08, 1],
+  });
 
   // Toggle search bar
   const toggleSearchBar = () => {
@@ -1334,33 +1359,41 @@ export default function RosaryIntentions() {
     );
   };
   
-  // REDESIGNED: Floating action button
-  const renderFloatingButton = () => (
-    <TouchableOpacity
-      style={styles.floatingButton}
-      onPress={() => {
-        setNewIntention({
-          title: "",
-          description: "",
-          type: "prayer",
-          completed: false,
-          favorite: false,
-          visibility: "Just Me",
-          selectedGroups: []
-        });
-        setShowAddModal(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }}
+  // Copied Add Button from reference - moved higher up in the UI
+  const renderAddButton = () => (
+    <Animated.View 
+      style={[
+        styles.addButtonContainer,
+        { transform: [{ scale: addButtonScale }] }
+      ]}
     >
-      <LinearGradient
-        colors={[theme.primary, theme.secondary]}
-        style={styles.floatingButtonGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => {
+          setNewIntention({
+            title: "",
+            description: "",
+            type: "prayer",
+            completed: false,
+            favorite: false,
+            visibility: "Just Me",
+            selectedGroups: []
+          });
+          setShowAddModal(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }}
+        activeOpacity={0.8}
       >
-        <Ionicons name="add" size={28} color="white" />
-      </LinearGradient>
-    </TouchableOpacity>
+        <LinearGradient
+          colors={[theme.primary, theme.secondary]}
+          style={styles.addButtonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
   );
   
   // Add modal with the same functionality but improved design
@@ -1761,7 +1794,7 @@ export default function RosaryIntentions() {
       {/* Main UI Components */}
       {renderHeader()}
       {renderMainContent()}
-      {renderFloatingButton()}
+      {renderAddButton()}
       {renderFilterDrawer()}
       
       {/* Modals */}
@@ -2142,21 +2175,31 @@ const styles = StyleSheet.create({
     color: "white",
   },
   
-  // REDESIGNED: Floating action button
-  floatingButton: {
+  // Add button styles - Copied from reference
+  addButtonContainer: {
     position: "absolute",
-    bottom: 24,
-    right: 24,
+    right: 20,
+    bottom: 140, // Raised position as in reference
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  addButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: "hidden",
+    shadowColor: theme.cardShadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 8,
   },
-  floatingButtonGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  addButtonGradient: {
+    width: 52,
+    height: 52,
     justifyContent: "center",
     alignItems: "center",
   },
