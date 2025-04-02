@@ -1764,12 +1764,14 @@ export default function BibleScreen() {
                     // If it's a chapter bookmark (verse "0")
                     if (favorite.verse === "0") {
                       setSelectedBook(favorite.book);
+                      fetchChapters(favorite.book); // Load chapters in background
                       setSelectedChapter(favorite.chapter);
                       fetchVerses(favorite.book, favorite.chapter);
                       setView("verses");
                     } else {
                       // If it's a verse bookmark
                       setSelectedBook(favorite.book);
+                      fetchChapters(favorite.book); // Load chapters in background
                       setSelectedChapter(favorite.chapter);
                       fetchVerses(favorite.book, favorite.chapter);
                       setView("verses");
@@ -2031,6 +2033,7 @@ export default function BibleScreen() {
                 ]}
                 onPress={() => {
                   setSelectedBook(item.book);
+                  fetchChapters(item.book); // Load chapters in background
                   setSelectedChapter(item.chapter);
                   fetchVerses(item.book, item.chapter);
                   setView("verses");
