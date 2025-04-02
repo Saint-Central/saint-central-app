@@ -16,7 +16,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   StatusBar,
-  Share,
+
   Easing,
   Dimensions
 } from "react-native";
@@ -675,42 +675,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     }
   };
 
-  // Share intentions function
-  const shareIntentions = async () => {
-    try {
-      // Get filtered intentions based on current view
-      const filteredIntentions = getFilteredIntentions();
-      
-      // Create a formatted text of intentions to share
-      let intentionsText = "My Prayer Intentions\n\n";
-      
-      // Add each intention to the text
-      filteredIntentions.forEach((intention, index) => {
-        intentionsText += `${index + 1}. ${intention.title}`;
-        if (intention.description) {
-          intentionsText += ` - ${intention.description}`;
-        }
-        intentionsText += `\nType: ${intention.type}\nStatus: ${intention.completed ? "Completed" : "Active"}\n\n`;
-      });
-      
-      // Add a message at the end
-      intentionsText += "Shared from my Prayer Intentions App";
-      
-      // Show share dialog
-      await Share.share({
-        message: intentionsText,
-        title: "My Prayer Intentions",
-      });
-      
-      // Haptic feedback
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-    } catch (error) {
-      console.error("Error sharing intentions:", error);
-      showFeedback("Failed to share intentions");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  };
+  // Removed shareIntentions function
 
   // Get filtered and sorted intentions
   const getFilteredIntentions = useCallback(() => {
@@ -1263,41 +1228,51 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
           end={{ x: 1, y: 0 }}
           style={styles.intentionsStatsContainer}
         >
-          <View style={styles.intentionStat}>
-            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-              {intentions.length}
-            </Text>
-            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-              Total
-            </Text>
-          </View>
+          <View style={{ flex: 1, flexDirection: "row" }}>
+            <View style={styles.intentionStat}>
+              <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+                {intentions.length}
+              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+                Total
+              </Text>
+            </View>
 
-          <View style={styles.intentionStat}>
-            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-              {intentions.filter(i => !i.completed).length}
-            </Text>
-            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-              Active
-            </Text>
-          </View>
+            <View style={styles.intentionStat}>
+              <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+                {intentions.filter(i => !i.completed).length}
+              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+                Active
+              </Text>
+            </View>
 
-          <View style={styles.intentionStat}>
-            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-              {intentions.filter(i => i.completed).length}
-            </Text>
-            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-              Completed
-            </Text>
-          </View>
+            <View style={styles.intentionStat}>
+              <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+                {intentions.filter(i => i.completed).length}
+              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+                Completed
+              </Text>
+            </View>
 
-          <View style={styles.intentionStat}>
-            <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-              {intentions.filter(i => i.favorite).length}
-            </Text>
-            <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-              Favorites
-            </Text>
+            <View style={styles.intentionStat}>
+              <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
+                {intentions.filter(i => i.favorite).length}
+              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
+                Favorites
+              </Text>
+            </View>
           </View>
+          
+          {/* Filter button in header */}
+          <TouchableOpacity
+            style={styles.intentionFilterButton}
+            onPress={openFilterModal}
+          >
+            <Feather name="filter" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </LinearGradient>
 
         {/* Intentions Tabs */}
@@ -1602,33 +1577,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
           />
         )}
 
-        {/* Share Button */}
-        <TouchableOpacity
-          style={[
-            styles.intentionShareButton,
-            {
-              backgroundColor: "#FFFFFF",
-              borderColor: "#EEEEEE",
-            },
-          ]}
-          onPress={shareIntentions}
-        >
-          <Feather name="share-2" size={20} color="#6A478F" />
-        </TouchableOpacity>
-
-        {/* Filter Button */}
-        <TouchableOpacity
-          style={[
-            styles.intentionFilterButton,
-            {
-              backgroundColor: "#FFFFFF",
-              borderColor: "#EEEEEE",
-            },
-          ]}
-          onPress={openFilterModal}
-        >
-          <Feather name="filter" size={20} color="#6A478F" />
-        </TouchableOpacity>
+        {/* Filter button moved to header */}
 
         {/* New Add Prayer Button */}
         <AddPrayerButton 
@@ -1826,6 +1775,7 @@ const styles = StyleSheet.create({
   intentionsStatsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
     elevation: 4,
     shadowOffset: { width: 0, height: 2 },
@@ -1834,6 +1784,7 @@ const styles = StyleSheet.create({
   },
   intentionStat: {
     alignItems: "center",
+    flex: 1,
   },
   intentionStatNumber: {
     fontSize: 24,
@@ -2007,38 +1958,15 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   
-  // Share Button
-  intentionShareButton: {
-    position: "absolute",
-    right: 90, // Position to the left of the filter button
-    bottom: 90, // Same height as the filter button
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-    borderWidth: 1,
-  },
-  
-  // Filter Button
+  // Filter Button (now in header)
   intentionFilterButton: {
-    position: "absolute",
-    right: 24,
-    bottom: 90,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-    borderWidth: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginLeft: 10,
   },
   
   // Modal styles
