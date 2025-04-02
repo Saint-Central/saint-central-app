@@ -693,27 +693,126 @@ export default function RosaryIntentions() {
     try {
       setIsLoading(true);
 
+      // Get user's friends
+      const { data: sentFriends, error: sentError } = await supabase
+        .from("friends")
+        .select("user_id_2")
+        .eq("user_id_1", userId)
+        .eq("status", "accepted");
+      if (sentError) throw sentError;
+
+      const { data: receivedFriends, error: receivedError } = await supabase
+        .from("friends")
+        .select("user_id_1")
+        .eq("user_id_2", userId)
+        .eq("status", "accepted");
+      if (receivedError) throw receivedError;
+
+      // Create a set of friend IDs
+      const friendIds = new Set();
+      if (sentFriends) {
+        sentFriends.forEach((friend) => friendIds.add(friend.user_id_2));
+      }
+      if (receivedFriends) {
+        receivedFriends.forEach((friend) => friendIds.add(friend.user_id_1));
+      }
+
+      // Get user's groups
+      const { data: userGroups, error: groupsError } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", userId);
+      if (groupsError) throw groupsError;
+
+      const userGroupIds = userGroups ? userGroups.map((g) => g.group_id) : [];
+
+      // Fetch all intentions
       const { data, error } = await supabase
         .from("intentions")
         .select("*")
-        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const formattedData = data.map((item) => ({
-          id: item.id.toString(),
-          title: item.title,
-          description: item.description,
-          type: item.type || "prayer",
-          date: item.created_at,
-          completed: item.completed || false,
-          favorite: item.favorite || false,
-          visibility: item.visibility || "Just Me",
-          selected_groups: item.selected_groups,
-          selectedGroups: parseSelectedGroups(item.selected_groups),
-        }));
+        // Filter intentions based on visibility settings
+        const filteredData = await Promise.all(
+          data.map(async (item) => {
+            // Parse selected groups
+            const selectedGroups = parseSelectedGroups(item.selected_groups);
+
+            // Current user's own intentions always visible
+            if (item.user_id === userId) {
+              return item;
+            }
+
+            // Check visibility settings
+            switch (item.visibility) {
+              case "Just Me":
+                // Only visible to creator
+                return item.user_id === userId ? item : null;
+
+              case "Friends":
+                // Visible to creator and friends
+                return (item.user_id === userId || friendIds.has(item.user_id)) ? item : null;
+
+              case "Certain Groups":
+                // Visible to creator and members of selected groups
+                if (item.user_id === userId) return item;
+
+                // If no groups are selected, only show to creator
+                if (!selectedGroups || selectedGroups.length === 0) {
+                  return item.user_id === userId ? item : null;
+                }
+
+                // Check if user is in any of the selected groups
+                const isInSelectedGroup = selectedGroups.some((groupId) => 
+                  userGroupIds.includes(Number(groupId))
+                );
+                return isInSelectedGroup ? item : null;
+
+              case "Friends & Groups":
+                // Visible to creator, friends, and group members
+                if (item.user_id === userId || friendIds.has(item.user_id)) {
+                  return item;
+                }
+
+                // Check if user is in same group as intention creator
+                const { data: creatorGroups, error: creatorGroupsError } = await supabase
+                  .from("group_members")
+                  .select("group_id")
+                  .eq("user_id", item.user_id);
+
+                if (creatorGroupsError) {
+                  console.error("Error checking creator's group membership:", creatorGroupsError);
+                  return null;
+                }
+
+                const creatorGroupIds = creatorGroups.map(g => g.group_id);
+                const isInSameGroup = userGroupIds.some(groupId => creatorGroupIds.includes(groupId));
+                return isInSameGroup ? item : null;
+
+              default:
+                return null;
+            }
+          })
+        );
+
+        // Remove null values and format the data
+        const formattedData = filteredData
+          .filter(item => item !== null)
+          .map((item) => ({
+            id: item.id.toString(),
+            title: item.title,
+            description: item.description,
+            type: item.type || "prayer",
+            date: item.created_at,
+            completed: item.completed || false,
+            favorite: item.favorite || false,
+            visibility: item.visibility || "Just Me",
+            selected_groups: item.selected_groups,
+            selectedGroups: parseSelectedGroups(item.selected_groups),
+          }));
 
         setIntentions(formattedData);
       } else {
@@ -1321,7 +1420,7 @@ export default function RosaryIntentions() {
     );
   };
 
-  // ***** THE ONLY CHANGE: Filter drawer now lists all types (including “goal”) *****
+  // ***** THE ONLY CHANGE: Filter drawer now lists all types (including "goal") *****
   const renderFilterDrawer = () => {
     const translateX = filterDrawerAnim.interpolate({
       inputRange: [0, 1],
