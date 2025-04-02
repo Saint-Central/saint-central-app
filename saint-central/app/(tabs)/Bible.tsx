@@ -273,6 +273,19 @@ const deuterocanonicalBooks = [
   "I Maccabees",
   "II Maccabees",
 ];
+
+// Define a set of CPDV‑exclusive books (include your desired names)
+const CPDVExclusiveBooks = new Set([
+  "Tobit",
+  "Judith",
+  "1 Maccabees",
+  "2 Maccabees",
+  "Additions to Esther",
+  "Wisdom",
+  "Sirach",
+  "Baruch",
+]);
+
 // Get color for book category
 const getBookColor = (book: string, theme: ReadingTheme): string => {
   const category = getBookCategory(book) as keyof typeof colors.paper;
@@ -306,18 +319,6 @@ const getBookColor = (book: string, theme: ReadingTheme): string => {
 
   return colors[theme][category];
 };
-
-// Define a set of CPDV‑exclusive books (include your desired names)
-const CPDVExclusiveBooks = new Set([
-  "Tobit",
-  "Judith",
-  "1 Maccabees",
-  "2 Maccabees",
-  "Additions to Esther",
-  "Wisdom",
-  "Sirach",
-  "Baruch",
-]);
 
 export default function BibleScreen() {
   const router = useRouter();
