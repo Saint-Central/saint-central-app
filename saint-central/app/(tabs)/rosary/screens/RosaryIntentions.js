@@ -33,39 +33,39 @@ import { BlurView } from "expo-blur";
 // Get device dimensions
 const { width, height } = Dimensions.get("window");
 
-// Theme colors - New palette
+// Updated theme colors - Fresh palette with deeper contrast
 const theme = {
-  primary: "#3B82F6", // Bright blue
-  secondary: "#1E40AF", // Dark blue
-  tertiary: "#93C5FD", // Light blue
-  background: "#F3F4F6", // Light gray
+  primary: "#4F46E5", // Indigo
+  secondary: "#312E81", // Dark indigo
+  tertiary: "#818CF8", // Light indigo
+  background: "#F8FAFC", // Very light gray/blue
   surface: "#FFFFFF", // White
-  surfaceVariant: "#F8FAFC", // Off-white
+  surfaceVariant: "#F1F5F9", // Off-white with blue tint
   error: "#EF4444", // Red
   success: "#10B981", // Green
   warning: "#F59E0B", // Yellow/Amber
-  textPrimary: "#1F2937", // Very dark gray
-  textSecondary: "#4B5563", // Dark gray
-  textTertiary: "#9CA3AF", // Medium gray
+  textPrimary: "#111827", // Very dark gray/black
+  textSecondary: "#374151", // Dark gray
+  textTertiary: "#6B7280", // Medium gray
   divider: "#E5E7EB", // Light gray for borders/dividers
   cardShadow: "#0000001A", // Shadow for cards
-  icon: "#6B7280", // Icon color
-  highlight: "#DBEAFE", // Light blue highlight
+  icon: "#64748B", // Slate for icons
+  highlight: "#EEF2FF", // Very light indigo highlight
 };
 
-// Enhanced type icons and colors
+// Enhanced type icons and colors with modern gradient combinations
 const TYPE_ICONS = {
-  "prayer": { name: "pray", style: "fa5", color: ["#3B82F6", "#1E40AF"] },
-  "resolution": { name: "notebook", style: "ion", color: ["#8B5CF6", "#6D28D9"] },
-  "goal": { name: "target", style: "feather", color: ["#EC4899", "#DB2777"] },
-  "spiritual": { name: "church", style: "fa5", color: ["#10B981", "#059669"] },
-  "family": { name: "people", style: "ion", color: ["#F59E0B", "#D97706"] },
-  "health": { name: "heart", style: "fa5", color: ["#EF4444", "#DC2626"] },
-  "work": { name: "briefcase", style: "fa5", color: ["#6366F1", "#4F46E5"] },
-  "friends": { name: "users", style: "fa5", color: ["#14B8A6", "#0D9488"] },
-  "world": { name: "globe", style: "fa5", color: ["#3B82F6", "#1E40AF"] },
-  "personal": { name: "person", style: "ion", color: ["#8B5CF6", "#6D28D9"] },
-  "other": { name: "options", style: "ion", color: ["#6B7280", "#4B5563"] },
+  "prayer": { name: "pray", style: "fa5", color: ["#4F46E5", "#312E81"] }, // Indigo gradient
+  "resolution": { name: "notebook", style: "ion", color: ["#8B5CF6", "#6D28D9"] }, // Purple gradient
+  "goal": { name: "target", style: "feather", color: ["#EC4899", "#BE185D"] }, // Pink gradient
+  "spiritual": { name: "church", style: "fa5", color: ["#10B981", "#047857"] }, // Emerald gradient
+  "family": { name: "people", style: "ion", color: ["#F59E0B", "#B45309"] }, // Amber gradient
+  "health": { name: "heart", style: "fa5", color: ["#EF4444", "#B91C1C"] }, // Red gradient
+  "work": { name: "briefcase", style: "fa5", color: ["#3B82F6", "#1E40AF"] }, // Blue gradient
+  "friends": { name: "users", style: "fa5", color: ["#14B8A6", "#0F766E"] }, // Teal gradient
+  "world": { name: "globe", style: "fa5", color: ["#0EA5E9", "#0369A1"] }, // Sky blue gradient
+  "personal": { name: "person", style: "ion", color: ["#8B5CF6", "#6D28D9"] }, // Purple gradient
+  "other": { name: "options", style: "ion", color: ["#6B7280", "#4B5563"] }, // Gray gradient
 };
 
 // Helper function to render icon based on type
@@ -84,7 +84,7 @@ const renderTypeIcon = (type, size = 20, color = "#FFFFFF") => {
   }
 };
 
-// Enhanced visibility options
+// Enhanced visibility options with nicer color scheme
 const VISIBILITY_OPTIONS = [
   {
     id: "just-me",
@@ -100,7 +100,7 @@ const VISIBILITY_OPTIONS = [
     icon: "people",
     style: "ion",
     description: "Share with your friends",
-    color: "#3B82F6"
+    color: "#4F46E5"
   },
   {
     id: "groups",
@@ -160,7 +160,7 @@ const formatDate = (dateString) => {
   }
 };
 
-// Intention Card Component - Completely redesigned
+// Intention Card Component - Completely redesigned with more modern aesthetic
 const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCompleted, index }) => {
   const iconInfo = TYPE_ICONS[item.type] || TYPE_ICONS["other"];
   const animation = useRef(new Animated.Value(0)).current;
@@ -169,14 +169,14 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
     Animated.timing(animation, {
       toValue: 1,
       duration: 400,
-      delay: index * 100,
+      delay: index * 70, // Slightly faster animation sequence
       useNativeDriver: true,
     }).start();
   }, []);
   
   const translateY = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [50, 0],
+    outputRange: [40, 0], // Reduced movement for subtler animation
   });
   
   const opacity = animation.interpolate({
@@ -197,20 +197,17 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
           item.completed && styles.completedCard
         ]}
         onPress={() => onPress(item)}
-        android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+        android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
       >
         <View style={styles.cardHeader}>
-          <View style={styles.typeContainer}>
-            <View 
-              style={[
-                styles.typeIconContainer, 
-                { backgroundColor: iconInfo.color[0] }
-              ]}
-            >
-              {renderTypeIcon(item.type, 16)}
-            </View>
-            <Text style={styles.typeText}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</Text>
-          </View>
+          <LinearGradient
+            colors={iconInfo.color}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.typeIconContainer}
+          >
+            {renderTypeIcon(item.type, 14)}
+          </LinearGradient>
           
           <View style={styles.cardActions}>
             <TouchableOpacity
@@ -221,7 +218,7 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
               <AntDesign 
                 name={item.favorite ? "heart" : "hearto"} 
                 size={18} 
-                color={item.favorite ? theme.error : theme.textSecondary} 
+                color={item.favorite ? theme.error : theme.textTertiary} 
               />
             </TouchableOpacity>
             
@@ -233,7 +230,7 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
               <Ionicons 
                 name={item.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
                 size={18} 
-                color={item.completed ? theme.success : theme.textSecondary} 
+                color={item.completed ? theme.success : theme.textTertiary} 
               />
             </TouchableOpacity>
           </View>
@@ -266,13 +263,13 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
         <View style={styles.cardFooter}>
           <View style={styles.visibilityContainer}>
             {item.visibility === "Just Me" ? (
-              <Ionicons name="lock-closed" size={14} color={theme.textTertiary} />
+              <Ionicons name="lock-closed" size={12} color={theme.textTertiary} />
             ) : item.visibility === "Friends" ? (
-              <Ionicons name="people" size={14} color={theme.textTertiary} />
+              <Ionicons name="people" size={12} color={theme.textTertiary} />
             ) : item.visibility === "Friends & Groups" ? (
-              <FontAwesome5 name="globe" size={12} color={theme.textTertiary} />
+              <FontAwesome5 name="globe" size={10} color={theme.textTertiary} />
             ) : (
-              <Ionicons name="people-circle" size={14} color={theme.textTertiary} />
+              <Ionicons name="people-circle" size={12} color={theme.textTertiary} />
             )}
             <Text style={styles.visibilityText}>{item.visibility}</Text>
           </View>
@@ -284,7 +281,7 @@ const IntentionCard = React.memo(({ item, onPress, onToggleFavorite, onToggleCom
   );
 });
 
-// Intention Group Component - New design for the type sections
+// Intention Group Component - Redesigned for more modern appearance
 const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted, onPressIntention, expanded, onToggleExpand }) => {
   const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
   const activeCount = intentions.filter(i => !i.completed).length;
@@ -294,7 +291,7 @@ const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted,
   useEffect(() => {
     Animated.timing(rotateAnim, {
       toValue: expanded ? 1 : 0,
-      duration: 300,
+      duration: 250, // Slightly faster rotation
       useNativeDriver: true,
     }).start();
   }, [expanded]);
@@ -312,14 +309,14 @@ const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted,
         activeOpacity={0.7}
       >
         <View style={styles.groupHeaderLeft}>
-          <View 
-            style={[
-              styles.groupIconContainer, 
-              { backgroundColor: iconInfo.color[0] }
-            ]}
+          <LinearGradient
+            colors={iconInfo.color}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.groupIconContainer}
           >
-            {renderTypeIcon(type, 20)}
-          </View>
+            {renderTypeIcon(type, 18)}
+          </LinearGradient>
           <View style={styles.groupTitleContainer}>
             <Text style={styles.groupTitle}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
             <Text style={styles.groupCount}>{intentions.length} intention{intentions.length !== 1 ? 's' : ''}</Text>
@@ -327,21 +324,21 @@ const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted,
         </View>
         
         <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
-          <Ionicons name="chevron-down" size={24} color={theme.textSecondary} />
+          <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
         </Animated.View>
       </TouchableOpacity>
       
       {expanded && (
-        <View style={styles.groupContent}>
+        <Animated.View style={styles.groupContent}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Active</Text>
               <Text style={styles.statValue}>{activeCount}</Text>
+              <Text style={styles.statLabel}>Active</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Completed</Text>
               <Text style={styles.statValue}>{completedCount}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
             </View>
           </View>
           
@@ -355,13 +352,13 @@ const IntentionGroup = ({ type, intentions, onToggleFavorite, onToggleCompleted,
               onToggleCompleted={onToggleCompleted}
             />
           ))}
-        </View>
+        </Animated.View>
       )}
     </View>
   );
 };
 
-// Filter Chip Component - Reusable for filter options
+// Filter Chip Component - Improved visual design
 const FilterChip = ({ label, icon, active, onPress, IconComponent = Ionicons }) => (
   <TouchableOpacity
     style={[
@@ -388,7 +385,7 @@ const FilterChip = ({ label, icon, active, onPress, IconComponent = Ionicons }) 
   </TouchableOpacity>
 );
 
-// AnimatedIconButton Component - For the add button animation
+// AnimatedIconButton Component - Enhanced for better visual feedback
 const AnimatedIconButton = ({ icon, onPress, style, size = 24, color = "white", backgroundColor = theme.primary }) => {
   const scale = useRef(new Animated.Value(1)).current;
   
@@ -428,7 +425,7 @@ const AnimatedIconButton = ({ icon, onPress, style, size = 24, color = "white", 
   );
 };
 
-// VisibilityOption Component - For the modal selection
+// VisibilityOption Component - Redesigned with cleaner visuals
 const VisibilityOption = ({ option, selected, onSelect }) => {
   const IconComponent = option.style === "ion" ? Ionicons : FontAwesome5;
   
@@ -444,10 +441,10 @@ const VisibilityOption = ({ option, selected, onSelect }) => {
       <View 
         style={[
           styles.visibilityIconContainer,
-          { backgroundColor: option.color + '20' }
+          { backgroundColor: option.color + '15' }
         ]}
       >
-        <IconComponent name={option.icon} size={20} color={option.color} />
+        <IconComponent name={option.icon} size={18} color={option.color} />
       </View>
       
       <View style={styles.visibilityTextContainer}>
@@ -457,14 +454,14 @@ const VisibilityOption = ({ option, selected, onSelect }) => {
       
       {selected && (
         <View style={styles.visibilitySelectedIndicator}>
-          <Ionicons name="checkmark" size={18} color={theme.primary} />
+          <Ionicons name="checkmark" size={16} color={theme.primary} />
         </View>
       )}
     </TouchableOpacity>
   );
 };
 
-// TypeOption Component - For type selection in modals
+// TypeOption Component - Refined design
 const TypeOption = ({ type, selected, onSelect }) => {
   const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
   const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
@@ -481,24 +478,24 @@ const TypeOption = ({ type, selected, onSelect }) => {
       <View 
         style={[
           styles.typeOptionIconContainer,
-          { backgroundColor: iconInfo.color[0] + '20' }
+          { backgroundColor: iconInfo.color[0] + '15' }
         ]}
       >
-        {renderTypeIcon(type, 20, iconInfo.color[0])}
+        {renderTypeIcon(type, 18, iconInfo.color[0])}
       </View>
       
       <Text style={styles.typeOptionLabel}>{typeLabel}</Text>
       
       {selected && (
         <View style={styles.typeOptionSelectedIndicator}>
-          <Ionicons name="checkmark" size={18} color={theme.primary} />
+          <Ionicons name="checkmark" size={16} color={theme.primary} />
         </View>
       )}
     </TouchableOpacity>
   );
 };
 
-// GroupOption Component - For group selection in modals
+// GroupOption Component - Updated design
 const GroupOption = ({ group, selected, onSelect }) => (
   <TouchableOpacity
     style={[
@@ -516,22 +513,22 @@ const GroupOption = ({ group, selected, onSelect }) => (
     </Text>
     
     {selected && (
-      <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+      <Ionicons name="checkmark-circle" size={16} color={theme.primary} />
     )}
   </TouchableOpacity>
 );
 
-// Empty State Component - New design
+// Empty State Component - Reimagined design with illustrations
 const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
   return (
     <View style={styles.emptyStateContainer}>
       <View style={styles.emptyAnimationContainer}>
         <Ionicons 
           name={
-            activeTab === "completed" ? "checkmark-circle-outline" : 
-            activeTab === "active" ? "hourglass-outline" : "list-outline"
+            activeTab === "completed" ? "checkmark-done-circle-outline" : 
+            activeTab === "active" ? "time-outline" : "create-outline"
           } 
-          size={60} 
+          size={70} 
           color={theme.primary} 
         />
       </View>
@@ -550,10 +547,10 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
         {filterType 
           ? `Try changing filters or add a new ${filterType} intention`
           : activeTab === "all" 
-            ? "Add your first prayer intention to get started"
+            ? "Your prayer journey starts with your first intention"
             : activeTab === "active"
-              ? "All your intentions are completed"
-              : "Complete some intentions to see them here"}
+              ? "All your intentions are completed - great job!"
+              : "As you complete intentions, they'll appear here"}
       </Text>
       
       {(activeTab === "all" || activeTab === "active") && (
@@ -568,7 +565,7 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
             end={{ x: 1, y: 0 }}
             style={styles.emptyStateButtonGradient}
           >
-            <Ionicons name="add" size={20} color="white" />
+            <Ionicons name="add" size={18} color="white" />
             <Text style={styles.emptyStateButtonText}>
               Add New Intention
             </Text>
@@ -579,7 +576,7 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
   );
 };
 
-// Toast Notification Component - Enhanced design
+// Toast Notification Component - Enhanced modern design
 const ToastNotification = ({ message, type, onDismiss }) => {
   const slideAnim = useRef(new Animated.Value(-100)).current;
   
@@ -612,7 +609,7 @@ const ToastNotification = ({ message, type, onDismiss }) => {
       <View style={styles.toastContent}>
         <Ionicons 
           name={type === "error" ? "alert-circle" : "checkmark-circle"} 
-          size={24} 
+          size={22} 
           color="white" 
         />
         <Text style={styles.toastMessage}>{message}</Text>
@@ -657,21 +654,21 @@ export default function RosaryIntentions() {
   
   const [editingIntention, setEditingIntention] = useState(null);
   
-  // Header animations
+  // Header animations - adjusted for new design
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [220, 100],
+    outputRange: [190, 100], // Reduced header height
     extrapolate: 'clamp',
   });
   
   const headerTitleOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 90],
+    inputRange: [0, 50, 80],
     outputRange: [0, 0.5, 1],
     extrapolate: 'clamp',
   });
   
   const headerContentOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 90],
+    inputRange: [0, 50, 80],
     outputRange: [1, 0.5, 0],
     extrapolate: 'clamp',
   });
@@ -682,12 +679,12 @@ export default function RosaryIntentions() {
       Animated.sequence([
         Animated.timing(addButtonAnimation, {
           toValue: 1,
-          duration: 1500,
+          duration: 1200,
           useNativeDriver: true,
         }),
         Animated.timing(addButtonAnimation, {
           toValue: 0,
-          duration: 1500,
+          duration: 1200,
           useNativeDriver: true,
         }),
       ])
@@ -696,7 +693,7 @@ export default function RosaryIntentions() {
   
   const addButtonScale = addButtonAnimation.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [1, 1.1, 1],
+    outputRange: [1, 1.08, 1],
   });
   
   // Check authentication on mount
@@ -1212,7 +1209,7 @@ export default function RosaryIntentions() {
       <LinearGradient
         colors={[theme.primary, theme.secondary]}
         style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
+        start={{ x: 0.3, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
       
@@ -1223,7 +1220,7 @@ export default function RosaryIntentions() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={22} color="white" />
+          <Ionicons name="chevron-back" size={22} color="white" />
         </TouchableOpacity>
         
         <Animated.Text style={[styles.headerTitle, { opacity: headerTitleOpacity }]}>
@@ -1257,7 +1254,7 @@ export default function RosaryIntentions() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <View style={styles.statIconWrapper}>
-              <Ionicons name="list" size={18} color={theme.primary} />
+              <Ionicons name="list" size={16} color={theme.primary} />
             </View>
             <View style={styles.statTextContainer}>
               <Text style={styles.statValue}>{getStats().total}</Text>
@@ -1267,7 +1264,7 @@ export default function RosaryIntentions() {
           
           <View style={styles.statCard}>
             <View style={[styles.statIconWrapper, styles.activeIconWrapper]}>
-              <Ionicons name="hourglass-outline" size={18} color="#F59E0B" />
+              <Ionicons name="hourglass-outline" size={16} color="#F59E0B" />
             </View>
             <View style={styles.statTextContainer}>
               <Text style={styles.statValue}>{getStats().active}</Text>
@@ -1277,7 +1274,7 @@ export default function RosaryIntentions() {
           
           <View style={styles.statCard}>
             <View style={[styles.statIconWrapper, styles.completedIconWrapper]}>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
+              <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
             </View>
             <View style={styles.statTextContainer}>
               <Text style={styles.statValue}>{getStats().completed}</Text>
@@ -1287,7 +1284,7 @@ export default function RosaryIntentions() {
           
           <View style={styles.statCard}>
             <View style={[styles.statIconWrapper, styles.favoriteIconWrapper]}>
-              <Ionicons name="heart-outline" size={18} color="#EF4444" />
+              <Ionicons name="heart-outline" size={16} color="#EF4444" />
             </View>
             <View style={styles.statTextContainer}>
               <Text style={styles.statValue}>{getStats().favorites}</Text>
@@ -1300,7 +1297,7 @@ export default function RosaryIntentions() {
       {/* Search container */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={theme.textTertiary} style={styles.searchIcon} />
+          <Ionicons name="search" size={18} color={theme.textTertiary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search intentions..."
@@ -1336,7 +1333,7 @@ export default function RosaryIntentions() {
       >
         <Ionicons 
           name="grid-outline" 
-          size={18} 
+          size={16} 
           color={activeTab === "all" ? theme.primary : theme.textSecondary} 
         />
         <Text style={[
@@ -1355,7 +1352,7 @@ export default function RosaryIntentions() {
       >
         <Ionicons 
           name="hourglass-outline" 
-          size={18} 
+          size={16} 
           color={activeTab === "active" ? theme.primary : theme.textSecondary} 
         />
         <Text style={[
@@ -1374,7 +1371,7 @@ export default function RosaryIntentions() {
       >
         <Ionicons 
           name="checkmark-circle-outline" 
-          size={18} 
+          size={16} 
           color={activeTab === "completed" ? theme.primary : theme.textSecondary} 
         />
         <Text style={[
@@ -1417,6 +1414,7 @@ export default function RosaryIntentions() {
     );
   };
   
+  // Modified render function for the Add Button (moved higher up in the UI)
   const renderAddButton = () => (
     <Animated.View 
       style={[
@@ -1446,7 +1444,7 @@ export default function RosaryIntentions() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <Ionicons name="add" size={30} color="white" />
+          <Ionicons name="add" size={24} color="white" />
         </LinearGradient>
       </TouchableOpacity>
     </Animated.View>
@@ -1536,7 +1534,7 @@ export default function RosaryIntentions() {
         style={styles.modalContainer} 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <BlurView intensity={25} style={StyleSheet.absoluteFill} tint="dark" />
+        <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
         
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -1546,7 +1544,7 @@ export default function RosaryIntentions() {
               onPress={() => setShowAddModal(false)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={24} color={theme.textSecondary} />
+              <Ionicons name="close" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           
@@ -1664,7 +1662,7 @@ export default function RosaryIntentions() {
                 ]}>
                   <Ionicons 
                     name={newIntention.favorite ? "heart" : "heart-outline"} 
-                    size={20} 
+                    size={18} 
                     color={newIntention.favorite ? theme.error : theme.textSecondary} 
                   />
                 </View>
@@ -1684,7 +1682,7 @@ export default function RosaryIntentions() {
                 ]}>
                   <Ionicons 
                     name={newIntention.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
-                    size={20} 
+                    size={18} 
                     color={newIntention.completed ? theme.success : theme.textSecondary} 
                   />
                 </View>
@@ -1733,7 +1731,7 @@ export default function RosaryIntentions() {
           style={styles.modalContainer} 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <BlurView intensity={25} style={StyleSheet.absoluteFill} tint="dark" />
+          <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
           
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -1743,7 +1741,7 @@ export default function RosaryIntentions() {
                 onPress={() => setShowEditModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={24} color={theme.textSecondary} />
+                <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             
@@ -1861,7 +1859,7 @@ export default function RosaryIntentions() {
                   ]}>
                     <Ionicons 
                       name={editingIntention.favorite ? "heart" : "heart-outline"} 
-                      size={20} 
+                      size={18} 
                       color={editingIntention.favorite ? theme.error : theme.textSecondary} 
                     />
                   </View>
@@ -1881,7 +1879,7 @@ export default function RosaryIntentions() {
                   ]}>
                     <Ionicons 
                       name={editingIntention.completed ? "checkmark-circle" : "checkmark-circle-outline"} 
-                      size={20} 
+                      size={18} 
                       color={editingIntention.completed ? theme.success : theme.textSecondary} 
                     />
                   </View>
@@ -1932,7 +1930,7 @@ export default function RosaryIntentions() {
       onRequestClose={() => setShowFilterModal(false)}
     >
       <View style={styles.filterModalContainer}>
-        <BlurView intensity={25} style={StyleSheet.absoluteFill} tint="dark" />
+        <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
         
         <View style={styles.filterModalContent}>
           <View style={styles.filterModalHeader}>
@@ -1942,7 +1940,7 @@ export default function RosaryIntentions() {
               onPress={() => setShowFilterModal(false)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={24} color={theme.textSecondary} />
+              <Ionicons name="close" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           
@@ -1960,7 +1958,7 @@ export default function RosaryIntentions() {
                 >
                   <Ionicons 
                     name="grid-outline" 
-                    size={20} 
+                    size={18} 
                     color={activeTab === "all" ? "white" : theme.textSecondary} 
                   />
                   <Text style={[
@@ -1978,7 +1976,7 @@ export default function RosaryIntentions() {
                 >
                   <Ionicons 
                     name="hourglass-outline" 
-                    size={20} 
+                    size={18} 
                     color={activeTab === "active" ? "white" : theme.textSecondary} 
                   />
                   <Text style={[
@@ -1996,7 +1994,7 @@ export default function RosaryIntentions() {
                 >
                   <Ionicons 
                     name="checkmark-circle-outline" 
-                    size={20} 
+                    size={18} 
                     color={activeTab === "completed" ? "white" : theme.textSecondary} 
                   />
                   <Text style={[
@@ -2020,7 +2018,7 @@ export default function RosaryIntentions() {
                 >
                   <Ionicons 
                     name="apps" 
-                    size={20} 
+                    size={18} 
                     color={!filterType ? "white" : theme.textSecondary} 
                   />
                   <Text style={[
@@ -2045,7 +2043,7 @@ export default function RosaryIntentions() {
                     >
                       <IconComponent 
                         name={iconInfo.name} 
-                        size={20} 
+                        size={18} 
                         color={filterType === type ? "white" : theme.textSecondary} 
                       />
                       <Text style={[
@@ -2074,7 +2072,7 @@ export default function RosaryIntentions() {
                     sortOrder === "newest" && styles.sortOptionTextActive
                   ]}>Newest First</Text>
                   {sortOrder === "newest" && (
-                    <Ionicons name="checkmark" size={18} color={theme.primary} />
+                    <Ionicons name="checkmark" size={16} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 
@@ -2090,7 +2088,7 @@ export default function RosaryIntentions() {
                     sortOrder === "oldest" && styles.sortOptionTextActive
                   ]}>Oldest First</Text>
                   {sortOrder === "oldest" && (
-                    <Ionicons name="checkmark" size={18} color={theme.primary} />
+                    <Ionicons name="checkmark" size={16} color={theme.primary} />
                   )}
                 </TouchableOpacity>
                 
@@ -2106,7 +2104,7 @@ export default function RosaryIntentions() {
                     sortOrder === "alphabetical" && styles.sortOptionTextActive
                   ]}>Alphabetical (A-Z)</Text>
                   {sortOrder === "alphabetical" && (
-                    <Ionicons name="checkmark" size={18} color={theme.primary} />
+                    <Ionicons name="checkmark" size={16} color={theme.primary} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -2162,10 +2160,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.background,
   },
   
-  // Header styles
+  // Header styles - Refined design
   header: {
     width: "100%",
     overflow: "hidden",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerGradient: {
     position: "absolute",
@@ -2179,14 +2179,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 10,
-    height: 60,
+    paddingTop: Platform.OS === 'ios' ? 8 : 16,
+    height: 55,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2196,10 +2196,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   filterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2208,38 +2208,38 @@ const styles = StyleSheet.create({
     paddingTop: 5,
   },
   headerMainTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
     color: "#FFFFFF",
+    marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 5,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   
-  // Stats styles
+  // Stats styles - More compact
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 15,
+    marginBottom: 12,
   },
   statCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
     borderRadius: 16,
-    padding: 12,
+    padding: 10,
     width: (width - 60) / 4,
     alignItems: "center",
   },
   statIconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "rgba(59, 130, 246, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   activeIconWrapper: {
     backgroundColor: "rgba(245, 158, 11, 0.2)",
@@ -2254,16 +2254,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: "rgba(255, 255, 255, 0.7)",
   },
   
-  // Search styles
+  // Search styles - Enhanced appearance
   searchContainer: {
     paddingHorizontal: 20,
     paddingBottom: 15,
@@ -2272,81 +2272,89 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 24,
+    borderRadius: 20,
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchIcon: {
     marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: theme.textPrimary,
   },
   clearSearchButton: {
     padding: 5,
   },
   
-  // Tabs styles
+  // Tabs styles - More refined
   tabsContainer: {
     flexDirection: "row",
     backgroundColor: theme.surface,
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -20,
+    paddingVertical: 8,
+    marginTop: -10,
+    borderRadius: 20,
+    marginHorizontal: 16,
     shadowColor: theme.cardShadow,
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 3,
   },
   tab: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
   activeTab: {
-    backgroundColor: `${theme.primary}10`,
+    backgroundColor: `${theme.primary}15`,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
     color: theme.textSecondary,
-    marginLeft: 6,
+    marginLeft: 5,
   },
   activeTabText: {
     color: theme.primary,
   },
   
-  // Type filters styles
+  // Type filters styles - More compact but elegant
   typeFiltersContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: theme.surface,
   },
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: `${theme.textTertiary}10`,
-    marginRight: 10,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: `${theme.textTertiary}20`,
   },
   filterChipActive: {
-    backgroundColor: `${theme.primary}20`,
+    backgroundColor: `${theme.primary}15`,
+    borderColor: `${theme.primary}30`,
   },
   filterChipIcon: {
-    marginRight: 6,
+    marginRight: 4,
   },
   filterChipText: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.textSecondary,
   },
   filterChipTextActive: {
@@ -2360,59 +2368,62 @@ const styles = StyleSheet.create({
     backgroundColor: theme.background,
   },
   scrollViewContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   
   // Search results styles
   searchResultsContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   searchResultsTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.textSecondary,
-    marginBottom: 15,
+    marginBottom: 12,
   },
   
-  // Intention card styles
+  // Intention card styles - More elegant with softer corners
   intentionCard: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   intentionCardInner: {
     backgroundColor: theme.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     shadowColor: theme.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: `${theme.divider}80`,
   },
   completedCard: {
-    opacity: 0.7,
+    opacity: 0.75,
+    backgroundColor: `${theme.success}05`,
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   typeContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
   typeIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
   },
   typeText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: theme.textPrimary,
   },
@@ -2420,21 +2431,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   actionButton: {
-    marginLeft: 15,
+    marginLeft: 12,
   },
   cardContent: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: theme.textPrimary,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   cardDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   completedText: {
     textDecorationLine: "line-through",
@@ -2444,7 +2455,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: theme.divider,
   },
@@ -2453,32 +2464,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   visibilityText: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.textTertiary,
-    marginLeft: 5,
+    marginLeft: 4,
   },
   dateText: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.textTertiary,
   },
   
-  // Intention group styles
+  // Intention group styles - More elegant appearance
   groupContainer: {
-    marginBottom: 16,
+    marginBottom: 14,
     backgroundColor: theme.surface,
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: theme.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: `${theme.divider}50`,
   },
   groupHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
   },
@@ -2487,34 +2500,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   groupIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
   groupTitleContainer: {
     justifyContent: "center",
   },
   groupTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: theme.textPrimary,
   },
   groupCount: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.textTertiary,
   },
   groupContent: {
-    padding: 16,
+    padding: 14,
   },
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    paddingBottom: 16,
+    marginBottom: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
   },
@@ -2523,113 +2536,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statDivider: {
-    height: 30,
+    height: 24,
     width: 1,
     backgroundColor: theme.divider,
   },
   
-  // Add button styles
+  // Add button styles - Moved higher up in the UI
   addButtonContainer: {
     position: "absolute",
     right: 20,
-    bottom: 30,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  addButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: "hidden",
-  },
-  addButtonGradient: {
-    width: 60,
-    height: 60,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  
-  // Loading styles
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: theme.textSecondary,
-    marginTop: 12,
-  },
-  
-  // Empty state styles
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 30,
-  },
-  emptyAnimationContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: `${theme.primary}15`,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  emptyStateTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: theme.textPrimary,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  emptyStateDescription: {
-    fontSize: 16,
-    color: theme.textSecondary,
-    textAlign: "center",
-    marginBottom: 30,
-    lineHeight: 24,
-  },
-  emptyStateButton: {
-    borderRadius: 25,
-    overflow: "hidden",
-    width: "100%",
+    bottom: 140, // Raised position
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowRadius: 5,
     elevation: 5,
   },
   emptyStateButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 15,
+    paddingVertical: 14,
   },
   emptyStateButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "white",
     marginLeft: 8,
   },
   
-  // Toast notification styles
+  // Toast notification styles - Modern clean design
   toastContainer: {
     position: "absolute",
-    top: 20,
-    left: 20,
-    right: 20,
+    top: 15,
+    left: 15,
+    right: 15,
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 6,
   },
   toastError: {
     backgroundColor: theme.error,
@@ -2640,18 +2588,18 @@ const styles = StyleSheet.create({
   toastContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   toastMessage: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "white",
     marginLeft: 10,
     flex: 1,
   },
   
-  // Modal styles
+  // Modal styles - Refined design
   modalContainer: {
     flex: 1,
     justifyContent: "flex-end",
@@ -2666,70 +2614,70 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    padding: 18,
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
     color: theme.textPrimary,
   },
   modalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: theme.background,
     justifyContent: "center",
     alignItems: "center",
   },
   modalScrollView: {
-    padding: 20,
+    padding: 18,
   },
   
-  // Form styles
+  // Form styles - Enhanced visual design
   formGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   formLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: theme.textPrimary,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   requiredIndicator: {
     color: theme.error,
   },
   optionalIndicator: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "400",
     color: theme.textTertiary,
   },
   formInput: {
     backgroundColor: theme.background,
     borderRadius: 12,
-    padding: 15,
-    fontSize: 16,
+    padding: 14,
+    fontSize: 15,
     color: theme.textPrimary,
     borderWidth: 1,
     borderColor: theme.divider,
   },
   textArea: {
-    minHeight: 120,
+    minHeight: 110,
     textAlignVertical: "top",
   },
   
-  // Type options styles
+  // Type options styles - Sleeker appearance
   typeOptionsContainer: {
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   typeOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
-    marginRight: 15,
+    marginRight: 12,
     backgroundColor: theme.background,
     borderWidth: 1,
     borderColor: theme.divider,
@@ -2739,31 +2687,31 @@ const styles = StyleSheet.create({
     backgroundColor: `${theme.primary}10`,
   },
   typeOptionIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 8,
   },
   typeOptionLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: theme.textPrimary,
-    marginRight: 10,
+    marginRight: 8,
   },
   typeOptionSelectedIndicator: {
     marginLeft: 'auto',
   },
   
-  // Visibility options styles
+  // Visibility options styles - Enhanced design
   visibilityOptionsContainer: {
-    gap: 12,
+    gap: 10,
   },
   visibilityOption: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 15,
+    padding: 14,
     borderRadius: 12,
     backgroundColor: theme.background,
     borderWidth: 1,
@@ -2774,62 +2722,62 @@ const styles = StyleSheet.create({
     backgroundColor: `${theme.primary}10`,
   },
   visibilityIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: 12,
   },
   visibilityTextContainer: {
     flex: 1,
   },
   visibilityLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: theme.textPrimary,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   visibilityDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.textSecondary,
   },
   visibilitySelectedIndicator: {
-    marginLeft: 10,
+    marginLeft: 8,
   },
   
-  // Group selection styles
+  // Group selection styles - More elegant
   groupSelectionContainer: {
-    marginTop: 15,
-    padding: 15,
+    marginTop: 14,
+    padding: 14,
     backgroundColor: theme.background,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.divider,
   },
   groupSelectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: theme.textPrimary,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   groupOptions: {
-    gap: 10,
+    gap: 8,
   },
   groupOption: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: `${theme.textTertiary}10`,
+    backgroundColor: `${theme.textTertiary}08`,
   },
   groupOptionSelected: {
     backgroundColor: `${theme.primary}10`,
   },
   groupOptionLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.textPrimary,
   },
   groupOptionLabelSelected: {
@@ -2837,40 +2785,40 @@ const styles = StyleSheet.create({
     color: theme.primary,
   },
   noGroupsText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.textSecondary,
     fontStyle: "italic",
   },
   
-  // Additional options styles
+  // Additional options styles - More refined
   additionalOptions: {
-    marginTop: 10,
-    padding: 15,
+    marginTop: 8,
+    padding: 14,
     backgroundColor: theme.background,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.divider,
   },
   additionalOptionsTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: theme.textPrimary,
-    marginBottom: 15,
+    marginBottom: 12,
   },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 15,
+    marginBottom: 12,
   },
   optionLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.textPrimary,
   },
   optionToggle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: theme.background,
@@ -2882,28 +2830,28 @@ const styles = StyleSheet.create({
     borderColor: theme.primary,
   },
   deleteButtonContainer: {
-    padding: 15,
+    padding: 14,
     borderRadius: 12,
     backgroundColor: `${theme.error}10`,
     alignItems: "center",
-    marginTop: 15,
+    marginTop: 12,
   },
   deleteButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: theme.error,
   },
   
-  // Modal footer styles
+  // Modal footer styles - Cleaner layout
   modalFooter: {
     flexDirection: "row",
-    padding: 20,
+    padding: 18,
     borderTopWidth: 1,
     borderTopColor: theme.divider,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.divider,
@@ -2912,7 +2860,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: theme.textSecondary,
   },
@@ -2923,17 +2871,17 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   submitButtonGradient: {
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "white",
   },
   
-  // Filter modal styles
+  // Filter modal styles - Enhanced design
   filterModalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -2945,44 +2893,44 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     maxHeight: height * 0.8,
     shadowColor: theme.cardShadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 7,
   },
   filterModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    padding: 18,
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
   },
   filterModalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
     color: theme.textPrimary,
   },
   filterModalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: theme.background,
     justifyContent: "center",
     alignItems: "center",
   },
   filterModalScrollView: {
-    padding: 20,
+    padding: 18,
     maxHeight: height * 0.5,
   },
   filterSection: {
-    marginBottom: 25,
+    marginBottom: 20,
   },
   filterSectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: theme.textPrimary,
-    marginBottom: 15,
+    marginBottom: 12,
   },
   filterOptionsRow: {
     flexDirection: "row",
@@ -2993,19 +2941,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: theme.background,
-    marginHorizontal: 5,
+    marginHorizontal: 4,
   },
   filterStatusOptionActive: {
     backgroundColor: theme.primary,
   },
   filterStatusOptionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: theme.textSecondary,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   filterStatusOptionTextActive: {
     color: "white",
@@ -3013,37 +2961,37 @@ const styles = StyleSheet.create({
   filterTypeOptions: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
   filterTypeOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 16,
     backgroundColor: theme.background,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   filterTypeOptionActive: {
     backgroundColor: theme.primary,
   },
   filterTypeOptionText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.textSecondary,
-    marginLeft: 6,
+    marginLeft: 5,
   },
   filterTypeOptionTextActive: {
     color: "white",
   },
   sortOptions: {
-    gap: 10,
+    gap: 8,
   },
   sortOption: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: theme.background,
     borderWidth: 1,
@@ -3054,7 +3002,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${theme.primary}10`,
   },
   sortOptionText: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.textPrimary,
   },
   sortOptionTextActive: {
@@ -3062,37 +3010,109 @@ const styles = StyleSheet.create({
     color: theme.primary,
   },
   applyFiltersButton: {
-    margin: 20,
+    margin: 18,
     borderRadius: 12,
     overflow: "hidden",
   },
   applyFiltersButtonGradient: {
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   applyFiltersButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "white",
   },
   
   // Animation components
   animatedButtonContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 3,
-    elevation: 5,
+    elevation: 4,
   },
   
   // Bottom padding
   bottomPadding: {
     height: 100,
+  },
+  addButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: "hidden",
+    shadowColor: theme.cardShadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  addButtonGradient: {
+    width: 52,
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  
+  // Loading styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 50,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginTop: 12,
+  },
+  
+  // Empty state styles - More engaging
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+    paddingBottom: 50,
+  },
+  emptyAnimationContainer: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: `${theme.primary}10`,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: theme.textPrimary,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  emptyStateDescription: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    textAlign: "center",
+    marginBottom: 25,
+    lineHeight: 22,
+  },
+  emptyStateButton: {
+    borderRadius: 20,
+    overflow: "hidden",
+    width: "100%",
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   }
 });
