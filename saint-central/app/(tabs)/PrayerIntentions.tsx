@@ -41,6 +41,14 @@ export interface PrayerIntention {
   favorite: boolean;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  description: string;
+  created_at: Date;
+  created_by: string;
+}
+
 export type IntentionType =
   | "prayer"
   | "goal"
@@ -295,6 +303,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // Group state management
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState<boolean>(false);
+
   // Intention filtering and sorting state
   const [intentionFilter, setIntentionFilter] = useState<IntentionsFilter>("all");
   const [intentionSorting, setIntentionSorting] = useState<IntentionsSorting>("newest");
@@ -310,6 +322,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   useEffect(() => {
     loadIntentions();
     setupRealtimeSubscription();
+    fetchUserGroups();
 
     // Cleanup subscription when component unmounts
     return () => {
@@ -318,6 +331,68 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       }
     };
   }, []);
+
+  // Fetch user's groups from Supabase
+  const fetchUserGroups = async () => {
+    try {
+      setLoadingGroups(true);
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.log("User not logged in or error, skipping group fetch");
+        setLoadingGroups(false);
+        return;
+      }
+
+      // First get the user's group memberships
+      const { data: memberships, error: membershipError } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id);
+
+      if (membershipError) throw membershipError;
+
+      if (!memberships || memberships.length === 0) {
+        setUserGroups([]);
+        setLoadingGroups(false);
+        return;
+      }
+
+      // Get the group IDs from memberships
+      const groupIds = memberships.map(membership => membership.group_id);
+
+      // Fetch the groups based on the IDs
+      const { data: groups, error: groupsError } = await supabase
+        .from("groups")
+        .select("*")
+        .in("id", groupIds);
+
+      if (groupsError) throw groupsError;
+
+      // Format the data
+      const formattedGroups: Group[] = (groups || []).map(group => ({
+        ...group,
+        created_at: new Date(group.created_at)
+      }));
+
+      setUserGroups(formattedGroups);
+    } catch (error) {
+      console.error("Error fetching user groups:", error);
+      setUserGroups([]);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  // Toggle group selection helper function
+  const toggleGroupSelection = (groupId: string) => {
+    if (newIntentionGroups.includes(groupId)) {
+      setNewIntentionGroups(newIntentionGroups.filter(id => id !== groupId));
+    } else {
+      setNewIntentionGroups([...newIntentionGroups, groupId]);
+    }
+  };
 
   // Setup real-time subscription to listen for changes to the intentions table
   const setupRealtimeSubscription = async () => {
@@ -590,7 +665,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         type: newIntentionType,
         created_at: new Date().toISOString(),
         visibility: newIntentionVisibility,
-        selected_groups: newIntentionGroups,
+        selected_groups: newIntentionVisibility === "Certain Groups" ? newIntentionGroups : [],
         completed: newIntentionComplete,
         favorite: newIntentionFavorite,
       };
@@ -1087,6 +1162,80 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* Group Selection (show when Certain Groups is selected) */}
+              {newIntentionVisibility === "Certain Groups" && (
+                <View style={styles.groupSelectionContainer}>
+                  <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                    Select Groups
+                  </Text>
+                  {loadingGroups ? (
+                    <ActivityIndicator size="small" color={themeStyles.accentColor} style={{ marginVertical: 10 }} />
+                  ) : userGroups.length > 0 ? (
+                    <View style={styles.groupGrid}>
+                      {userGroups.map((group) => (
+                        <TouchableOpacity
+                          key={group.id}
+                          style={[
+                            styles.groupOption,
+                            newIntentionGroups.includes(group.id) && [
+                              styles.activeGroupOption,
+                              { 
+                                backgroundColor: `${themeStyles.accentColor}20`,
+                                borderColor: themeStyles.accentColor,
+                              },
+                            ],
+                            {
+                              backgroundColor: themeStyles.cardColor,
+                              borderColor: themeStyles.borderColor,
+                            }
+                          ]}
+                          onPress={() => toggleGroupSelection(group.id)}
+                        >
+                          <View
+                            style={[
+                              styles.groupIconContainer,
+                              {
+                                backgroundColor: `${themeStyles.accentColor}20`,
+                              },
+                            ]}
+                          >
+                            <Feather
+                              name="users"
+                              size={20}
+                              color={themeStyles.accentColor}
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.groupText,
+                              {
+                                color: newIntentionGroups.includes(group.id)
+                                  ? themeStyles.accentColor
+                                  : themeStyles.textColor,
+                              },
+                            ]}
+                          >
+                            {group.name}
+                          </Text>
+                          {newIntentionGroups.includes(group.id) && (
+                            <Feather 
+                              name="check"
+                              size={18} 
+                              color={themeStyles.accentColor}
+                              style={{ marginLeft: 'auto' }}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[styles.emptyGroupsText, { color: `${themeStyles.textColor}80` }]}>
+                      You are not a member of any groups. Join or create groups in the Community tab.
+                    </Text>
+                  )}
+                </View>
+              )}
 
               {/* Additional Options */}
               <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
@@ -2297,6 +2446,39 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 24,
   },
+  
+  // Group selection styles
+  groupSelectionContainer: {
+    marginTop: 10,
+  },
+  groupGrid: {
+    marginTop: 8,
+  },
+  groupOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  activeGroupOption: {
+    borderWidth: 2,
+  },
+  groupIconContainer: {
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  groupText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyGroupsText: {
+    textAlign: 'center',
+    marginVertical: 10,
+    fontStyle: 'italic',
+  }
 });
 
 export default PrayerIntentions;
