@@ -14,10 +14,20 @@
   "jest": {
     "preset": "jest-expo"
   },
+  "babel": {
+    "presets": [
+      "babel-preset-expo"
+    ],
+    "plugins": [
+      "@babel/plugin-transform-runtime"
+    ]
+  },
   "dependencies": {
+    "@babel/runtime": "^7.27.0",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "^8.3.0",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-native-picker/picker": "^2.11.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
@@ -34,6 +44,7 @@
     "expo-font": "~13.0.4",
     "expo-gl": "~15.0.4",
     "expo-haptics": "~14.0.1",
+    "expo-image-picker": "~16.0.6",
     "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.5",
     "expo-router": "~4.0.17",
@@ -48,12 +59,14 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.7",
     "react-native-animatable": "^1.4.0",
+    "react-native-chart-kit": "^6.12.0",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-reanimated": "~3.16.1",
     "react-native-render-html": "^6.3.4",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
     "react-native-svg": "^15.11.2",
+    "react-native-toast-message": "^2.2.1",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
@@ -61,6 +74,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-runtime": "^7.24.0",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-test-renderer": "^18.3.0",

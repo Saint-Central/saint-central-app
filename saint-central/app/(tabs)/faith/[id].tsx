@@ -13,8 +13,13 @@ import {
   Platform,
   useWindowDimensions,
   SafeAreaView,
-  Pressable,
   StatusBar,
+  TextInput,
+  KeyboardAvoidingView,
+  Alert,
+  Linking,
+  AppState,
+  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../../../supabaseClient";
@@ -33,6 +38,14 @@ interface Post {
   isAuthor?: boolean;
 }
 
+interface Comment {
+  id: number;
+  content: string;
+  author: string;
+  date: string;
+  isOwnComment: boolean;
+}
+
 const PostPage = () => {
   // Get iOS status bar height
   const statusBarHeight =
@@ -46,12 +59,38 @@ const PostPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(16);
-  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const appState = useRef(AppState.currentState);
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [pointerEventsEnabled, setPointerEventsEnabled] = useState(false);
 
-  // Add ref for ScrollView
+  // Likes and comments state
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [isCommenting, setIsCommenting] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+
+  // Add ref for ScrollView and Comments section
   const scrollViewRef = useRef<ScrollView>(null);
+  const commentInputRef = useRef<TextInput>(null);
+  const commentsRef = useRef<View>(null);
+
+  // Add listener for scroll position to control pointer events
+  useEffect(() => {
+    const listener = scrollY.addListener(({ value }) => {
+      setPointerEventsEnabled(value > 100);
+    });
+    
+    return () => {
+      scrollY.removeListener(listener);
+    };
+  }, [scrollY]);
 
   useEffect(() => {
     // Fade in animation
@@ -61,10 +100,32 @@ const PostPage = () => {
       useNativeDriver: true,
     }).start();
 
-    async function fetchPost() {
+    // Get the current user session and fetch post data
+    async function initialize() {
       try {
-        setIsLoading(true); // Ensure loading state is true when fetching starts
+        setIsLoading(true);
+        
+        // Get user session first
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        setCurrentUserId(userId || null);
 
+        // Get user profile if logged in
+        if (userId) {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("first_name, last_name")
+            .eq("id", userId)
+            .single();
+            
+          const fullName = userData 
+            ? `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+            : "Anonymous";
+            
+          setCurrentUserName(fullName || "Anonymous");
+        }
+
+        // Now fetch the post
         const numericId = parseInt(id as string, 10);
         if (isNaN(numericId)) {
           setError("Invalid post id");
@@ -97,9 +158,6 @@ const PostPage = () => {
           return;
         }
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        const currentUserId = sessionData?.session?.user?.id;
-
         setPost({
           id: data.post_id,
           title: data.title,
@@ -113,8 +171,12 @@ const PostPage = () => {
           }),
           videoLink: data.video_link,
           category: data.category,
-          isAuthor: currentUserId ? data.user_id === currentUserId : false,
+          isAuthor: userId ? data.user_id === userId : false,
         });
+
+        // Fetch likes and comments after we have the user ID and post data
+        fetchLikes(data.post_id, userId || null);
+        fetchComments(data.post_id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load post");
       } finally {
@@ -122,8 +184,44 @@ const PostPage = () => {
       }
     }
 
-    fetchPost();
+    initialize();
   }, [id]);
+
+  // Handle app state changes and keyboard appearance
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      // When app returns to active state from background
+      if (appState.current === 'background' && nextAppState === 'active') {
+        // Force layout update with slight delay
+        setTimeout(() => {
+          setForceUpdate(prev => prev + 1);
+        }, 300);
+      }
+      
+      appState.current = nextAppState;
+    });
+    
+    // Add keyboard listeners to adjust layout
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setForceUpdate(prev => prev + 1);
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setForceUpdate(prev => prev + 1);
+      }
+    );
+
+    return () => {
+      subscription.remove();
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   // Add effect to scroll to top when post is loaded
   useEffect(() => {
@@ -132,18 +230,240 @@ const PostPage = () => {
     }
   }, [isLoading, post]);
 
+  // Fetch likes for the post
+  const fetchLikes = async (postId: number, userId: string | null) => {
+    try {
+      // Get total likes
+      const { count, error } = await supabase
+        .from("likes")
+        .select("*", { count: "exact" })
+        .eq("likeable_id", postId)
+        .eq("likeable_type", "faith_post");
+
+      if (error) throw error;
+      
+      setLikeCount(count || 0);
+
+      // Check if current user liked the post
+      if (userId) {
+        const { data, error: likedError } = await supabase
+          .from("likes")
+          .select("*")
+          .eq("likeable_id", postId)
+          .eq("likeable_type", "faith_post")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (likedError) throw likedError;
+        
+        setIsLiked(!!data);
+      }
+    } catch (err) {
+      console.error("Error fetching likes:", err);
+    }
+  };
+
+  // Fetch comments for the post
+  const fetchComments = async (postId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from("comments")
+        .select(`
+          id,
+          content,
+          created_at,
+          user_id
+        `)
+        .eq("commentable_id", postId)
+        .eq("commentable_type", "faith_post")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Format the comments
+      const formattedComments = data.map(async (comment) => {
+        // Get user name for each comment
+        let authorName = "Anonymous";
+        if (comment.user_id) {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("first_name, last_name")
+            .eq("id", comment.user_id)
+            .single();
+            
+          if (userData) {
+            authorName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim();
+            if (!authorName) authorName = "Anonymous";
+          }
+        }
+
+        return {
+          id: comment.id,
+          content: comment.content,
+          author: authorName,
+          date: new Date(comment.created_at).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          }),
+          isOwnComment: currentUserId === comment.user_id,
+        };
+      });
+
+      const resolvedComments = await Promise.all(formattedComments);
+      setComments(resolvedComments);
+    } catch (err) {
+      console.error("Error fetching comments:", err);
+    }
+  };
+
+  // Toggle like for the post
+  const toggleLike = async () => {
+    if (!currentUserId) {
+      Alert.alert("Sign in required", "Please sign in to like posts.");
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        // Remove like
+        const { error } = await supabase
+          .from("likes")
+          .delete()
+          .eq("likeable_id", post?.id)
+          .eq("likeable_type", "faith_post")
+          .eq("user_id", currentUserId);
+
+        if (error) throw error;
+        
+        setIsLiked(false);
+        setLikeCount((prev) => Math.max(0, prev - 1));
+      } else {
+        // Add like
+        const { error } = await supabase.from("likes").insert({
+          user_id: currentUserId,
+          likeable_id: post?.id,
+          likeable_type: "faith_post",
+          created_at: new Date().toISOString(),
+        });
+
+        if (error) throw error;
+        
+        setIsLiked(true);
+        setLikeCount((prev) => prev + 1);
+      }
+    } catch (err) {
+      console.error("Error toggling like:", err);
+      Alert.alert("Error", "Failed to update like status.");
+    }
+  };
+
+  // Submit a new comment
+  const submitComment = async () => {
+    if (!currentUserId) {
+      Alert.alert("Sign in required", "Please sign in to comment.");
+      return;
+    }
+
+    if (!newComment.trim()) {
+      Alert.alert("Empty comment", "Please enter a comment.");
+      return;
+    }
+
+    try {
+      Keyboard.dismiss();
+      setIsSubmittingComment(true);
+
+      const { data, error } = await supabase.from("comments").insert({
+        user_id: currentUserId,
+        commentable_id: post?.id,
+        commentable_type: "faith_post",
+        content: newComment.trim(),
+        created_at: new Date().toISOString(),
+      }).select();
+
+      if (error) throw error;
+
+      // Add the new comment to the list
+      const newCommentObj: Comment = {
+        id: data[0].id,
+        content: newComment.trim(),
+        author: currentUserName || "Anonymous",
+        date: new Date().toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+        isOwnComment: true,
+      };
+
+      setComments([newCommentObj, ...comments]);
+      setNewComment("");
+      setIsCommenting(false);
+      
+      // Force layout update after comment submission
+      setTimeout(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 100);
+    } catch (err) {
+      console.error("Error submitting comment:", err);
+      Alert.alert("Error", "Failed to submit your comment.");
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  // Delete a comment
+  const deleteComment = async (commentId: number) => {
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .delete()
+        .eq("id", commentId);
+
+      if (error) throw error;
+      
+      // Remove the comment from the list
+      setComments(comments.filter((comment) => comment.id !== commentId));
+    } catch (err) {
+      console.error("Error deleting comment:", err);
+      Alert.alert("Error", "Failed to delete your comment.");
+    }
+  };
+
+  // Scroll to comments section
+  const scrollToComments = () => {
+    if (scrollViewRef.current) {
+      // Make sure comments are shown first
+      if (!showComments) {
+        setShowComments(true);
+      }
+      
+      // Use a timeout to ensure the comments section is rendered before scrolling
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }, 100);
+    }
+  };
+
+  // Direct share function without modal
   const onShare = async () => {
     try {
-      const excerpt = post ? post.excerpt.replace(/<[^>]*>?/gm, "") : "";
+      if (!post) return;
+      
+      // Create a deep link URL for the app
+      const appDeepLink = `faithapp://faith/post/${post.id}`;
+      const webFallbackUrl = `https://faithapp.com/faith/post/${post.id}`;
+      
+      const excerpt = post.excerpt.replace(/<[^>]*>?/gm, "");
+      
       await Share.share({
-        message: post
-          ? `${post.title}\n\n${excerpt.substring(
-              0,
-              100
-            )}...\n\nRead more at [Your URL here]`
-          : "",
+        message: `${post.title}\n\n${excerpt.substring(0, 100)}...\n\nRead more: ${appDeepLink}`,
+        url: webFallbackUrl, // iOS only
+        title: post.title, // Android only
       });
-      setShareModalOpen(false);
     } catch (err) {
       console.error("Error sharing:", err);
     }
@@ -362,168 +682,160 @@ const PostPage = () => {
     );
   }
 
+  // Calculate header opacity for animation
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 150],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
+  // Calculate image scale effect
   const imageScale = scrollY.interpolate({
     inputRange: [-100, 0],
     outputRange: [1.2, 1],
     extrapolate: "clamp",
   });
 
+  // Setup scroll event handler
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: false }
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 20}
+    >
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
 
-      {/* Floating Header */}
-      <Animated.View
-        style={[
-          styles.floatingHeader,
-          {
-            opacity: headerOpacity,
-            transform: [
-              {
-                translateY: headerOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-50, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={() => router.push("../faith")}
+        {/* Floating Header */}
+        <Animated.View
+          style={[
+            styles.floatingHeader,
+            {
+              opacity: headerOpacity,
+              transform: [
+                {
+                  translateY: headerOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-50, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
         >
-          <Feather name="chevron-left" size={16} color="#FFF9C4" />
-        </TouchableOpacity>
-        <Text numberOfLines={1} style={styles.headerTitle}>
-          {post.title}
-        </Text>
-        <View style={styles.headerRight} />
-      </Animated.View>
-
-      {/* Progress Bar */}
-      <Animated.View
-        style={[
-          styles.progressBar,
-          {
-            width: scrollY.interpolate({
-              inputRange: [0, 300],
-              outputRange: ["0%", "100%"],
-              extrapolate: "clamp",
-            }),
-          },
-        ]}
-      />
-
-      <Animated.ScrollView
-        ref={scrollViewRef}
-        style={[styles.scrollView, { opacity: fadeAnim }]}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollViewContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Back Button (visible initially) */}
-        <TouchableOpacity
-          style={styles.backButtonAbsolute}
-          onPress={() => router.push("../faith")}
-        >
-          <Feather name="chevron-left" size={16} color="#FFFFFF" />
-          <Text style={styles.backButtonTextSmall}>Back</Text>
-        </TouchableOpacity>
-
-        {/* Hero Image with scale effect */}
-        {post.image ? (
-          <Animated.View
-            style={[
-              styles.imageContainer,
-              { transform: [{ scale: imageScale }] },
-            ]}
+          <TouchableOpacity
+            style={styles.headerBackButton}
+            onPress={() => router.push("../faith")}
           >
-            <Image source={{ uri: post.image }} style={styles.postImage} />
-            <View style={styles.imageDimOverlay} />
-          </Animated.View>
-        ) : (
-          <View style={styles.noImageSpacer} />
-        )}
+            <Feather name="chevron-left" size={16} color="#FFF9C4" />
+          </TouchableOpacity>
+          <Text numberOfLines={1} style={styles.headerTitle}>
+            {post.title}
+          </Text>
+          <View style={styles.headerRight} />
+        </Animated.View>
 
-        <View style={styles.postContainer}>
-          {/* Title with drop shadow for better readability */}
-          <Text style={styles.title}>{post.title}</Text>
+        {/* Progress Bar */}
+        <Animated.View
+          style={[
+            styles.progressBar,
+            {
+              width: scrollY.interpolate({
+                inputRange: [0, 300],
+                outputRange: ["0%", "100%"],
+                extrapolate: "clamp",
+              }),
+            },
+          ]}
+        />
 
-          {/* Category badge - moved above metadata */}
-          {post.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{post.category}</Text>
-            </View>
-          )}
-
-          {/* Meta data with more spacing and improved icons */}
-          <View style={styles.metaData}>
-            <View style={styles.metaItem}>
-              <Feather name="user" size={14} color="#FFD700" />
-              <Text style={styles.metaText}>{post.author}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Feather name="calendar" size={14} color="#FFD700" />
-              <Text style={styles.metaText}>{post.date}</Text>
-            </View>
-          </View>
-
-          {/* Content card with subtle shadow */}
-          <View style={styles.contentCard}>
-            {/* WebView for HTML content - with transparent background */}
-            <View style={[styles.contentContainer, { height: webViewHeight }]}>
-              <WebView
-                originWhitelist={["*"]}
-                source={{ html: createHtml(post.excerpt) }}
-                style={styles.webView}
-                scrollEnabled={false}
-                bounces={false}
-                showsVerticalScrollIndicator={false}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                injectedJavaScript={injectedJavaScript}
-                onMessage={onWebViewMessage}
-                onError={(syntheticEvent) => {
-                  console.error("WebView error: ", syntheticEvent.nativeEvent);
-                }}
-                renderLoading={() => (
-                  <ActivityIndicator size="small" color="#FFD700" />
+        {/* Sticky Action Bar - Now with fixed animation */}
+        <Animated.View
+          style={[
+            styles.stickyActionBar,
+            {
+              opacity: headerOpacity,
+              transform: [
+                {
+                  translateY: headerOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-50, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+          pointerEvents={pointerEventsEnabled ? "auto" : "none"}
+          key={`sticky-bar-${forceUpdate}`}
+        >
+          <View style={styles.actionBarContent}>
+            <View style={styles.mainActionButtons}>
+              {/* Like button */}
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  isLiked ? styles.likeButtonActive : styles.likeButtonInactive,
+                ]}
+                onPress={toggleLike}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="heart"
+                  size={14}
+                  color={isLiked ? "#FFFFFF" : "#1C1917"}
+                />
+                {likeCount > 0 && (
+                  <Text
+                    style={[
+                      styles.counterText,
+                      isLiked ? styles.likeButtonActiveText : styles.likeButtonInactiveText,
+                    ]}
+                  >
+                    {likeCount}
+                  </Text>
                 )}
-                startInLoadingState={true}
-                backgroundColor="transparent"
-                dataDetectorTypes="none"
-                containerStyle={{ opacity: 1 }}
-                onTouchStart={(e) => {
-                  // Allow touch events to propagate to parent ScrollView
-                }}
-                useSharedProcessPool={false}
-              />
-            </View>
-          </View>
+              </TouchableOpacity>
 
-          {/* Button row with improved spacing and visual design */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShareModalOpen(true)}
-              activeOpacity={0.8}
-            >
-              <Feather name="share-2" size={18} color="#1C1917" />
-              <Text style={styles.buttonText}>Share</Text>
-            </TouchableOpacity>
+              {/* Comment button */}
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  showComments ? styles.commentButtonActive : styles.commentButtonInactive,
+                ]}
+                onPress={scrollToComments}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="message-square"
+                  size={14}
+                  color={showComments ? "#FFFFFF" : "#1C1917"}
+                />
+                {comments.length > 0 && (
+                  <Text
+                    style={[
+                      styles.counterText,
+                      showComments ? styles.commentButtonActiveText : styles.commentButtonInactiveText,
+                    ]}
+                  >
+                    {comments.length}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Share button */}
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={onShare}
+                activeOpacity={0.8}
+              >
+                <Feather name="share-2" size={14} color="#1C1917" />
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.fontSizeControls}>
               <TouchableOpacity
@@ -531,7 +843,7 @@ const PostPage = () => {
                 onPress={decreaseFontSize}
                 activeOpacity={0.8}
               >
-                <Feather name="minus" size={16} color="#1C1917" />
+                <Feather name="minus" size={12} color="#1C1917" />
               </TouchableOpacity>
 
               <View style={styles.fontSizeDisplay}>
@@ -543,54 +855,232 @@ const PostPage = () => {
                 onPress={increaseFontSize}
                 activeOpacity={0.8}
               >
-                <Feather name="plus" size={16} color="#1C1917" />
+                <Feather name="plus" size={12} color="#1C1917" />
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Extra padding for nav bar */}
-        <View style={styles.navBarSpacer} />
-      </Animated.ScrollView>
-
-      {/* Improved modal design */}
-      <Modal
-        transparent={true}
-        visible={shareModalOpen}
-        animationType="fade"
-        onRequestClose={() => setShareModalOpen(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShareModalOpen(false)}
+        <Animated.ScrollView
+          ref={scrollViewRef}
+          style={[styles.scrollView, { opacity: fadeAnim }]}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={[
+            styles.scrollViewContent,
+            { paddingBottom: Platform.OS === 'ios' ? 160 : 140 } // Extra padding for controls
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Pressable style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Share this article</Text>
-            <TouchableOpacity
-              onPress={onShare}
-              style={styles.modalButton}
-              activeOpacity={0.8}
+          {/* Back Button (visible initially) */}
+          <TouchableOpacity
+            style={styles.backButtonAbsolute}
+            onPress={() => router.push("../faith")}
+          >
+            <Feather name="chevron-left" size={16} color="#FFFFFF" />
+            <Text style={styles.backButtonTextSmall}>Back</Text>
+          </TouchableOpacity>
+
+          {/* Hero Image with scale effect */}
+          {post.image ? (
+            <Animated.View
+              style={[
+                styles.imageContainer,
+                { transform: [{ scale: imageScale }] },
+              ]}
             >
-              <Feather
-                name="share-2"
-                size={18}
-                color="#1C1917"
-                style={styles.modalButtonIcon}
-              />
-              <Text style={styles.modalButtonText}>Share</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setShareModalOpen(false)}
-              style={styles.cancelButton}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </SafeAreaView>
+              <Image source={{ uri: post.image }} style={styles.postImage} />
+              <View style={styles.imageDimOverlay} />
+            </Animated.View>
+          ) : (
+            <View style={styles.noImageSpacer} />
+          )}
+
+          <View style={styles.postContainer}>
+            {/* Title with drop shadow for better readability */}
+            <Text style={styles.title}>{post.title}</Text>
+
+            {/* Category badge - moved above metadata */}
+            {post.category && (
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{post.category}</Text>
+              </View>
+            )}
+
+            {/* Meta data with more spacing and improved icons */}
+            <View style={styles.metaData}>
+              <View style={styles.metaItem}>
+                <Feather name="user" size={14} color="#FFD700" />
+                <Text style={styles.metaText}>{post.author}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Feather name="calendar" size={14} color="#FFD700" />
+                <Text style={styles.metaText}>{post.date}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Feather name="heart" size={14} color="#FFD700" />
+                <Text style={styles.metaText}>{likeCount} likes</Text>
+              </View>
+            </View>
+
+            {/* Content card with subtle shadow */}
+            <View style={styles.contentCard}>
+              {/* WebView for HTML content - with transparent background */}
+              <View style={[styles.contentContainer, { height: webViewHeight }]}>
+                <WebView
+                  originWhitelist={["*"]}
+                  source={{ html: createHtml(post.excerpt) }}
+                  style={styles.webView}
+                  scrollEnabled={false}
+                  bounces={false}
+                  showsVerticalScrollIndicator={false}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  injectedJavaScript={injectedJavaScript}
+                  onMessage={onWebViewMessage}
+                  onError={(syntheticEvent) => {
+                    console.error("WebView error: ", syntheticEvent.nativeEvent);
+                  }}
+                  renderLoading={() => (
+                    <ActivityIndicator size="small" color="#FFD700" />
+                  )}
+                  startInLoadingState={true}
+                  backgroundColor="transparent"
+                  dataDetectorTypes="none"
+                  containerStyle={{ opacity: 1 }}
+                  onTouchStart={(e) => {
+                    // Allow touch events to propagate to parent ScrollView
+                  }}
+                  useSharedProcessPool={false}
+                />
+              </View>
+            </View>
+
+            {/* Comments section */}
+            {showComments && (
+              <View style={styles.commentsSection} ref={commentsRef}>
+                <View style={styles.commentsSectionHeader}>
+                  <Text style={styles.commentsSectionTitle}>
+                    Comments {comments.length > 0 && `(${comments.length})`}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.addCommentButton}
+                    onPress={() => {
+                      if (currentUserId) {
+                        setIsCommenting(true);
+                        setTimeout(() => {
+                          commentInputRef.current?.focus();
+                        }, 100);
+                      } else {
+                        Alert.alert("Sign in required", "Please sign in to comment.");
+                      }
+                    }}
+                  >
+                    <Feather name="plus" size={16} color="#FFD700" />
+                    <Text style={styles.addCommentText}>Add Comment</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Comment input */}
+                {isCommenting && (
+                  <View style={styles.commentInputContainer}>
+                    <TextInput
+                      ref={commentInputRef}
+                      style={styles.commentInput}
+                      placeholder="Write a comment..."
+                      placeholderTextColor="rgba(255, 249, 196, 0.5)"
+                      value={newComment}
+                      onChangeText={setNewComment}
+                      multiline
+                      maxLength={500}
+                    />
+                    <View style={styles.commentInputButtons}>
+                      <TouchableOpacity
+                        style={styles.cancelCommentButton}
+                        onPress={() => {
+                          setIsCommenting(false);
+                          setNewComment("");
+                        }}
+                        disabled={isSubmittingComment}
+                      >
+                        <Text style={styles.cancelCommentText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.submitCommentButton,
+                          (!newComment.trim() || isSubmittingComment) && {
+                            opacity: 0.5,
+                          },
+                        ]}
+                        onPress={submitComment}
+                        disabled={!newComment.trim() || isSubmittingComment}
+                      >
+                        {isSubmittingComment ? (
+                          <ActivityIndicator size="small" color="#1C1917" />
+                        ) : (
+                          <Text style={styles.submitCommentText}>Submit</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Comments list */}
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <View key={comment.id} style={styles.commentItem}>
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentAuthorDetails}>
+                          <View style={styles.commentAvatarContainer}>
+                            <Text style={styles.commentAvatarText}>
+                              {comment.author.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text style={styles.commentAuthor}>{comment.author}</Text>
+                            <Text style={styles.commentDate}>{comment.date}</Text>
+                          </View>
+                        </View>
+                        {comment.isOwnComment && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              Alert.alert(
+                                "Delete Comment",
+                                "Are you sure you want to delete this comment?",
+                                [
+                                  { text: "Cancel", style: "cancel" },
+                                  {
+                                    text: "Delete",
+                                    style: "destructive",
+                                    onPress: () => deleteComment(comment.id),
+                                  },
+                                ]
+                              );
+                            }}
+                            style={styles.deleteCommentButton}
+                          >
+                            <Feather name="trash-2" size={16} color="#FFD700" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <Text style={styles.commentContent}>{comment.content}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.noCommentsContainer}>
+                    <Feather name="message-circle" size={24} color="rgba(255, 215, 0, 0.3)" />
+                    <Text style={styles.noCommentsText}>
+                      No comments yet. Be the first to comment!
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        </Animated.ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -603,7 +1093,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 20,
+    paddingBottom: 100, // Extra space for sticky bar
   },
   progressBar: {
     height: 3,
@@ -616,7 +1106,7 @@ const styles = StyleSheet.create({
   },
   floatingHeader: {
     position: "absolute",
-    top: Platform.OS === "ios" ? StatusBar.currentHeight || 44 : 0, // Account for iOS status bar
+    top: Platform.OS === "ios" ? StatusBar.currentHeight || 44 : 0,
     left: 0,
     right: 0,
     height: 60,
@@ -730,58 +1220,123 @@ const styles = StyleSheet.create({
   webView: {
     backgroundColor: "transparent",
   },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
-    marginBottom: 16,
-  },
-  actionButton: {
-    backgroundColor: "#FFD700",
-    padding: 12,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 100,
-    shadowColor: "#000",
+  
+  // Sticky Action Bar Styles - UPDATED
+  stickyActionBar: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? (StatusBar.currentHeight || 44) + 60 : 60, // Position below header
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(28, 25, 23, 0.95)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingVertical: 6, // Reduced padding
+    paddingHorizontal: 10,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 5,
+    zIndex: 9, // Below the header (which has zIndex 10)
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 215, 0, 0.2)',
   },
-  buttonText: {
-    color: "#1C1917",
-    marginLeft: 8,
+  
+  // Action Bar Content - UPDATED
+  actionBarContent: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  mainActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  // Action button styles - UPDATED
+  actionButton: {
+    width: 32, // Reduced from 44
+    height: 32, // Reduced from 44
+    borderRadius: 16, // Reduced from 22
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8, // Changed from marginRight
+    backgroundColor: "#FFD700",
+  },
+  
+  // Count displays next to icon - UPDATED
+  counterText: {
+    fontSize: 11, // Reduced from 14
     fontWeight: "700",
-    fontSize: 15,
+    marginLeft: 3, // Reduced from 5
   },
+  
+  // Like button specific styles
+  likeButtonActive: {
+    backgroundColor: "#FF6B6B", // Red color for active like
+    borderWidth: 1,
+    borderColor: "#FF4757",
+  },
+  likeButtonInactive: {
+    backgroundColor: "#FFD700",
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.7)",
+  },
+  likeButtonActiveText: {
+    color: "#FFFFFF",
+  },
+  likeButtonInactiveText: {
+    color: "#1C1917",
+  },
+  
+  // Comment button specific styles
+  commentButtonActive: {
+    backgroundColor: "#4A90E2", // Blue color for active comment section
+    borderWidth: 1,
+    borderColor: "#357AE8",
+  },
+  commentButtonInactive: {
+    backgroundColor: "#FFD700",
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.7)",
+  },
+  commentButtonActiveText: {
+    color: "#FFFFFF",
+  },
+  commentButtonInactiveText: {
+    color: "#1C1917",
+  },
+  
+  // Font size controls - UPDATED
   fontSizeControls: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderRadius: 10,
-    padding: 4,
+    borderRadius: 16,
+    padding: 2, // Reduced from 4
+    marginLeft: 8,
     borderColor: "rgba(255, 215, 0, 0.3)",
     borderWidth: 1,
   },
   fontSizeButton: {
     backgroundColor: "rgba(255, 215, 0, 0.9)",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24, // Reduced from 32
+    height: 24, // Reduced from 32
+    borderRadius: 12, // Reduced from 16
     alignItems: "center",
     justifyContent: "center",
   },
   fontSizeDisplay: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 6, // Reduced from 12
   },
   fontSizeText: {
     color: "#FFD700",
     fontWeight: "bold",
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14
   },
+  
   backButtonAbsolute: {
     position: "absolute",
     top: 16,
@@ -843,73 +1398,181 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#292524",
-    padding: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    width: "100%",
-    borderColor: "rgba(255, 215, 0, 0.2)",
+  
+  // Comments section styles
+  commentsSection: {
+    marginTop: 16,
+    backgroundColor: "rgba(41, 37, 36, 0.8)",
+    borderRadius: 12,
+    padding: 16,
+    borderColor: "rgba(255, 215, 0, 0.15)",
     borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  commentsSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-  },
-  modalHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: "rgba(255, 215, 0, 0.3)",
-    borderRadius: 3,
     marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 215, 0, 0.1)",
   },
-  modalTitle: {
+  commentsSectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
     color: "#FFF9C4",
   },
-  modalButton: {
-    backgroundColor: "#FFD700",
-    padding: 14,
-    borderRadius: 12,
-    marginVertical: 8,
-    alignItems: "center",
-    width: "100%",
+  addCommentButton: {
     flexDirection: "row",
-    justifyContent: "center",
-  },
-  modalButtonIcon: {
-    marginRight: 8,
-  },
-  modalButtonText: {
-    color: "#1C1917",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  cancelButton: {
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 12,
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
     alignItems: "center",
-    width: "100%",
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
     borderColor: "rgba(255, 215, 0, 0.3)",
     borderWidth: 1,
   },
-  cancelButtonText: {
+  addCommentText: {
+    color: "#FFD700",
+    marginLeft: 4,
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  commentInputContainer: {
+    marginBottom: 16,
+    borderColor: "rgba(255, 215, 0, 0.3)",
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  commentInput: {
+    backgroundColor: "rgba(28, 25, 23, 0.8)",
+    padding: 12,
+    color: "#FFF9C4",
+    minHeight: 100,
+    textAlignVertical: "top",
+    fontSize: 15,
+  },
+  commentInputButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(28, 25, 23, 0.6)",
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 215, 0, 0.1)",
+  },
+  cancelCommentButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  cancelCommentText: {
     color: "#FFD700",
     fontWeight: "600",
+  },
+  submitCommentButton: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  submitCommentText: {
+    color: "#1C1917",
+    fontWeight: "700",
+  },
+  commentItem: {
+    backgroundColor: "rgba(28, 25, 23, 0.6)",
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    borderColor: "rgba(255, 215, 0, 0.15)",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 215, 0, 0.07)",
+  },
+  commentAuthorDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  commentAvatarContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.3)",
+  },
+  commentAvatarText: {
+    color: "#FFD700",
+    fontWeight: "bold",
     fontSize: 16,
   },
-  navBarSpacer: {
-    height: 80, // Add extra space at bottom for Expo nav bar
+  commentAuthor: {
+    color: "#FFF9C4",
+    fontWeight: "600",
+    fontSize: 15,
   },
+  commentDate: {
+    color: "rgba(255, 249, 196, 0.6)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  commentContent: {
+    color: "rgba(255, 249, 196, 0.9)",
+    lineHeight: 22,
+    fontSize: 15,
+  },
+  deleteCommentButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 0, 0, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 0, 0, 0.2)",
+  },
+  noCommentsContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "rgba(28, 25, 23, 0.4)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.1)",
+    marginTop: 10,
+  },
+  noCommentsText: {
+    color: "rgba(255, 249, 196, 0.7)",
+    textAlign: "center",
+    fontStyle: "italic",
+    marginTop: 10,
+    fontSize: 15,
+  }
 });
 
 export default PostPage;
