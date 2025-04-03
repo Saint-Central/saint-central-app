@@ -2320,7 +2320,7 @@ const Lent2025: React.FC = () => {
           >
             <Text
               style={[styles.headerTitle, isIpad && { fontSize: 28 }]}
-            >{`Lent 2025 – ${getHeaderTitle()}`}</Text>
+            >{`Daily Disciplines – ${getHeaderTitle()}`}</Text>
             <View style={styles.headerFilterIndicator}>
               <Feather
                 name={showFilterDropdown ? "chevron-up" : "chevron-down"}
@@ -2332,7 +2332,7 @@ const Lent2025: React.FC = () => {
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => router.navigate("/home")}
+              onPress={() => router.push("/home")}
               activeOpacity={0.7}
             >
               <Feather name="home" size={20} color="#FFFFFF" />
