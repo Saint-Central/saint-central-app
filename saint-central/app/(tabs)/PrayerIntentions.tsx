@@ -37,6 +37,7 @@ export interface PrayerIntention {
   created_at: Date;
   visibility: IntentionVisibility;
   selected_groups?: string[];
+  selected_friends?: string[];
   completed: boolean;
   favorite: boolean;
 }
@@ -66,6 +67,7 @@ export type IntentionVisibility =
   | "Just Me"
   | "Friends"
   | "Friends & Groups"
+  | "Certain Friends"
   | "Certain Groups";
 
 export type IntentionsTabView = "all" | "active" | "completed";
@@ -275,6 +277,38 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' 
   );
 };
 
+interface Friend {
+  id: string;
+  username: string;
+}
+
+interface FriendshipWithUser {
+  friend_id: string;
+  users: {
+    id: string;
+    username: string;
+  };
+}
+
+type SupabaseFriendship = {
+  friend_id: string;
+  users: {
+    id: string;
+    username: string;
+  };
+}
+
+interface SupabaseFriend {
+  id: string;
+  friend: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    profile_image: string | null;
+    created_at: string;
+  };
+}
+
 const PrayerIntentions: React.FC<IntentionsProps> = ({
   themeStyles = defaultThemes.light,
   fontSizeStyles = defaultFontSizes.medium,
@@ -302,6 +336,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionComplete, setNewIntentionComplete] = useState<boolean>(false);
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [newIntentionFriends, setNewIntentionFriends] = useState<string[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [userFriends, setUserFriends] = useState<Friend[]>([]);
 
   // Group state management
   const [userGroups, setUserGroups] = useState<Group[]>([]);
@@ -387,6 +424,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     loadIntentions();
     setupRealtimeSubscription();
     fetchUserGroups();
+    fetchUserFriends();
 
     // Cleanup subscription when component unmounts
     return () => {
@@ -451,6 +489,48 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     }
   };
 
+  // Fetch user's friends
+  const fetchUserFriends = async () => {
+    try {
+      setLoadingFriends(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoadingFriends(false);
+        return;
+      }
+
+      const { data, error: friendsError } = await supabase
+        .from('friends')
+        .select(`
+          id,
+          friend:users!friends_user_id_2_fkey(
+            id,
+            first_name,
+            last_name,
+            profile_image,
+            created_at
+          )
+        `)
+        .eq('user_id_1', user.id)
+        .eq('status', 'accepted');
+
+      if (friendsError) throw friendsError;
+
+      const friends: Friend[] = data.map((f: any) => ({
+        id: f.friend.id,
+        username: `${f.friend.first_name} ${f.friend.last_name}`
+      }));
+
+      setUserFriends(friends);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+      showFeedback('Failed to load friends');
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
   // Toggle group selection helper function
   const toggleGroupSelection = (groupId: string) => {
     if (newIntentionGroups.includes(groupId)) {
@@ -458,6 +538,15 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     } else {
       setNewIntentionGroups([...newIntentionGroups, groupId]);
     }
+  };
+
+  // Toggle friend selection
+  const toggleFriendSelection = (friendId: string) => {
+    setNewIntentionFriends(prev => 
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
   };
 
   // Handle a new intention being inserted
@@ -597,6 +686,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         created_at: new Date(item.created_at),
         visibility: item.visibility as IntentionVisibility,
         selected_groups: item.selected_groups || [],
+        selected_friends: item.selected_friends || [],
         completed: item.completed || false,
         favorite: item.favorite || false,
       }));
@@ -685,6 +775,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         created_at: new Date().toISOString(),
         visibility: newIntentionVisibility,
         selected_groups: newIntentionVisibility === "Certain Groups" ? newIntentionGroups : [],
+        selected_friends: newIntentionVisibility === "Certain Friends" ? newIntentionFriends : [],
         completed: newIntentionComplete,
         favorite: newIntentionFavorite,
       };
@@ -751,6 +842,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     setNewIntentionType("prayer");
     setNewIntentionVisibility("Just Me");
     setNewIntentionGroups([]);
+    setNewIntentionFriends([]);
     setNewIntentionComplete(false);
     setNewIntentionFavorite(false);
     setIsSubmitting(false);
@@ -1097,7 +1189,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                 Visibility
               </Text>
               <View style={styles.visibilityContainer}>
-                {(["Just Me", "Friends", "Friends & Groups", "Certain Groups"] as IntentionVisibility[]).map((visibility) => (
+                {(["Just Me", "Friends", "Friends & Groups", "Certain Friends", "Certain Groups"] as IntentionVisibility[]).map((visibility) => (
                   <TouchableOpacity
                     key={visibility}
                     style={[
@@ -1131,6 +1223,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                           visibility === "Just Me" ? "lock" :
                           visibility === "Friends" ? "users" :
                           visibility === "Friends & Groups" ? "globe" :
+                          visibility === "Certain Friends" ? "users" :
                           "users"
                         }
                         size={20}
@@ -1163,6 +1256,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                         {visibility === "Just Me" && "Only visible to you"}
                         {visibility === "Friends" && "Share with your friends"}
                         {visibility === "Friends & Groups" && "Share with friends and all your groups"}
+                        {visibility === "Certain Friends" && "Select specific friends to share with"}
                         {visibility === "Certain Groups" && "Select specific groups to share with"}
                       </Text>
                     </View>
@@ -1251,6 +1345,80 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   ) : (
                     <Text style={[styles.emptyGroupsText, { color: `${themeStyles.textColor}80` }]}>
                       You are not a member of any groups. Join or create groups in the Community tab.
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* Friend Selection (show when Certain Friends is selected) */}
+              {newIntentionVisibility === "Certain Friends" && (
+                <View style={styles.friendSelectionContainer}>
+                  <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                    Select Friends
+                  </Text>
+                  {loadingFriends ? (
+                    <ActivityIndicator size="small" color={themeStyles.accentColor} style={{ marginVertical: 10 }} />
+                  ) : userFriends.length > 0 ? (
+                    <View style={styles.friendGrid}>
+                      {userFriends.map((friend) => (
+                        <TouchableOpacity
+                          key={friend.id}
+                          style={[
+                            styles.friendOption,
+                            newIntentionFriends.includes(friend.id) && [
+                              styles.activeFriendOption,
+                              { 
+                                backgroundColor: `${themeStyles.accentColor}20`,
+                                borderColor: themeStyles.accentColor,
+                              },
+                            ],
+                            {
+                              backgroundColor: themeStyles.cardColor,
+                              borderColor: themeStyles.borderColor,
+                            }
+                          ]}
+                          onPress={() => toggleFriendSelection(friend.id)}
+                        >
+                          <View
+                            style={[
+                              styles.friendIconContainer,
+                              {
+                                backgroundColor: `${themeStyles.accentColor}20`,
+                              },
+                            ]}
+                          >
+                            <Feather
+                              name="user"
+                              size={20}
+                              color={themeStyles.accentColor}
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.friendText,
+                              {
+                                color: newIntentionFriends.includes(friend.id)
+                                  ? themeStyles.accentColor
+                                  : themeStyles.textColor,
+                              },
+                            ]}
+                          >
+                            {friend.username}
+                          </Text>
+                          {newIntentionFriends.includes(friend.id) && (
+                            <Feather 
+                              name="check"
+                              size={18} 
+                              color={themeStyles.accentColor}
+                              style={{ marginLeft: 'auto' }}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[styles.emptyFriendsText, { color: `${themeStyles.textColor}80` }]}>
+                      You don't have any friends yet. Add friends in the Community tab.
                     </Text>
                   )}
                 </View>
@@ -1492,6 +1660,20 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       </View>
     </Modal>
   );
+
+  // Effect to fetch friends when modal opens with Certain Friends visibility
+  useEffect(() => {
+    if (showNewIntentionModal && newIntentionVisibility === "Certain Friends") {
+      fetchUserFriends();
+    }
+  }, [showNewIntentionModal, newIntentionVisibility]);
+
+  // Effect to fetch groups when modal opens with Certain Groups visibility
+  useEffect(() => {
+    if (showNewIntentionModal && newIntentionVisibility === "Certain Groups") {
+      fetchUserGroups();
+    }
+  }, [showNewIntentionModal, newIntentionVisibility]);
 
   // Main render
   return (
@@ -1819,6 +2001,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                           ? "users"
                           : item.visibility === "Friends & Groups"
                           ? "globe"
+                          : item.visibility === "Certain Friends"
+                          ? "users"
                           : "users"
                       }
                       size={12}
@@ -2494,6 +2678,37 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   emptyGroupsText: {
+    textAlign: 'center',
+    marginVertical: 10,
+    fontStyle: 'italic',
+  },
+  friendSelectionContainer: {
+    marginTop: 10,
+  },
+  friendGrid: {
+    marginTop: 8,
+  },
+  friendOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  activeFriendOption: {
+    borderWidth: 2,
+  },
+  friendIconContainer: {
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  friendText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyFriendsText: {
     textAlign: 'center',
     marginVertical: 10,
     fontStyle: 'italic',
