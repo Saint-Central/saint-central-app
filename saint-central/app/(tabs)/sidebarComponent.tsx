@@ -37,7 +37,7 @@ export default function Sidebar({
   onClose,
   userName,
   profileImage,
-}: SidebarProps): JSX.Element {
+}: SidebarProps): JSX.Element | null {
   const navigation = useNavigation();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -72,6 +72,7 @@ export default function Sidebar({
           useNativeDriver: true,
         }),
       ]).start(() => {
+        // Only set visibility to false AFTER animation completes
         setVisibilityFlag(false);
       });
     }
@@ -88,7 +89,7 @@ export default function Sidebar({
 
   // Hide sidebar if not open
   if (!visibilityFlag && !isOpen) {
-    return <></>;
+    return null;
   }
 
   return (
@@ -97,7 +98,8 @@ export default function Sidebar({
         styles.container,
         {
           opacity: fadeAnim,
-          zIndex: isOpen ? 1000 : -1,
+          zIndex: 1000, // Always keep high zIndex during animation
+          pointerEvents: isOpen ? "auto" : "none",
         },
       ]}
     >
@@ -186,11 +188,7 @@ export default function Sidebar({
                   colors={["#8338EC", "#6A0DAD"]}
                   style={[styles.iconGradient, styles.muted]}
                 >
-                  <MaterialCommunityIcons
-                    name="cross"
-                    size={22}
-                    color="#FFFFFF"
-                  />
+                  <FontAwesome5 name="bible" size={22} color="#FFFFFF" />
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
