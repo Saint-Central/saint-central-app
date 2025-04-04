@@ -137,7 +137,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
   // Refined icon selection with improved naming
   const getIcon = () => {
     switch (name) {
-      case "social/screens/FeedScreen":
+      case "home":
         return (
           <Animated.View style={iconStyle}>
             <Feather name="home" size={22} color="#FFFFFF" />
@@ -149,10 +149,10 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
             <Feather name="compass" size={22} color="#FFFFFF" />
           </Animated.View>
         );
-      case "community":
+      case "bible":
         return (
           <Animated.View style={iconStyle}>
-            <Feather name="users" size={22} color="#FFFFFF" />
+            <Feather name="book" size={22} color="#FFFFFF" />
           </Animated.View>
         );
       case "me":
@@ -169,12 +169,12 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
   // Refined labels with better naming
   const getLabel = () => {
     switch (name) {
-      case "social/screens/FeedScreen":
+      case "home":
         return "Home";
       case "discover":
         return "Explore";
-      case "community":
-        return "Connect";
+      case "bible":
+        return "Bible";
       case "me":
         return "Me";
       default:
@@ -210,18 +210,12 @@ const CustomTabBar: React.FC<TabBarProps> = ({
   const router = useRouter();
 
   // Only show these tabs in the tab bar
-  const visibleTabs = [
-    "social/screens/FeedScreen",
-    "discover",
-    "community",
-    "me",
-  ];
+  const visibleTabs = ["home", "discover", "bible", "me"];
 
   // Track if Comments screen is active to keep Home tab selected
   const isCommentsScreen = state.routes.some(
     (route: Route) =>
-      route.name === "social/screens/CommentsScreen" &&
-      state.index === state.routes.indexOf(route)
+      route.name === "" && state.index === state.routes.indexOf(route)
   );
 
   return (
@@ -266,8 +260,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({
               // Check if this tab is focused OR if it's home and comments screen is active
               const isFocused =
                 state.index === index ||
-                (route.name === "social/screens/FeedScreen" &&
-                  isCommentsScreen);
+                (route.name === "home" && isCommentsScreen);
 
               const onPress = () => {
                 const event = navigation.emit({
@@ -312,26 +305,42 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
-      {/* Main visible tabs - FeedScreen is directly specified, no need for home */}
-      <Tabs.Screen
-        name="social/screens/FeedScreen"
-        options={{ title: "Home" }}
-      />
+      {/* Main visible tabs - FeedScreen is directly specified, no need for duplicate home */}
+      <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
-      <Tabs.Screen name="community" options={{ title: "Community" }} />
+      <Tabs.Screen name="bible" options={{ title: "Bible" }} />
       <Tabs.Screen name="me" options={{ title: "Me" }} />
 
       {/* Hidden screens */}
       <Tabs.Screen name="RosaryPrayer" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="RosaryPrayer2" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="RosaryPrayer3" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="RosaryPrayer4" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="RosaryPrayer5" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="RosaryPrayer6" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="RosaryPrayer7" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen
+        name="RosaryPrayer2"
+        options={{ tabBarButton: () => null }}
+      />
+      <Tabs.Screen
+        name="RosaryPrayer3"
+        options={{ tabBarButton: () => null }}
+      />
+      <Tabs.Screen
+        name="RosaryPrayer4"
+        options={{ tabBarButton: () => null }}
+      />
+      <Tabs.Screen
+        name="RosaryPrayer5"
+        options={{ tabBarButton: () => null }}
+      />
+      <Tabs.Screen
+        name="RosaryPrayer6"
+        options={{ tabBarButton: () => null }}
+      />
+      <Tabs.Screen
+        name="RosaryPrayer7"
+        options={{ tabBarButton: () => null }}
+      />
       <Tabs.Screen name="statistics" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="bible" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="community" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="Bible" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/[id]" options={{ tabBarButton: () => null }} />
@@ -354,10 +363,6 @@ export default function TabLayout() {
       <Tabs.Screen name="news/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="donate" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="groups" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen
-        name="social/screens/CommentsScreen"
-        options={{ tabBarButton: () => null }}
-      />
     </Tabs>
   );
 }

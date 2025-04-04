@@ -1147,7 +1147,9 @@ export default function BibleScreen() {
   };
 
   // Helper function to parse search queries like "Genesis" or "Genesis 1"
-  const parseBookQuery = (query: string): { book: string; chapter?: string; verse?: string } | null => {
+  const parseBookQuery = (
+    query: string
+  ): { book: string; chapter?: string; verse?: string } | null => {
     query = query.trim();
     // Iterate over allBooks (defined earlier in your code)
     for (const book of allBooks) {
@@ -2903,7 +2905,7 @@ export default function BibleScreen() {
                   { backgroundColor: `${themeStyles.accentColor}10` },
                 ]}
                 onPress={() => {
-                  router.push('/PrayerIntentions');
+                  router.push("/PrayerIntentions");
                 }}
               >
                 <Feather
