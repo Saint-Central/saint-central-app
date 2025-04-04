@@ -200,7 +200,6 @@ export default function ChurchMembershipScreen(): JSX.Element {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3A86FF" />
-        <Text style={styles.loadingText}>Loading your church...</Text>
       </View>
     );
   }
