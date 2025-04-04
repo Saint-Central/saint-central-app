@@ -181,7 +181,7 @@ export default function Sidebar({
             {/* Lent 2025 Section */}
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateTo("lent")}
+              onPress={() => navigateTo("Lent2025")}
             >
               <View style={styles.menuIconContainer}>
                 <LinearGradient
@@ -207,7 +207,7 @@ export default function Sidebar({
             {/* Rosary Section */}
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateTo("rosary")}
+              onPress={() => navigateTo("rosary/screens/RosaryHome")}
             >
               <View style={styles.menuIconContainer}>
                 <LinearGradient
@@ -263,7 +263,7 @@ export default function Sidebar({
             {/* Donations Section */}
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateTo("donations")}
+              onPress={() => navigateTo("donate")}
             >
               <View style={styles.menuIconContainer}>
                 <LinearGradient
