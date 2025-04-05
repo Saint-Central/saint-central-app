@@ -123,7 +123,7 @@ function EventsComponent() {
   const [formAuthorName, setFormAuthorName] = useState("");
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [formImageLoading, setFormImageLoading] = useState(false);
-
+  
   // Recurring event states
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly" | "yearly">("weekly");
@@ -319,12 +319,12 @@ function EventsComponent() {
     // Animate calendar days
     const animations = Object.values(dayAnimations).map(anim => 
       Animated.timing(anim, {
-        toValue: 1,
+            toValue: 1,
         duration: 500,
-        useNativeDriver: true,
-      })
+            useNativeDriver: true,
+          })
     );
-    
+  
     Animated.stagger(20, animations).start();
     
     // Animate page elements
@@ -840,8 +840,8 @@ function EventsComponent() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Events</Text>
-        </View>
-        
+      </View>
+      
         {/* Animated Hero Section with "CREATE EVENT" button (isolated from the shorter file) */}
         <Animated.View
           style={[
@@ -858,16 +858,16 @@ function EventsComponent() {
 
 
           </Text>
-          <TouchableOpacity
+              <TouchableOpacity
             style={styles.addEventButton}
-            onPress={openAddModal}
+                onPress={openAddModal}
             activeOpacity={0.8}
-          >
+              >
             <Text style={styles.addEventButtonText}>CREATE EVENT</Text>
             <AntDesign name="plus" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+              </TouchableOpacity>
         </Animated.View>
-        
+
         {/* Main Scrollable Content */}
         <Animated.ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -881,7 +881,7 @@ function EventsComponent() {
           {/* View Selector */}
           <View style={styles.viewSelector}>
             <TouchableOpacity 
-              style={[
+            style={[
                 styles.viewOption,
                 calendarView === "list" && styles.viewOptionActive,
               ]}
@@ -893,7 +893,7 @@ function EventsComponent() {
               ]}>List</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.viewOption,
                 calendarView === "month" && styles.viewOptionActive,
@@ -905,12 +905,12 @@ function EventsComponent() {
                 calendarView === "month" && styles.viewOptionTextActive,
               ]}>Calendar</Text>
             </TouchableOpacity>
-          </View>
+              </View>
           
           {/* Month Navigation (for calendar view) */}
           {calendarView === "month" && (
             <View style={styles.monthNavigation}>
-              <TouchableOpacity 
+                <TouchableOpacity 
                 style={styles.monthNavArrow}
                 onPress={() => changeMonth(-1)}
               >
@@ -922,8 +922,8 @@ function EventsComponent() {
                 onPress={() => changeMonth(1)}
               >
                 <Feather name="chevron-right" size={24} color={THEME.secondary} />
-              </TouchableOpacity>
-            </View>
+                </TouchableOpacity>
+              </View>
           )}
           
           {/* Calendar or List View */}
@@ -933,7 +933,7 @@ function EventsComponent() {
                 {[0, 1, 2, 3, 4, 5, 6].map(day => (
                   <View key={day} style={styles.dayLabelContainer}>
                     <Text style={styles.dayLabel}>{getDayName(day, true)}</Text>
-                  </View>
+                      </View>
                 ))}
               </View>
               {loading ? (
@@ -944,22 +944,22 @@ function EventsComponent() {
               ) : (
                 <View style={styles.calendarGrid}>
                   {renderCalendarWeeks()}
-                </View>
-              )}
-            </View>
+                          </View>
+                        )}
+                              </View>
           ) : (
             <View style={styles.listContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color={THEME.buttonPrimary} />
                   <Text style={styles.loadingText}>Loading events...</Text>
-                </View>
+                          </View>
               ) : events.length === 0 ? (
                 <View style={styles.noEventsContainer}>
                   <Feather name="calendar" size={50} color={THEME.light} />
                   <Text style={styles.noEventsText}>No events found</Text>
                   <Text style={styles.noEventsSubtext}>Add your first event by tapping the button below</Text>
-                </View>
+                            </View>
               ) : (
                 <FlatList
                   data={events}
@@ -969,8 +969,8 @@ function EventsComponent() {
                   contentContainerStyle={styles.eventsList}
                 />
               )}
-            </View>
-          )}
+                              </View>
+                            )}
         </Animated.ScrollView>
         
         {/* Date Detail Modal */}
@@ -984,19 +984,19 @@ function EventsComponent() {
             <View style={styles.dateDetailHandle} />
             <View style={styles.dateDetailHeader}>
               <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
-              <TouchableOpacity 
+                            <TouchableOpacity 
                 style={styles.dateDetailCloseButton}
                 onPress={closeDateDetail}
-              >
+                            >
                 <AntDesign name="close" size={24} color={THEME.primary} />
-              </TouchableOpacity>
-            </View>
+                            </TouchableOpacity>
+                          </View>
             <View style={styles.dateDetailContent}>
               {selectedDayEvents.length === 0 ? (
                 <View style={styles.noEventsForDay}>
                   <Feather name="calendar" size={50} color={THEME.light} />
                   <Text style={styles.noEventsForDayText}>No events for this day</Text>
-                  <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.addEventForDayButton}
                     onPress={() => {
                       const newFormTime = new Date(selectedDate);
@@ -1009,8 +1009,8 @@ function EventsComponent() {
                   >
                     <Text style={styles.addEventForDayText}>Add Event</Text>
                     <Feather name="plus" size={16} color={THEME.buttonPrimary} />
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
+              </View>
               ) : (
                 <FlatList
                   data={selectedDayEvents}
@@ -1019,8 +1019,8 @@ function EventsComponent() {
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.eventsList}
                 />
-              )}
-            </View>
+            )}
+          </View>
           </Animated.View>
         )}
 
@@ -1055,37 +1055,37 @@ function EventsComponent() {
                 {/* Form fields... (same as before) */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Title*</Text>
-                  <TextInput
+                <TextInput
                     style={styles.formInput}
-                    value={formTitle}
-                    onChangeText={setFormTitle}
+                  value={formTitle}
+                  onChangeText={setFormTitle}
                     placeholder="Enter event title"
                     placeholderTextColor={THEME.light}
-                  />
+                />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Description*</Text>
-                  <TextInput
+                <TextInput
                     style={[styles.formInput, styles.textAreaInput]}
-                    value={formExcerpt}
-                    onChangeText={setFormExcerpt}
-                    placeholder="Event description"
+                  value={formExcerpt}
+                  onChangeText={setFormExcerpt}
+                  placeholder="Event description"
                     placeholderTextColor={THEME.light}
-                    multiline
-                    numberOfLines={4}
-                  />
+                  multiline
+                  numberOfLines={4}
+                />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Date & Time*</Text>
-                  <TouchableOpacity
+                <TouchableOpacity
                     style={styles.dateTimeButton}
-                    onPress={() => setShowTimePicker(true)}
-                  >
+                  onPress={() => setShowTimePicker(true)}
+                >
                     <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
-                    <Text style={styles.dateTimeText}>
-                      {formTime.toLocaleString()}
-                    </Text>
-                  </TouchableOpacity>
+                  <Text style={styles.dateTimeText}>
+                    {formTime.toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
                 </View>
                 {showTimePicker && (
                   <DateTimePicker
@@ -1111,62 +1111,62 @@ function EventsComponent() {
                   />
                 </View>
                 <View style={styles.formGroup}>
-                  <View style={styles.toggleRow}>
+                <View style={styles.toggleRow}>
                     <Text style={styles.toggleLabel}>Recurring event</Text>
-                    <Switch
-                      value={isRecurring}
-                      onValueChange={setIsRecurring}
+                  <Switch
+                    value={isRecurring}
+                    onValueChange={setIsRecurring}
                       trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
                       thumbColor={isRecurring ? THEME.buttonPrimary : "#FFFFFF"}
-                      ios_backgroundColor="#E4E4E7"
-                    />
-                  </View>
+                    ios_backgroundColor="#E4E4E7"
+                  />
+                </View>
                 </View>
                 {isRecurring && (
                   <View style={styles.recurringContainer}>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Repeat</Text>
-                      <View style={styles.recurrenceTypeContainer}>
-                        {["daily", "weekly", "monthly", "yearly"].map((type) => (
-                          <TouchableOpacity
-                            key={type}
+                    <View style={styles.recurrenceTypeContainer}>
+                      {["daily", "weekly", "monthly", "yearly"].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.recurrenceTypeButton,
+                            recurrenceType === type && styles.recurrenceTypeButtonSelected
+                          ]}
+                          onPress={() => setRecurrenceType(type as any)}
+                        >
+                          <Text 
                             style={[
-                              styles.recurrenceTypeButton,
-                              recurrenceType === type && styles.recurrenceTypeButtonSelected
-                            ]}
-                            onPress={() => setRecurrenceType(type as any)}
-                          >
-                            <Text 
-                              style={[
-                                styles.recurrenceTypeText,
-                                recurrenceType === type && styles.recurrenceTypeTextSelected
-                              ]}>
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                              styles.recurrenceTypeText,
+                              recurrenceType === type && styles.recurrenceTypeTextSelected
+                            ]}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                     </View>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Frequency</Text>
-                      <View style={styles.intervalRow}>
-                        <Text style={styles.intervalLabel}>Every</Text>
-                        <TextInput
-                          style={styles.intervalInput}
-                          value={recurrenceInterval}
-                          onChangeText={(text) => {
-                            const filtered = text.replace(/[^0-9]/g, '');
-                            setRecurrenceInterval(filtered || "1");
-                          }}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.intervalText}>
-                          {recurrenceType === "daily" ? "day(s)" :
-                           recurrenceType === "weekly" ? "week(s)" :
-                           recurrenceType === "monthly" ? "month(s)" : "year(s)"}
-                        </Text>
-                      </View>
+                    <View style={styles.intervalRow}>
+                      <Text style={styles.intervalLabel}>Every</Text>
+                      <TextInput
+                        style={styles.intervalInput}
+                        value={recurrenceInterval}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '');
+                          setRecurrenceInterval(filtered || "1");
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+                      <Text style={styles.intervalText}>
+                        {recurrenceType === "daily" ? "day(s)" :
+                         recurrenceType === "weekly" ? "week(s)" :
+                         recurrenceType === "monthly" ? "month(s)" : "year(s)"}
+                      </Text>
+                    </View>
                     </View>
                     {recurrenceType === "weekly" && (
                       <View style={styles.formGroup}>
@@ -1246,23 +1246,23 @@ function EventsComponent() {
                 )}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Image</Text>
-                  <TouchableOpacity
-                    style={styles.imagePickerButton}
-                    onPress={pickImage}
-                    disabled={formImageLoading}
-                    activeOpacity={0.8}
-                  >
-                    {formImageLoading ? (
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={pickImage}
+                  disabled={formImageLoading}
+                  activeOpacity={0.8}
+                >
+                  {formImageLoading ? (
                       <ActivityIndicator size="small" color={THEME.buttonPrimary} />
-                    ) : (
-                      <>
+                  ) : (
+                    <>
                         <Feather name="image" size={22} color={THEME.buttonPrimary} />
-                        <Text style={styles.imagePickerText}>
-                          {formImageUrl ? "Change Image" : "Select Image"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                      <Text style={styles.imagePickerText}>
+                        {formImageUrl ? "Change Image" : "Select Image"}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
                 </View>
                 {formImageUrl ? (
                   <View style={styles.previewImageContainer}>
@@ -1283,8 +1283,8 @@ function EventsComponent() {
                   style={styles.submitButton}
                   onPress={handleAddEvent}
                   activeOpacity={0.9}
-                >
-                  <Text style={styles.submitButtonText}>CREATE EVENT</Text>
+                  >
+                    <Text style={styles.submitButtonText}>CREATE EVENT</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1321,37 +1321,37 @@ function EventsComponent() {
               <ScrollView style={styles.modalForm}>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Title*</Text>
-                  <TextInput
+                <TextInput
                     style={styles.formInput}
-                    value={formTitle}
-                    onChangeText={setFormTitle}
+                  value={formTitle}
+                  onChangeText={setFormTitle}
                     placeholder="Enter event title"
                     placeholderTextColor={THEME.light}
-                  />
+                />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Description*</Text>
-                  <TextInput
+                <TextInput
                     style={[styles.formInput, styles.textAreaInput]}
-                    value={formExcerpt}
-                    onChangeText={setFormExcerpt}
-                    placeholder="Event description"
+                  value={formExcerpt}
+                  onChangeText={setFormExcerpt}
+                  placeholder="Event description"
                     placeholderTextColor={THEME.light}
-                    multiline
-                    numberOfLines={4}
-                  />
+                  multiline
+                  numberOfLines={4}
+                />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Date & Time*</Text>
-                  <TouchableOpacity
+                <TouchableOpacity
                     style={styles.dateTimeButton}
-                    onPress={() => setShowTimePicker(true)}
-                  >
+                  onPress={() => setShowTimePicker(true)}
+                >
                     <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
-                    <Text style={styles.dateTimeText}>
-                      {formTime.toLocaleString()}
-                    </Text>
-                  </TouchableOpacity>
+                  <Text style={styles.dateTimeText}>
+                    {formTime.toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
                 </View>
                 {showTimePicker && (
                   <DateTimePicker
@@ -1377,62 +1377,62 @@ function EventsComponent() {
                   />
                 </View>
                 <View style={styles.formGroup}>
-                  <View style={styles.toggleRow}>
+                <View style={styles.toggleRow}>
                     <Text style={styles.toggleLabel}>Recurring event</Text>
-                    <Switch
-                      value={isRecurring}
-                      onValueChange={setIsRecurring}
+                  <Switch
+                    value={isRecurring}
+                    onValueChange={setIsRecurring}
                       trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
                       thumbColor={isRecurring ? THEME.buttonPrimary : "#FFFFFF"}
-                      ios_backgroundColor="#E4E4E7"
-                    />
-                  </View>
+                    ios_backgroundColor="#E4E4E7"
+                  />
+                </View>
                 </View>
                 {isRecurring && (
                   <View style={styles.recurringContainer}>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Repeat</Text>
-                      <View style={styles.recurrenceTypeContainer}>
-                        {["daily", "weekly", "monthly", "yearly"].map((type) => (
-                          <TouchableOpacity
-                            key={type}
+                    <View style={styles.recurrenceTypeContainer}>
+                      {["daily", "weekly", "monthly", "yearly"].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.recurrenceTypeButton,
+                            recurrenceType === type && styles.recurrenceTypeButtonSelected
+                          ]}
+                          onPress={() => setRecurrenceType(type as any)}
+                        >
+                          <Text 
                             style={[
-                              styles.recurrenceTypeButton,
-                              recurrenceType === type && styles.recurrenceTypeButtonSelected
-                            ]}
-                            onPress={() => setRecurrenceType(type as any)}
-                          >
-                            <Text 
-                              style={[
-                                styles.recurrenceTypeText,
-                                recurrenceType === type && styles.recurrenceTypeTextSelected
-                              ]}>
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                              styles.recurrenceTypeText,
+                              recurrenceType === type && styles.recurrenceTypeTextSelected
+                            ]}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                     </View>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Frequency</Text>
-                      <View style={styles.intervalRow}>
-                        <Text style={styles.intervalLabel}>Every</Text>
-                        <TextInput
-                          style={styles.intervalInput}
-                          value={recurrenceInterval}
-                          onChangeText={(text) => {
-                            const filtered = text.replace(/[^0-9]/g, '');
-                            setRecurrenceInterval(filtered || "1");
-                          }}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.intervalText}>
-                          {recurrenceType === "daily" ? "day(s)" :
-                           recurrenceType === "weekly" ? "week(s)" :
-                           recurrenceType === "monthly" ? "month(s)" : "year(s)"}
-                        </Text>
-                      </View>
+                    <View style={styles.intervalRow}>
+                      <Text style={styles.intervalLabel}>Every</Text>
+                      <TextInput
+                        style={styles.intervalInput}
+                        value={recurrenceInterval}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '');
+                          setRecurrenceInterval(filtered || "1");
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+                      <Text style={styles.intervalText}>
+                        {recurrenceType === "daily" ? "day(s)" :
+                         recurrenceType === "weekly" ? "week(s)" :
+                         recurrenceType === "monthly" ? "month(s)" : "year(s)"}
+                      </Text>
+                    </View>
                     </View>
                     {recurrenceType === "weekly" && (
                       <View style={styles.formGroup}>
@@ -1512,23 +1512,23 @@ function EventsComponent() {
                 )}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Image</Text>
-                  <TouchableOpacity
-                    style={styles.imagePickerButton}
-                    onPress={pickImage}
-                    disabled={formImageLoading}
-                    activeOpacity={0.8}
-                  >
-                    {formImageLoading ? (
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={pickImage}
+                  disabled={formImageLoading}
+                  activeOpacity={0.8}
+                >
+                  {formImageLoading ? (
                       <ActivityIndicator size="small" color={THEME.buttonPrimary} />
-                    ) : (
-                      <>
+                  ) : (
+                    <>
                         <Feather name="image" size={22} color={THEME.buttonPrimary} />
-                        <Text style={styles.imagePickerText}>
-                          {formImageUrl ? "Change Image" : "Select Image"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                      <Text style={styles.imagePickerText}>
+                        {formImageUrl ? "Change Image" : "Select Image"}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
                 </View>
                 {formImageUrl ? (
                   <View style={styles.previewImageContainer}>
@@ -1549,8 +1549,8 @@ function EventsComponent() {
                   style={styles.submitButton}
                   onPress={handleEditEvent}
                   activeOpacity={0.9}
-                >
-                  <Text style={styles.submitButtonText}>UPDATE EVENT</Text>
+                  >
+                    <Text style={styles.submitButtonText}>UPDATE EVENT</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>

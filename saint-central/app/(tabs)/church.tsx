@@ -13,7 +13,6 @@ import {
   Animated,
   StatusBar,
   Linking,
-  Alert,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
@@ -28,6 +27,7 @@ import {
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { StackNavigationProp } from '@react-navigation/stack';
 
 // Import the Sidebar component
 import Sidebar from "./sidebarComponent";
@@ -64,9 +64,17 @@ interface RouteParams {
   churchId?: number;
 }
 
+// Add type definition for navigation
+type RootStackParamList = {
+  MinistriesScreen: undefined;
+  // ... other screen types ...
+};
+
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
 // Church screen component
 export default function ChurchScreen(): JSX.Element {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
   const [church, setChurch] = useState<Church | null>(null);
   const [member, setMember] = useState<ChurchMember | null>(null);
@@ -74,7 +82,6 @@ export default function ChurchScreen(): JSX.Element {
   const [error, setError] = useState<Error | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
 
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
@@ -91,63 +98,6 @@ export default function ChurchScreen(): JSX.Element {
   // Close sidebar
   const closeSidebar = () => {
     setSidebarOpen(false);
-  };
-
-  // Function to handle leaving the church
-  const handleLeaveChurch = async (): Promise<void> => {
-    if (!member) return;
-
-    try {
-      setLeavingChurch(true);
-
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-      if (!user) throw new Error("No user logged in");
-
-      // Delete the membership record
-      const { error: deleteError } = await supabase
-        .from("church_members")
-        .delete()
-        .eq("id", member.id);
-
-      if (deleteError) throw deleteError;
-
-      // Navigate back to home screen
-      navigation.navigate("home" as never);
-    } catch (error) {
-      console.error("Error leaving church:", error);
-      Alert.alert(
-        "Error",
-        "Failed to leave the church. Please try again later."
-      );
-    } finally {
-      setLeavingChurch(false);
-    }
-  };
-
-  // Confirm leaving the church
-  const confirmLeaveChurch = () => {
-    Alert.alert(
-      "Leave Church",
-      "Are you sure you want to leave this church? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Yes, Leave",
-          onPress: handleLeaveChurch,
-          style: "destructive",
-        },
-      ],
-      { cancelable: true }
-    );
   };
 
   // Fetch church data
@@ -312,6 +262,11 @@ export default function ChurchScreen(): JSX.Element {
           : `https://${church.website}`
       );
     }
+  };
+
+  // Navigate to ministries screen
+  const navigateToMinistries = () => {
+    navigation.navigate('MinistriesScreen');
   };
 
   // Card decorations (subtle visual elements)
@@ -502,9 +457,7 @@ export default function ChurchScreen(): JSX.Element {
             <TouchableOpacity
               style={styles.quickActionButton}
               activeOpacity={0.85}
-              onPress={() => {
-                /* Navigate to ministries */
-              }}
+              onPress={navigateToMinistries}
             >
               <View style={styles.buttonContent}>
                 <View style={styles.buttonIconWrapper}>
@@ -822,37 +775,17 @@ export default function ChurchScreen(): JSX.Element {
                   <Text style={styles.actionText}>Members</Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={navigateToMinistries}
+              >
+                <MaterialCommunityIcons name="church" size={24} color="#3A86FF" />
+                <Text style={styles.actionButtonText}>Ministries</Text>
+              </TouchableOpacity>
             </View>
           </LinearGradient>
         </Animated.View>
-
-        {/* Leave Church Button */}
-        <TouchableOpacity
-          style={styles.leaveChurchButton}
-          onPress={confirmLeaveChurch}
-          disabled={leavingChurch}
-        >
-          <LinearGradient
-            colors={["#FF4560", "#FF006E"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.leaveChurchGradient}
-          >
-            {leavingChurch ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons
-                  name="exit-outline"
-                  size={18}
-                  color="#FFFFFF"
-                  style={styles.leaveChurchIcon}
-                />
-                <Text style={styles.leaveChurchText}>Leave Church</Text>
-              </>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
 
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
@@ -864,33 +797,6 @@ export default function ChurchScreen(): JSX.Element {
 const { width } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
-  // New styles for the Leave Church button
-  leaveChurchButton: {
-    marginTop: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    overflow: "hidden",
-    shadowColor: "#FF4560",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  leaveChurchGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-  },
-  leaveChurchIcon: {
-    marginRight: 10,
-  },
-  leaveChurchText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
   // New styles for the menu button
   menuButton: {
     width: 40,
@@ -1274,10 +1180,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   actionButton: {
-    flex: 1,
-    marginHorizontal: 6,
+    backgroundColor: 'rgba(58, 134, 255, 0.1)',
+    padding: 12,
     borderRadius: 12,
-    overflow: "hidden",
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
   },
   actionGradient: {
     flexDirection: "row",
@@ -1360,5 +1268,11 @@ const styles = StyleSheet.create({
     borderColor: "#F1F5F9",
     marginRight: 16,
     width: width * 0.75,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });
