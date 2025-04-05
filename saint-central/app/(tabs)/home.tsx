@@ -352,7 +352,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
                   activeOpacity={0.85}
                   onPressIn={() => pressButton(1, true)}
                   onPressOut={() => pressButton(1, false)}
-                  onPress={() => navigation.navigate("home" as never)}
+                  onPress={() => navigation.navigate("discover" as never)}
                 >
                   <View style={styles.secondaryButton}>
                     <Text style={styles.secondaryButtonText}>
