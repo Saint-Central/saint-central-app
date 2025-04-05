@@ -1,4 +1,4 @@
-//this page is for the create new minstires like it opens it up like a whatsappchat
+//this page is for ministry groups with a WhatsApp-style chat layout
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -10,8 +10,11 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
+  Modal,
+  Alert,
+  ScrollView,
 } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, CommonActions } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import {
   Ionicons,
@@ -19,6 +22,8 @@ import {
   Feather,
   AntDesign,
   FontAwesome5,
+  Entypo,
+  MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from "expo-linear-gradient";
@@ -36,6 +41,14 @@ interface MinistryGroup {
   status_message?: string;
 }
 
+// Ministry preset interface
+interface MinistryPreset {
+  id: string;
+  name: string;
+  icon: string;
+  isDefault: boolean;
+}
+
 // Route params interface
 interface RouteParams {
   churchId?: number;
@@ -47,7 +60,7 @@ type RootStackParamList = {
   Ministries: undefined;
   MinistriesScreen: undefined;
   ministryChat: { groupId: number };
-  createMinistryGroup: undefined;
+  createMinistryGroup: { selectedPresetId?: string }; // Updated to pass selectedPresetId
   // ... other screen types ...
 };
 
@@ -89,6 +102,21 @@ export default function MinistryGroupsScreen(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>("");
   const [churchId, setChurchId] = useState<number | null>(null);
+  
+  // Ministry presets state
+  const [ministryPresets, setMinistryPresets] = useState<MinistryPreset[]>([
+    { id: '1', name: 'Liturgical', icon: 'book-outline', isDefault: true },
+    { id: '2', name: 'Music', icon: 'musical-notes-outline', isDefault: true },
+    { id: '3', name: 'Youth', icon: 'people-outline', isDefault: true },
+    { id: '4', name: 'Outreach', icon: 'hand-left-outline', isDefault: true },
+    { id: '5', name: 'Education', icon: 'school-outline', isDefault: true },
+    { id: '6', name: 'Service', icon: 'heart-outline', isDefault: true },
+    { id: '7', name: 'Prayer', icon: 'flower-outline', isDefault: true },
+  ]);
+  const [selectedPreset, setSelectedPreset] = useState<string>('1');
+  const [isMinistryModalVisible, setIsMinistryModalVisible] = useState<boolean>(false);
+  const [newMinistryName, setNewMinistryName] = useState<string>("");
+  const [editingPreset, setEditingPreset] = useState<MinistryPreset | null>(null);
 
   // Fetch groups data
   useEffect(() => {
@@ -251,6 +279,32 @@ export default function MinistryGroupsScreen(): JSX.Element {
         
         setJoinedGroups(userGroups);
         setAvailableGroups(otherGroups);
+
+        // Load saved ministry presets from storage
+        try {
+          const { data: presetsData, error: presetsError } = await supabase
+            .from("ministry_presets")
+            .select("*")
+            .eq("user_id", user.id);
+
+          if (!presetsError && presetsData && presetsData.length > 0) {
+            // Combine default presets with user presets
+            const userPresets = presetsData.map(p => ({
+              id: p.id.toString(),
+              name: p.name,
+              icon: p.icon,
+              isDefault: false
+            }));
+            
+            // Keep default presets and add user's custom ones
+            setMinistryPresets(prev => [
+              ...prev.filter(p => p.isDefault),
+              ...userPresets
+            ]);
+          }
+        } catch (presetsError) {
+          console.error("Error loading ministry presets:", presetsError);
+        }
       } catch (error) {
         console.error("Error fetching ministry groups:", error);
       } finally {
@@ -264,102 +318,393 @@ export default function MinistryGroupsScreen(): JSX.Element {
   // Navigate back to MinistriesScreen.tsx directly
   const navigateBack = () => {
     // Directly navigate to MinistriesScreen
-    navigation.navigate('MinistriesScreen');
+    try {
+      navigation.navigate('MinistriesScreen');
+      console.log("Navigated back to MinistriesScreen");
+    } catch (error) {
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate back. Please try again.");
+    }
   };
   
   // Navigate to a specific group chat
   const navigateToGroupChat = (groupId: number) => {
-    navigation.navigate('ministryChat', { groupId });
+    try {
+      navigation.navigate('ministryChat', { groupId });
+      console.log("Navigated to ministryChat with ID:", groupId);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate to chat. Please try again.");
+    }
   };
   
-  // Navigate to create new group screen
+  // Navigate to create new group screen with the selected preset
   const navigateToCreateGroup = () => {
-    navigation.navigate('createMinistryGroup');
+    try {
+      console.log("Navigating to createMinistryGroup with preset:", selectedPreset);
+      
+      // Create Alert to confirm action
+      Alert.alert(
+        "Create New Ministry Group", 
+        `Create a new group with the "${ministryPresets.find(p => p.id === selectedPreset)?.name}" preset?`,
+        [
+          { 
+            text: "Create", 
+            onPress: () => {
+              // Try multiple navigation approaches in sequence
+              try {
+                // Method 1: Standard navigation
+                navigation.navigate('createMinistryGroup', {
+                  selectedPresetId: selectedPreset
+                });
+                console.log("Standard navigation executed");
+                
+                // Method 2: Fallback approach with CommonActions
+                setTimeout(() => {
+                  try {
+                    navigation.dispatch(
+                      CommonActions.navigate({
+                        name: 'createMinistryGroup',
+                        params: { selectedPresetId: selectedPreset }
+                      })
+                    );
+                    console.log("Fallback navigation executed");
+                  } catch (dispatchError) {
+                    console.error("Fallback navigation failed:", dispatchError);
+                  }
+                }, 500);
+              } catch (navError) {
+                console.error("Initial navigation failed:", navError);
+                Alert.alert("Navigation Error", "Could not open create group screen. Please try again.");
+              }
+            }
+          },
+          {
+            text: "Cancel",
+            style: "cancel"
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate to create group screen. Please try again.");
+    }
+  };
+
+  // Show the modal to add or edit a ministry preset
+  const showMinistryModal = (preset?: MinistryPreset) => {
+    if (preset) {
+      setEditingPreset(preset);
+      setNewMinistryName(preset.name);
+    } else {
+      setEditingPreset(null);
+      setNewMinistryName("");
+    }
+    setIsMinistryModalVisible(true);
+  };
+
+  // Add a new ministry preset
+  const addMinistryPreset = async () => {
+    if (newMinistryName.trim() === "") {
+      Alert.alert("Invalid Name", "Please enter a name for the ministry preset");
+      return;
+    }
+
+    try {
+      // In a real app, you would save this to Supabase
+      const newId = (ministryPresets.length + 1).toString();
+      const newPreset: MinistryPreset = {
+        id: newId,
+        name: newMinistryName,
+        icon: "bookmark-outline", // Default icon
+        isDefault: false,
+      };
+
+      setMinistryPresets([...ministryPresets, newPreset]);
+      setNewMinistryName("");
+      setIsMinistryModalVisible(false);
+
+      // Save to Supabase in a real app
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("ministry_presets").insert({
+          user_id: user.id,
+          name: newPreset.name,
+          icon: newPreset.icon
+        });
+      }
+    } catch (error) {
+      console.error("Error adding ministry preset:", error);
+      Alert.alert("Error", "Failed to add ministry preset");
+    }
+  };
+
+  // Update an existing ministry preset
+  const updateMinistryPreset = async () => {
+    if (!editingPreset || newMinistryName.trim() === "") {
+      Alert.alert("Invalid Name", "Please enter a name for the ministry preset");
+      return;
+    }
+
+    try {
+      const updatedPresets = ministryPresets.map(p => 
+        p.id === editingPreset.id ? { ...p, name: newMinistryName } : p
+      );
+      
+      setMinistryPresets(updatedPresets);
+      setNewMinistryName("");
+      setEditingPreset(null);
+      setIsMinistryModalVisible(false);
+
+      // Update in Supabase in a real app
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && !editingPreset.isDefault) {
+        await supabase.from("ministry_presets")
+          .update({ name: newMinistryName })
+          .eq("id", editingPreset.id)
+          .eq("user_id", user.id);
+      }
+    } catch (error) {
+      console.error("Error updating ministry preset:", error);
+      Alert.alert("Error", "Failed to update ministry preset");
+    }
+  };
+
+  // Delete a ministry preset
+  const deleteMinistryPreset = async (preset: MinistryPreset) => {
+    if (preset.isDefault) {
+      Alert.alert(
+        "Cannot Delete",
+        "Default ministry presets cannot be deleted",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Delete Ministry",
+      `Are you sure you want to delete "${preset.name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const filteredPresets = ministryPresets.filter(
+                p => p.id !== preset.id
+              );
+              setMinistryPresets(filteredPresets);
+              
+              // If the deleted preset was selected, select the first available preset
+              if (selectedPreset === preset.id && filteredPresets.length > 0) {
+                setSelectedPreset(filteredPresets[0].id);
+              }
+
+              // Delete from Supabase in a real app
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                await supabase.from("ministry_presets")
+                  .delete()
+                  .eq("id", preset.id)
+                  .eq("user_id", user.id);
+              }
+            } catch (error) {
+              console.error("Error deleting ministry preset:", error);
+              Alert.alert("Error", "Failed to delete ministry preset");
+            }
+          },
+        },
+      ]
+    );
   };
   
-  // Render joined group item
-  const renderJoinedGroupItem = ({ item }: { item: MinistryGroup }) => (
-    <TouchableOpacity 
-      style={styles.groupItem}
-      onPress={() => navigateToGroupChat(item.id)}
-      activeOpacity={0.7}
+  // Render ministry preset item - simplified to match WhatsApp look
+  const renderMinistryPresetItem = (preset: MinistryPreset) => (
+    <TouchableOpacity
+      key={preset.id}
+      style={[
+        styles.ministryPresetItem,
+        selectedPreset === preset.id && styles.ministryPresetItemSelected
+      ]}
+      onPress={() => {
+        setSelectedPreset(preset.id);
+        // Long press still edits
+      }}
+      onLongPress={() => showMinistryModal(preset)}
     >
-      <View style={styles.groupAvatar}>
-        {item.image ? (
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.groupAvatarImage} 
-          />
-        ) : (
-          <View style={styles.groupAvatarPlaceholder}>
-            <FontAwesome5 name="church" size={22} color="#fff" />
-          </View>
-        )}
-      </View>
+      <Text 
+        style={[
+          styles.ministryPresetText,
+          selectedPreset === preset.id && styles.ministryPresetTextSelected
+        ]}
+        numberOfLines={1}
+      >
+        {preset.name}
+      </Text>
       
-      <View style={styles.groupContent}>
-        <View style={styles.groupHeaderRow}>
-          <Text style={styles.groupName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={styles.groupTimestamp}>
-            {formatTime(item.last_active)}
-          </Text>
-        </View>
-        
-        <View style={styles.groupDescriptionRow}>
-          <Text style={styles.groupDescription} numberOfLines={1}>
-            {item.status_message || item.description}
-          </Text>
-          
-          {item.notification_count > 0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationText}>
-                {item.notification_count}
-              </Text>
+      {!preset.isDefault && (
+        <TouchableOpacity
+          style={styles.ministryPresetAction}
+          onPress={() => deleteMinistryPreset(preset)}
+        >
+          <MaterialIcons 
+            name="close" 
+            size={16} 
+            color={selectedPreset === preset.id ? "#FFFFFF" : "#94A3B8"} 
+          />
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+
+  // Prepare items for the main FlatList
+  const prepareSections = () => {
+    const sections = [];
+
+    // Add joined groups section if any exist
+    if (joinedGroups.length > 0) {
+      sections.push({
+        type: 'header',
+        title: 'Groups you\'re in',
+        id: 'joined_header'
+      });
+      
+      joinedGroups.forEach(group => {
+        sections.push({
+          type: 'joined_group',
+          data: group,
+          id: `joined_${group.id}`
+        });
+      });
+    }
+
+    // Add available groups section if any exist
+    if (availableGroups.length > 0) {
+      sections.push({
+        type: 'header',
+        title: 'Groups you can join',
+        id: 'available_header'
+      });
+      
+      availableGroups.forEach(group => {
+        sections.push({
+          type: 'available_group',
+          data: group,
+          id: `available_${group.id}`
+        });
+      });
+    }
+
+    return sections;
+  };
+
+  // Render items based on their type
+  const renderItem = ({ item }: any) => {
+    switch (item.type) {
+      case 'header':
+        return (
+          <View style={styles.sectionHeaderContainer}>
+            <Text style={styles.sectionTitle}>{item.title}</Text>
+            {item.title === 'Groups you can join' && (
+              <TouchableOpacity 
+                style={styles.sectionHeaderButton}
+                onPress={navigateToCreateGroup}
+              >
+                <Text style={styles.sectionHeaderButtonText}>Create New</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+      
+      case 'joined_group':
+        return (
+          <TouchableOpacity 
+            style={styles.groupItem}
+            onPress={() => navigateToGroupChat(item.data.id)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.groupAvatar}>
+              {item.data.image ? (
+                <Image 
+                  source={{ uri: item.data.image }} 
+                  style={styles.groupAvatarImage} 
+                />
+              ) : (
+                <View style={styles.groupAvatarPlaceholder}>
+                  <FontAwesome5 name="church" size={22} color="#fff" />
+                </View>
+              )}
             </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-  
-  // Render available group item
-  const renderAvailableGroupItem = ({ item }: { item: MinistryGroup }) => (
-    <TouchableOpacity 
-      style={styles.groupItem}
-      onPress={() => navigateToGroupChat(item.id)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.groupAvatar}>
-        {item.image ? (
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.groupAvatarImage} 
-          />
-        ) : (
-          <View style={styles.groupAvatarPlaceholder}>
-            <FontAwesome5 name="church" size={22} color="#fff" />
-          </View>
-        )}
-      </View>
+            
+            <View style={styles.groupContent}>
+              <View style={styles.groupHeaderRow}>
+                <Text style={styles.groupName} numberOfLines={1}>
+                  {item.data.name}
+                </Text>
+                <Text style={styles.groupTimestamp}>
+                  {formatTime(item.data.last_active)}
+                </Text>
+              </View>
+              
+              <View style={styles.groupDescriptionRow}>
+                <Text style={styles.groupDescription} numberOfLines={1}>
+                  {item.data.status_message || item.data.description}
+                </Text>
+                
+                {item.data.notification_count > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationText}>
+                      {item.data.notification_count}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
       
-      <View style={styles.groupContent}>
-        <View style={styles.groupHeaderRow}>
-          <Text style={styles.groupName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Feather name="chevron-right" size={20} color="#94A3B8" />
-        </View>
+      case 'available_group':
+        return (
+          <TouchableOpacity 
+            style={styles.groupItem}
+            onPress={() => navigateToGroupChat(item.data.id)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.groupAvatar}>
+              {item.data.image ? (
+                <Image 
+                  source={{ uri: item.data.image }} 
+                  style={styles.groupAvatarImage} 
+                />
+              ) : (
+                <View style={styles.groupAvatarPlaceholder}>
+                  <FontAwesome5 name="church" size={22} color="#fff" />
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.groupContent}>
+              <View style={styles.groupHeaderRow}>
+                <Text style={styles.groupName} numberOfLines={1}>
+                  {item.data.name}
+                </Text>
+                <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
+              </View>
+              
+              <View style={styles.groupDescriptionRow}>
+                <Text style={styles.groupMemberCount} numberOfLines={1}>
+                  {item.data.member_count} members
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
         
-        <View style={styles.groupDescriptionRow}>
-          <Text style={styles.groupMemberCount} numberOfLines={1}>
-            {item.member_count} members
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      default:
+        return null;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -379,22 +724,6 @@ export default function MinistryGroupsScreen(): JSX.Element {
         </TouchableOpacity>
       </View>
       
-      {/* Announcements Banner */}
-      <TouchableOpacity style={styles.announcementsBanner} activeOpacity={0.8}>
-        <View style={styles.announcementsIconContainer}>
-          <Ionicons name="megaphone" size={24} color="#fff" />
-        </View>
-        
-        <View style={styles.announcementsContent}>
-          <Text style={styles.announcementsTitle}>Announcements</Text>
-          <Text style={styles.announcementsDescription}>
-            Welcome to the ministry community!
-          </Text>
-        </View>
-        
-        <Text style={styles.announcementsCount}>2/10/25</Text>
-      </TouchableOpacity>
-      
       {/* Search Box */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -408,39 +737,34 @@ export default function MinistryGroupsScreen(): JSX.Element {
           />
         </View>
       </View>
+
+      {/* Ministry Presets - Horizontal scrolling tabs */}
+      <View style={styles.ministryPresetsContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.ministryPresetsScrollContent}
+        >
+          {ministryPresets.map(preset => renderMinistryPresetItem(preset))}
+          
+          {/* Add ministry button */}
+          <TouchableOpacity 
+            style={styles.addMinistryPresetButton}
+            onPress={() => showMinistryModal()}
+          >
+            <Ionicons name="add" size={20} color="#3A86FF" />
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
       
-      {/* Main Content */}
+      {/* WhatsApp-style Flat List - vertically scrollable */}
       <FlatList
-        data={[] as MinistryGroup[]}
-        renderItem={() => null}
-        ListHeaderComponent={() => (
-          <>
-            {/* Groups you're in section */}
-            {joinedGroups.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Groups you're in</Text>
-                {joinedGroups.map((group) => (
-                  <React.Fragment key={`joined-${group.id}`}>
-                    {renderJoinedGroupItem({ item: group })}
-                  </React.Fragment>
-                ))}
-              </>
-            )}
-            
-            {/* Groups you can join section */}
-            {availableGroups.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Groups you can join</Text>
-                {availableGroups.map((group) => (
-                  <React.Fragment key={`available-${group.id}`}>
-                    {renderAvailableGroupItem({ item: group })}
-                  </React.Fragment>
-                ))}
-              </>
-            )}
-          </>
-        )}
-        keyExtractor={(item) => item.id?.toString()}
+        style={styles.mainList}
+        data={prepareSections()}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListFooterComponent={() => <View style={styles.listFooter} />}
       />
       
       {/* Add Group Button */}
@@ -450,8 +774,59 @@ export default function MinistryGroupsScreen(): JSX.Element {
         activeOpacity={0.9}
       >
         <AntDesign name="plus" size={24} color="#fff" />
-        <Text style={styles.addGroupButtonText}>Add group</Text>
       </TouchableOpacity>
+
+      {/* Modal for adding/editing ministry preset */}
+      <Modal
+        visible={isMinistryModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsMinistryModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingPreset ? "Edit Ministry" : "Add Ministry"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setIsMinistryModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalInputContainer}>
+              <Text style={styles.modalInputLabel}>Ministry Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter ministry name"
+                placeholderTextColor="#94A3B8"
+                value={newMinistryName}
+                onChangeText={setNewMinistryName}
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setIsMinistryModalVisible(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={editingPreset ? updateMinistryPreset : addMinistryPreset}
+              >
+                <Text style={styles.modalSaveButtonText}>
+                  {editingPreset ? "Update" : "Add"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -459,7 +834,7 @@ export default function MinistryGroupsScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFFFFF", // Light theme as requested
   },
   header: {
     flexDirection: "row",
@@ -486,44 +861,11 @@ const styles = StyleSheet.create({
   menuButton: {
     padding: 4,
   },
-  announcementsBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#F8FAFC",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-  announcementsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#3A86FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  announcementsContent: {
-    flex: 1,
-  },
-  announcementsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 2,
-  },
-  announcementsDescription: {
-    fontSize: 14,
-    color: "#64748B",
-  },
-  announcementsCount: {
-    fontSize: 12,
-    color: "#64748B",
-  },
   searchContainer: {
     padding: 8,
     backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
   searchInputContainer: {
     flexDirection: "row",
@@ -544,12 +886,83 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     fontSize: 16,
   },
+  // Ministry presets styles - simplified
+  ministryPresetsContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+  },
+  ministryPresetsScrollContent: {
+    paddingHorizontal: 8,
+  },
+  ministryPresetItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginHorizontal: 4,
+    minWidth: 80,
+  },
+  ministryPresetItemSelected: {
+    backgroundColor: "#3A86FF",
+  },
+  ministryPresetText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#475569",
+    textAlign: "center",
+  },
+  ministryPresetTextSelected: {
+    color: "#FFFFFF",
+  },
+  ministryPresetAction: {
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 4,
+  },
+  addMinistryPresetButton: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginHorizontal: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  // Main list styles
+  mainList: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F8FAFC',
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: "#64748B",
-    marginVertical: 16,
-    paddingHorizontal: 16,
+  },
+  sectionHeaderButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#3A86FF',
+  },
+  sectionHeaderButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
   groupItem: {
     flexDirection: "row",
@@ -630,26 +1043,95 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  // Make the add button more like WhatsApp - circular
   addGroupButton: {
     position: "absolute",
     bottom: 24,
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
+    right: 24,
     backgroundColor: "#3A86FF",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
-  addGroupButtonText: {
-    color: "#fff",
+  listFooter: {
+    height: 80, // Space for FAB
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    width: "85%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  modalInputContainer: {
+    marginBottom: 20,
+  },
+  modalInputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 12,
+    fontSize: 16,
+    color: "#1E293B",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  modalCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 12,
+  },
+  modalCancelButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    marginLeft: 8,
+    color: "#64748B",
+  },
+  modalSaveButton: {
+    backgroundColor: "#3A86FF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalSaveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
