@@ -1,3 +1,4 @@
+//this is the main home page for misnitries
 import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
@@ -55,6 +56,7 @@ interface RouteParams {
 type RootStackParamList = {
   church: undefined;
   ministryDetail: { ministryId: number };
+  MinistryGroupsScreen: undefined;
   // ... other screen types ...
 };
 
@@ -218,6 +220,11 @@ export default function MinistriesScreen(): JSX.Element {
   // Navigate to ministry detail screen
   const navigateToMinistryDetail = (ministryId: number) => {
     navigation.navigate('ministryDetail', { ministryId });
+  };
+  
+  // Navigate to ministry groups screen
+  const navigateToMinistryGroups = () => {
+    navigation.navigate('MinistryGroupsScreen');
   };
 
   // Go back to church screen
@@ -560,7 +567,10 @@ export default function MinistriesScreen(): JSX.Element {
           </View>
 
           {/* Create Ministry Button (for admin/leader roles) */}
-          <TouchableOpacity style={styles.createButton}>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={navigateToMinistryGroups}
+          >
             <LinearGradient
               colors={["#3A86FF", "#4361EE"]}
               start={{ x: 0, y: 0 }}

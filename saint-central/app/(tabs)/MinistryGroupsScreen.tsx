@@ -1,3 +1,4 @@
+//this page is for the create new minstires like it opens it up like a whatsappchat
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
