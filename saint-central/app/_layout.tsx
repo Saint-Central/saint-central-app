@@ -33,7 +33,7 @@ export default function RootLayout() {
           .getSession()
           .then(({ data }) => {
             if (data.session) {
-              router.replace("/(tabs)/social/screens/FeedScreen");
+              router.replace("/(tabs)/home");
             } else {
               router.replace("/(auth)/auth");
             }
