@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,26 @@ import {
   ScrollView,
   Modal,
   Image,
+  Animated,
+  Dimensions,
+  Platform,
+  StatusBar as RNStatusBar,
 } from "react-native";
 import { supabase } from "../../supabaseClient";
 import { Session } from "@supabase/supabase-js";
 import { useRouter, useFocusEffect } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  MaterialCommunityIcons,
+  Ionicons,
+  FontAwesome5,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 
 interface UserProfile {
   id: string;
@@ -42,9 +53,36 @@ export default function MeScreen() {
     profile_image: "",
   });
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] =
+    useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const router = useRouter();
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Header animations based on scroll
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
+  const headerElevation = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [0, 15],
+    extrapolate: "clamp",
+  });
+
   useEffect(() => {
+    // Animate content fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+
     // Get the initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -269,9 +307,23 @@ export default function MeScreen() {
     }
   };
 
+  const handleShowDeleteConfirmModal = () => {
+    setDeleteModalVisible(false);
+    setDeleteConfirmText("");
+    setDeleteConfirmModalVisible(true);
+  };
+
   const handleDeleteAccount = async () => {
     try {
-      setDeleteModalVisible(false);
+      if (deleteConfirmText.toLowerCase() !== "delete my account") {
+        Alert.alert(
+          "Confirmation Failed",
+          "Please type 'delete my account' exactly to confirm."
+        );
+        return;
+      }
+
+      setDeleteConfirmModalVisible(false);
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -398,11 +450,20 @@ export default function MeScreen() {
     return (first + last).toUpperCase() || userProfile.email[0].toUpperCase();
   };
 
+  // Card decorations (subtle visual elements)
+  const CardDecoration = () => (
+    <View style={styles.cardDecoration}>
+      <View style={[styles.decorationDot, styles.decorationDot1]} />
+      <View style={[styles.decorationDot, styles.decorationDot2]} />
+      <View style={[styles.decorationDot, styles.decorationDot3]} />
+    </View>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color="#FAC898" />
+        <StatusBar style="dark" />
+        <ActivityIndicator size="large" color="#3A86FF" />
       </SafeAreaView>
     );
   }
@@ -410,14 +471,17 @@ export default function MeScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.errorBox}>
-          <MaterialCommunityIcons
-            name="alert-circle"
-            size={24}
-            color="#DC2626"
-          />
+          <Ionicons name="alert-circle-outline" size={40} color="#FF006E" />
+          <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.errorButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.errorButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -426,14 +490,19 @@ export default function MeScreen() {
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.warningBox}>
-          <MaterialCommunityIcons
-            name="information"
-            size={24}
-            color="#FFFFFF"
-          />
-          <Text style={styles.warningText}>No user profile found.</Text>
+          <Ionicons name="information" size={40} color="#4361EE" />
+          <Text style={styles.warningTitle}>No Profile Found</Text>
+          <Text style={styles.warningText}>
+            We couldn't find your user profile.
+          </Text>
+          <TouchableOpacity
+            style={styles.warningButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.warningButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -441,9 +510,78 @@ export default function MeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.card}>
+      <StatusBar style="dark" />
+
+      {/* Floating header */}
+      <Animated.View
+        style={[
+          styles.headerBackground,
+          {
+            opacity: headerOpacity,
+            elevation: headerElevation,
+            shadowOpacity: headerOpacity,
+          },
+        ]}
+      >
+        <BlurView intensity={85} tint="light" style={styles.blurView} />
+        <Animated.View
+          style={[
+            styles.floatingTitleContainer,
+            {
+              opacity: headerOpacity,
+              transform: [
+                {
+                  translateY: headerOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [10, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.titleWrapper}>
+            <LinearGradient
+              colors={["#3A86FF", "#4361EE"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.titleAccent}
+            />
+            <Text style={styles.floatingTitle}>My Profile</Text>
+          </View>
+        </Animated.View>
+      </Animated.View>
+
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Header with edit button */}
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [
+                {
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.headerLeft}>
+            {/* Removed back button as requested */}
+          </View>
+
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => {
@@ -451,159 +589,290 @@ export default function MeScreen() {
               setIsEditing(!isEditing);
             }}
           >
-            <MaterialCommunityIcons
-              name={isEditing ? "close" : "pencil-outline"}
-              size={22}
-              color="#FFFFFF"
-            />
+            <LinearGradient
+              colors={["#3A86FF", "#4361EE"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.editGradient}
+            >
+              <MaterialCommunityIcons
+                name={isEditing ? "close" : "pencil-outline"}
+                size={22}
+                color="#FFFFFF"
+              />
+            </LinearGradient>
           </TouchableOpacity>
+        </Animated.View>
 
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarCircle}>
-              {userProfile.profile_image ? (
-                <Image
-                  source={{ uri: userProfile.profile_image }}
-                  style={styles.avatarImage}
-                />
-              ) : (
+        {/* Profile Header with Avatar */}
+        <Animated.View
+          style={[
+            styles.profileHeader,
+            {
+              opacity: fadeAnim,
+              transform: [
+                {
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.avatarContainer}>
+            {userProfile.profile_image ? (
+              <Image
+                source={{ uri: userProfile.profile_image }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <LinearGradient
+                colors={["#3A86FF", "#4361EE"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatarGradient}
+              >
                 <Text style={styles.avatarText}>{getInitials()}</Text>
-              )}
-            </View>
-            <Text style={styles.profileName}>
-              {userProfile.first_name
-                ? `${userProfile.first_name} ${userProfile.last_name}`
-                : "My Profile"}
-            </Text>
-            <Text style={styles.profileEmail}>{userProfile.email}</Text>
+              </LinearGradient>
+            )}
           </View>
+          <Text style={styles.profileName}>
+            {userProfile.first_name
+              ? `${userProfile.first_name} ${userProfile.last_name || ""}`
+              : "My Profile"}
+          </Text>
+          <Text style={styles.profileEmail}>{userProfile.email}</Text>
+        </Animated.View>
 
-          {isEditing ? (
-            <View style={styles.formContainer}>
-              <TouchableOpacity
-                style={styles.imagePickerButton}
-                onPress={pickImage}
-              >
-                <MaterialCommunityIcons
-                  name="camera"
-                  size={22}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.imagePickerText}>
-                  {editForm.profile_image
-                    ? "Change Profile Photo"
-                    : "Add Profile Photo"}
-                </Text>
-              </TouchableOpacity>
+        {isEditing ? (
+          <Animated.View
+            style={[
+              styles.card,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <CardDecoration />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>First Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.first_name}
-                  onChangeText={(text) =>
-                    setEditForm({ ...editForm, first_name: text })
-                  }
-                  placeholderTextColor="rgba(255,255,255,0.5)"
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Last Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.last_name}
-                  onChangeText={(text) =>
-                    setEditForm({ ...editForm, last_name: text })
-                  }
-                  placeholderTextColor="rgba(255,255,255,0.5)"
-                />
-              </View>
+              {/* Edit Form */}
+              <View style={styles.formContainer}>
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={pickImage}
+                >
+                  <LinearGradient
+                    colors={["#3A86FF", "#4361EE"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.imagePickerGradient}
+                  >
+                    <FontAwesome5 name="camera" size={16} color="#FFFFFF" />
+                    <Text style={styles.imagePickerText}>
+                      {editForm.profile_image
+                        ? "Change Profile Photo"
+                        : "Add Profile Photo"}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSubmit}
-              >
-                <MaterialCommunityIcons
-                  name="content-save-outline"
-                  size={22}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              </TouchableOpacity>
+                <View style={styles.sectionContainer}>
+                  <View style={styles.sectionHeader}>
+                    <FontAwesome5 name="user-edit" size={16} color="#3A86FF" />
+                    <Text style={styles.sectionTitle}>Edit Profile</Text>
+                  </View>
 
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  setDeleteModalVisible(true);
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="delete-outline"
-                  size={22}
-                  color="#FFCCCC"
-                />
-                <Text style={styles.deleteButtonText}>Delete Account</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.detailsContainer}>
-              <View style={styles.detailCard}>
-                <View style={styles.detailHeader}>
-                  <MaterialCommunityIcons
-                    name="account"
-                    size={22}
-                    color="#E9967A"
-                  />
-                  <Text style={styles.detailHeaderText}>Account Details</Text>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>First Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.first_name}
+                      onChangeText={(text) =>
+                        setEditForm({ ...editForm, first_name: text })
+                      }
+                      placeholderTextColor="#94A3B8"
+                      placeholder="Enter your first name"
+                    />
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Last Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.last_name}
+                      onChangeText={(text) =>
+                        setEditForm({ ...editForm, last_name: text })
+                      }
+                      placeholderTextColor="#94A3B8"
+                      placeholder="Enter your last name"
+                    />
+                  </View>
                 </View>
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>
-                    ID: <Text style={styles.detailValue}>{userProfile.id}</Text>
-                  </Text>
-                  <Text style={styles.detailLabel}>
-                    First Name:{" "}
+
+                <View style={styles.actionsContainer}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleSubmit}
+                  >
+                    <LinearGradient
+                      colors={["#3A86FF", "#4361EE"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.actionGradient}
+                    >
+                      <MaterialCommunityIcons
+                        name="content-save-outline"
+                        size={18}
+                        color="#FFFFFF"
+                        style={styles.actionIcon}
+                      />
+                      <Text style={styles.actionText}>Save Changes</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setDeleteModalVisible(true);
+                  }}
+                >
+                  <LinearGradient
+                    colors={["#FF4560", "#FF006E"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.deleteGradient}
+                  >
+                    <MaterialCommunityIcons
+                      name="delete-outline"
+                      size={18}
+                      color="#FFFFFF"
+                      style={styles.deleteIcon}
+                    />
+                    <Text style={styles.deleteText}>Delete Account</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        ) : (
+          <Animated.View
+            style={[
+              styles.card,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <CardDecoration />
+
+              {/* Account Details Section */}
+              <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                  <FontAwesome5 name="user-circle" size={16} color="#3A86FF" />
+                  <Text style={styles.sectionTitle}>Account Details</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5 name="id-card" size={14} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>ID</Text>
+                    <Text style={styles.detailValue}>{userProfile.id}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5 name="user" size={14} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>First Name</Text>
                     <Text style={styles.detailValue}>
                       {userProfile.first_name || "Not set"}
                     </Text>
-                  </Text>
-                  <Text style={styles.detailLabel}>
-                    Last Name:{" "}
+                  </View>
+                </View>
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5 name="user" size={14} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Last Name</Text>
                     <Text style={styles.detailValue}>
                       {userProfile.last_name || "Not set"}
                     </Text>
-                  </Text>
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.detailCard}>
-                <View style={styles.detailHeader}>
-                  <MaterialCommunityIcons
-                    name="email"
-                    size={22}
-                    color="#E9967A"
-                  />
-                  <Text style={styles.detailHeaderText}>Contact</Text>
+              {/* Contact Section */}
+              <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                  <FontAwesome5 name="envelope" size={16} color="#3A86FF" />
+                  <Text style={styles.sectionTitle}>Contact</Text>
                 </View>
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>
-                    Email:{" "}
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5 name="envelope" size={14} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Email</Text>
                     <Text style={styles.detailValue}>{userProfile.email}</Text>
-                  </Text>
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.detailCard}>
-                <View style={styles.detailHeader}>
-                  <MaterialCommunityIcons
-                    name="clock-outline"
-                    size={22}
-                    color="#E9967A"
-                  />
-                  <Text style={styles.detailHeaderText}>Timeline</Text>
+              {/* Timeline Section */}
+              <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                  <FontAwesome5 name="clock" size={16} color="#3A86FF" />
+                  <Text style={styles.sectionTitle}>Timeline</Text>
                 </View>
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>
-                    Created:{" "}
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5
+                      name="calendar-plus"
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Created</Text>
                     <Text style={styles.detailValue}>
                       {userProfile.created_at
                         ? new Date(userProfile.created_at).toLocaleDateString(
@@ -612,15 +881,23 @@ export default function MeScreen() {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
                             }
                           )
                         : "N/A"}
                     </Text>
-                  </Text>
-                  <Text style={styles.detailLabel}>
-                    Last Updated:{" "}
+                  </View>
+                </View>
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5
+                      name="calendar-check"
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Last Updated</Text>
                     <Text style={styles.detailValue}>
                       {userProfile.updated_at
                         ? new Date(userProfile.updated_at).toLocaleDateString(
@@ -629,26 +906,35 @@ export default function MeScreen() {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
                             }
                           )
                         : "N/A"}
                     </Text>
-                  </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
-        </View>
+            </LinearGradient>
+          </Animated.View>
+        )}
 
+        {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialCommunityIcons name="logout" size={22} color="#FFFFFF" />
-          <Text style={styles.logoutButtonText}>Log Out</Text>
+          <LinearGradient
+            colors={["#4CC9F0", "#4895EF"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.logoutGradient}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </LinearGradient>
         </TouchableOpacity>
-      </ScrollView>
 
-      {/* Delete Account Confirmation Modal */}
+        {/* Bottom spacing */}
+        <View style={styles.bottomSpacing} />
+      </Animated.ScrollView>
+
+      {/* First Delete Account Confirmation Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -674,6 +960,49 @@ export default function MeScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.modalConfirmButton}
+                onPress={handleShowDeleteConfirmModal}
+              >
+                <Text style={styles.modalConfirmButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Second Delete Account Confirmation Modal with text input */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteConfirmModalVisible}
+        onRequestClose={() => setDeleteConfirmModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Final Confirmation</Text>
+            <Text style={styles.modalMessage}>
+              To confirm deletion, please type "delete my account" below.
+            </Text>
+            <TextInput
+              style={styles.deleteConfirmInput}
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              placeholder="Type 'delete my account'"
+              placeholderTextColor="#94A3B8"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setDeleteConfirmModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
                 onPress={handleDeleteAccount}
               >
                 <Text style={styles.modalConfirmButtonText}>Delete</Text>
@@ -686,115 +1015,228 @@ export default function MeScreen() {
   );
 }
 
+const { width, height } = Dimensions.get("window");
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     flexGrow: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 20 : RNStatusBar.currentHeight || 20,
+    paddingBottom: 60,
   },
-  card: {
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === "ios" ? 100 : 80,
+    zIndex: 100,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(203, 213, 225, 0.5)",
+    shadowColor: "#94A3B8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+  },
+  blurView: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  floatingTitleContainer: {
+    position: "absolute",
     width: "100%",
-    borderRadius: 15,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    padding: 24,
-    position: "relative",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 20,
+    top: Platform.OS === "ios" ? 55 : 30,
+    height: 30,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  titleWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 24,
+  },
+  titleAccent: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  floatingTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1E293B",
+    letterSpacing: 0.5,
+    lineHeight: 24,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+    marginTop: 20,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   editButton: {
-    position: "absolute",
-    top: 16,
-    right: 16,
     zIndex: 10,
+    shadowColor: "#3A86FF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    borderRadius: 20,
+    overflow: "hidden",
   },
-  loadingContainer: {
-    flex: 1,
+  editGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#000000",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000000",
-    padding: 16,
-  },
-  errorBox: {
-    backgroundColor: "rgba(220,38,38,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(220,38,38,0.4)",
-    borderRadius: 15,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  errorText: {
-    color: "#FFCCCC",
-    marginLeft: 8,
-    letterSpacing: 0.5,
-  },
-  warningBox: {
-    backgroundColor: "rgba(233, 150, 122, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-    borderRadius: 15,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  warningText: {
-    color: "#FFFFFF",
-    marginLeft: 8,
-    letterSpacing: 0.5,
   },
   profileHeader: {
     alignItems: "center",
-    marginTop: 48,
-    marginBottom: 32,
+    marginBottom: 24,
   },
-  avatarCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#3A86FF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
     overflow: "hidden",
   },
   avatarImage: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarGradient: {
+    width: 100,
+    height: 100,
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: "300",
+    fontSize: 36,
+    fontWeight: "600",
     color: "#FFFFFF",
-    letterSpacing: 1,
   },
   profileName: {
     fontSize: 24,
-    fontWeight: "300",
-    color: "#FFFFFF",
-    marginBottom: 8,
-    letterSpacing: 1,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 6,
   },
   profileEmail: {
-    color: "rgba(255, 255, 255, 0.7)",
-    letterSpacing: 0.5,
+    fontSize: 16,
+    color: "#64748B",
+  },
+  card: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 24,
+    shadowColor: "#94A3B8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardGradient: {
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(203, 213, 225, 0.5)",
+  },
+  cardDecoration: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 60,
+    height: 60,
+  },
+  decorationDot: {
+    position: "absolute",
+    borderRadius: 50,
+  },
+  decorationDot1: {
+    width: 12,
+    height: 12,
+    backgroundColor: "rgba(58, 134, 255, 0.2)",
+    top: 15,
+    right: 15,
+  },
+  decorationDot2: {
+    width: 8,
+    height: 8,
+    backgroundColor: "rgba(58, 134, 255, 0.15)",
+    top: 30,
+    right: 22,
+  },
+  decorationDot3: {
+    width: 6,
+    height: 6,
+    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    top: 24,
+    right: 35,
   },
   formContainer: {
     gap: 16,
+  },
+  imagePickerButton: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#3A86FF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  imagePickerGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  imagePickerText: {
+    color: "#FFFFFF",
+    marginLeft: 8,
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginLeft: 8,
   },
   inputGroup: {
     marginBottom: 16,
@@ -802,146 +1244,238 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     marginBottom: 8,
-    color: "#FFFFFF",
-    fontWeight: "400",
-    letterSpacing: 0.5,
+    color: "#64748B",
+    fontWeight: "500",
   },
   input: {
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 15,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
     padding: 12,
-    color: "#FFFFFF",
+    color: "#1E293B",
     fontSize: 16,
-    letterSpacing: 0.5,
   },
-  saveButton: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-    borderRadius: 30,
+  actionsContainer: {
+    marginBottom: 16,
+  },
+  actionButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#3A86FF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  actionGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 16,
+    paddingVertical: 14,
   },
-  saveButtonText: {
+  actionIcon: {
+    marginRight: 8,
+  },
+  actionText: {
     color: "#FFFFFF",
-    fontWeight: "500",
-    marginLeft: 8,
+    fontWeight: "600",
     fontSize: 16,
-    letterSpacing: 0.5,
   },
   deleteButton: {
-    backgroundColor: "rgba(220,38,38,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(220,38,38,0.3)",
-    borderRadius: 30,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#FF006E",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  deleteGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 16,
+    paddingVertical: 14,
   },
-  deleteButtonText: {
-    color: "#FFCCCC",
-    fontWeight: "500",
-    marginLeft: 8,
+  deleteIcon: {
+    marginRight: 8,
+  },
+  deleteText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
     fontSize: 16,
-    letterSpacing: 0.5,
   },
-  detailsContainer: {
-    gap: 16,
-  },
-  detailCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 15,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  detailHeader: {
+  detailItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
   },
-  detailHeaderText: {
-    color: "#FFFFFF",
-    fontWeight: "500",
-    marginLeft: 12,
-    fontSize: 16,
-    letterSpacing: 0.5,
+  detailIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#3A86FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
   },
   detailContent: {
-    paddingLeft: 32,
+    flex: 1,
   },
   detailLabel: {
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 10,
-    fontSize: 15,
-    letterSpacing: 0.5,
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 4,
   },
   detailValue: {
-    color: "#FAC898",
-    letterSpacing: 0.5,
+    fontSize: 15,
+    color: "#1E293B",
+    fontWeight: "500",
   },
   logoutButton: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-    borderRadius: 30,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginTop: 8,
+    marginBottom: 24,
+    shadowColor: "#4895EF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+    alignSelf: "center",
+    width: "80%",
+  },
+  logoutGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 24,
-    width: "60%",
+    paddingVertical: 16,
   },
-  logoutButtonText: {
+  logoutText: {
     color: "#FFFFFF",
-    fontWeight: "500",
-    marginLeft: 8,
+    fontWeight: "600",
     fontSize: 16,
-    letterSpacing: 0.5,
+    marginLeft: 8,
   },
-  // Modal styles
+  bottomSpacing: {
+    height: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+  },
+  errorBox: {
+    width: "100%",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 0, 110, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 0, 110, 0.1)",
+    borderRadius: 20,
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  errorButton: {
+    backgroundColor: "#3A86FF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  errorButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  warningBox: {
+    width: "100%",
+    alignItems: "center",
+    backgroundColor: "rgba(67, 97, 238, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(67, 97, 238, 0.1)",
+    borderRadius: 20,
+    padding: 24,
+  },
+  warningTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  warningButton: {
+    backgroundColor: "#3A86FF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  warningButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "rgba(0,0,0,0.8)",
-    borderRadius: 15,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     padding: 24,
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: "rgba(220,38,38,0.3)",
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: "300",
-    color: "#FFCCCC",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#DC2626",
     marginBottom: 16,
     textAlign: "center",
-    letterSpacing: 1,
   },
   modalMessage: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#475569",
     marginBottom: 24,
     textAlign: "center",
     lineHeight: 22,
-    letterSpacing: 0.5,
   },
   modalButtons: {
     flexDirection: "row",
@@ -949,54 +1483,38 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-    borderRadius: 30,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
     marginRight: 8,
     alignItems: "center",
   },
   modalCancelButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "500",
+    color: "#1E293B",
+    fontWeight: "600",
     fontSize: 16,
-    letterSpacing: 0.5,
   },
   modalConfirmButton: {
     flex: 1,
-    backgroundColor: "rgba(220,38,38,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(220,38,38,0.4)",
-    borderRadius: 30,
+    backgroundColor: "#DC2626",
+    borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
     marginLeft: 8,
     alignItems: "center",
   },
   modalConfirmButtonText: {
-    color: "#FFCCCC",
-    fontWeight: "500",
-    fontSize: 16,
-    letterSpacing: 0.5,
-  },
-  imagePickerButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
-    borderRadius: 30,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  imagePickerText: {
     color: "#FFFFFF",
-    marginLeft: 8,
-    fontWeight: "500",
-    letterSpacing: 0.5,
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  deleteConfirmInput: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    padding: 12,
+    color: "#1E293B",
+    fontSize: 16,
+    marginBottom: 24,
   },
 });
