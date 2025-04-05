@@ -78,22 +78,24 @@ export default function ChurchMembershipScreen(): JSX.Element {
           const userId = user.id;
           console.log("Current user ID:", userId);
 
-          // First get user's name
+          let userFirstName = "Friend"; // Default name
           const { data: userData, error: userError } = await supabase
             .from("users")
             .select("first_name")
-            .eq("id", userId)
-            .single();
+            .eq("id", userId);
 
           if (userError) {
-            throw userError;
+            console.log("Error fetching user data:", userError);
+            // Continue with default name
+          } else if (
+            userData &&
+            userData.length > 0 &&
+            userData[0].first_name
+          ) {
+            userFirstName = userData[0].first_name;
           }
 
-          if (userData && userData.first_name) {
-            setUserName(userData.first_name);
-          } else {
-            setUserName("Friend");
-          }
+          setUserName(userFirstName);
 
           // Check if user exists in church_members table - using explicit UUID comparison
           console.log("Checking membership for user_id:", userId);
