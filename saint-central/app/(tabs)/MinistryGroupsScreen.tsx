@@ -41,9 +41,11 @@ interface RouteParams {
   churchId?: number;
 }
 
-// Add type definition for navigation
+// Add type definition for navigation - make sure this matches your actual navigation structure
 type RootStackParamList = {
-  ministries: undefined;
+  // Include both possible screen names
+  Ministries: undefined;
+  MinistriesScreen: undefined;
   ministryChat: { groupId: number };
   createMinistryGroup: undefined;
   // ... other screen types ...
@@ -259,9 +261,10 @@ export default function MinistryGroupsScreen(): JSX.Element {
     fetchGroups();
   }, []);
   
-  // Navigate back to ministries screen
+  // Navigate back to MinistriesScreen.tsx directly
   const navigateBack = () => {
-    navigation.navigate('ministries');
+    // Directly navigate to MinistriesScreen
+    navigation.navigate('MinistriesScreen');
   };
   
   // Navigate to a specific group chat
@@ -346,7 +349,7 @@ export default function MinistryGroupsScreen(): JSX.Element {
           <Text style={styles.groupName} numberOfLines={1}>
             {item.name}
           </Text>
-          <Feather name="chevron-right" size={20} color="#8696A0" />
+          <Feather name="chevron-right" size={20} color="#94A3B8" />
         </View>
         
         <View style={styles.groupDescriptionRow}>
@@ -360,23 +363,23 @@ export default function MinistryGroupsScreen(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121B22" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity style={styles.backButton} onPress={navigateBack}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color="#3A86FF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Ministry Groups</Text>
         </View>
         
         <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+          <Ionicons name="ellipsis-vertical" size={24} color="#3A86FF" />
         </TouchableOpacity>
       </View>
       
-      {/* Announcements Banner - Similar to WhatsApp */}
+      {/* Announcements Banner */}
       <TouchableOpacity style={styles.announcementsBanner} activeOpacity={0.8}>
         <View style={styles.announcementsIconContainer}>
           <Ionicons name="megaphone" size={24} color="#fff" />
@@ -395,11 +398,11 @@ export default function MinistryGroupsScreen(): JSX.Element {
       {/* Search Box */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#8696A0" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search ministries..."
-            placeholderTextColor="#8696A0"
+            placeholderTextColor="#94A3B8"
             value={searchText}
             onChangeText={setSearchText}
           />
@@ -456,7 +459,7 @@ export default function MinistryGroupsScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121B22",
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -464,7 +467,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1F2C34",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
   headerLeft: {
     flexDirection: "row",
@@ -476,7 +481,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#fff",
+    color: "#1E293B",
   },
   menuButton: {
     padding: 4,
@@ -486,15 +491,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#1F2C34",
+    backgroundColor: "#F8FAFC",
     borderBottomWidth: 1,
-    borderBottomColor: "#263238",
+    borderBottomColor: "#E2E8F0",
   },
   announcementsIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#075E54",
+    backgroundColor: "#3A86FF",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -505,28 +510,30 @@ const styles = StyleSheet.create({
   announcementsTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#fff",
+    color: "#1E293B",
     marginBottom: 2,
   },
   announcementsDescription: {
     fontSize: 14,
-    color: "#8696A0",
+    color: "#64748B",
   },
   announcementsCount: {
     fontSize: 12,
-    color: "#8696A0",
+    color: "#64748B",
   },
   searchContainer: {
     padding: 8,
-    backgroundColor: "#1F2C34",
+    backgroundColor: "#FFFFFF",
   },
   searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#323739",
+    backgroundColor: "#F8FAFC",
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 40,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   searchIcon: {
     marginRight: 8,
@@ -534,13 +541,13 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 40,
-    color: "#fff",
+    color: "#1E293B",
     fontSize: 16,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#8696A0",
+    fontWeight: "600",
+    color: "#64748B",
     marginVertical: 16,
     paddingHorizontal: 16,
   },
@@ -548,12 +555,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
   },
   groupAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#128C7E",
+    backgroundColor: "#3A86FF",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -567,14 +575,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#128C7E",
+    backgroundColor: "#3A86FF",
     justifyContent: "center",
     alignItems: "center",
   },
   groupContent: {
     flex: 1,
     borderBottomWidth: 1,
-    borderBottomColor: "#263238",
+    borderBottomColor: "#E2E8F0",
     paddingBottom: 12,
     justifyContent: "center",
   },
@@ -587,12 +595,12 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#fff",
+    color: "#1E293B",
     flex: 1,
   },
   groupTimestamp: {
     fontSize: 12,
-    color: "#8696A0",
+    color: "#64748B",
   },
   groupDescriptionRow: {
     flexDirection: "row",
@@ -601,15 +609,15 @@ const styles = StyleSheet.create({
   },
   groupDescription: {
     fontSize: 14,
-    color: "#8696A0",
+    color: "#64748B",
     flex: 1,
   },
   groupMemberCount: {
     fontSize: 14,
-    color: "#8696A0",
+    color: "#64748B",
   },
   notificationBadge: {
-    backgroundColor: "#00A884",
+    backgroundColor: "#3A86FF",
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -628,7 +636,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#00A884",
+    backgroundColor: "#3A86FF",
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 24,
