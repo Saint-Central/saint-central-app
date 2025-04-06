@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "eslint . && prettier . --check",
+    "lint": "tsc && eslint . && prettier . --check",
     "format-check": "prettier . --check",
     "format-fix": "prettier . --write",
     "ios-dev-client": "npx expo run:ios",

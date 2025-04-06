@@ -1,20 +1,16 @@
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { Platform, View, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
+import { Platform, View, StyleSheet, TouchableOpacity } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-  interpolateColor,
-  useDerivedValue,
   Easing,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-
-const { width } = Dimensions.get("window");
 
 interface Route {
   key: string;
@@ -40,7 +36,7 @@ interface AnimatedTabIconProps {
 }
 
 // Animated tab icon with smooth transitions
-const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused, index, activeIndex }) => {
+const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
   // Animation values with improved configurations
   const scale = useSharedValue(1);
   const circleScale = useSharedValue(0);
@@ -84,11 +80,6 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused, index,
       textOpacity.value = withTiming(0, { duration: 150 });
     }
   }, [focused]);
-
-  // Fixed white color for icons
-  const iconColor = useDerivedValue(() => {
-    return interpolateColor(circleOpacity.value, [0, 1], ["rgba(255, 255, 255, 0.7)", "#FFFFFF"]);
-  });
 
   // Animated styles
   const iconStyle = useAnimatedStyle(() => ({
@@ -185,8 +176,6 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused, index,
 
 // Custom tab bar with seamless design and improved visual aesthetics
 const CustomTabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }) => {
-  const router = useRouter();
-
   // Only show these tabs in the tab bar
   const visibleTabs = ["home", "discover", "bible", "me"];
 
