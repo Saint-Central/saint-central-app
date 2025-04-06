@@ -13,7 +13,7 @@ import {
   StatusBar,
   Alert,
 } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
@@ -25,6 +25,7 @@ import Sidebar from "./sidebarComponent";
 import ChurchProfileCard from "@/components/church/ChurchProfileCard";
 import theme from "@/theme";
 import DecoratedHeader from "@/components/ui/DecoratedHeader";
+import { useRouter } from "expo-router";
 
 // Church interface based on database schema
 interface Church {
@@ -60,8 +61,8 @@ interface RouteParams {
 
 // Church screen component
 export default function ChurchScreen(): JSX.Element {
-  const navigation = useNavigation();
   const route = useRoute();
+  const router = useRouter();
   const [church, setChurch] = useState<Church | null>(null);
   const [member, setMember] = useState<ChurchMember | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -112,7 +113,7 @@ export default function ChurchScreen(): JSX.Element {
       if (deleteError) throw deleteError;
 
       // Navigate back to home screen
-      navigation.navigate("home" as never);
+      router.navigate("/home");
     } catch (error) {
       console.error("Error leaving church:", error);
       Alert.alert("Error", "Failed to leave the church. Please try again later.");
@@ -303,10 +304,7 @@ export default function ChurchScreen(): JSX.Element {
           <Text style={styles.errorText}>
             {error?.message || "Could not load church information"}
           </Text>
-          <TouchableOpacity
-            style={styles.errorButton}
-            onPress={() => navigation.navigate("home" as never)}
-          >
+          <TouchableOpacity style={styles.errorButton} onPress={() => router.navigate("/home")}>
             <Text style={styles.errorButtonText}>Go to Home</Text>
           </TouchableOpacity>
         </View>
@@ -390,7 +388,7 @@ export default function ChurchScreen(): JSX.Element {
           </View>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate("me" as never)}
+            onPress={() => router.navigate("/profile")}
             style={styles.profileContainer}
           >
             {profileImage ? (
