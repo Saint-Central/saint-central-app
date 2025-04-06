@@ -48,18 +48,15 @@ type RootStackParamList = {
   MinistryGroupsScreen: { refresh?: boolean };
   groupParticipants: { groupId?: number; isNewGroup: boolean; presetId?: string };
   ministryChat: { groupId: number; groupName: string };
+  createMinistryGroupScreen: { selectedPresetId?: string; participants?: any[] };
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-interface NavigationProps {
-  route: { params: RouteParams };
-  navigation: any;
-}
-
-const createMinistryGroupScreen = ({ route, navigation }: NavigationProps): JSX.Element => {
-  // Get params from route
-  const { selectedPresetId, participants: routeParticipants } = route.params || {};
+const createMinistryGroupScreen = (): JSX.Element => {
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute();
+  const { selectedPresetId, participants: routeParticipants } = route.params as RouteParams || {};
   
   // State for group data
   const [groupData, setGroupData] = useState<GroupData>({
@@ -226,17 +223,13 @@ const createMinistryGroupScreen = ({ route, navigation }: NavigationProps): JSX.
       
       // Create the group in Supabase
       const { data: newGroup, error: groupError } = await supabase
-        .from("ministry_groups")
+        .from("ministries")
         .insert({
           name: groupData.name,
           description: groupData.description || `${groupData.name} group chat`,
-          image: groupData.image, // In a real app, this would be a URL after uploading
-          status_message: `Group created`,
+          image_url: groupData.image, // In a real app, this would be a URL after uploading
           church_id: churchId,
-          created_by: userId,
-          created_at: new Date().toISOString(),
-          last_active: new Date().toISOString(),
-          member_count: 1 + (participants.length || 0), // Creator + participants
+          created_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -248,9 +241,9 @@ const createMinistryGroupScreen = ({ route, navigation }: NavigationProps): JSX.
       
       // Add creator as member and admin
       const { error: memberError } = await supabase
-        .from("ministry_group_members")
+        .from("ministry_members")
         .insert({
-          ministry_group_id: newGroup.id,
+          ministry_id: newGroup.id,
           user_id: userId,
           joined_at: new Date().toISOString(),
           role: 'admin'
@@ -264,14 +257,14 @@ const createMinistryGroupScreen = ({ route, navigation }: NavigationProps): JSX.
       // Add participants if any
       if (participants.length > 0) {
         const memberInserts = participants.map(p => ({
-          ministry_group_id: newGroup.id,
+          ministry_id: newGroup.id,
           user_id: p.id,
           joined_at: new Date().toISOString(),
           role: 'member'
         }));
         
         const { error: participantsError } = await supabase
-          .from("ministry_group_members")
+          .from("ministry_members")
           .insert(memberInserts);
           
         if (participantsError) {
@@ -294,6 +287,7 @@ const createMinistryGroupScreen = ({ route, navigation }: NavigationProps): JSX.
     } catch (error) {
       console.error("Error creating group:", error);
       Alert.alert("Error", "Could not create group. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
