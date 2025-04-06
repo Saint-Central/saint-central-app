@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
-  ScrollView,
   Modal,
   Image,
   Animated,
@@ -18,12 +17,7 @@ import {
 import { supabase } from "../../supabaseClient";
 import { Session } from "@supabase/supabase-js";
 import { useRouter, useFocusEffect } from "expo-router";
-import {
-  MaterialCommunityIcons,
-  Ionicons,
-  FontAwesome5,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
@@ -53,8 +47,7 @@ export default function MeScreen() {
     profile_image: "",
   });
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] =
-    useState(false);
+  const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const router = useRouter();
 
@@ -107,7 +100,7 @@ export default function MeScreen() {
         router.push("/(auth)/auth");
       }
       return () => {};
-    }, [session])
+    }, [session]),
   );
 
   const fetchUserProfile = async () => {
@@ -152,13 +145,12 @@ export default function MeScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Request permission
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
         Alert.alert(
           "Permission Required",
-          "You need to grant access to your photos to upload a profile image."
+          "You need to grant access to your photos to upload a profile image.",
         );
         return;
       }
@@ -210,9 +202,7 @@ export default function MeScreen() {
           }
 
           // Get the public URL
-          const { data } = supabase.storage
-            .from("profile-images")
-            .getPublicUrl(filePath);
+          const { data } = supabase.storage.from("profile-images").getPublicUrl(filePath);
 
           // Update form with new image URL
           setEditForm((prev) => ({
@@ -237,7 +227,7 @@ export default function MeScreen() {
           Alert.alert(
             "Image Uploaded",
             "Your profile image has been uploaded. Click 'Save Changes' to update your profile.",
-            [{ text: "OK" }]
+            [{ text: "OK" }],
           );
         } catch (err) {
           console.error("Upload process error:", err);
@@ -316,10 +306,7 @@ export default function MeScreen() {
   const handleDeleteAccount = async () => {
     try {
       if (deleteConfirmText.toLowerCase() !== "delete my account") {
-        Alert.alert(
-          "Confirmation Failed",
-          "Please type 'delete my account' exactly to confirm."
-        );
+        Alert.alert("Confirmation Failed", "Please type 'delete my account' exactly to confirm.");
         return;
       }
 
@@ -354,23 +341,14 @@ export default function MeScreen() {
         // Special case for friends table which has user_id_1 and user_id_2
         if (table === "friends") {
           // Delete records where user is either user_id_1 or user_id_2
-          const { error: error1 } = await supabase
-            .from(table)
-            .delete()
-            .eq("user_id_1", userId);
+          const { error: error1 } = await supabase.from(table).delete().eq("user_id_1", userId);
 
-          const { error: error2 } = await supabase
-            .from(table)
-            .delete()
-            .eq("user_id_2", userId);
+          const { error: error2 } = await supabase.from(table).delete().eq("user_id_2", userId);
 
           error = error1 || error2;
         } else {
           // For other tables, assume user_id is the standard column
-          const { error: deleteError } = await supabase
-            .from(table)
-            .delete()
-            .eq("user_id", userId);
+          const { error: deleteError } = await supabase.from(table).delete().eq("user_id", userId);
 
           error = deleteError;
         }
@@ -382,10 +360,7 @@ export default function MeScreen() {
       }
 
       // Delete the user record last
-      const { error: deleteUserError } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", userId);
+      const { error: deleteUserError } = await supabase.from("users").delete().eq("id", userId);
 
       if (deleteUserError) {
         console.error(`Error deleting user: ${deleteUserError.message}`);
@@ -393,17 +368,12 @@ export default function MeScreen() {
 
       // Call the Edge Function to delete the authentication record
       try {
-        const { error: edgeFunctionError } = await supabase.functions.invoke(
-          "delete-user",
-          {
-            body: { userId },
-          }
-        );
+        const { error: edgeFunctionError } = await supabase.functions.invoke("delete-user", {
+          body: { userId },
+        });
 
         if (edgeFunctionError) {
-          console.error(
-            `Error calling delete-user function: ${edgeFunctionError.message}`
-          );
+          console.error(`Error calling delete-user function: ${edgeFunctionError.message}`);
           // Continue with logout even if auth deletion fails
         }
       } catch (edgeError) {
@@ -476,10 +446,7 @@ export default function MeScreen() {
           <Ionicons name="alert-circle-outline" size={40} color="#FF006E" />
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.errorButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.errorButton} onPress={() => router.back()}>
             <Text style={styles.errorButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -494,13 +461,8 @@ export default function MeScreen() {
         <View style={styles.warningBox}>
           <Ionicons name="information" size={40} color="#4361EE" />
           <Text style={styles.warningTitle}>No Profile Found</Text>
-          <Text style={styles.warningText}>
-            We couldn't find your user profile.
-          </Text>
-          <TouchableOpacity
-            style={styles.warningButton}
-            onPress={() => router.back()}
-          >
+          <Text style={styles.warningText}>We couldn't find your user profile.</Text>
+          <TouchableOpacity style={styles.warningButton} onPress={() => router.back()}>
             <Text style={styles.warningButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -555,10 +517,9 @@ export default function MeScreen() {
       <Animated.ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: false,
+        })}
         scrollEventThrottle={16}
       >
         {/* Header with edit button */}
@@ -578,9 +539,7 @@ export default function MeScreen() {
             },
           ]}
         >
-          <View style={styles.headerLeft}>
-            {/* Removed back button as requested */}
-          </View>
+          <View style={styles.headerLeft}>{/* Removed back button as requested */}</View>
 
           <TouchableOpacity
             style={styles.editButton}
@@ -623,10 +582,7 @@ export default function MeScreen() {
         >
           <View style={styles.avatarContainer}>
             {userProfile.profile_image ? (
-              <Image
-                source={{ uri: userProfile.profile_image }}
-                style={styles.avatarImage}
-              />
+              <Image source={{ uri: userProfile.profile_image }} style={styles.avatarImage} />
             ) : (
               <LinearGradient
                 colors={["#3A86FF", "#4361EE"]}
@@ -673,10 +629,7 @@ export default function MeScreen() {
 
               {/* Edit Form */}
               <View style={styles.formContainer}>
-                <TouchableOpacity
-                  style={styles.imagePickerButton}
-                  onPress={pickImage}
-                >
+                <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
                   <LinearGradient
                     colors={["#3A86FF", "#4361EE"]}
                     start={{ x: 0, y: 0 }}
@@ -685,9 +638,7 @@ export default function MeScreen() {
                   >
                     <FontAwesome5 name="camera" size={16} color="#FFFFFF" />
                     <Text style={styles.imagePickerText}>
-                      {editForm.profile_image
-                        ? "Change Profile Photo"
-                        : "Add Profile Photo"}
+                      {editForm.profile_image ? "Change Profile Photo" : "Add Profile Photo"}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -703,9 +654,7 @@ export default function MeScreen() {
                     <TextInput
                       style={styles.input}
                       value={editForm.first_name}
-                      onChangeText={(text) =>
-                        setEditForm({ ...editForm, first_name: text })
-                      }
+                      onChangeText={(text) => setEditForm({ ...editForm, first_name: text })}
                       placeholderTextColor="#94A3B8"
                       placeholder="Enter your first name"
                     />
@@ -715,9 +664,7 @@ export default function MeScreen() {
                     <TextInput
                       style={styles.input}
                       value={editForm.last_name}
-                      onChangeText={(text) =>
-                        setEditForm({ ...editForm, last_name: text })
-                      }
+                      onChangeText={(text) => setEditForm({ ...editForm, last_name: text })}
                       placeholderTextColor="#94A3B8"
                       placeholder="Enter your last name"
                     />
@@ -725,10 +672,7 @@ export default function MeScreen() {
                 </View>
 
                 <View style={styles.actionsContainer}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={handleSubmit}
-                  >
+                  <TouchableOpacity style={styles.actionButton} onPress={handleSubmit}>
                     <LinearGradient
                       colors={["#3A86FF", "#4361EE"]}
                       start={{ x: 0, y: 0 }}
@@ -819,9 +763,7 @@ export default function MeScreen() {
                   </View>
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>First Name</Text>
-                    <Text style={styles.detailValue}>
-                      {userProfile.first_name || "Not set"}
-                    </Text>
+                    <Text style={styles.detailValue}>{userProfile.first_name || "Not set"}</Text>
                   </View>
                 </View>
 
@@ -831,9 +773,7 @@ export default function MeScreen() {
                   </View>
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Last Name</Text>
-                    <Text style={styles.detailValue}>
-                      {userProfile.last_name || "Not set"}
-                    </Text>
+                    <Text style={styles.detailValue}>{userProfile.last_name || "Not set"}</Text>
                   </View>
                 </View>
               </View>
@@ -865,24 +805,17 @@ export default function MeScreen() {
 
                 <View style={styles.detailItem}>
                   <View style={styles.detailIconContainer}>
-                    <FontAwesome5
-                      name="calendar-plus"
-                      size={14}
-                      color="#FFFFFF"
-                    />
+                    <FontAwesome5 name="calendar-plus" size={14} color="#FFFFFF" />
                   </View>
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Created</Text>
                     <Text style={styles.detailValue}>
                       {userProfile.created_at
-                        ? new Date(userProfile.created_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )
+                        ? new Date(userProfile.created_at).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
                         : "N/A"}
                     </Text>
                   </View>
@@ -890,24 +823,17 @@ export default function MeScreen() {
 
                 <View style={styles.detailItem}>
                   <View style={styles.detailIconContainer}>
-                    <FontAwesome5
-                      name="calendar-check"
-                      size={14}
-                      color="#FFFFFF"
-                    />
+                    <FontAwesome5 name="calendar-check" size={14} color="#FFFFFF" />
                   </View>
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Last Updated</Text>
                     <Text style={styles.detailValue}>
                       {userProfile.updated_at
-                        ? new Date(userProfile.updated_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )
+                        ? new Date(userProfile.updated_at).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
                         : "N/A"}
                     </Text>
                   </View>
@@ -945,8 +871,8 @@ export default function MeScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Delete Account</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to delete your account? This action cannot
-              be undone and all your data will be permanently removed.
+              Are you sure you want to delete your account? This action cannot be undone and all
+              your data will be permanently removed.
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -1001,10 +927,7 @@ export default function MeScreen() {
               >
                 <Text style={styles.modalCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleDeleteAccount}
-              >
+              <TouchableOpacity style={styles.modalConfirmButton} onPress={handleDeleteAccount}>
                 <Text style={styles.modalConfirmButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>

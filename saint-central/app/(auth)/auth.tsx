@@ -19,7 +19,6 @@ import {
 import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../supabaseClient";
-import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { Session } from "@supabase/supabase-js";
@@ -74,9 +73,7 @@ const validatePassword = (password: string): string | null => {
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
-  const [authMode, setAuthMode] = useState<
-    "login" | "signup" | "forgotPassword"
-  >("login");
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgotPassword">("login");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [firstName, setFirstName] = useState<string>("");
@@ -86,8 +83,7 @@ const AuthScreen: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [secureTextEntry, setSecureTextEntry] = useState<boolean>(true);
-  const [secureConfirmTextEntry, setSecureConfirmTextEntry] =
-    useState<boolean>(true);
+  const [secureConfirmTextEntry, setSecureConfirmTextEntry] = useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -103,7 +99,7 @@ const AuthScreen: React.FC = () => {
     userId: string,
     userEmail: string,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
   ) => {
     try {
       const { error } = await supabase.from("users").insert([
@@ -134,8 +130,7 @@ const AuthScreen: React.FC = () => {
         ],
       });
 
-      if (!credential.identityToken)
-        throw new Error("Unable to authenticate with Apple");
+      if (!credential.identityToken) throw new Error("Unable to authenticate with Apple");
 
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: "apple",
@@ -161,16 +156,13 @@ const AuthScreen: React.FC = () => {
             data.session.user.id,
             data.session.user.email || "",
             firstNameFromApple,
-            lastNameFromApple
+            lastNameFromApple,
           );
         }
         navigateToHome();
       }
     } catch (e: any) {
-      setError(
-        e.message ||
-          "Something went wrong with Apple Sign In. Please try again."
-      );
+      setError(e.message || "Something went wrong with Apple Sign In. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -192,13 +184,10 @@ const AuthScreen: React.FC = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         setSession(currentSession);
-        if (
-          currentSession &&
-          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
-        ) {
+        if (currentSession && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
           navigateToHome();
         }
-      }
+      },
     );
 
     return () => {
@@ -234,19 +223,11 @@ const AuthScreen: React.FC = () => {
           if (error.message.includes("Invalid login credentials")) {
             throw new Error("Incorrect email or password. Please try again.");
           }
-          throw new Error(
-            "Unable to sign in. Please check your connection and try again."
-          );
+          throw new Error("Unable to sign in. Please check your connection and try again.");
         }
         if (data?.session) navigateToHome();
       } else if (authMode === "signup") {
-        if (
-          !email ||
-          !password ||
-          !firstName ||
-          !lastName ||
-          !confirmPassword
-        ) {
+        if (!email || !password || !firstName || !lastName || !confirmPassword) {
           throw new Error("Please fill in all fields to sign up.");
         }
         if (password !== confirmPassword)
@@ -270,32 +251,27 @@ const AuthScreen: React.FC = () => {
           const lowerCaseError = errMsg.toLowerCase();
 
           if (lowerCaseError.includes("user already registered")) {
-            throw new Error(
-              "This email is already registered. Try signing in instead."
-            );
+            throw new Error("This email is already registered. Try signing in instead.");
           }
 
           // Check for weak password errors first
           if (lowerCaseError.includes("weak")) {
             throw new Error(
-              "Password is known to be weak and easy to guess. Please choose a different password."
+              "Password is known to be weak and easy to guess. Please choose a different password.",
             );
           }
 
           // Check for data breach or exposed password keywords.
-          if (
-            lowerCaseError.includes("leak") ||
-            lowerCaseError.includes("exposed")
-          ) {
+          if (lowerCaseError.includes("leak") || lowerCaseError.includes("exposed")) {
             throw new Error(
-              "Password has been exposed in a data breach. Please choose a different password."
+              "Password has been exposed in a data breach. Please choose a different password.",
             );
           }
 
           // Otherwise, if the error mentions password requirements.
           if (lowerCaseError.includes("password")) {
             throw new Error(
-              "Password must contain an uppercase letter, a lowercase letter, a digit, and a symbol."
+              "Password must contain an uppercase letter, a lowercase letter, a digit, and a symbol.",
             );
           }
 
@@ -306,7 +282,7 @@ const AuthScreen: React.FC = () => {
           setMessage(
             data.session
               ? "Welcome! You've signed up successfully."
-              : "Check your email to confirm your account."
+              : "Check your email to confirm your account.",
           );
           if (data.session) navigateToHome();
         }
@@ -319,13 +295,9 @@ const AuthScreen: React.FC = () => {
         });
         if (error) {
           if (error.message.includes("rate limit")) {
-            throw new Error(
-              "Too many reset requests. Please wait and try again later."
-            );
+            throw new Error("Too many reset requests. Please wait and try again later.");
           }
-          throw new Error(
-            "Unable to send reset email. Please check your email and try again."
-          );
+          throw new Error("Unable to send reset email. Please check your email and try again.");
         }
         setMessage("We've sent a password reset link to your email.");
       }
@@ -348,9 +320,7 @@ const AuthScreen: React.FC = () => {
     <View
       style={[
         styles.inputContainer,
-        authMode === "signup" && placeholder.includes("Name")
-          ? styles.nameInput
-          : null,
+        authMode === "signup" && placeholder.includes("Name") ? styles.nameInput : null,
       ]}
     >
       {icon}
@@ -366,11 +336,7 @@ const AuthScreen: React.FC = () => {
       />
       {toggleSecure && (
         <TouchableOpacity onPress={toggleSecure} style={styles.eyeIcon}>
-          <Feather
-            name={secureEntry ? "eye-off" : "eye"}
-            size={20}
-            color="#FAC898"
-          />
+          <Feather name={secureEntry ? "eye-off" : "eye"} size={20} color="#FAC898" />
         </TouchableOpacity>
       )}
     </View>
@@ -382,11 +348,7 @@ const AuthScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor="transparent"
-          translucent
-        />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         {/* Video background */}
         <Video
           source={videoSource}
@@ -416,9 +378,7 @@ const AuthScreen: React.FC = () => {
               },
             ]}
           >
-            <Animated.View
-              style={[styles.content, isIpad && { maxWidth: 600 }]}
-            >
+            <Animated.View style={[styles.content, isIpad && { maxWidth: 600 }]}>
               <View style={styles.crossContainer}>
                 <CrossIcon />
               </View>
@@ -427,13 +387,11 @@ const AuthScreen: React.FC = () => {
                 {authMode === "login"
                   ? "Let's begin the journey to your spiritual life"
                   : authMode === "signup"
-                  ? "Join today"
-                  : "Reset your password to continue your journey"}
+                    ? "Join today"
+                    : "Reset your password to continue your journey"}
               </Text>
               {!error && message !== "" && (
-                <View
-                  style={[styles.messageContainer, styles.successContainer]}
-                >
+                <View style={[styles.messageContainer, styles.successContainer]}>
                   <Feather name="check-circle" size={18} color="#10b981" />
                   <Text style={styles.message}>{message}</Text>
                 </View>
@@ -458,9 +416,7 @@ const AuthScreen: React.FC = () => {
                       placeholder: "Last Name",
                       value: lastName,
                       setValue: setLastName,
-                      icon: (
-                        <Ionicons name="person" size={20} color="#FAC898" />
-                      ),
+                      icon: <Ionicons name="person" size={20} color="#FAC898" />,
                     })}
                   </View>
                 )}
@@ -479,8 +435,7 @@ const AuthScreen: React.FC = () => {
                     value: confirmPassword,
                     setValue: setConfirmPassword,
                     secureEntry: secureConfirmTextEntry,
-                    toggleSecure: () =>
-                      setSecureConfirmTextEntry(!secureConfirmTextEntry),
+                    toggleSecure: () => setSecureConfirmTextEntry(!secureConfirmTextEntry),
                     icon: <Feather name="lock" size={20} color="#FAC898" />,
                   })}
                 {authMode === "login" && (
@@ -492,11 +447,7 @@ const AuthScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
               </View>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
+              <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
                 {loading ? (
                   <ActivityIndicator color="#513C28" />
                 ) : (
@@ -505,8 +456,8 @@ const AuthScreen: React.FC = () => {
                       {authMode === "login"
                         ? "START HERE"
                         : authMode === "signup"
-                        ? "SIGN UP"
-                        : "RESET PASSWORD"}
+                          ? "SIGN UP"
+                          : "RESET PASSWORD"}
                     </Text>
                     <Feather name="arrow-right" size={16} color="#513C28" />
                   </View>
@@ -521,21 +472,15 @@ const AuthScreen: React.FC = () => {
                     disabled={loading}
                   >
                     <FontAwesome5 name="apple" size={24} color="#FFFFFF" />
-                    <Text style={styles.socialButtonText}>
-                      Sign in with Apple
-                    </Text>
+                    <Text style={styles.socialButtonText}>Sign in with Apple</Text>
                   </TouchableOpacity>
                 </View>
               )}
               <TouchableOpacity
-                onPress={() =>
-                  setAuthMode(authMode === "login" ? "signup" : "login")
-                }
+                onPress={() => setAuthMode(authMode === "login" ? "signup" : "login")}
               >
                 <Text style={styles.switchText}>
-                  {authMode === "login"
-                    ? "Need an account? Sign up"
-                    : "Already a member? Log in"}
+                  {authMode === "login" ? "Need an account? Sign up" : "Already a member? Log in"}
                 </Text>
               </TouchableOpacity>
               <View style={styles.footer}>

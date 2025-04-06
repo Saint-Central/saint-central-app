@@ -5,7 +5,6 @@ import {
   View,
   Platform,
   TouchableOpacity,
-  Dimensions,
   Animated,
   StatusBar,
   Image,
@@ -13,12 +12,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
-import {
-  Ionicons,
-  FontAwesome5,
-  MaterialIcons,
-  AntDesign,
-} from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialIcons, AntDesign } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -90,12 +84,7 @@ const CollapsibleHeader = ({
 
   // Finer control over image fade with more interpolation points
   const imageOpacity = scrollY.interpolate({
-    inputRange: [
-      0,
-      SCROLL_DISTANCE * 0.3,
-      SCROLL_DISTANCE * 0.6,
-      SCROLL_DISTANCE,
-    ],
+    inputRange: [0, SCROLL_DISTANCE * 0.3, SCROLL_DISTANCE * 0.6, SCROLL_DISTANCE],
     outputRange: [1, 0.8, 0.5, 0.3],
     extrapolate: "clamp",
   });
@@ -161,11 +150,7 @@ const CollapsibleHeader = ({
         pointerEvents="none"
       >
         {church.image ? (
-          <Image
-            source={{ uri: church.image }}
-            style={styles.churchImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
         ) : (
           <View style={styles.churchImagePlaceholder}>
             <FontAwesome5 name="church" size={60} color="#CBD5E1" />
@@ -307,8 +292,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
         }
 
         // Check if user is a member of this church
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
         const userId = sessionData?.session?.user?.id;
@@ -341,24 +325,21 @@ export default function ChurchDetailsScreen(): JSX.Element {
       setLoading(true);
 
       // Get current user
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
       const userId = sessionData?.session?.user?.id;
       if (!userId) throw new Error("Not authenticated");
 
       // Add user to church_members
-      const { error: joinError } = await supabase
-        .from("church_members")
-        .insert([
-          {
-            user_id: userId,
-            church_id: churchId,
-            role: "member",
-            joined_at: new Date().toISOString(),
-          },
-        ]);
+      const { error: joinError } = await supabase.from("church_members").insert([
+        {
+          user_id: userId,
+          church_id: churchId,
+          role: "member",
+          joined_at: new Date().toISOString(),
+        },
+      ]);
 
       if (joinError) throw joinError;
 
@@ -433,10 +414,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           <Text style={styles.errorText}>
             We couldn't load the church details. Please try again later.
           </Text>
-          <TouchableOpacity
-            style={styles.errorButton}
-            onPress={navigateToChurchList}
-          >
+          <TouchableOpacity style={styles.errorButton} onPress={navigateToChurchList}>
             <Text style={styles.errorButtonText}>Go Back to Church List</Text>
           </TouchableOpacity>
         </View>
@@ -449,31 +427,22 @@ export default function ChurchDetailsScreen(): JSX.Element {
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Main content */}
       <Animated.ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: MAX_HEADER_HEIGHT + 20 },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: MAX_HEADER_HEIGHT + 20 }]}
         scrollEventThrottle={16} // Important for smooth animation
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true } // Changed to true for native driver
+          { useNativeDriver: true }, // Changed to true for native driver
         )}
         showsVerticalScrollIndicator={false}
         bounces={false} // Disable bouncing for smoother animation
         overScrollMode="never" // Disable overscroll effect on Android
       >
         {/* Church Name and Category */}
-        <Animated.View
-          style={[styles.churchHeaderContainer, { opacity: fadeAnim }]}
-        >
+        <Animated.View style={[styles.churchHeaderContainer, { opacity: fadeAnim }]}>
           <Text style={styles.churchName}>{church.name}</Text>
           {church.category && (
             <View style={styles.categoryContainer}>
@@ -506,10 +475,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           <Text style={styles.sectionTitle}>Contact Information</Text>
 
           {church.phone && (
-            <TouchableOpacity
-              style={styles.infoRow}
-              onPress={() => callPhone(church.phone!)}
-            >
+            <TouchableOpacity style={styles.infoRow} onPress={() => callPhone(church.phone!)}>
               <View style={styles.iconContainer}>
                 <MaterialIcons name="phone" size={20} color="#3A86FF" />
               </View>
@@ -518,10 +484,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           )}
 
           {church.email && (
-            <TouchableOpacity
-              style={styles.infoRow}
-              onPress={() => sendEmail(church.email!)}
-            >
+            <TouchableOpacity style={styles.infoRow} onPress={() => sendEmail(church.email!)}>
               <View style={styles.iconContainer}>
                 <MaterialIcons name="email" size={20} color="#3A86FF" />
               </View>
@@ -530,10 +493,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           )}
 
           {church.website && (
-            <TouchableOpacity
-              style={styles.infoRow}
-              onPress={() => openWebsite(church.website!)}
-            >
+            <TouchableOpacity style={styles.infoRow} onPress={() => openWebsite(church.website!)}>
               <View style={styles.iconContainer}>
                 <MaterialIcons name="language" size={20} color="#3A86FF" />
               </View>
@@ -542,9 +502,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           )}
 
           {!church.phone && !church.email && !church.website && (
-            <Text style={styles.noInfoText}>
-              No contact information available
-            </Text>
+            <Text style={styles.noInfoText}>No contact information available</Text>
           )}
         </View>
 

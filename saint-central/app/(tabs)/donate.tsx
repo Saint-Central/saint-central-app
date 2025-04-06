@@ -121,11 +121,7 @@ const DonateScreen: React.FC = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor="transparent"
-          translucent
-        />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         {/* Video Background */}
         <Video
           source={require("../../assets/images/background.mp4")}
@@ -166,11 +162,7 @@ const DonateScreen: React.FC = () => {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleDonate}
-              disabled={loading}
-            >
+            <TouchableOpacity style={styles.button} onPress={handleDonate} disabled={loading}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -178,20 +170,16 @@ const DonateScreen: React.FC = () => {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.infoButton}
-              onPress={toggleSafetyInfo}
-            >
+            <TouchableOpacity style={styles.infoButton} onPress={toggleSafetyInfo}>
               <Text style={styles.infoButtonText}>Payment Safety Info</Text>
             </TouchableOpacity>
 
             {showSafetyInfo && (
               <View style={styles.safetyInfoContainer}>
                 <Text style={styles.safetyInfoText}>
-                  We use Stripe to securely process your donation. Stripe uses
-                  advanced security measures to encrypt your card details and
-                  protect your information. Your payment information is never
-                  stored on our servers.
+                  We use Stripe to securely process your donation. Stripe uses advanced security
+                  measures to encrypt your card details and protect your information. Your payment
+                  information is never stored on our servers.
                 </Text>
               </View>
             )}

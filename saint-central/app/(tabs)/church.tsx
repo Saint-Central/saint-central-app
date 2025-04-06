@@ -121,10 +121,7 @@ export default function ChurchScreen(): JSX.Element {
       navigation.navigate("home" as never);
     } catch (error) {
       console.error("Error leaving church:", error);
-      Alert.alert(
-        "Error",
-        "Failed to leave the church. Please try again later."
-      );
+      Alert.alert("Error", "Failed to leave the church. Please try again later.");
     } finally {
       setLeavingChurch(false);
     }
@@ -146,7 +143,7 @@ export default function ChurchScreen(): JSX.Element {
           style: "destructive",
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -226,9 +223,7 @@ export default function ChurchScreen(): JSX.Element {
         console.log("Church ID to fetch:", churchId);
 
         // Fetch church details with more detailed logging
-        console.log(
-          `Attempting to fetch church with ID ${churchId} from 'churches' table`
-        );
+        console.log(`Attempting to fetch church with ID ${churchId} from 'churches' table`);
 
         const { data: churchData, error: churchError } = await supabase
           .from("churches")
@@ -256,9 +251,7 @@ export default function ChurchScreen(): JSX.Element {
             console.log("Available churches in database:", allChurches);
           }
 
-          throw new Error(
-            `Church with ID ${churchId} not found. Please check your database.`
-          );
+          throw new Error(`Church with ID ${churchId} not found. Please check your database.`);
         }
 
         // Use the first result if multiple are returned
@@ -307,9 +300,7 @@ export default function ChurchScreen(): JSX.Element {
   const openWebsite = () => {
     if (church && church.website) {
       Linking.openURL(
-        church.website.startsWith("http")
-          ? church.website
-          : `https://${church.website}`
+        church.website.startsWith("http") ? church.website : `https://${church.website}`,
       );
     }
   };
@@ -363,11 +354,7 @@ export default function ChurchScreen(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Sidebar Component */}
       <Sidebar
@@ -426,28 +413,22 @@ export default function ChurchScreen(): JSX.Element {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: false,
+        })}
         scrollEventThrottle={16}
       >
         {/* Header with location and profile - with menu button */}
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View style={styles.headerLeft}>
             {/* Menu button */}
-            <TouchableOpacity
-              style={styles.menuButtonHeader}
-              onPress={toggleSidebar}
-            >
+            <TouchableOpacity style={styles.menuButtonHeader} onPress={toggleSidebar}>
               <Ionicons name="menu" size={24} color="#3A86FF" />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.locationContainer}>
               <Ionicons name="location" size={16} color="#3A86FF" />
-              <Text style={styles.location}>
-                {church.address.split(",")[0]}
-              </Text>
+              <Text style={styles.location}>{church.address.split(",")[0]}</Text>
             </TouchableOpacity>
           </View>
 
@@ -456,17 +437,10 @@ export default function ChurchScreen(): JSX.Element {
             style={styles.profileContainer}
           >
             {profileImage ? (
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profilePic}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: profileImage }} style={styles.profilePic} resizeMode="cover" />
             ) : (
               <View style={styles.profilePic}>
-                <LinearGradient
-                  colors={["#3A86FF", "#4361EE"]}
-                  style={styles.profileGradient}
-                >
+                <LinearGradient colors={["#3A86FF", "#4361EE"]} style={styles.profileGradient}>
                   <Text style={styles.profileInitial}>
                     {userName ? userName[0].toUpperCase() : "?"}
                   </Text>
@@ -522,11 +496,7 @@ export default function ChurchScreen(): JSX.Element {
                   <Text style={styles.buttonDescription}>Faith in action</Text>
                 </View>
                 <View style={styles.arrowContainer}>
-                  <MaterialIcons
-                    name="arrow-forward-ios"
-                    size={14}
-                    color="#CBD5E1"
-                  />
+                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
                 </View>
               </View>
             </TouchableOpacity>
@@ -551,16 +521,10 @@ export default function ChurchScreen(): JSX.Element {
                 </View>
                 <View style={styles.buttonTextContainer}>
                   <Text style={styles.buttonText}>Courses</Text>
-                  <Text style={styles.buttonDescription}>
-                    Grow in knowledge
-                  </Text>
+                  <Text style={styles.buttonDescription}>Grow in knowledge</Text>
                 </View>
                 <View style={styles.arrowContainer}>
-                  <MaterialIcons
-                    name="arrow-forward-ios"
-                    size={14}
-                    color="#CBD5E1"
-                  />
+                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
                 </View>
               </View>
             </TouchableOpacity>
@@ -580,25 +544,15 @@ export default function ChurchScreen(): JSX.Element {
                     end={{ x: 1, y: 1 }}
                     style={styles.iconGradient}
                   >
-                    <MaterialCommunityIcons
-                      name="calendar-clock"
-                      size={26}
-                      color="#FFFFFF"
-                    />
+                    <MaterialCommunityIcons name="calendar-clock" size={26} color="#FFFFFF" />
                   </LinearGradient>
                 </View>
                 <View style={styles.buttonTextContainer}>
                   <Text style={styles.buttonText}>Schedule</Text>
-                  <Text style={styles.buttonDescription}>
-                    Plan your worship
-                  </Text>
+                  <Text style={styles.buttonDescription}>Plan your worship</Text>
                 </View>
                 <View style={styles.arrowContainer}>
-                  <MaterialIcons
-                    name="arrow-forward-ios"
-                    size={14}
-                    color="#CBD5E1"
-                  />
+                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
                 </View>
               </View>
             </TouchableOpacity>
@@ -623,16 +577,10 @@ export default function ChurchScreen(): JSX.Element {
                 </View>
                 <View style={styles.buttonTextContainer}>
                   <Text style={styles.buttonText}>Community</Text>
-                  <Text style={styles.buttonDescription}>
-                    Connect with others
-                  </Text>
+                  <Text style={styles.buttonDescription}>Connect with others</Text>
                 </View>
                 <View style={styles.arrowContainer}>
-                  <MaterialIcons
-                    name="arrow-forward-ios"
-                    size={14}
-                    color="#CBD5E1"
-                  />
+                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
                 </View>
               </View>
             </TouchableOpacity>
@@ -642,11 +590,7 @@ export default function ChurchScreen(): JSX.Element {
         {/* Church Image */}
         {church.image && (
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: church.image }}
-              style={styles.churchImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
           </View>
         )}
 
@@ -720,10 +664,7 @@ export default function ChurchScreen(): JSX.Element {
                 <Feather name="chevron-right" size={16} color="#94A3B8" />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={openWebsite}
-                style={styles.contactItem}
-              >
+              <TouchableOpacity onPress={openWebsite} style={styles.contactItem}>
                 <View style={styles.contactIconContainer}>
                   <FontAwesome5 name="globe" size={14} color="#FFFFFF" />
                 </View>
@@ -759,9 +700,7 @@ export default function ChurchScreen(): JSX.Element {
                   <View style={styles.membershipInfo}>
                     <Text style={styles.membershipLabel}>Your Role:</Text>
                     <View style={styles.roleBadge}>
-                      <Text style={styles.roleText}>
-                        {member.role || "Member"}
-                      </Text>
+                      <Text style={styles.roleText}>{member.role || "Member"}</Text>
                     </View>
                   </View>
 
@@ -813,12 +752,7 @@ export default function ChurchScreen(): JSX.Element {
                   end={{ x: 1, y: 0 }}
                   style={styles.actionGradient}
                 >
-                  <FontAwesome5
-                    name="users"
-                    size={16}
-                    color="#FFFFFF"
-                    style={styles.actionIcon}
-                  />
+                  <FontAwesome5 name="users" size={16} color="#FFFFFF" style={styles.actionIcon} />
                   <Text style={styles.actionText}>Members</Text>
                 </LinearGradient>
               </TouchableOpacity>

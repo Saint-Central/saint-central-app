@@ -17,9 +17,8 @@ import {
   KeyboardAvoidingView,
   StatusBar,
   Easing,
-  Dimensions
 } from "react-native";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -110,39 +109,42 @@ const PrayerButtonSVG = () => (
 );
 
 // Add Prayer Button Component
-const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' | 'sepia' }> = ({ onPress, theme = 'light' }) => {
+const AddPrayerButton: React.FC<{ onPress: () => void; theme?: "light" | "dark" | "sepia" }> = ({
+  onPress,
+  theme = "light",
+}) => {
   // Animation values
   const floatAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const textOpacityAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Define colors based on theme
   const colors = {
     light: {
-      primary: '#6A478F',
-      secondary: '#8860B2',
-      highlight: '#A578D5',
-      background: '#FFFFFF',
-      text: '#FFFFFF',
+      primary: "#6A478F",
+      secondary: "#8860B2",
+      highlight: "#A578D5",
+      background: "#FFFFFF",
+      text: "#FFFFFF",
     },
     dark: {
-      primary: '#9C64A6',
-      secondary: '#7A4A8C',
-      highlight: '#BF89CE',
-      background: '#2D2D2D',
-      text: '#FFFFFF',
+      primary: "#9C64A6",
+      secondary: "#7A4A8C",
+      highlight: "#BF89CE",
+      background: "#2D2D2D",
+      text: "#FFFFFF",
     },
     sepia: {
-      primary: '#7A503E',
-      secondary: '#A46E58',
-      highlight: '#C5917C',
-      background: '#F8F0E3',
-      text: '#F8F0E3',
-    }
+      primary: "#7A503E",
+      secondary: "#A46E58",
+      highlight: "#C5917C",
+      background: "#F8F0E3",
+      text: "#F8F0E3",
+    },
   };
-  
-  const themeColors = colors[theme as 'light' | 'dark' | 'sepia'];
+
+  const themeColors = colors[theme as "light" | "dark" | "sepia"];
 
   // Start animations when component mounts
   useEffect(() => {
@@ -151,9 +153,9 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' 
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
-      easing: Easing.out(Easing.cubic)
+      easing: Easing.out(Easing.cubic),
     }).start();
-    
+
     // Delayed text appearance
     Animated.timing(textOpacityAnim, {
       toValue: 1,
@@ -177,7 +179,7 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' 
           useNativeDriver: true,
           easing: Easing.inOut(Easing.sin),
         }),
-      ])
+      ]),
     ).start();
 
     // Subtle pulse animation
@@ -195,14 +197,14 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' 
           useNativeDriver: true,
           easing: Easing.inOut(Easing.cubic),
         }),
-      ])
+      ]),
     ).start();
   }, []);
 
   // Handle button press with appropriate feedback
   const handlePress = () => {
     // Provide haptic feedback based on device capabilities
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === "ios") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -234,26 +236,23 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' 
   };
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         addButtonStyles.container,
         {
           opacity: opacityAnim,
-          transform: [
-            { translateY: floatAnim },
-            { scale: pulseAnim }
-          ]
-        }
+          transform: [{ translateY: floatAnim }, { scale: pulseAnim }],
+        },
       ]}
     >
       {/* Text label that appears above button */}
-      <Animated.View 
+      <Animated.View
         style={[
           addButtonStyles.labelContainer,
-          { 
+          {
             backgroundColor: themeColors.primary,
             opacity: textOpacityAnim,
-          }
+          },
         ]}
       >
         <Text style={addButtonStyles.labelText}>Add Prayer</Text>
@@ -267,7 +266,7 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: 'light' | 'dark' 
       >
         {/* Background decorative elements */}
         <PrayerButtonSVG />
-        
+
         {/* Center plus icon */}
         <View style={addButtonStyles.iconContainer}>
           <Feather name="plus" size={28} color={themeColors.text} />
@@ -296,7 +295,7 @@ type SupabaseFriendship = {
     id: string;
     username: string;
   };
-}
+};
 
 interface SupabaseFriend {
   id: string;
@@ -317,7 +316,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 }) => {
   // Navigation
   const navigation = useNavigation();
-  
+
   // State management
   const [intentions, setIntentions] = useState<PrayerIntention[]>([]);
   const [intentionsLoading, setIntentionsLoading] = useState<boolean>(true);
@@ -331,7 +330,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionTitle, setNewIntentionTitle] = useState<string>("");
   const [newIntentionDescription, setNewIntentionDescription] = useState<string>("");
   const [newIntentionType, setNewIntentionType] = useState<IntentionType>("prayer");
-  const [newIntentionVisibility, setNewIntentionVisibility] = useState<IntentionVisibility>("Just Me");
+  const [newIntentionVisibility, setNewIntentionVisibility] =
+    useState<IntentionVisibility>("Just Me");
   const [newIntentionGroups, setNewIntentionGroups] = useState<string[]>([]);
   const [newIntentionComplete, setNewIntentionComplete] = useState<boolean>(false);
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
@@ -351,7 +351,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Animation refs
   const intentionFavoriteScale = useRef(new Animated.Value(1)).current;
   const modalSlideUp = useRef(new Animated.Value(100)).current;
-  
+
   // Reference to store the Supabase subscription
   const supabaseSubscription = useRef<any>(null);
 
@@ -360,15 +360,18 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     try {
       // First, clean up any existing subscription
       if (supabaseSubscription.current) {
-        console.log('Cleaning up existing subscription...');
-        supabase.channel('intentions-changes').unsubscribe();
+        console.log("Cleaning up existing subscription...");
+        supabase.channel("intentions-changes").unsubscribe();
         supabaseSubscription.current = null;
       }
 
-      console.log('Setting up real-time subscription for intentions...');
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+      console.log("Setting up real-time subscription for intentions...");
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
       if (userError || !user) {
         console.log("User not logged in, skipping real-time subscription");
         return;
@@ -376,44 +379,44 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
       // Create a unique channel name with the user ID to avoid conflicts
       const channelName = `intentions-changes-${user.id}`;
-      
+
       // Subscribe to all changes to the intentions table
       supabaseSubscription.current = supabase
         .channel(channelName)
         .on(
-          'postgres_changes',
+          "postgres_changes",
           {
-            event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
-            schema: 'public',
-            table: 'intentions',
+            event: "*", // Listen for all events (INSERT, UPDATE, DELETE)
+            schema: "public",
+            table: "intentions",
           },
           (payload) => {
-            console.log('Intentions change received:', payload);
-            
+            console.log("Intentions change received:", payload);
+
             // Handle different types of changes
-            if (payload.eventType === 'INSERT') {
+            if (payload.eventType === "INSERT") {
               handleNewIntention(payload.new);
-            } else if (payload.eventType === 'UPDATE') {
+            } else if (payload.eventType === "UPDATE") {
               handleUpdatedIntention(payload.new);
-            } else if (payload.eventType === 'DELETE') {
+            } else if (payload.eventType === "DELETE") {
               handleDeletedIntention(payload.old);
             }
-          }
+          },
         )
         .subscribe((status) => {
-          console.log('Subscription status:', status);
-          
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to intentions table');
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            console.log('Subscription closed or error occurred, will attempt to reconnect');
+          console.log("Subscription status:", status);
+
+          if (status === "SUBSCRIBED") {
+            console.log("Successfully subscribed to intentions table");
+          } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+            console.log("Subscription closed or error occurred, will attempt to reconnect");
             // Could implement reconnection logic here if needed
           }
         });
-      
-      console.log('Set up real-time subscription:', supabaseSubscription.current);
+
+      console.log("Set up real-time subscription:", supabaseSubscription.current);
     } catch (error) {
-      console.error('Error setting up real-time subscription:', error);
+      console.error("Error setting up real-time subscription:", error);
       // Clean up in case of error
       supabaseSubscription.current = null;
     }
@@ -429,8 +432,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     // Cleanup subscription when component unmounts
     return () => {
       if (supabaseSubscription.current) {
-        console.log('Cleaning up subscription on unmount');
-        supabase.channel('intentions-changes').unsubscribe();
+        console.log("Cleaning up subscription on unmount");
+        supabase.channel("intentions-changes").unsubscribe();
         supabaseSubscription.current = null;
       }
     };
@@ -440,9 +443,12 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const fetchUserGroups = async () => {
     try {
       setLoadingGroups(true);
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
       if (userError || !user) {
         console.log("User not logged in or error, skipping group fetch");
         setLoadingGroups(false);
@@ -464,7 +470,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       }
 
       // Get the group IDs from memberships
-      const groupIds = memberships.map(membership => membership.group_id);
+      const groupIds = memberships.map((membership) => membership.group_id);
 
       // Fetch the groups based on the IDs
       const { data: groups, error: groupsError } = await supabase
@@ -475,9 +481,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       if (groupsError) throw groupsError;
 
       // Format the data
-      const formattedGroups: Group[] = (groups || []).map(group => ({
+      const formattedGroups: Group[] = (groups || []).map((group) => ({
         ...group,
-        created_at: new Date(group.created_at)
+        created_at: new Date(group.created_at),
       }));
 
       setUserGroups(formattedGroups);
@@ -493,16 +499,19 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const fetchUserFriends = async () => {
     try {
       setLoadingFriends(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         setLoadingFriends(false);
         return;
       }
 
       const { data, error: friendsError } = await supabase
-        .from('friends')
-        .select(`
+        .from("friends")
+        .select(
+          `
           id,
           friend:users!friends_user_id_2_fkey(
             id,
@@ -511,21 +520,22 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             profile_image,
             created_at
           )
-        `)
-        .eq('user_id_1', user.id)
-        .eq('status', 'accepted');
+        `,
+        )
+        .eq("user_id_1", user.id)
+        .eq("status", "accepted");
 
       if (friendsError) throw friendsError;
 
       const friends: Friend[] = data.map((f: any) => ({
         id: f.friend.id,
-        username: `${f.friend.first_name} ${f.friend.last_name}`
+        username: `${f.friend.first_name} ${f.friend.last_name}`,
       }));
 
       setUserFriends(friends);
     } catch (error) {
-      console.error('Error fetching friends:', error);
-      showFeedback('Failed to load friends');
+      console.error("Error fetching friends:", error);
+      showFeedback("Failed to load friends");
     } finally {
       setLoadingFriends(false);
     }
@@ -534,7 +544,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Toggle group selection helper function
   const toggleGroupSelection = (groupId: string) => {
     if (newIntentionGroups.includes(groupId)) {
-      setNewIntentionGroups(newIntentionGroups.filter(id => id !== groupId));
+      setNewIntentionGroups(newIntentionGroups.filter((id) => id !== groupId));
     } else {
       setNewIntentionGroups([...newIntentionGroups, groupId]);
     }
@@ -542,10 +552,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Toggle friend selection
   const toggleFriendSelection = (friendId: string) => {
-    setNewIntentionFriends(prev => 
-      prev.includes(friendId)
-        ? prev.filter(id => id !== friendId)
-        : [...prev, friendId]
+    setNewIntentionFriends((prev) =>
+      prev.includes(friendId) ? prev.filter((id) => id !== friendId) : [...prev, friendId],
     );
   };
 
@@ -561,14 +569,14 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     const exists = intentions.some((i) => i.id === formattedIntention.id);
     if (!exists) {
       setIntentions((prev) => [formattedIntention, ...prev]);
-      
+
       // Provide subtle feedback if the intention was created by someone else
       const { data: sessionData } = await supabase.auth.getSession();
       if (formattedIntention.user_id !== sessionData?.session?.user?.id) {
         showFeedback("New intention added");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      
+
       // Update AsyncStorage
       saveIntentionsToStorage([formattedIntention, ...intentions]);
     }
@@ -584,12 +592,12 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
     // Update the intention in our state
     setIntentions((prev) =>
-      prev.map((i) => (i.id === formattedIntention.id ? formattedIntention : i))
+      prev.map((i) => (i.id === formattedIntention.id ? formattedIntention : i)),
     );
 
     // Update AsyncStorage
-    const updatedIntentions = intentions.map((i) => 
-      (i.id === formattedIntention.id ? formattedIntention : i)
+    const updatedIntentions = intentions.map((i) =>
+      i.id === formattedIntention.id ? formattedIntention : i,
     );
     saveIntentionsToStorage(updatedIntentions);
   };
@@ -694,10 +702,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       setIntentions(formattedIntentions);
 
       // Also save to AsyncStorage as backup
-      await AsyncStorage.setItem(
-        "prayerIntentions",
-        JSON.stringify(formattedIntentions)
-      );
+      await AsyncStorage.setItem("prayerIntentions", JSON.stringify(formattedIntentions));
     } catch (error) {
       console.error("Error loading intentions from Supabase:", error);
       loadIntentionsFromStorage();
@@ -745,10 +750,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Add new prayer intention
   const addIntention = async () => {
     if (isSubmitting) return;
-    
+
     try {
       setIsSubmitting(true);
-      
+
       // Validate form
       if (!newIntentionTitle.trim()) {
         showFeedback("Please enter a title for your prayer intention");
@@ -793,10 +798,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
       // If online, save to Supabase
       if (!offlineMode && user) {
-        const { data, error } = await supabase
-          .from("intentions")
-          .insert([intentionData])
-          .select();
+        const { data, error } = await supabase.from("intentions").insert([intentionData]).select();
 
         if (error) throw error;
 
@@ -856,8 +858,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       if (!intention) return;
 
       // Update state first for responsive UI
-      const updatedIntentions = intentions.map((i) => 
-        i.id === id ? { ...i, completed: !i.completed } : i
+      const updatedIntentions = intentions.map((i) =>
+        i.id === id ? { ...i, completed: !i.completed } : i,
       );
       setIntentions(updatedIntentions);
 
@@ -868,7 +870,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       if (offlineMode) {
         // Save to AsyncStorage
         await saveIntentionsToStorage(updatedIntentions);
-        showFeedback(`Intention marked as ${!intention.completed ? "completed" : "active"} (offline mode)`);
+        showFeedback(
+          `Intention marked as ${!intention.completed ? "completed" : "active"} (offline mode)`,
+        );
         return;
       }
 
@@ -895,8 +899,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       if (!intention) return;
 
       // Update state first
-      const updatedIntentions = intentions.map((i) => 
-        i.id === id ? { ...i, favorite: !i.favorite } : i
+      const updatedIntentions = intentions.map((i) =>
+        i.id === id ? { ...i, favorite: !i.favorite } : i,
       );
       setIntentions(updatedIntentions);
 
@@ -907,7 +911,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       if (offlineMode) {
         // Save to AsyncStorage
         await saveIntentionsToStorage(updatedIntentions);
-        showFeedback(`Intention ${!intention.favorite ? "favorited" : "unfavorited"} (offline mode)`);
+        showFeedback(
+          `Intention ${!intention.favorite ? "favorited" : "unfavorited"} (offline mode)`,
+        );
         return;
       }
 
@@ -954,10 +960,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               }
 
               // If online, delete from Supabase
-              const { error } = await supabase
-                .from("intentions")
-                .delete()
-                .eq("id", id);
+              const { error } = await supabase.from("intentions").delete().eq("id", id);
 
               if (error) throw error;
 
@@ -965,7 +968,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             },
           },
         ],
-        { cancelable: true }
+        { cancelable: true },
       );
     } catch (error) {
       console.error("Error deleting intention:", error);
@@ -1053,27 +1056,22 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         resetIntentionForm();
       }}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.intentionModalContainer,
               {
                 backgroundColor: themeStyles.backgroundColor,
-                transform: [{ translateY: modalSlideUp }]
+                transform: [{ translateY: modalSlideUp }],
               },
             ]}
           >
-            <LinearGradient
-              colors={['#6A478F', '#8860B2']}
-              style={styles.intentionModalHeader}
-            >
-              <Text style={styles.intentionModalTitle}>
-                New Prayer Intention
-              </Text>
+            <LinearGradient colors={["#6A478F", "#8860B2"]} style={styles.intentionModalHeader}>
+              <Text style={styles.intentionModalTitle}>New Prayer Intention</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => {
@@ -1084,25 +1082,37 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                 <Feather name="x" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </LinearGradient>
-            
-            <ScrollView 
+
+            <ScrollView
               style={styles.intentionModalContent}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 20 }}
             >
               {/* Type Selection */}
-              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>
-                Type
-              </Text>
+              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>Type</Text>
               <View style={styles.typeGrid}>
-                {(["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"] as IntentionType[]).map((type) => (
+                {(
+                  [
+                    "prayer",
+                    "resolution",
+                    "goal",
+                    "spiritual",
+                    "family",
+                    "health",
+                    "work",
+                    "friends",
+                    "world",
+                    "personal",
+                    "other",
+                  ] as IntentionType[]
+                ).map((type) => (
                   <TouchableOpacity
                     key={type}
                     style={[
                       styles.typeOption,
                       newIntentionType === type && [
                         styles.activeTypeOption,
-                        { 
+                        {
                           backgroundColor: `${getIntentionColor(type)}20`,
                           borderColor: getIntentionColor(type),
                         },
@@ -1110,7 +1120,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       {
                         backgroundColor: themeStyles.cardColor,
                         borderColor: themeStyles.borderColor,
-                      }
+                      },
                     ]}
                     onPress={() => setNewIntentionType(type)}
                   >
@@ -1132,9 +1142,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       style={[
                         styles.typeText,
                         {
-                          color: newIntentionType === type
-                            ? getIntentionColor(type)
-                            : themeStyles.textColor,
+                          color:
+                            newIntentionType === type
+                              ? getIntentionColor(type)
+                              : themeStyles.textColor,
                         },
                       ]}
                     >
@@ -1145,7 +1156,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               </View>
 
               {/* Title and Description */}
-              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+              <Text
+                style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}
+              >
                 Title <Text style={{ color: "#E91E63" }}>*</Text>
               </Text>
               <TextInput
@@ -1158,13 +1171,18 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   },
                 ]}
                 placeholder="What is your prayer intention?"
-                placeholderTextColor={readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
+                placeholderTextColor={
+                  readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"
+                }
                 value={newIntentionTitle}
                 onChangeText={setNewIntentionTitle}
               />
 
-              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
-                Description <Text style={{ color: themeStyles.textColor, opacity: 0.5 }}>(optional)</Text>
+              <Text
+                style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}
+              >
+                Description{" "}
+                <Text style={{ color: themeStyles.textColor, opacity: 0.5 }}>(optional)</Text>
               </Text>
               <TextInput
                 style={[
@@ -1176,7 +1194,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   },
                 ]}
                 placeholder="Add details about your intention..."
-                placeholderTextColor={readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
+                placeholderTextColor={
+                  readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"
+                }
                 value={newIntentionDescription}
                 onChangeText={setNewIntentionDescription}
                 multiline
@@ -1185,11 +1205,21 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               />
 
               {/* Visibility Options */}
-              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+              <Text
+                style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}
+              >
                 Visibility
               </Text>
               <View style={styles.visibilityContainer}>
-                {(["Just Me", "Friends", "Friends & Groups", "Certain Friends", "Certain Groups"] as IntentionVisibility[]).map((visibility) => (
+                {(
+                  [
+                    "Just Me",
+                    "Friends",
+                    "Friends & Groups",
+                    "Certain Friends",
+                    "Certain Groups",
+                  ] as IntentionVisibility[]
+                ).map((visibility) => (
                   <TouchableOpacity
                     key={visibility}
                     style={[
@@ -1204,7 +1234,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       {
                         backgroundColor: themeStyles.cardColor,
                         borderColor: themeStyles.borderColor,
-                      }
+                      },
                     ]}
                     onPress={() => setNewIntentionVisibility(visibility)}
                   >
@@ -1212,22 +1242,31 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       style={[
                         styles.visibilityIconContainer,
                         {
-                          backgroundColor: newIntentionVisibility === visibility
-                            ? `${themeStyles.accentColor}20`
-                            : themeStyles.cardColor,
+                          backgroundColor:
+                            newIntentionVisibility === visibility
+                              ? `${themeStyles.accentColor}20`
+                              : themeStyles.cardColor,
                         },
                       ]}
                     >
                       <Feather
                         name={
-                          visibility === "Just Me" ? "lock" :
-                          visibility === "Friends" ? "users" :
-                          visibility === "Friends & Groups" ? "globe" :
-                          visibility === "Certain Friends" ? "users" :
-                          "users"
+                          visibility === "Just Me"
+                            ? "lock"
+                            : visibility === "Friends"
+                              ? "users"
+                              : visibility === "Friends & Groups"
+                                ? "globe"
+                                : visibility === "Certain Friends"
+                                  ? "users"
+                                  : "users"
                         }
                         size={20}
-                        color={newIntentionVisibility === visibility ? themeStyles.accentColor : themeStyles.textColor}
+                        color={
+                          newIntentionVisibility === visibility
+                            ? themeStyles.accentColor
+                            : themeStyles.textColor
+                        }
                       />
                     </View>
                     <View style={styles.visibilityTextContainer}>
@@ -1235,9 +1274,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                         style={[
                           styles.visibilityTitle,
                           {
-                            color: newIntentionVisibility === visibility
-                              ? themeStyles.accentColor
-                              : themeStyles.textColor,
+                            color:
+                              newIntentionVisibility === visibility
+                                ? themeStyles.accentColor
+                                : themeStyles.textColor,
                             fontWeight: newIntentionVisibility === visibility ? "600" : "400",
                           },
                         ]}
@@ -1255,8 +1295,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       >
                         {visibility === "Just Me" && "Only visible to you"}
                         {visibility === "Friends" && "Share with your friends"}
-                        {visibility === "Friends & Groups" && "Share with friends and all your groups"}
-                        {visibility === "Certain Friends" && "Select specific friends to share with"}
+                        {visibility === "Friends & Groups" &&
+                          "Share with friends and all your groups"}
+                        {visibility === "Certain Friends" &&
+                          "Select specific friends to share with"}
                         {visibility === "Certain Groups" && "Select specific groups to share with"}
                       </Text>
                     </View>
@@ -1279,11 +1321,20 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               {/* Group Selection (show when Certain Groups is selected) */}
               {newIntentionVisibility === "Certain Groups" && (
                 <View style={styles.groupSelectionContainer}>
-                  <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                  <Text
+                    style={[
+                      styles.formSectionTitle,
+                      { color: themeStyles.textColor, marginTop: 16 },
+                    ]}
+                  >
                     Select Groups
                   </Text>
                   {loadingGroups ? (
-                    <ActivityIndicator size="small" color={themeStyles.accentColor} style={{ marginVertical: 10 }} />
+                    <ActivityIndicator
+                      size="small"
+                      color={themeStyles.accentColor}
+                      style={{ marginVertical: 10 }}
+                    />
                   ) : userGroups.length > 0 ? (
                     <View style={styles.groupGrid}>
                       {userGroups.map((group) => (
@@ -1293,7 +1344,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                             styles.groupOption,
                             newIntentionGroups.includes(group.id) && [
                               styles.activeGroupOption,
-                              { 
+                              {
                                 backgroundColor: `${themeStyles.accentColor}20`,
                                 borderColor: themeStyles.accentColor,
                               },
@@ -1301,7 +1352,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                             {
                               backgroundColor: themeStyles.cardColor,
                               borderColor: themeStyles.borderColor,
-                            }
+                            },
                           ]}
                           onPress={() => toggleGroupSelection(group.id)}
                         >
@@ -1313,11 +1364,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                               },
                             ]}
                           >
-                            <Feather
-                              name="users"
-                              size={20}
-                              color={themeStyles.accentColor}
-                            />
+                            <Feather name="users" size={20} color={themeStyles.accentColor} />
                           </View>
                           <Text
                             style={[
@@ -1332,11 +1379,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                             {group.name}
                           </Text>
                           {newIntentionGroups.includes(group.id) && (
-                            <Feather 
+                            <Feather
                               name="check"
-                              size={18} 
+                              size={18}
                               color={themeStyles.accentColor}
-                              style={{ marginLeft: 'auto' }}
+                              style={{ marginLeft: "auto" }}
                             />
                           )}
                         </TouchableOpacity>
@@ -1344,7 +1391,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                     </View>
                   ) : (
                     <Text style={[styles.emptyGroupsText, { color: `${themeStyles.textColor}80` }]}>
-                      You are not a member of any groups. Join or create groups in the Community tab.
+                      You are not a member of any groups. Join or create groups in the Community
+                      tab.
                     </Text>
                   )}
                 </View>
@@ -1353,11 +1401,20 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               {/* Friend Selection (show when Certain Friends is selected) */}
               {newIntentionVisibility === "Certain Friends" && (
                 <View style={styles.friendSelectionContainer}>
-                  <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+                  <Text
+                    style={[
+                      styles.formSectionTitle,
+                      { color: themeStyles.textColor, marginTop: 16 },
+                    ]}
+                  >
                     Select Friends
                   </Text>
                   {loadingFriends ? (
-                    <ActivityIndicator size="small" color={themeStyles.accentColor} style={{ marginVertical: 10 }} />
+                    <ActivityIndicator
+                      size="small"
+                      color={themeStyles.accentColor}
+                      style={{ marginVertical: 10 }}
+                    />
                   ) : userFriends.length > 0 ? (
                     <View style={styles.friendGrid}>
                       {userFriends.map((friend) => (
@@ -1367,7 +1424,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                             styles.friendOption,
                             newIntentionFriends.includes(friend.id) && [
                               styles.activeFriendOption,
-                              { 
+                              {
                                 backgroundColor: `${themeStyles.accentColor}20`,
                                 borderColor: themeStyles.accentColor,
                               },
@@ -1375,7 +1432,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                             {
                               backgroundColor: themeStyles.cardColor,
                               borderColor: themeStyles.borderColor,
-                            }
+                            },
                           ]}
                           onPress={() => toggleFriendSelection(friend.id)}
                         >
@@ -1387,11 +1444,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                               },
                             ]}
                           >
-                            <Feather
-                              name="user"
-                              size={20}
-                              color={themeStyles.accentColor}
-                            />
+                            <Feather name="user" size={20} color={themeStyles.accentColor} />
                           </View>
                           <Text
                             style={[
@@ -1406,18 +1459,20 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                             {friend.username}
                           </Text>
                           {newIntentionFriends.includes(friend.id) && (
-                            <Feather 
+                            <Feather
                               name="check"
-                              size={18} 
+                              size={18}
                               color={themeStyles.accentColor}
-                              style={{ marginLeft: 'auto' }}
+                              style={{ marginLeft: "auto" }}
                             />
                           )}
                         </TouchableOpacity>
                       ))}
                     </View>
                   ) : (
-                    <Text style={[styles.emptyFriendsText, { color: `${themeStyles.textColor}80` }]}>
+                    <Text
+                      style={[styles.emptyFriendsText, { color: `${themeStyles.textColor}80` }]}
+                    >
                       You don't have any friends yet. Add friends in the Community tab.
                     </Text>
                   )}
@@ -1425,7 +1480,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               )}
 
               {/* Additional Options */}
-              <Text style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}>
+              <Text
+                style={[styles.formSectionTitle, { color: themeStyles.textColor, marginTop: 16 }]}
+              >
                 Additional Options
               </Text>
               <TouchableOpacity
@@ -1441,14 +1498,16 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                 <Text style={[styles.optionText, { color: themeStyles.textColor }]}>
                   Mark as favorite
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setNewIntentionFavorite(!newIntentionFavorite)}
                   style={styles.favoriteCheckbox}
                 >
-                  <Feather 
+                  <Feather
                     name="heart"
-                    size={24} 
-                    color={newIntentionFavorite ? themeStyles.favoriteColor : themeStyles.borderColor} 
+                    size={24}
+                    color={
+                      newIntentionFavorite ? themeStyles.favoriteColor : themeStyles.borderColor
+                    }
                     solid={newIntentionFavorite}
                   />
                 </TouchableOpacity>
@@ -1460,14 +1519,14 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                 <Text style={[styles.optionText, { color: themeStyles.textColor }]}>
                   Mark as completed
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setNewIntentionComplete(!newIntentionComplete)}
                   style={styles.completeCheckbox}
                 >
-                  <Feather 
+                  <Feather
                     name={newIntentionComplete ? "check-circle" : "circle"}
-                    size={24} 
-                    color={newIntentionComplete ? themeStyles.accentColor : themeStyles.borderColor} 
+                    size={24}
+                    color={newIntentionComplete ? themeStyles.accentColor : themeStyles.borderColor}
                   />
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -1493,7 +1552,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                     styles.createButton,
                     {
                       backgroundColor: themeStyles.accentColor,
-                      opacity: (newIntentionTitle.trim() && !isSubmitting) ? 1 : 0.7,
+                      opacity: newIntentionTitle.trim() && !isSubmitting ? 1 : 0.7,
                     },
                   ]}
                   onPress={addIntention}
@@ -1522,22 +1581,17 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       onRequestClose={() => setShowIntentionFilterModal(false)}
     >
       <View style={styles.modalOverlay}>
-        <Animated.View 
+        <Animated.View
           style={[
             styles.intentionModalContainer,
             {
               backgroundColor: themeStyles.backgroundColor,
-              transform: [{ translateY: modalSlideUp }]
+              transform: [{ translateY: modalSlideUp }],
             },
           ]}
         >
-          <LinearGradient
-            colors={['#8952D0', '#AD7CEA']}
-            style={styles.intentionModalHeader}
-          >
-            <Text style={styles.intentionModalTitle}>
-              Filters & Sorting
-            </Text>
+          <LinearGradient colors={["#8952D0", "#AD7CEA"]} style={styles.intentionModalHeader}>
+            <Text style={styles.intentionModalTitle}>Filters & Sorting</Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setShowIntentionFilterModal(false)}
@@ -1545,7 +1599,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               <Feather name="x" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </LinearGradient>
-          
+
           <ScrollView style={styles.intentionModalContent}>
             <Text style={[styles.filterSectionTitle, { color: themeStyles.textColor }]}>
               Filter by Type
@@ -1564,15 +1618,27 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               ]}
               onPress={() => setIntentionFilter("all")}
             >
-              <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>
-                All
-              </Text>
+              <Text style={[styles.filterOptionText, { color: themeStyles.textColor }]}>All</Text>
               {intentionFilter === "all" && (
                 <Feather name="check" size={20} color={themeStyles.accentColor} />
               )}
             </TouchableOpacity>
 
-            {(["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"] as IntentionType[]).map((type) => (
+            {(
+              [
+                "prayer",
+                "resolution",
+                "goal",
+                "spiritual",
+                "family",
+                "health",
+                "work",
+                "friends",
+                "world",
+                "personal",
+                "other",
+              ] as IntentionType[]
+            ).map((type) => (
               <TouchableOpacity
                 key={type}
                 style={[
@@ -1612,7 +1678,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               </TouchableOpacity>
             ))}
 
-            <Text style={[styles.filterSectionTitle, { color: themeStyles.textColor, marginTop: 24 }]}>
+            <Text
+              style={[styles.filterSectionTitle, { color: themeStyles.textColor, marginTop: 24 }]}
+            >
               Sort By
             </Text>
 
@@ -1679,11 +1747,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeStyles.backgroundColor }]}>
       <StatusBar barStyle={readingTheme === "night" ? "light-content" : "dark-content"} />
-      
+
       <View style={styles.intentionsContainer}>
         {/* Header with intentions stats */}
         <LinearGradient
-          colors={['#8952D0', '#AD7CEA']}
+          colors={["#8952D0", "#AD7CEA"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.intentionsStatsContainer}
@@ -1693,39 +1761,31 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
                 {intentions.length}
               </Text>
-              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-                Total
-              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>Total</Text>
             </View>
 
             <View style={styles.intentionStat}>
               <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-                {intentions.filter(i => !i.completed).length}
+                {intentions.filter((i) => !i.completed).length}
               </Text>
-              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-                Active
-              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>Active</Text>
             </View>
 
             <View style={styles.intentionStat}>
               <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-                {intentions.filter(i => i.completed).length}
+                {intentions.filter((i) => i.completed).length}
               </Text>
-              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-                Completed
-              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>Completed</Text>
             </View>
 
             <View style={styles.intentionStat}>
               <Text style={[styles.intentionStatNumber, { color: "#FFF" }]}>
-                {intentions.filter(i => i.favorite).length}
+                {intentions.filter((i) => i.favorite).length}
               </Text>
-              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>
-                Favorites
-              </Text>
+              <Text style={[styles.intentionStatLabel, { color: "#FFF" }]}>Favorites</Text>
             </View>
           </View>
-          
+
           {/* Filter button in header with improved styling */}
           <TouchableOpacity
             style={styles.intentionFilterButton}
@@ -1737,10 +1797,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         </LinearGradient>
 
         {/* Intentions Tabs */}
-        <View 
+        <View
           style={[
             styles.intentionsTabsContainer,
-            { backgroundColor: readingTheme === "night" ? "#262626" : "#F5F5F5" }
+            { backgroundColor: readingTheme === "night" ? "#262626" : "#F5F5F5" },
           ]}
         >
           <TouchableOpacity
@@ -1748,7 +1808,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               styles.intentionTab,
               intentionsTabView === "all" && [
                 styles.activeIntentionTab,
-                { backgroundColor: themeStyles.cardColor }
+                { backgroundColor: themeStyles.cardColor },
               ],
             ]}
             onPress={() => setIntentionsTabView("all")}
@@ -1756,9 +1816,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             <Text
               style={[
                 styles.intentionTabText,
-                { 
+                {
                   color: themeStyles.textColor,
-                  opacity: intentionsTabView === "all" ? 1 : 0.6
+                  opacity: intentionsTabView === "all" ? 1 : 0.6,
                 },
               ]}
             >
@@ -1771,7 +1831,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               styles.intentionTab,
               intentionsTabView === "active" && [
                 styles.activeIntentionTab,
-                { backgroundColor: themeStyles.cardColor }
+                { backgroundColor: themeStyles.cardColor },
               ],
             ]}
             onPress={() => setIntentionsTabView("active")}
@@ -1779,9 +1839,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             <Text
               style={[
                 styles.intentionTabText,
-                { 
+                {
                   color: themeStyles.textColor,
-                  opacity: intentionsTabView === "active" ? 1 : 0.6
+                  opacity: intentionsTabView === "active" ? 1 : 0.6,
                 },
               ]}
             >
@@ -1794,7 +1854,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               styles.intentionTab,
               intentionsTabView === "completed" && [
                 styles.activeIntentionTab,
-                { backgroundColor: themeStyles.cardColor }
+                { backgroundColor: themeStyles.cardColor },
               ],
             ]}
             onPress={() => setIntentionsTabView("completed")}
@@ -1802,9 +1862,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             <Text
               style={[
                 styles.intentionTabText,
-                { 
+                {
                   color: themeStyles.textColor,
-                  opacity: intentionsTabView === "completed" ? 1 : 0.6
+                  opacity: intentionsTabView === "completed" ? 1 : 0.6,
                 },
               ]}
             >
@@ -1828,25 +1888,15 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               color={`${themeStyles.textColor}40`}
               style={styles.emptyIntentionsIcon}
             />
-            <Text
-              style={[
-                styles.emptyIntentionsText,
-                { color: themeStyles.textColor },
-              ]}
-            >
+            <Text style={[styles.emptyIntentionsText, { color: themeStyles.textColor }]}>
               No prayer intentions found
             </Text>
-            <Text
-              style={[
-                styles.emptyIntentionsSubtext,
-                { color: `${themeStyles.textColor}80` },
-              ]}
-            >
+            <Text style={[styles.emptyIntentionsSubtext, { color: `${themeStyles.textColor}80` }]}>
               {intentionsTabView === "all"
                 ? "Create a new prayer intention by tapping the + button"
                 : intentionsTabView === "active"
-                ? "Your active prayer intentions will appear here"
-                : "Your completed prayer intentions will appear here"}
+                  ? "Your active prayer intentions will appear here"
+                  : "Your completed prayer intentions will appear here"}
             </Text>
             <TouchableOpacity
               style={[
@@ -1857,9 +1907,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               ]}
               onPress={openNewIntentionModal}
             >
-              <Text style={styles.emptyIntentionsButtonText}>
-                Create Prayer Intention
-              </Text>
+              <Text style={styles.emptyIntentionsButtonText}>Create Prayer Intention</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -1905,18 +1953,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   </View>
 
                   <View style={styles.intentionHeaderActions}>
-                    <Text
-                      style={[
-                        styles.intentionDate,
-                        { color: `${themeStyles.textColor}80` },
-                      ]}
-                    >
+                    <Text style={[styles.intentionDate, { color: `${themeStyles.textColor}80` }]}>
                       {item.created_at.toLocaleDateString()}
                     </Text>
 
-                    <Animated.View
-                      style={{ transform: [{ scale: intentionFavoriteScale }] }}
-                    >
+                    <Animated.View style={{ transform: [{ scale: intentionFavoriteScale }] }}>
                       <TouchableOpacity
                         style={[
                           styles.intentionFavoriteButton,
@@ -1930,9 +1971,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                           name="heart"
                           size={16}
                           color={
-                            item.favorite
-                              ? themeStyles.favoriteColor
-                              : `${themeStyles.textColor}60`
+                            item.favorite ? themeStyles.favoriteColor : `${themeStyles.textColor}60`
                           }
                         />
                       </TouchableOpacity>
@@ -1949,9 +1988,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       name={item.completed ? "check-circle" : "circle"}
                       size={24}
                       color={
-                        item.completed
-                          ? themeStyles.accentColor
-                          : `${themeStyles.textColor}40`
+                        item.completed ? themeStyles.accentColor : `${themeStyles.textColor}40`
                       }
                     />
                   </TouchableOpacity>
@@ -1962,9 +1999,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                         styles.intentionTitle,
                         {
                           color: themeStyles.textColor,
-                          textDecorationLine: item.completed
-                            ? "line-through"
-                            : "none",
+                          textDecorationLine: item.completed ? "line-through" : "none",
                         },
                       ]}
                     >
@@ -1998,12 +2033,12 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                         item.visibility === "Just Me"
                           ? "lock"
                           : item.visibility === "Friends"
-                          ? "users"
-                          : item.visibility === "Friends & Groups"
-                          ? "globe"
-                          : item.visibility === "Certain Friends"
-                          ? "users"
-                          : "users"
+                            ? "users"
+                            : item.visibility === "Friends & Groups"
+                              ? "globe"
+                              : item.visibility === "Certain Friends"
+                                ? "users"
+                                : "users"
                       }
                       size={12}
                       color={themeStyles.accentColor}
@@ -2024,11 +2059,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                     style={styles.intentionDeleteButton}
                     onPress={() => deleteIntention(item.id)}
                   >
-                    <Feather
-                      name="trash-2"
-                      size={14}
-                      color={`${themeStyles.textColor}60`}
-                    />
+                    <Feather name="trash-2" size={14} color={`${themeStyles.textColor}60`} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2041,9 +2072,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         )}
 
         {/* New Add Prayer Button */}
-        <AddPrayerButton 
-          onPress={openNewIntentionModal} 
-          theme={readingTheme === "night" ? "dark" : readingTheme === "paper" ? "light" : readingTheme}
+        <AddPrayerButton
+          onPress={openNewIntentionModal}
+          theme={
+            readingTheme === "night" ? "dark" : readingTheme === "paper" ? "light" : readingTheme
+          }
         />
 
         {/* Render Modals */}
@@ -2064,7 +2097,7 @@ const defaultThemes = {
     headerColor: "#F5F5F5",
     shadowColor: "#000000",
     accentColor: "#8952D0", // Brighter purple
-    favoriteColor: "#FF5A93"  // Brighter pink
+    favoriteColor: "#FF5A93", // Brighter pink
   },
   dark: {
     backgroundColor: "#121212",
@@ -2074,7 +2107,7 @@ const defaultThemes = {
     headerColor: "#1A1A1A",
     shadowColor: "#000000",
     accentColor: "#B27AE8", // Brighter purple
-    favoriteColor: "#FF7EB4" // Brighter pink
+    favoriteColor: "#FF7EB4", // Brighter pink
   },
   sepia: {
     backgroundColor: "#F8F0E3",
@@ -2084,8 +2117,8 @@ const defaultThemes = {
     headerColor: "#F0E6D2",
     shadowColor: "#442C2E",
     accentColor: "#A66E52", // Brighter brown
-    favoriteColor: "#D05959" // Brighter red
-  }
+    favoriteColor: "#D05959", // Brighter red
+  },
 };
 
 // Default font sizes
@@ -2093,27 +2126,27 @@ const defaultFontSizes = {
   small: {
     title: 16,
     body: 14,
-    caption: 12
+    caption: 12,
   },
   medium: {
     title: 18,
     body: 16,
-    caption: 14
+    caption: 14,
   },
   large: {
     title: 20,
     body: 18,
-    caption: 16
-  }
+    caption: 16,
+  },
 };
 
 // Add Button Styles
 const addButtonStyles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    position: "absolute",
     right: 20,
     bottom: 30,
-    alignItems: 'center',
+    alignItems: "center",
     zIndex: 10,
   },
   labelContainer: {
@@ -2121,42 +2154,42 @@ const addButtonStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     marginBottom: 8,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
   },
   labelText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   button: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 6,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   iconContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 2,
   },
   svgContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -2165,58 +2198,58 @@ const addButtonStyles = StyleSheet.create({
   },
   // Decorative elements inspired by prayer symbols
   circle1: {
-    position: 'absolute',
+    position: "absolute",
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     top: 14,
     left: 14,
   },
   circle2: {
-    position: 'absolute',
+    position: "absolute",
     width: 56,
     height: 56,
     borderRadius: 28,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
     top: 6,
     left: 6,
   },
   droplet: {
-    position: 'absolute',
+    position: "absolute",
     width: 18,
     height: 25,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    transform: [{ rotate: '45deg' }],
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    transform: [{ rotate: "45deg" }],
     bottom: 10,
     right: 12,
   },
   dot1: {
-    position: 'absolute',
+    position: "absolute",
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     top: 15,
     right: 20,
   },
   dot2: {
-    position: 'absolute',
+    position: "absolute",
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     top: 8,
     right: 28,
   },
   dot3: {
-    position: 'absolute',
+    position: "absolute",
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     bottom: 18,
     left: 15,
   },
@@ -2231,7 +2264,7 @@ const styles = StyleSheet.create({
   intentionsContainer: {
     flex: 1,
   },
-  
+
   // Stats container at the top
   intentionsStatsContainer: {
     flexDirection: "row",
@@ -2256,7 +2289,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "500",
   },
-  
+
   // Tab navigation
   intentionsTabsContainer: {
     flexDirection: "row",
@@ -2283,7 +2316,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  
+
   // Loading and empty states
   loadingContainer: {
     flex: 1,
@@ -2332,7 +2365,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-  
+
   // Intentions list
   intentionsList: {
     padding: 16,
@@ -2418,7 +2451,7 @@ const styles = StyleSheet.create({
   intentionDeleteButton: {
     padding: 6,
   },
-  
+
   // Filter Button (now in header)
   intentionFilterButton: {
     width: 40,
@@ -2428,24 +2461,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
-  
+
   // Modal styles
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   intentionModalContainer: {
-    width: '90%',
+    width: "90%",
     maxWidth: 500,
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: "hidden",
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
-    maxHeight: Platform.OS === "ios" ? '80%' : '90%',
+    maxHeight: Platform.OS === "ios" ? "80%" : "90%",
   },
   intentionModalHeader: {
     flexDirection: "row",
@@ -2464,7 +2497,7 @@ const styles = StyleSheet.create({
   intentionModalContent: {
     padding: 20,
   },
-  
+
   // Form styles
   formSectionTitle: {
     fontSize: 18,
@@ -2511,7 +2544,7 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: "top",
   },
-  
+
   // Visibility options
   visibilityContainer: {
     marginBottom: 10,
@@ -2553,7 +2586,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  
+
   // Additional options
   optionRow: {
     flexDirection: "row",
@@ -2570,7 +2603,7 @@ const styles = StyleSheet.create({
   completeCheckbox: {
     padding: 6,
   },
-  
+
   // Action buttons
   actionButtonsContainer: {
     flexDirection: "row",
@@ -2594,7 +2627,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 12,
   },
-  
+
   // Filter modal
   filterSectionTitle: {
     fontSize: 18,
@@ -2649,7 +2682,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 24,
   },
-  
+
   // Group selection styles
   groupSelectionContainer: {
     marginTop: 10,
@@ -2658,8 +2691,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   groupOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -2675,12 +2708,12 @@ const styles = StyleSheet.create({
   },
   groupText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   emptyGroupsText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginVertical: 10,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   friendSelectionContainer: {
     marginTop: 10,
@@ -2689,8 +2722,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   friendOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -2706,13 +2739,13 @@ const styles = StyleSheet.create({
   },
   friendText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   emptyFriendsText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginVertical: 10,
-    fontStyle: 'italic',
-  }
+    fontStyle: "italic",
+  },
 });
 
 export default PrayerIntentions;

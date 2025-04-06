@@ -20,8 +20,6 @@ import { Feather } from "@expo/vector-icons";
 import { supabase } from "../../../supabaseClient";
 import { router } from "expo-router";
 
-const { width } = Dimensions.get("window");
-
 interface Post {
   id: number;
   title: string;
@@ -115,7 +113,7 @@ const CulturePage: React.FC = () => {
             user_id,
             category
           `,
-            { count: "exact" }
+            { count: "exact" },
           )
           .order("created_at", { ascending: false })
           .range(start, end);
@@ -129,29 +127,25 @@ const CulturePage: React.FC = () => {
           setTotalPosts(count);
         }
 
-        const postsTransformed: Post[] = (data as CulturePostRow[]).map(
-          (row) => {
-            return {
-              id: row.post_id,
-              title: row.title,
-              author: row.author_name || "Unknown",
-              date: new Date(row.created_at).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              }),
-              image:
-                row.image_url ||
-                "https://media.cntraveler.com/photos/5abbb19e44769047c2c7b8cb/16:9/w_1920,c_limit/GettyImages-475446104.jpg",
-              excerpt: row.excerpt,
-              readTime: `${Math.ceil(
-                row.excerpt.split(" ").length / 200
-              )} min read`,
-              videoLink: row.video_link,
-              category: row.category,
-            };
-          }
-        );
+        const postsTransformed: Post[] = (data as CulturePostRow[]).map((row) => {
+          return {
+            id: row.post_id,
+            title: row.title,
+            author: row.author_name || "Unknown",
+            date: new Date(row.created_at).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            }),
+            image:
+              row.image_url ||
+              "https://media.cntraveler.com/photos/5abbb19e44769047c2c7b8cb/16:9/w_1920,c_limit/GettyImages-475446104.jpg",
+            excerpt: row.excerpt,
+            readTime: `${Math.ceil(row.excerpt.split(" ").length / 200)} min read`,
+            videoLink: row.video_link,
+            category: row.category,
+          };
+        });
 
         setPosts(postsTransformed);
         if (postsTransformed.length < pageSize) {
@@ -171,8 +165,7 @@ const CulturePage: React.FC = () => {
 
   // Filter posts based on category and search term
   const filteredPosts = posts.filter((post) => {
-    const matchesFilter =
-      activeFilter === "all" || post.category === activeFilter;
+    const matchesFilter = activeFilter === "all" || post.category === activeFilter;
     const matchesSearch =
       post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -198,10 +191,7 @@ const CulturePage: React.FC = () => {
   });
 
   // Post item component
-  const PostItem: React.FC<{ item: Post; index: number }> = ({
-    item,
-    index,
-  }) => {
+  const PostItem: React.FC<{ item: Post; index: number }> = ({ item, index }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const { width } = Dimensions.get("window");
 
@@ -246,11 +236,7 @@ const CulturePage: React.FC = () => {
           style={styles.touchablePost}
         >
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: item.image }}
-              style={styles.postImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: item.image }} style={styles.postImage} resizeMode="cover" />
             <LinearGradient
               colors={["transparent", "rgba(0,0,0,0.6)"]}
               style={styles.imageGradient}
@@ -292,8 +278,7 @@ const CulturePage: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Culture and Testimonies</Text>
         <Text style={styles.subtitle}>
-          Explore spiritual journeys, reflections, and insights from our
-          community
+          Explore spiritual journeys, reflections, and insights from our community
         </Text>
         <View style={styles.scrollIndicator}>
           <Feather name="chevron-down" size={24} color="#B4B0C5" />
@@ -305,10 +290,7 @@ const CulturePage: React.FC = () => {
         showsHorizontalScrollIndicator={false}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[
-              styles.filterButton,
-              activeFilter === item && styles.activeFilterButton,
-            ]}
+            style={[styles.filterButton, activeFilter === item && styles.activeFilterButton]}
             onPress={() => setActiveFilter(item)}
           >
             <Text
@@ -382,16 +364,10 @@ const CulturePage: React.FC = () => {
           <TouchableOpacity
             key={page.toString()}
             onPress={() => setCurrentPage(Number(page))}
-            style={[
-              styles.pageNumberButton,
-              currentPage === page && styles.activePageNumberButton,
-            ]}
+            style={[styles.pageNumberButton, currentPage === page && styles.activePageNumberButton]}
           >
             <Text
-              style={[
-                styles.pageNumberText,
-                currentPage === page && styles.activePageNumberText,
-              ]}
+              style={[styles.pageNumberText, currentPage === page && styles.activePageNumberText]}
             >
               {page}
             </Text>
@@ -430,19 +406,11 @@ const CulturePage: React.FC = () => {
       <StatusBar barStyle="light-content" backgroundColor="#2D1B69" />
       <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
       <View style={styles.headerNav}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push("/home")}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push("/home")}>
           <Feather name="chevron-left" size={16} color="#FFFFFF" />
           <Text style={styles.backButtonText}>Return Home</Text>
         </TouchableOpacity>
-        <View
-          style={[
-            styles.searchContainer,
-            isSearchFocused && styles.searchContainerFocused,
-          ]}
-        >
+        <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
           <TextInput
             placeholder="Search posts..."
             value={searchTerm}
@@ -453,10 +421,7 @@ const CulturePage: React.FC = () => {
             style={styles.searchInput}
           />
           {searchTerm ? (
-            <TouchableOpacity
-              onPress={() => setSearchTerm("")}
-              style={styles.clearButton}
-            >
+            <TouchableOpacity onPress={() => setSearchTerm("")} style={styles.clearButton}>
               <Feather name="x" size={16} color="#B4B0C5" />
             </TouchableOpacity>
           ) : null}
@@ -471,10 +436,9 @@ const CulturePage: React.FC = () => {
           keyExtractor={(item) => item.id.toString()}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.flatListContent}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: false,
+          })}
           scrollEventThrottle={16}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}

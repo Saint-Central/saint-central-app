@@ -65,9 +65,7 @@ export default function GroupsScreen() {
     description: "",
   });
   // Holds friend IDs selected for group creation or membership update.
-  const [selectedMembersForCreation, setSelectedMembersForCreation] = useState<
-    string[]
-  >([]);
+  const [selectedMembersForCreation, setSelectedMembersForCreation] = useState<string[]>([]);
 
   // Edit Group state
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -78,22 +76,20 @@ export default function GroupsScreen() {
   } | null>(null);
 
   // Delete confirmation overlay inside the Edit modal
-  const [showDeleteConfirmOverlay, setShowDeleteConfirmOverlay] =
-    useState<boolean>(false);
+  const [showDeleteConfirmOverlay, setShowDeleteConfirmOverlay] = useState<boolean>(false);
 
   // When adding members from a group card, this holds the group ID.
-  const [selectedGroupForAddingMembers, setSelectedGroupForAddingMembers] =
-    useState<string | null>(null);
+  const [selectedGroupForAddingMembers, setSelectedGroupForAddingMembers] = useState<string | null>(
+    null,
+  );
   // Holds the original member IDs of the group.
   const [existingMembers, setExistingMembers] = useState<string[]>([]);
 
   // Friend Selection UI:
   // For Create/Edit modals, use an overlay.
-  const [showFriendSelectionOverlay, setShowFriendSelectionOverlay] =
-    useState<boolean>(false);
+  const [showFriendSelectionOverlay, setShowFriendSelectionOverlay] = useState<boolean>(false);
   // For group card add-members, use a separate modal.
-  const [showFriendSelectionModal, setShowFriendSelectionModal] =
-    useState<boolean>(false);
+  const [showFriendSelectionModal, setShowFriendSelectionModal] = useState<boolean>(false);
 
   // Friends list (fetched from Supabase)
   const [friends, setFriends] = useState<UserData[]>([]);
@@ -103,19 +99,13 @@ export default function GroupsScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Leave Group confirmation modal state
-  const [selectedGroupToLeave, setSelectedGroupToLeave] = useState<
-    string | null
-  >(null);
-  const [showLeaveConfirmModal, setShowLeaveConfirmModal] =
-    useState<boolean>(false);
+  const [selectedGroupToLeave, setSelectedGroupToLeave] = useState<string | null>(null);
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState<boolean>(false);
 
   // NEW: View members modal state
   const [showMembersModal, setShowMembersModal] = useState<boolean>(false);
-  const [selectedGroupMembers, setSelectedGroupMembers] = useState<
-    GroupMember[]
-  >([]);
-  const [selectedGroupForMembers, setSelectedGroupForMembers] =
-    useState<Group | null>(null);
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<GroupMember[]>([]);
+  const [selectedGroupForMembers, setSelectedGroupForMembers] = useState<Group | null>(null);
   const [membersLoading, setMembersLoading] = useState<boolean>(false);
   const [isManagingMembers, setIsManagingMembers] = useState<boolean>(false);
 
@@ -174,8 +164,7 @@ export default function GroupsScreen() {
       console.error("Error fetching groups:", error);
       setNotification({
         message:
-          "Error fetching groups: " +
-          (error instanceof Error ? error.message : String(error)),
+          "Error fetching groups: " + (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -202,8 +191,7 @@ export default function GroupsScreen() {
 
       // Pre-populate selected members if this is a group created by current user
       if (groupData.created_by === currentUserId) {
-        const memberIds =
-          data?.map((member: GroupMember) => member.user_id) || [];
+        const memberIds = data?.map((member: GroupMember) => member.user_id) || [];
         setSelectedMembersForCreation(memberIds);
         setExistingMembers(memberIds);
         setSelectedGroupForAddingMembers(groupId);
@@ -308,20 +296,18 @@ export default function GroupsScreen() {
       const newGroupId = groupData[0].id;
 
       // Insert current user as admin into group_members
-      const { error: adminInsertError } = await supabase
-        .from("group_members")
-        .insert({
-          group_id: newGroupId,
-          user_id: userData.user.id,
-          role: "admin",
-        });
+      const { error: adminInsertError } = await supabase.from("group_members").insert({
+        group_id: newGroupId,
+        user_id: userData.user.id,
+        role: "admin",
+      });
       if (adminInsertError) throw adminInsertError;
 
       // Insert selected members (if any) as members
       if (selectedMembersForCreation.length > 0) {
         // Remove current user if accidentally included
         const filteredMembers = selectedMembersForCreation.filter(
-          (friendId) => friendId !== userData.user.id
+          (friendId) => friendId !== userData.user.id,
         );
         if (filteredMembers.length > 0) {
           const membersPayload = filteredMembers.map((friendId) => ({
@@ -345,9 +331,7 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error creating group:", error);
       setNotification({
-        message: `Error creating group: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error creating group: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -381,9 +365,7 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error updating group:", error);
       setNotification({
-        message: `Error updating group: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error updating group: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -393,10 +375,7 @@ export default function GroupsScreen() {
   const handleDeleteGroup = async () => {
     if (!editGroup) return;
     try {
-      const { error } = await supabase
-        .from("groups")
-        .delete()
-        .eq("id", editGroup.id);
+      const { error } = await supabase.from("groups").delete().eq("id", editGroup.id);
       if (error) throw error;
       setNotification({
         message: "Group deleted successfully!",
@@ -409,9 +388,7 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error deleting group:", error);
       setNotification({
-        message: `Error deleting group: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error deleting group: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -423,29 +400,26 @@ export default function GroupsScreen() {
 
     // Don't allow removing yourself if you're the admin
     const currentUserIsAdmin = selectedGroupMembers.some(
-      (member) => member.user_id === currentUserId && member.role === "admin"
+      (member) => member.user_id === currentUserId && member.role === "admin",
     );
 
     let processedSelectedMembers = [...selectedMembersForCreation];
 
     // If current user is admin, make sure they're in the selected list
-    if (
-      currentUserIsAdmin &&
-      !processedSelectedMembers.includes(currentUserId!)
-    ) {
+    if (currentUserIsAdmin && !processedSelectedMembers.includes(currentUserId!)) {
       processedSelectedMembers.push(currentUserId!);
     }
 
     // Compute friend IDs to add (in selectedMembersForCreation but not in existingMembers)
     const toAdd = processedSelectedMembers.filter(
-      (friendId) => !existingMembers.includes(friendId)
+      (friendId) => !existingMembers.includes(friendId),
     );
 
     // Compute friend IDs to remove (in existingMembers but not in selectedMembersForCreation)
     const toRemove = existingMembers.filter(
       (friendId) =>
         !processedSelectedMembers.includes(friendId) &&
-        !(friendId === currentUserId && currentUserIsAdmin) // Don't remove yourself if admin
+        !(friendId === currentUserId && currentUserIsAdmin), // Don't remove yourself if admin
     );
 
     try {
@@ -455,9 +429,7 @@ export default function GroupsScreen() {
           user_id: friendId,
           role: "member",
         }));
-        const { error: addError } = await supabase
-          .from("group_members")
-          .insert(addPayload);
+        const { error: addError } = await supabase.from("group_members").insert(addPayload);
         if (addError) throw addError;
       }
 
@@ -478,10 +450,7 @@ export default function GroupsScreen() {
 
       // Refresh the members list
       if (selectedGroupForMembers) {
-        fetchGroupMembers(
-          selectedGroupForAddingMembers,
-          selectedGroupForMembers
-        );
+        fetchGroupMembers(selectedGroupForAddingMembers, selectedGroupForMembers);
       }
 
       setShowFriendSelectionOverlay(false);
@@ -516,9 +485,7 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error leaving group:", error);
       setNotification({
-        message: `Error leaving group: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error leaving group: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -554,9 +521,7 @@ export default function GroupsScreen() {
   // Toggle friend selection in the friend selection overlay/modal.
   const toggleFriendSelectionHandler = (friendId: string) => {
     if (selectedMembersForCreation.includes(friendId)) {
-      setSelectedMembersForCreation(
-        selectedMembersForCreation.filter((id) => id !== friendId)
-      );
+      setSelectedMembersForCreation(selectedMembersForCreation.filter((id) => id !== friendId));
     } else {
       setSelectedMembersForCreation([...selectedMembersForCreation, friendId]);
     }
@@ -624,9 +589,7 @@ export default function GroupsScreen() {
           <Text style={styles.memberName}>
             {item.user?.first_name || ""} {item.user?.last_name || ""}
           </Text>
-          {item.user_id === currentUserId && (
-            <Text style={styles.currentUserTag}>(You)</Text>
-          )}
+          {item.user_id === currentUserId && <Text style={styles.currentUserTag}>(You)</Text>}
         </View>
 
         <View style={styles.memberActions}>
@@ -710,10 +673,7 @@ export default function GroupsScreen() {
   };
 
   return (
-    <ImageBackground
-      source={backgroundImageRequire}
-      style={styles.backgroundImage}
-    >
+    <ImageBackground source={backgroundImageRequire} style={styles.backgroundImage}>
       <View style={[styles.backgroundOverlay, { opacity: 0.7 }]} />
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
@@ -723,9 +683,7 @@ export default function GroupsScreen() {
           <View
             style={[
               styles.notification,
-              notification.type === "error"
-                ? styles.errorNotification
-                : styles.successNotification,
+              notification.type === "error" ? styles.errorNotification : styles.successNotification,
             ]}
           >
             <Text style={styles.notificationText}>{notification.message}</Text>
@@ -734,10 +692,7 @@ export default function GroupsScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.push("/community")}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push("/community")}>
             <Feather name="arrow-left" size={24} color="#FAC898" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Groups</Text>
@@ -761,9 +716,7 @@ export default function GroupsScreen() {
                   style={styles.emptyStateButton}
                   onPress={() => setShowCreateModal(true)}
                 >
-                  <Text style={styles.emptyStateButtonText}>
-                    Create a Group
-                  </Text>
+                  <Text style={styles.emptyStateButtonText}>Create a Group</Text>
                 </TouchableOpacity>
               </View>
             }
@@ -795,10 +748,7 @@ export default function GroupsScreen() {
               },
             ]}
           >
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              onPress={() => handleFabOption("create")}
-            >
+            <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("create")}>
               <Feather name="edit" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Create Group</Text>
             </TouchableOpacity>
@@ -820,9 +770,7 @@ export default function GroupsScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {selectedGroupForMembers?.name} Members
-                </Text>
+                <Text style={styles.modalTitle}>{selectedGroupForMembers?.name} Members</Text>
                 <View style={{ flexDirection: "row" }}>
                   {/* Only show manage/done button for group admins */}
                   {selectedGroupForMembers?.created_by === currentUserId && (
@@ -851,11 +799,7 @@ export default function GroupsScreen() {
               </View>
 
               {membersLoading ? (
-                <ActivityIndicator
-                  size="large"
-                  color="#FAC898"
-                  style={{ marginVertical: 20 }}
-                />
+                <ActivityIndicator size="large" color="#FAC898" style={{ marginVertical: 20 }} />
               ) : (
                 <>
                   <View style={styles.membersHeaderRow}>
@@ -865,15 +809,14 @@ export default function GroupsScreen() {
                     </Text>
 
                     {/* Show Add Members button when in managing mode */}
-                    {isManagingMembers &&
-                      selectedGroupForMembers?.created_by === currentUserId && (
-                        <TouchableOpacity
-                          style={styles.addMembersButton}
-                          onPress={() => setShowFriendSelectionOverlay(true)}
-                        >
-                          <Feather name="user-plus" size={16} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      )}
+                    {isManagingMembers && selectedGroupForMembers?.created_by === currentUserId && (
+                      <TouchableOpacity
+                        style={styles.addMembersButton}
+                        onPress={() => setShowFriendSelectionOverlay(true)}
+                      >
+                        <Feather name="user-plus" size={16} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   <FlatList
@@ -882,27 +825,22 @@ export default function GroupsScreen() {
                     renderItem={renderMemberItem}
                     contentContainerStyle={styles.membersList}
                     ListEmptyComponent={
-                      <Text style={styles.emptyMembersText}>
-                        No members found
-                      </Text>
+                      <Text style={styles.emptyMembersText}>No members found</Text>
                     }
                   />
 
                   {/* Save changes button when in managing mode */}
-                  {isManagingMembers &&
-                    selectedGroupForMembers?.created_by === currentUserId && (
-                      <TouchableOpacity
-                        style={styles.saveChangesButton}
-                        onPress={() => {
-                          handleUpdateGroupMembers();
-                          setIsManagingMembers(false);
-                        }}
-                      >
-                        <Text style={styles.saveChangesButtonText}>
-                          Save Changes
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                  {isManagingMembers && selectedGroupForMembers?.created_by === currentUserId && (
+                    <TouchableOpacity
+                      style={styles.saveChangesButton}
+                      onPress={() => {
+                        handleUpdateGroupMembers();
+                        setIsManagingMembers(false);
+                      }}
+                    >
+                      <Text style={styles.saveChangesButtonText}>Save Changes</Text>
+                    </TouchableOpacity>
+                  )}
 
                   {/* Friend Selection Overlay */}
                   {showFriendSelectionOverlay && (
@@ -911,17 +849,13 @@ export default function GroupsScreen() {
                       <FlatList
                         data={friends.filter(
                           (friend) =>
-                            !selectedGroupMembers.some(
-                              (member) => member.user_id === friend.id
-                            )
+                            !selectedGroupMembers.some((member) => member.user_id === friend.id),
                         )}
                         keyExtractor={(item) => item.id}
                         renderItem={renderFriendItem}
                         contentContainerStyle={{ maxHeight: 300 }}
                         ListEmptyComponent={
-                          <Text style={styles.emptyMembersText}>
-                            No friends to add
-                          </Text>
+                          <Text style={styles.emptyMembersText}>No friends to add</Text>
                         }
                       />
                       <View style={styles.modalActions}>
@@ -959,9 +893,7 @@ export default function GroupsScreen() {
                   <TextInput
                     style={styles.formInput}
                     value={newGroup.name}
-                    onChangeText={(text) =>
-                      setNewGroup({ ...newGroup, name: text })
-                    }
+                    onChangeText={(text) => setNewGroup({ ...newGroup, name: text })}
                     placeholder="Enter group name..."
                     placeholderTextColor="rgba(250, 200, 152, 0.5)"
                   />
@@ -971,9 +903,7 @@ export default function GroupsScreen() {
                   <TextInput
                     style={styles.formTextarea}
                     value={newGroup.description}
-                    onChangeText={(text) =>
-                      setNewGroup({ ...newGroup, description: text })
-                    }
+                    onChangeText={(text) => setNewGroup({ ...newGroup, description: text })}
                     placeholder="Enter group description..."
                     placeholderTextColor="rgba(250, 200, 152, 0.5)"
                     multiline
@@ -984,9 +914,7 @@ export default function GroupsScreen() {
                   <View style={styles.selectedMembersContainer}>
                     <Text style={styles.selectedMembersLabel}>Members:</Text>
                     <FlatList
-                      data={friends.filter((f) =>
-                        selectedMembersForCreation.includes(f.id)
-                      )}
+                      data={friends.filter((f) => selectedMembersForCreation.includes(f.id))}
                       keyExtractor={(item) => item.id}
                       renderItem={({ item }) => (
                         <Text style={styles.selectedMemberText}>
@@ -1006,26 +934,25 @@ export default function GroupsScreen() {
                 </TouchableOpacity>
 
                 {/* Friend Selection Overlay within Create Modal */}
-                {showFriendSelectionOverlay &&
-                  !selectedGroupForAddingMembers && (
-                    <View style={styles.friendSelectionOverlay}>
-                      <Text style={styles.modalTitle}>Select Members</Text>
-                      <FlatList
-                        data={friends}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderFriendItem}
-                        contentContainerStyle={{ maxHeight: 300 }}
-                      />
-                      <View style={styles.modalActions}>
-                        <TouchableOpacity
-                          style={styles.cancelButton}
-                          onPress={() => setShowFriendSelectionOverlay(false)}
-                        >
-                          <Text style={styles.cancelButtonText}>Done</Text>
-                        </TouchableOpacity>
-                      </View>
+                {showFriendSelectionOverlay && !selectedGroupForAddingMembers && (
+                  <View style={styles.friendSelectionOverlay}>
+                    <Text style={styles.modalTitle}>Select Members</Text>
+                    <FlatList
+                      data={friends}
+                      keyExtractor={(item) => item.id}
+                      renderItem={renderFriendItem}
+                      contentContainerStyle={{ maxHeight: 300 }}
+                    />
+                    <View style={styles.modalActions}>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => setShowFriendSelectionOverlay(false)}
+                      >
+                        <Text style={styles.cancelButtonText}>Done</Text>
+                      </TouchableOpacity>
                     </View>
-                  )}
+                  </View>
+                )}
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity
@@ -1034,10 +961,7 @@ export default function GroupsScreen() {
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.createButton}
-                    onPress={handleCreateGroup}
-                  >
+                  <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
                     <Text style={styles.createButtonText}>Create</Text>
                   </TouchableOpacity>
                 </View>
@@ -1070,9 +994,7 @@ export default function GroupsScreen() {
                     <TextInput
                       style={styles.formInput}
                       value={editGroup.name}
-                      onChangeText={(text) =>
-                        setEditGroup({ ...editGroup, name: text })
-                      }
+                      onChangeText={(text) => setEditGroup({ ...editGroup, name: text })}
                       placeholder="Enter group name..."
                       placeholderTextColor="rgba(250, 200, 152, 0.5)"
                     />
@@ -1082,9 +1004,7 @@ export default function GroupsScreen() {
                     <TextInput
                       style={styles.formTextarea}
                       value={editGroup.description}
-                      onChangeText={(text) =>
-                        setEditGroup({ ...editGroup, description: text })
-                      }
+                      onChangeText={(text) => setEditGroup({ ...editGroup, description: text })}
                       placeholder="Enter group description..."
                       placeholderTextColor="rgba(250, 200, 152, 0.5)"
                       multiline
@@ -1111,42 +1031,38 @@ export default function GroupsScreen() {
                       >
                         <Text style={styles.cancelButtonText}>Cancel</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.createButton}
-                        onPress={handleUpdateGroup}
-                      >
+                      <TouchableOpacity style={styles.createButton} onPress={handleUpdateGroup}>
                         <Text style={styles.createButtonText}>Save</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Friend Selection Overlay within Edit Modal for updating members */}
-                  {showFriendSelectionOverlay &&
-                    selectedGroupForAddingMembers && (
-                      <View style={styles.friendSelectionOverlay}>
-                        <Text style={styles.modalTitle}>Select Members</Text>
-                        <FlatList
-                          data={friends}
-                          keyExtractor={(item) => item.id}
-                          renderItem={renderFriendItem}
-                          contentContainerStyle={{ maxHeight: 300 }}
-                        />
-                        <View style={styles.modalActions}>
-                          <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={() => setShowFriendSelectionOverlay(false)}
-                          >
-                            <Text style={styles.cancelButtonText}>Done</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.createButton}
-                            onPress={handleUpdateGroupMembers}
-                          >
-                            <Text style={styles.createButtonText}>Save</Text>
-                          </TouchableOpacity>
-                        </View>
+                  {showFriendSelectionOverlay && selectedGroupForAddingMembers && (
+                    <View style={styles.friendSelectionOverlay}>
+                      <Text style={styles.modalTitle}>Select Members</Text>
+                      <FlatList
+                        data={friends}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderFriendItem}
+                        contentContainerStyle={{ maxHeight: 300 }}
+                      />
+                      <View style={styles.modalActions}>
+                        <TouchableOpacity
+                          style={styles.cancelButton}
+                          onPress={() => setShowFriendSelectionOverlay(false)}
+                        >
+                          <Text style={styles.cancelButtonText}>Done</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.createButton}
+                          onPress={handleUpdateGroupMembers}
+                        >
+                          <Text style={styles.createButtonText}>Save</Text>
+                        </TouchableOpacity>
                       </View>
-                    )}
+                    </View>
+                  )}
 
                   {/* Delete Confirmation Overlay inside Edit Modal */}
                   {showDeleteConfirmOverlay && (
@@ -1162,10 +1078,7 @@ export default function GroupsScreen() {
                           >
                             <Text style={styles.cancelButtonText}>Cancel</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={handleDeleteGroup}
-                          >
+                          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteGroup}>
                             <Text style={styles.deleteButtonText}>Delete</Text>
                           </TouchableOpacity>
                         </View>
@@ -1236,9 +1149,7 @@ export default function GroupsScreen() {
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Confirm Leave</Text>
-                <Text style={styles.modalText}>
-                  Are you sure you want to leave this group?
-                </Text>
+                <Text style={styles.modalText}>Are you sure you want to leave this group?</Text>
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={styles.cancelButton}

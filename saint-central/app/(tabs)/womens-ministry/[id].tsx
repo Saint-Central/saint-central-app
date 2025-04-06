@@ -8,12 +8,10 @@ import {
   Animated,
   ScrollView,
   ActivityIndicator,
-  Modal,
   Share,
   Platform,
   useWindowDimensions,
   SafeAreaView,
-  Pressable,
   StatusBar,
   TextInput,
   KeyboardAvoidingView,
@@ -48,8 +46,7 @@ interface Comment {
 
 const PostPage = () => {
   // Get iOS status bar height
-  const statusBarHeight =
-    Platform.OS === "ios" ? StatusBar.currentHeight || 44 : 0;
+  const statusBarHeight = Platform.OS === "ios" ? StatusBar.currentHeight || 44 : 0;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -86,7 +83,7 @@ const PostPage = () => {
     const listener = scrollY.addListener(({ value }) => {
       setPointerEventsEnabled(value > 100);
     });
-    
+
     return () => {
       scrollY.removeListener(listener);
     };
@@ -104,7 +101,7 @@ const PostPage = () => {
     async function initialize() {
       try {
         setIsLoading(true);
-        
+
         // Get user session first
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData?.session?.user?.id;
@@ -117,11 +114,11 @@ const PostPage = () => {
             .select("first_name, last_name")
             .eq("id", userId)
             .single();
-            
-          const fullName = userData 
-            ? `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+
+          const fullName = userData
+            ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
             : "Anonymous";
-            
+
           setCurrentUserName(fullName || "Anonymous");
         }
 
@@ -146,7 +143,7 @@ const PostPage = () => {
             category,
             author_name,
             user_id
-          `
+          `,
           )
           .eq("post_id", numericId)
           .single();
@@ -198,7 +195,7 @@ const PostPage = () => {
         .eq("likeable_type", "womens_ministry_post");
 
       if (error) throw error;
-      
+
       setLikeCount(count || 0);
 
       // Check if current user liked the post
@@ -212,7 +209,7 @@ const PostPage = () => {
           .maybeSingle();
 
         if (likedError) throw likedError;
-        
+
         setIsLiked(!!data);
       }
     } catch (err) {
@@ -225,12 +222,14 @@ const PostPage = () => {
     try {
       const { data, error } = await supabase
         .from("comments")
-        .select(`
+        .select(
+          `
           id,
           content,
           created_at,
           user_id
-        `)
+        `,
+        )
         .eq("commentable_id", postId)
         .eq("commentable_type", "womens_ministry_post")
         .order("created_at", { ascending: false });
@@ -247,9 +246,9 @@ const PostPage = () => {
             .select("first_name, last_name")
             .eq("id", comment.user_id)
             .single();
-            
+
           if (userData) {
-            authorName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim();
+            authorName = `${userData.first_name || ""} ${userData.last_name || ""}`.trim();
             if (!authorName) authorName = "Anonymous";
           }
         }
@@ -292,7 +291,7 @@ const PostPage = () => {
           .eq("user_id", currentUserId);
 
         if (error) throw error;
-        
+
         setIsLiked(false);
         setLikeCount((prev) => Math.max(0, prev - 1));
       } else {
@@ -305,7 +304,7 @@ const PostPage = () => {
         });
 
         if (error) throw error;
-        
+
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
       }
@@ -331,13 +330,16 @@ const PostPage = () => {
       setIsSubmittingComment(true);
       Keyboard.dismiss();
 
-      const { data, error } = await supabase.from("comments").insert({
-        user_id: currentUserId,
-        commentable_id: post?.id,
-        commentable_type: "womens_ministry_post",
-        content: newComment.trim(),
-        created_at: new Date().toISOString(),
-      }).select();
+      const { data, error } = await supabase
+        .from("comments")
+        .insert({
+          user_id: currentUserId,
+          commentable_id: post?.id,
+          commentable_type: "womens_ministry_post",
+          content: newComment.trim(),
+          created_at: new Date().toISOString(),
+        })
+        .select();
 
       if (error) throw error;
 
@@ -357,10 +359,10 @@ const PostPage = () => {
       setComments([newCommentObj, ...comments]);
       setNewComment("");
       setIsCommenting(false);
-      
+
       // Force layout update after comment submission
       setTimeout(() => {
-        setForceUpdate(prev => prev + 1);
+        setForceUpdate((prev) => prev + 1);
       }, 100);
     } catch (err) {
       console.error("Error submitting comment:", err);
@@ -373,13 +375,10 @@ const PostPage = () => {
   // Delete a comment
   const deleteComment = async (commentId: number) => {
     try {
-      const { error } = await supabase
-        .from("comments")
-        .delete()
-        .eq("id", commentId);
+      const { error } = await supabase.from("comments").delete().eq("id", commentId);
 
       if (error) throw error;
-      
+
       // Remove the comment from the list
       setComments(comments.filter((comment) => comment.id !== commentId));
     } catch (err) {
@@ -395,7 +394,7 @@ const PostPage = () => {
       if (!showComments) {
         setShowComments(true);
       }
-      
+
       // Use a timeout to ensure the comments section is rendered before scrolling
       setTimeout(() => {
         if (scrollViewRef.current) {
@@ -414,32 +413,26 @@ const PostPage = () => {
 
   // Handle app state changes and keyboard appearance
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
       // When app returns to active state from background
-      if (appState.current === 'background' && nextAppState === 'active') {
+      if (appState.current === "background" && nextAppState === "active") {
         // Force layout update with slight delay
         setTimeout(() => {
-          setForceUpdate(prev => prev + 1);
+          setForceUpdate((prev) => prev + 1);
         }, 300);
       }
-      
+
       appState.current = nextAppState;
     });
-    
+
     // Add keyboard listeners to adjust layout
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        setForceUpdate(prev => prev + 1);
-      }
-    );
-    
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => {
-        setForceUpdate(prev => prev + 1);
-      }
-    );
+    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow", () => {
+      setForceUpdate((prev) => prev + 1);
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide", () => {
+      setForceUpdate((prev) => prev + 1);
+    });
 
     return () => {
       subscription.remove();
@@ -452,13 +445,13 @@ const PostPage = () => {
   const onShare = async () => {
     try {
       if (!post) return;
-      
+
       // Create a deep link URL for the app
-      const appDeepLink = `saintcentral://womens-ministry/posts/${post.id}?title=${encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, '-'))}`;
-      const webFallbackUrl = `https://www.saint-central.com/womens-ministry/posts/${post.id}?title=${encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, '-'))}`;
-      
+      const appDeepLink = `saintcentral://womens-ministry/posts/${post.id}?title=${encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, "-"))}`;
+      const webFallbackUrl = `https://www.saint-central.com/womens-ministry/posts/${post.id}?title=${encodeURIComponent(post.title.toLowerCase().replace(/\s+/g, "-"))}`;
+
       const excerpt = post.excerpt.replace(/<[^>]*>?/gm, "");
-      
+
       await Share.share({
         message: `${post.title}`,
         url: webFallbackUrl, // iOS only
@@ -664,21 +657,14 @@ const PostPage = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.centered}>
-          <Feather
-            name="alert-circle"
-            size={40}
-            color="#2C4B9B"
-            style={styles.errorIcon}
-          />
+          <Feather name="alert-circle" size={40} color="#2C4B9B" style={styles.errorIcon} />
           <Text style={styles.errorText}>{error || "Post not found"}</Text>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.push("../womens-ministry")}
           >
             <Feather name="chevron-left" size={16} color="#FFFFFF" />
-            <Text style={styles.backButtonText}>
-              Return to Womens Ministry Articles
-            </Text>
+            <Text style={styles.backButtonText}>Return to Womens Ministry Articles</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -697,10 +683,9 @@ const PostPage = () => {
     extrapolate: "clamp",
   });
 
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false }
-  );
+  const onScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: false,
+  });
 
   return (
     <KeyboardAvoidingView
@@ -784,11 +769,7 @@ const PostPage = () => {
                 onPress={toggleLike}
                 activeOpacity={0.8}
               >
-                <Feather
-                  name="heart"
-                  size={14}
-                  color={isLiked ? "#FFFFFF" : "#2C4B9B"}
-                />
+                <Feather name="heart" size={14} color={isLiked ? "#FFFFFF" : "#2C4B9B"} />
                 {likeCount > 0 && (
                   <Text
                     style={[
@@ -819,7 +800,9 @@ const PostPage = () => {
                   <Text
                     style={[
                       styles.counterText,
-                      showComments ? styles.commentButtonActiveText : styles.commentButtonInactiveText,
+                      showComments
+                        ? styles.commentButtonActiveText
+                        : styles.commentButtonInactiveText,
                     ]}
                   >
                     {comments.length}
@@ -828,11 +811,7 @@ const PostPage = () => {
               </TouchableOpacity>
 
               {/* Share button */}
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={onShare}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.actionButton} onPress={onShare} activeOpacity={0.8}>
                 <Feather name="share-2" size={14} color="#2C4B9B" />
               </TouchableOpacity>
             </View>
@@ -868,7 +847,7 @@ const PostPage = () => {
           scrollEventThrottle={16}
           contentContainerStyle={[
             styles.scrollViewContent,
-            { paddingBottom: Platform.OS === 'ios' ? 160 : 140 } // Extra padding for controls
+            { paddingBottom: Platform.OS === "ios" ? 160 : 140 }, // Extra padding for controls
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -884,12 +863,7 @@ const PostPage = () => {
 
           {/* Hero Image with scale effect */}
           {post.image ? (
-            <Animated.View
-              style={[
-                styles.imageContainer,
-                { transform: [{ scale: imageScale }] },
-              ]}
-            >
+            <Animated.View style={[styles.imageContainer, { transform: [{ scale: imageScale }] }]}>
               <Image source={{ uri: post.image }} style={styles.postImage} />
               <View style={styles.imageDimOverlay} />
             </Animated.View>
@@ -942,9 +916,7 @@ const PostPage = () => {
                   onError={(syntheticEvent) => {
                     console.error("WebView error: ", syntheticEvent.nativeEvent);
                   }}
-                  renderLoading={() => (
-                    <ActivityIndicator size="small" color="#2C4B9B" />
-                  )}
+                  renderLoading={() => <ActivityIndicator size="small" color="#2C4B9B" />}
                   startInLoadingState={true}
                   backgroundColor="transparent"
                   dataDetectorTypes="none"
@@ -956,7 +928,7 @@ const PostPage = () => {
                 />
               </View>
             </View>
-            
+
             {/* Comments section */}
             {showComments && (
               <View style={styles.commentsSection} ref={commentsRef}>
@@ -1055,7 +1027,7 @@ const PostPage = () => {
                                     style: "destructive",
                                     onPress: () => deleteComment(comment.id),
                                   },
-                                ]
+                                ],
                               );
                             }}
                             style={styles.deleteCommentButton}
@@ -1139,39 +1111,39 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 32,
   },
-  
+
   // Sticky Action Bar
   stickyActionBar: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? (StatusBar.currentHeight || 44) + 60 : 60, // Position below header
+    position: "absolute",
+    top: Platform.OS === "ios" ? (StatusBar.currentHeight || 44) + 60 : 60, // Position below header
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(242, 230, 194, 0.95)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(242, 230, 194, 0.95)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
     paddingVertical: 6,
     paddingHorizontal: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 5,
     zIndex: 9,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(44, 75, 155, 0.2)',
+    borderBottomColor: "rgba(44, 75, 155, 0.2)",
   },
-  
+
   actionBarContent: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
   mainActionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
-  
+
   // Action buttons
   actionButton: {
     width: 32,
@@ -1183,13 +1155,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     backgroundColor: "#C8B568", // Gold for women's ministry
   },
-  
+
   counterText: {
     fontSize: 11,
     fontWeight: "700",
     marginLeft: 3,
   },
-  
+
   // Like button styles
   likeButtonActive: {
     backgroundColor: "#FF6B6B", // Red for active
@@ -1207,7 +1179,7 @@ const styles = StyleSheet.create({
   likeButtonInactiveText: {
     color: "#2C4B9B", // Marian blue
   },
-  
+
   // Comment button styles
   commentButtonActive: {
     backgroundColor: "#4A90E2", // Blue for active
@@ -1225,35 +1197,35 @@ const styles = StyleSheet.create({
   commentButtonInactiveText: {
     color: "#2C4B9B", // Marian blue
   },
-  
+
   // Updated font size control styles
-fontSizeControls: {
-  flexDirection: "row",
-  alignItems: "center",
-  backgroundColor: "rgba(44, 75, 155, 0.1)",
-  borderRadius: 16,
-  padding: 2,
-  marginLeft: 8,
-  borderColor: "rgba(44, 75, 155, 0.3)",
-  borderWidth: 1,
-},
-fontSizeButton: {
-  backgroundColor: "#C8B568", // Changed from #2C4B9B to gold color to match other buttons
-  width: 24,
-  height: 24,
-  borderRadius: 12,
-  alignItems: "center",
-  justifyContent: "center",
-},
-fontSizeDisplay: {
-  paddingHorizontal: 6,
-},
-fontSizeText: {
-  color: "#2C4B9B", // Marian blue
-  fontWeight: "bold",
-  fontSize: 12,
-},
-  
+  fontSizeControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(44, 75, 155, 0.1)",
+    borderRadius: 16,
+    padding: 2,
+    marginLeft: 8,
+    borderColor: "rgba(44, 75, 155, 0.3)",
+    borderWidth: 1,
+  },
+  fontSizeButton: {
+    backgroundColor: "#C8B568", // Changed from #2C4B9B to gold color to match other buttons
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fontSizeDisplay: {
+    paddingHorizontal: 6,
+  },
+  fontSizeText: {
+    color: "#2C4B9B", // Marian blue
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+
   // Post content styles
   imageContainer: {
     width: "100%",
@@ -1337,7 +1309,7 @@ fontSizeText: {
   webView: {
     backgroundColor: "transparent",
   },
-  
+
   // Back button styles
   backButtonAbsolute: {
     position: "absolute",
@@ -1379,7 +1351,7 @@ fontSizeText: {
     fontWeight: "600",
     fontSize: 15,
   },
-  
+
   // Loading and error states
   centered: {
     flex: 1,
@@ -1402,7 +1374,7 @@ fontSizeText: {
     marginTop: 12,
     fontSize: 16,
   },
-  
+
   // Comments section styles
   commentsSection: {
     marginTop: 16,
@@ -1576,7 +1548,7 @@ fontSizeText: {
     fontStyle: "italic",
     marginTop: 10,
     fontSize: 15,
-  }
+  },
 });
 
 export default PostPage;

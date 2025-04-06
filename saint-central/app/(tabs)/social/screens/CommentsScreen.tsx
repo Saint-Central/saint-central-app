@@ -10,7 +10,6 @@ import {
   StatusBar,
   ActivityIndicator,
   Keyboard,
-  TouchableWithoutFeedback,
   Animated,
   Platform,
   RefreshControl,
@@ -57,15 +56,13 @@ const CommentsScreen = () => {
       return () => {
         // Optional cleanup if needed
       };
-    }, [])
+    }, []),
   );
 
   // Reduced navBarOffset to place the comment box right above the Expo nav bar
   const navBarOffset = 50;
   // When keyboard is hidden, the bottom value will be safe area inset + navBarOffset.
-  const commentBoxBottom = useRef(
-    new Animated.Value(insets.bottom + navBarOffset)
-  ).current;
+  const commentBoxBottom = useRef(new Animated.Value(insets.bottom + navBarOffset)).current;
 
   // Parse the post data from params.
   let post: Post;
@@ -75,10 +72,7 @@ const CommentsScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.push("../")}
-            style={styles.backButton}
-          >
+          <TouchableOpacity onPress={() => router.push("../")} style={styles.backButton}>
             <Feather name="arrow-left" size={24} color="#1DA1F2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Comments</Text>
@@ -86,10 +80,7 @@ const CommentsScreen = () => {
         </View>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error loading comments</Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.errorButton}
-          >
+          <TouchableOpacity onPress={() => router.back()} style={styles.errorButton}>
             <Text style={styles.errorButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -104,10 +95,8 @@ const CommentsScreen = () => {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const keyboardShowListener = Keyboard.addListener(showEvent, (e) => {
       setKeyboardVisible(true);
@@ -243,9 +232,7 @@ const CommentsScreen = () => {
               <Text style={styles.postAuthor}>
                 {post.user.first_name} {post.user.last_name}
               </Text>
-              <Text style={styles.username}>
-                @{post.user.first_name.toLowerCase()}
-              </Text>
+              <Text style={styles.username}>@{post.user.first_name.toLowerCase()}</Text>
             </View>
             <Text style={styles.postTime}>{formattedDate}</Text>
           </View>
@@ -279,12 +266,8 @@ const CommentsScreen = () => {
           <Text style={styles.commentAuthor}>
             {item.user.first_name} {item.user.last_name}
           </Text>
-          <Text style={styles.commentUsername}>
-            @{item.user.first_name.toLowerCase()}
-          </Text>
-          <Text style={styles.commentTime}>
-            {formatDateTime(item.created_at)}
-          </Text>
+          <Text style={styles.commentUsername}>@{item.user.first_name.toLowerCase()}</Text>
+          <Text style={styles.commentTime}>{formatDateTime(item.created_at)}</Text>
         </View>
         <Text style={styles.commentText}>{item.content}</Text>
       </View>
@@ -326,10 +309,7 @@ const CommentsScreen = () => {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={handleBackNavigation}
-            style={styles.backButton}
-          >
+          <TouchableOpacity onPress={handleBackNavigation} style={styles.backButton}>
             <Feather name="arrow-left" size={24} color="#1DA1F2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Comments</Text>
@@ -349,10 +329,7 @@ const CommentsScreen = () => {
               keyExtractor={(item) => item.id}
               ListHeaderComponent={renderPostHeader}
               style={styles.commentsList}
-              contentContainerStyle={[
-                styles.commentsListContent,
-                { paddingBottom: 120 },
-              ]}
+              contentContainerStyle={[styles.commentsListContent, { paddingBottom: 120 }]}
               showsVerticalScrollIndicator={true}
               scrollEnabled={true}
               refreshControl={
@@ -367,23 +344,16 @@ const CommentsScreen = () => {
                 <View style={styles.emptyContainer}>
                   <Feather name="message-circle" size={32} color="#657786" />
                   <Text style={styles.emptyText}>No comments yet</Text>
-                  <Text style={styles.emptySubText}>
-                    Be the first to comment!
-                  </Text>
+                  <Text style={styles.emptySubText}>Be the first to comment!</Text>
                 </View>
               }
             />
           )}
         </View>
 
-        <Animated.View
-          style={[styles.inputContainer, { bottom: commentBoxBottom }]}
-        >
+        <Animated.View style={[styles.inputContainer, { bottom: commentBoxBottom }]}>
           {keyboardVisible && (
-            <TouchableOpacity
-              style={styles.closeKeyboardButton}
-              onPress={dismissKeyboard}
-            >
+            <TouchableOpacity style={styles.closeKeyboardButton} onPress={dismissKeyboard}>
               <Feather name="x" size={20} color="#657786" />
             </TouchableOpacity>
           )}
@@ -403,18 +373,11 @@ const CommentsScreen = () => {
             </View>
           ) : (
             <TouchableOpacity
-              style={[
-                styles.sendButton,
-                newComment.trim() ? styles.sendButtonActive : {},
-              ]}
+              style={[styles.sendButton, newComment.trim() ? styles.sendButtonActive : {}]}
               onPress={handleAddComment}
               disabled={!newComment.trim()}
             >
-              <Feather
-                name="send"
-                size={18}
-                color={newComment.trim() ? "#1DA1F2" : "#657786"}
-              />
+              <Feather name="send" size={18} color={newComment.trim() ? "#1DA1F2" : "#657786"} />
             </TouchableOpacity>
           )}
         </Animated.View>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,33 +8,24 @@ import {
   ScrollView,
   FlatList,
   Dimensions,
-  Animated,
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { AntDesign, FontAwesome5, Feather, Ionicons } from "@expo/vector-icons";
+import { AntDesign, FontAwesome5, Feather } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
-import { useCallback } from "react";
-import { createClient } from '@supabase/supabase-js';
-import 'react-native-url-polyfill/auto';
+import { createClient } from "@supabase/supabase-js";
+import "react-native-url-polyfill/auto";
 
 // Initialize Supabase client (replace with your Supabase URL and anon key)
-const supabaseUrl = 'https://lzbpsqmtvkimwqmakurg.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6YnBzcW10dmtpbXdxbWFrdXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyMjMxMDQsImV4cCI6MjA1MTc5OTEwNH0.BPMjXAHWqCBVsyklRG3OToXLGAMy346xMIkCR4Sc-YY';
+const supabaseUrl = "https://lzbpsqmtvkimwqmakurg.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6YnBzcW10dmtpbXdxbWFrdXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyMjMxMDQsImV4cCI6MjA1MTc5OTEwNH0.BPMjXAHWqCBVsyklRG3OToXLGAMy346xMIkCR4Sc-YY";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const { width, height } = Dimensions.get("window");
-
-// Mystery types
-const MYSTERY_TYPES = {
-  JOYFUL: "Joyful Mysteries",
-  SORROWFUL: "Sorrowful Mysteries",
-  GLORIOUS: "Glorious Mysteries",
-  LUMINOUS: "Luminous Mysteries",
-};
+const { width } = Dimensions.get("window");
 
 // Get mystery theme color
 const getMysteryTheme = (mysteryKey) => {
@@ -50,7 +41,7 @@ const getMysteryTheme = (mysteryKey) => {
       };
     case "SORROWFUL":
       return {
-        primary: "#FF4757", 
+        primary: "#FF4757",
         secondary: "#D63031",
         accent: "#FFE9EB",
         gradientStart: "#FF4757",
@@ -90,20 +81,20 @@ const getMysteryTheme = (mysteryKey) => {
 // Format date for display
 const formatDate = (dateString) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric',
-    weekday: 'short'
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    weekday: "short",
   });
 };
 
 // Format time for display
 const formatTime = (dateString) => {
   const date = new Date(dateString);
-  return date.toLocaleTimeString(undefined, { 
-    hour: '2-digit', 
-    minute: '2-digit'
+  return date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -122,11 +113,11 @@ const isSameDay = (date1, date2) => {
 const isConsecutiveDay = (date1, date2) => {
   const d1 = new Date(date1);
   const d2 = new Date(date2);
-  
+
   // Set to midnight to compare just the dates
   d1.setHours(0, 0, 0, 0);
   d2.setHours(0, 0, 0, 0);
-  
+
   // Check if d2 is one day after d1
   const oneDayInMs = 24 * 60 * 60 * 1000;
   return d2.getTime() - d1.getTime() === oneDayInMs;
@@ -136,7 +127,7 @@ export default function PrayerStatistics() {
   const router = useRouter();
   const theme = getMysteryTheme("GLORIOUS"); // Default theme
   const scrollViewRef = useRef(null);
-  
+
   // State management
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("stats"); // "stats" or "history"
@@ -150,11 +141,11 @@ export default function PrayerStatistics() {
   const [totalPrayerTime, setTotalPrayerTime] = useState(0);
   const [weeklyData, setWeeklyData] = useState({
     labels: [],
-    datasets: [{ data: [] }]
+    datasets: [{ data: [] }],
   });
   const [monthlyData, setMonthlyData] = useState({
     labels: [],
-    datasets: [{ data: [] }]
+    datasets: [{ data: [] }],
   });
   const [mysteryDistribution, setMysteryDistribution] = useState([]);
   const [streakData, setStreakData] = useState([]);
@@ -162,25 +153,25 @@ export default function PrayerStatistics() {
   const [showDataPointInfo, setShowDataPointInfo] = useState(false);
   const [isUsingSupabase, setIsUsingSupabase] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
-  
+
   // Load prayer data on mount and when screen comes into focus
   useEffect(() => {
     checkDataSource();
   }, []);
-  
+
   // Using useFocusEffect instead of router.addListener
   useFocusEffect(
     useCallback(() => {
       checkForNewPrayers();
       return () => {}; // Cleanup function if needed
-    }, [])
+    }, []),
   );
-  
+
   // Check data source (Supabase or AsyncStorage)
   const checkDataSource = async () => {
     try {
-      const dataSource = await AsyncStorage.getItem('prayerDataSource');
-      if (dataSource === 'supabase') {
+      const dataSource = await AsyncStorage.getItem("prayerDataSource");
+      if (dataSource === "supabase") {
         setIsUsingSupabase(true);
         loadPrayerDataFromSupabase();
       } else {
@@ -194,43 +185,43 @@ export default function PrayerStatistics() {
       loadPrayerDataFromAsyncStorage();
     }
   };
-  
+
   // Update filtered history when filters change
   useEffect(() => {
     if (prayerHistory.length === 0) return;
-    
+
     let filtered = [...prayerHistory];
-    
+
     // Apply time range filter
     const now = new Date();
     if (timeRange === "week") {
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter(item => new Date(item.date) >= oneWeekAgo);
+      filtered = filtered.filter((item) => new Date(item.date) >= oneWeekAgo);
     } else if (timeRange === "month") {
       const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      filtered = filtered.filter(item => new Date(item.date) >= oneMonthAgo);
+      filtered = filtered.filter((item) => new Date(item.date) >= oneMonthAgo);
     } else if (timeRange === "year") {
       const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-      filtered = filtered.filter(item => new Date(item.date) >= oneYearAgo);
+      filtered = filtered.filter((item) => new Date(item.date) >= oneYearAgo);
     }
-    
+
     // Apply mystery filter
     if (mysteryFilter) {
-      filtered = filtered.filter(item => item.mysteryKey === mysteryFilter);
+      filtered = filtered.filter((item) => item.mysteryKey === mysteryFilter);
     }
-    
+
     setFilteredHistory(filtered);
   }, [prayerHistory, timeRange, mysteryFilter]);
-  
+
   // Check for new prayers
   const checkForNewPrayers = async () => {
     try {
       // Check for a flag indicating a new prayer was completed
-      const newPrayerFlag = await AsyncStorage.getItem('newPrayerCompleted');
-      if (newPrayerFlag === 'true') {
+      const newPrayerFlag = await AsyncStorage.getItem("newPrayerCompleted");
+      if (newPrayerFlag === "true") {
         // Reset the flag
-        await AsyncStorage.setItem('newPrayerCompleted', 'false');
-        
+        await AsyncStorage.setItem("newPrayerCompleted", "false");
+
         // Reload prayer data from the appropriate source
         if (isUsingSupabase) {
           loadPrayerDataFromSupabase();
@@ -242,7 +233,7 @@ export default function PrayerStatistics() {
       console.error("Failed to check for new prayers:", error);
     }
   };
-  
+
   // Save a prayer session to the appropriate source
   const savePrayerSession = async (mysteryKey, mysteryType, duration) => {
     try {
@@ -252,59 +243,63 @@ export default function PrayerStatistics() {
         mysteryType,
         duration,
       };
-      
+
       if (isUsingSupabase) {
         // Save to Supabase
-        const { data: { user } } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!user) {
           console.error("User not authenticated");
           return;
         }
-        
-        const { data, error } = await supabase
-          .from('prayer_sessions')
-          .insert({
-            user_id: user.id,
-            date: prayerSession.date,
-            mystery_key: prayerSession.mysteryKey,
-            mystery_type: prayerSession.mysteryType,
-            duration: prayerSession.duration || 0,
-          });
-          
+
+        const { data, error } = await supabase.from("prayer_sessions").insert({
+          user_id: user.id,
+          date: prayerSession.date,
+          mystery_key: prayerSession.mysteryKey,
+          mystery_type: prayerSession.mysteryType,
+          duration: prayerSession.duration || 0,
+        });
+
         if (error) {
           console.error("Error saving prayer session to Supabase:", error);
         }
       } else {
         // Save to AsyncStorage
-        const history = await AsyncStorage.getItem('prayerHistory');
+        const history = await AsyncStorage.getItem("prayerHistory");
         let prayerHistoryData = history ? JSON.parse(history) : [];
-        
+
         // Add new session
         prayerHistoryData.push(prayerSession);
-        
+
         // Save updated history
-        await AsyncStorage.setItem('prayerHistory', JSON.stringify(prayerHistoryData));
-        
+        await AsyncStorage.setItem("prayerHistory", JSON.stringify(prayerHistoryData));
+
         // Update statistics
-        const prayerStats = await AsyncStorage.getItem('prayerStatistics');
-        let stats = prayerStats ? JSON.parse(prayerStats) : {
-          streakDays: 0,
-          longestStreak: 0,
-          totalPrayers: 0,
-          totalPrayerTime: 0,
-          streakHistory: [],
-          lastPrayerDate: null,
-        };
-        
+        const prayerStats = await AsyncStorage.getItem("prayerStatistics");
+        let stats = prayerStats
+          ? JSON.parse(prayerStats)
+          : {
+              streakDays: 0,
+              longestStreak: 0,
+              totalPrayers: 0,
+              totalPrayerTime: 0,
+              streakHistory: [],
+              lastPrayerDate: null,
+            };
+
         // Update total counts
         stats.totalPrayers += 1;
-        stats.totalPrayerTime += (prayerSession.duration || 0);
-        
+        stats.totalPrayerTime += prayerSession.duration || 0;
+
         // Calculate streak
         const today = new Date().setHours(0, 0, 0, 0);
-        const lastPrayerDate = stats.lastPrayerDate ? new Date(stats.lastPrayerDate).setHours(0, 0, 0, 0) : null;
-        
+        const lastPrayerDate = stats.lastPrayerDate
+          ? new Date(stats.lastPrayerDate).setHours(0, 0, 0, 0)
+          : null;
+
         if (!lastPrayerDate || lastPrayerDate < today) {
           if (lastPrayerDate && isConsecutiveDay(lastPrayerDate, today)) {
             // Consecutive day
@@ -313,38 +308,37 @@ export default function PrayerStatistics() {
             // Not consecutive, reset streak to 1
             stats.streakDays = 1;
           }
-          
+
           // Update longest streak
           stats.longestStreak = Math.max(stats.longestStreak, stats.streakDays);
-          
+
           // Update streak history
           stats.streakHistory.push(stats.streakDays);
-          
+
           // Update last prayer date
           stats.lastPrayerDate = new Date().toISOString();
         }
-        
+
         // Save updated stats
-        await AsyncStorage.setItem('prayerStatistics', JSON.stringify(stats));
+        await AsyncStorage.setItem("prayerStatistics", JSON.stringify(stats));
       }
-      
+
       // Set flag that a new prayer was completed (used by other screens)
-      await AsyncStorage.setItem('newPrayerCompleted', 'true');
-      
+      await AsyncStorage.setItem("newPrayerCompleted", "true");
     } catch (error) {
       console.error("Failed to save prayer session:", error);
     }
   };
-  
+
   // Load prayer data from AsyncStorage
   const loadPrayerDataFromAsyncStorage = async () => {
     try {
       setIsLoading(true);
-      
+
       // Load prayer history
-      const history = await AsyncStorage.getItem('prayerHistory');
+      const history = await AsyncStorage.getItem("prayerHistory");
       let prayerHistoryData = [];
-      
+
       if (history) {
         prayerHistoryData = JSON.parse(history);
         // Sort by date, newest first
@@ -352,150 +346,159 @@ export default function PrayerStatistics() {
         setPrayerHistory(prayerHistoryData);
         setFilteredHistory(prayerHistoryData);
       }
-      
+
       // Load prayer statistics
-      const prayerStats = await AsyncStorage.getItem('prayerStatistics');
+      const prayerStats = await AsyncStorage.getItem("prayerStatistics");
       if (prayerStats) {
         const stats = JSON.parse(prayerStats);
         if (stats.streakDays) setStreakDays(stats.streakDays);
         if (stats.longestStreak) setLongestStreak(stats.longestStreak);
         if (stats.totalPrayers) setTotalPrayers(stats.totalPrayers);
         if (stats.totalPrayerTime) setTotalPrayerTime(stats.totalPrayerTime);
-        
+
         // Set streak data for the bar graph
         if (stats.streakHistory) {
           setStreakData(stats.streakHistory);
         }
       }
-      
+
       // Generate chart data
       generateChartData(prayerHistoryData);
-      
+
       setIsLoading(false);
     } catch (error) {
       console.error("Failed to load prayer data from AsyncStorage:", error);
       setIsLoading(false);
     }
   };
-  
+
   // Load prayer data from Supabase
   const loadPrayerDataFromSupabase = async () => {
     try {
       setIsLoading(true);
-      
+
       // Get current user ID
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         console.error("User not authenticated");
         setIsLoading(false);
         return;
       }
-      
+
       // Load prayer history from Supabase
       const { data: prayerHistoryData, error: historyError } = await supabase
-        .from('prayer_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false });
-        
+        .from("prayer_sessions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false });
+
       if (historyError) {
         console.error("Failed to load prayer history from Supabase:", historyError);
       } else if (prayerHistoryData) {
         // Map Supabase fields to app fields if needed
-        const mappedData = prayerHistoryData.map(item => ({
+        const mappedData = prayerHistoryData.map((item) => ({
           date: item.date,
           mysteryKey: item.mystery_key,
           mysteryType: item.mystery_type,
           duration: item.duration,
         }));
-        
+
         setPrayerHistory(mappedData);
         setFilteredHistory(mappedData);
       }
-      
+
       // Load prayer statistics from Supabase
       const { data: statsData, error: statsError } = await supabase
-        .from('prayer_statistics')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("prayer_statistics")
+        .select("*")
+        .eq("user_id", user.id)
         .single();
-        
-      if (statsError && statsError.code !== 'PGRST116') { // Not found error
+
+      if (statsError && statsError.code !== "PGRST116") {
+        // Not found error
         console.error("Failed to load prayer statistics from Supabase:", statsError);
       } else if (statsData) {
         setStreakDays(statsData.streak_days || 0);
         setLongestStreak(statsData.longest_streak || 0);
         setTotalPrayers(statsData.total_prayers || 0);
         setTotalPrayerTime(statsData.total_prayer_time || 0);
-        
+
         if (statsData.streak_history) {
           // Parse streak history from JSONB if needed
-          const parsedStreakData = typeof statsData.streak_history === 'string' 
-            ? JSON.parse(statsData.streak_history) 
-            : statsData.streak_history;
+          const parsedStreakData =
+            typeof statsData.streak_history === "string"
+              ? JSON.parse(statsData.streak_history)
+              : statsData.streak_history;
           setStreakData(parsedStreakData);
         }
       }
-      
+
       // Generate chart data
       if (prayerHistoryData) {
-        generateChartData(prayerHistoryData.map(item => ({
-          date: item.date,
-          mysteryKey: item.mystery_key,
-          mysteryType: item.mystery_type,
-          duration: item.duration,
-        })));
+        generateChartData(
+          prayerHistoryData.map((item) => ({
+            date: item.date,
+            mysteryKey: item.mystery_key,
+            mysteryType: item.mystery_type,
+            duration: item.duration,
+          })),
+        );
       }
-      
+
       setIsLoading(false);
     } catch (error) {
       console.error("Failed to load prayer data from Supabase:", error);
       setIsLoading(false);
     }
   };
-  
+
   // Migrate data from AsyncStorage to Supabase
   const migrateToSupabase = async () => {
     try {
       setIsMigrating(true);
-      
+
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert("Authentication Required", "Please log in to sync your data to the cloud.");
         setIsMigrating(false);
         return;
       }
-      
+
       // Load prayer history from AsyncStorage
-      const history = await AsyncStorage.getItem('prayerHistory');
+      const history = await AsyncStorage.getItem("prayerHistory");
       if (history) {
         const prayerHistoryData = JSON.parse(history);
-        
+
         // Insert each prayer session into Supabase
         for (const session of prayerHistoryData) {
-          const { data, error } = await supabase
-            .from('prayer_sessions')
-            .insert({
-              user_id: user.id,
-              date: new Date(session.date).toISOString(),
-              mystery_key: session.mysteryKey,
-              mystery_type: session.mysteryType,
-              duration: session.duration || 0,
-            });
-            
+          const { data, error } = await supabase.from("prayer_sessions").insert({
+            user_id: user.id,
+            date: new Date(session.date).toISOString(),
+            mystery_key: session.mysteryKey,
+            mystery_type: session.mysteryType,
+            duration: session.duration || 0,
+          });
+
           if (error) console.error("Error inserting prayer session:", error);
         }
       }
-      
+
       // Set data source to Supabase
-      await AsyncStorage.setItem('prayerDataSource', 'supabase');
+      await AsyncStorage.setItem("prayerDataSource", "supabase");
       setIsUsingSupabase(true);
-      
+
       // Reload data from Supabase
       await loadPrayerDataFromSupabase();
-      
-      Alert.alert("Migration Complete", "Your prayer data has been successfully migrated to the cloud.");
+
+      Alert.alert(
+        "Migration Complete",
+        "Your prayer data has been successfully migrated to the cloud.",
+      );
       setIsMigrating(false);
     } catch (error) {
       console.error("Migration error:", error);
@@ -503,104 +506,104 @@ export default function PrayerStatistics() {
       setIsMigrating(false);
     }
   };
-  
+
   // Generate chart data from prayer history
   const generateChartData = (history) => {
     if (!history || history.length === 0) {
       setWeeklyData({
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }]
+        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }],
       });
-      
+
       setMonthlyData({
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0] }]
+        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+        datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
       });
-      
+
       setMysteryDistribution([
         { name: "Joyful", count: 0, color: "#0ACF83", legendFontColor: "#333333" },
         { name: "Sorrowful", count: 0, color: "#FF4757", legendFontColor: "#333333" },
         { name: "Glorious", count: 0, color: "#7158e2", legendFontColor: "#333333" },
-        { name: "Luminous", count: 0, color: "#18DCFF", legendFontColor: "#333333" }
+        { name: "Luminous", count: 0, color: "#18DCFF", legendFontColor: "#333333" },
       ]);
-      
+
       return;
     }
-    
+
     // Sort history by date
     const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     // Weekly data (last 7 days)
     const weeklyMap = new Map();
     const now = new Date();
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = date.toISOString().split("T")[0];
       weeklyMap.set(dateString, 0);
     }
-    
-    sortedHistory.forEach(item => {
+
+    sortedHistory.forEach((item) => {
       const itemDate = new Date(item.date);
-      const dateString = itemDate.toISOString().split('T')[0];
-      
+      const dateString = itemDate.toISOString().split("T")[0];
+
       if (weeklyMap.has(dateString)) {
         weeklyMap.set(dateString, weeklyMap.get(dateString) + 1);
       }
     });
-    
-    const weekLabels = [...weeklyMap.keys()].map(date => {
-      const [year, month, day] = date.split('-');
+
+    const weekLabels = [...weeklyMap.keys()].map((date) => {
+      const [year, month, day] = date.split("-");
       return `${month}/${day}`;
     });
-    
+
     const weekData = [...weeklyMap.values()];
-    
+
     setWeeklyData({
       labels: weekLabels,
       datasets: [
         {
           data: weekData,
           color: () => theme.primary,
-        }
-      ]
+        },
+      ],
     });
-    
+
     // Monthly data (last 12 months)
     const monthlyMap = new Map();
     for (let i = 11; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthString = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const monthString = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
       monthlyMap.set(monthString, 0);
     }
-    
-    sortedHistory.forEach(item => {
+
+    sortedHistory.forEach((item) => {
       const itemDate = new Date(item.date);
-      const monthString = `${itemDate.getFullYear()}-${(itemDate.getMonth() + 1).toString().padStart(2, '0')}`;
-      
+      const monthString = `${itemDate.getFullYear()}-${(itemDate.getMonth() + 1).toString().padStart(2, "0")}`;
+
       if (monthlyMap.has(monthString)) {
         monthlyMap.set(monthString, monthlyMap.get(monthString) + 1);
       }
     });
-    
+
     // Create shorter labels for "year" and "all" view to avoid overcrowding
-    const monthLabels = [...monthlyMap.keys()].map(date => {
-      const [year, month] = date.split('-');
+    const monthLabels = [...monthlyMap.keys()].map((date) => {
+      const [year, month] = date.split("-");
       // Use abbreviated format for better spacing
       return `${month}/${year.slice(2)}`;
     });
-    
+
     const monthData = [...monthlyMap.values()];
-    
+
     setMonthlyData({
       labels: monthLabels,
       datasets: [
         {
           data: monthData,
           color: () => theme.primary,
-        }
-      ]
+        },
+      ],
     });
-    
+
     // Mystery distribution
     const mysteryCount = {
       JOYFUL: 0,
@@ -608,13 +611,13 @@ export default function PrayerStatistics() {
       GLORIOUS: 0,
       LUMINOUS: 0,
     };
-    
-    sortedHistory.forEach(item => {
+
+    sortedHistory.forEach((item) => {
       if (mysteryCount.hasOwnProperty(item.mysteryKey)) {
         mysteryCount[item.mysteryKey]++;
       }
     });
-    
+
     const distribution = [
       {
         name: "Joyful",
@@ -641,15 +644,15 @@ export default function PrayerStatistics() {
         legendFontColor: "#333333",
       },
     ];
-    
+
     setMysteryDistribution(distribution);
   };
-  
+
   // Format prayer time
   const formatPrayerTime = (minutes) => {
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    
+
     if (hours === 0) {
       return `${remainingMinutes} min`;
     } else if (remainingMinutes === 0) {
@@ -658,7 +661,7 @@ export default function PrayerStatistics() {
       return `${hours} hr ${remainingMinutes} min`;
     }
   };
-  
+
   // Handle data point selection
   const handleDataPointClick = (data, index) => {
     // Close tooltip if clicking the same point
@@ -667,52 +670,50 @@ export default function PrayerStatistics() {
       setShowDataPointInfo(false);
       return;
     }
-    
+
     // Get the appropriate data based on time range
-    const chartData = timeRange === "week" || timeRange === "month" 
-      ? weeklyData 
-      : monthlyData;
-    
+    const chartData = timeRange === "week" || timeRange === "month" ? weeklyData : monthlyData;
+
     const label = chartData.labels[index];
     const value = chartData.datasets[0].data[index];
-    
+
     // Calculate position differently based on chart type
     let xPosition;
     const dataPointCount = chartData.labels.length;
-    
+
     if (timeRange === "year" || timeRange === "all") {
       // For bar charts with custom width
       const barWidth = 30; // Should match what's used in renderChart
       const chartWidth = Math.max(width - 40, dataPointCount * barWidth);
-      xPosition = (index * chartWidth) / dataPointCount + (barWidth / 2);
+      xPosition = (index * chartWidth) / dataPointCount + barWidth / 2;
     } else {
       // For line charts
       xPosition = index * ((width - 40) / (chartData.labels.length - 1));
     }
-    
+
     setSelectedDataPoint({
       index,
       label,
       value,
       x: xPosition,
     });
-    
+
     setShowDataPointInfo(true);
   };
-  
+
   // Scroll to Activity Chart
   const scrollToActivityChart = () => {
     // Add a small delay to ensure the scroll happens after render
     setTimeout(() => {
       if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ 
+        scrollViewRef.current.scrollTo({
           y: 350, // Approximate position of the activity chart
-          animated: true 
+          animated: true,
         });
       }
     }, 100);
   };
-  
+
   // Render chart for the selected time range
   const renderChart = () => {
     const chartConfig = {
@@ -731,12 +732,12 @@ export default function PrayerStatistics() {
         stroke: "#FFFFFF",
       },
     };
-    
+
     if (timeRange === "week" || timeRange === "month") {
       return (
         <View style={styles.chartOuterContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={true}
             contentContainerStyle={styles.scrollableChartContent}
           >
@@ -748,7 +749,7 @@ export default function PrayerStatistics() {
                 chartConfig={chartConfig}
                 bezier
                 style={styles.chart}
-                onDataPointClick={({value, dataset, getColor, index}) => 
+                onDataPointClick={({ value, dataset, getColor, index }) =>
                   handleDataPointClick(value, index)
                 }
                 withShadow={false}
@@ -759,20 +760,20 @@ export default function PrayerStatistics() {
                 withOuterLines={true}
                 fromZero={true}
               />
-              
+
               {showDataPointInfo && selectedDataPoint && (
-                <View 
+                <View
                   style={[
-                    styles.dataPointTooltip, 
+                    styles.dataPointTooltip,
                     {
                       left: selectedDataPoint.x,
-                      transform: [{ translateX: -50 }] // Center the tooltip
-                    }
+                      transform: [{ translateX: -50 }], // Center the tooltip
+                    },
                   ]}
                 >
                   <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
                   <Text style={styles.tooltipValue}>
-                    {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
+                    {selectedDataPoint.value} {selectedDataPoint.value === 1 ? "prayer" : "prayers"}
                   </Text>
                   <View style={styles.tooltipArrow} />
                 </View>
@@ -788,33 +789,33 @@ export default function PrayerStatistics() {
         barPercentage: 0.7,
         barRadius: 5,
         // Adjust x-axis label properties
-        labelRotation: -45,   // Rotate labels
-        xLabelsOffset: 0,     // Offset to position labels
+        labelRotation: -45, // Rotate labels
+        xLabelsOffset: 0, // Offset to position labels
         formatXLabel: (label) => {
           // For "all" range with many labels, display fewer labels
           if (timeRange === "all" && monthlyData.labels.length > 12) {
             const index = monthlyData.labels.indexOf(label);
             // Only show every third label for readability
-            return index % 3 === 0 ? label : '';
+            return index % 3 === 0 ? label : "";
           }
           return label;
         },
         // Reduce font size for label text
         propsForLabels: {
           fontSize: 10,
-        }
+        },
       };
-      
+
       // Calculate width based on number of data points
       // More data points = wider chart for horizontal scrolling
       const dataPointCount = monthlyData.labels.length;
       const barWidth = 30; // Width per bar in pixels
       const chartWidth = Math.max(width - 40, dataPointCount * barWidth);
-      
+
       return (
         <View style={styles.chartOuterContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={true}
             contentContainerStyle={styles.scrollableChartContent}
           >
@@ -831,26 +832,26 @@ export default function PrayerStatistics() {
                 withHorizontalLabels
                 yAxisLabel=""
                 yAxisSuffix=""
-                onDataPointClick={({value, dataset, getColor, index}) => 
+                onDataPointClick={({ value, dataset, getColor, index }) =>
                   handleDataPointClick(value, index)
                 }
-                verticalLabelRotation={30}  // Rotate labels for better readability
+                verticalLabelRotation={30} // Rotate labels for better readability
                 horizontalLabelRotation={-45}
               />
-              
+
               {showDataPointInfo && selectedDataPoint && (
-                <View 
+                <View
                   style={[
-                    styles.dataPointTooltip, 
+                    styles.dataPointTooltip,
                     {
                       left: selectedDataPoint.x,
-                      transform: [{ translateX: -50 }] // Center the tooltip
-                    }
+                      transform: [{ translateX: -50 }], // Center the tooltip
+                    },
                   ]}
                 >
                   <Text style={styles.tooltipDate}>{selectedDataPoint.label}</Text>
                   <Text style={styles.tooltipValue}>
-                    {selectedDataPoint.value} {selectedDataPoint.value === 1 ? 'prayer' : 'prayers'}
+                    {selectedDataPoint.value} {selectedDataPoint.value === 1 ? "prayer" : "prayers"}
                   </Text>
                   <View style={styles.tooltipArrow} />
                 </View>
@@ -861,13 +862,13 @@ export default function PrayerStatistics() {
       );
     }
   };
-  
+
   // Get streak colors based on value
   const getStreakColor = (value, index) => {
     // Create a gradient of colors from theme.primary
     const maxValue = Math.max(...streakData);
     const normalized = value / maxValue;
-    
+
     // Alternate between two colors based on index for a more colorful display
     if (index % 2 === 0) {
       return `rgba(113, 88, 226, ${Math.max(0.3, normalized)})`;
@@ -875,7 +876,7 @@ export default function PrayerStatistics() {
       return `rgba(24, 220, 255, ${Math.max(0.3, normalized)})`;
     }
   };
-  
+
   // Render streak bar graph
   const renderStreakGraph = () => {
     if (!streakData || streakData.length === 0) {
@@ -885,23 +886,23 @@ export default function PrayerStatistics() {
         </View>
       );
     }
-    
+
     // Only show the most recent 30 days of streak data
     const recentStreakData = streakData.slice(-30);
-    
+
     return (
       <View style={styles.streakChartContainer}>
         <View style={styles.streakBarsContainer}>
           {recentStreakData.map((value, index) => (
-            <View 
-              key={index} 
+            <View
+              key={index}
               style={[
                 styles.streakBar,
-                { 
+                {
                   height: Math.max(value * 6, 4), // Smaller bars (was 10)
                   backgroundColor: getStreakColor(value, index),
                   width: 4, // Thinner bars
-                }
+                },
               ]}
             />
           ))}
@@ -910,12 +911,12 @@ export default function PrayerStatistics() {
       </View>
     );
   };
-  
+
   // Render mystery distribution pie chart
   const renderMysteryDistribution = () => {
     // Filter out zero values
-    const filteredDistribution = mysteryDistribution.filter(item => item.count > 0);
-    
+    const filteredDistribution = mysteryDistribution.filter((item) => item.count > 0);
+
     if (filteredDistribution.length === 0) {
       return (
         <View style={styles.emptyChartContainer}>
@@ -923,7 +924,7 @@ export default function PrayerStatistics() {
         </View>
       );
     }
-    
+
     return (
       <PieChart
         data={filteredDistribution}
@@ -939,11 +940,11 @@ export default function PrayerStatistics() {
       />
     );
   };
-  
+
   // Render history item
   const renderHistoryItem = ({ item }) => {
     const itemTheme = getMysteryTheme(item.mysteryKey);
-    
+
     return (
       <TouchableOpacity
         style={styles.historyItem}
@@ -953,53 +954,53 @@ export default function PrayerStatistics() {
             params: {
               mysteryType: item.mysteryType,
               mysteryKey: item.mysteryKey,
-            }
+            },
           });
         }}
       >
         <View style={[styles.historyItemIcon, { backgroundColor: `${itemTheme.primary}20` }]}>
           <FontAwesome5 name={itemTheme.icon} size={20} color={itemTheme.primary} />
         </View>
-        
+
         <View style={styles.historyItemContent}>
           <Text style={styles.historyItemTitle}>{item.mysteryType}</Text>
-          <Text style={styles.historyItemDate}>{formatDate(item.date)} at {formatTime(item.date)}</Text>
-          
+          <Text style={styles.historyItemDate}>
+            {formatDate(item.date)} at {formatTime(item.date)}
+          </Text>
+
           {item.duration && (
             <View style={styles.historyItemDuration}>
               <AntDesign name="clockcircleo" size={12} color="#666666" />
               <Text style={styles.historyItemDurationText}>
-  {`${Math.round(item.duration / 60)} min`}
-</Text>
+                {`${Math.round(item.duration / 60)} min`}
+              </Text>
             </View>
           )}
         </View>
-        
+
         <View>
           <AntDesign name="right" size={16} color="#CCCCCC" />
         </View>
       </TouchableOpacity>
     );
   };
-  
+
   // Render empty history
   const renderEmptyHistory = () => (
     <View style={styles.emptyContainer}>
       <AntDesign name="calendar" size={60} color="#CCCCCC" />
       <Text style={styles.emptyTitle}>No Prayer History</Text>
-      <Text style={styles.emptyDescription}>
-        Your completed prayers will appear here.
-      </Text>
+      <Text style={styles.emptyDescription}>Your completed prayers will appear here.</Text>
     </View>
   );
-  
+
   // Render time range filter
   const renderTimeRangeFilter = () => (
     <View style={styles.filterContainer}>
       <TouchableOpacity
         style={[
           styles.filterButton,
-          timeRange === "week" && [styles.activeFilterButton, { borderColor: theme.primary }]
+          timeRange === "week" && [styles.activeFilterButton, { borderColor: theme.primary }],
         ]}
         onPress={() => {
           setTimeRange("week");
@@ -1007,18 +1008,20 @@ export default function PrayerStatistics() {
           setShowDataPointInfo(false);
         }}
       >
-        <Text style={[
-          styles.filterButtonText,
-          timeRange === "week" && { color: theme.primary, fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.filterButtonText,
+            timeRange === "week" && { color: theme.primary, fontWeight: "600" },
+          ]}
+        >
           Week
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.filterButton,
-          timeRange === "month" && [styles.activeFilterButton, { borderColor: theme.primary }]
+          timeRange === "month" && [styles.activeFilterButton, { borderColor: theme.primary }],
         ]}
         onPress={() => {
           setTimeRange("month");
@@ -1026,18 +1029,20 @@ export default function PrayerStatistics() {
           setShowDataPointInfo(false);
         }}
       >
-        <Text style={[
-          styles.filterButtonText,
-          timeRange === "month" && { color: theme.primary, fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.filterButtonText,
+            timeRange === "month" && { color: theme.primary, fontWeight: "600" },
+          ]}
+        >
           Month
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.filterButton,
-          timeRange === "year" && [styles.activeFilterButton, { borderColor: theme.primary }]
+          timeRange === "year" && [styles.activeFilterButton, { borderColor: theme.primary }],
         ]}
         onPress={() => {
           setTimeRange("year");
@@ -1045,18 +1050,20 @@ export default function PrayerStatistics() {
           setShowDataPointInfo(false);
         }}
       >
-        <Text style={[
-          styles.filterButtonText,
-          timeRange === "year" && { color: theme.primary, fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.filterButtonText,
+            timeRange === "year" && { color: theme.primary, fontWeight: "600" },
+          ]}
+        >
           Year
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.filterButton,
-          timeRange === "all" && [styles.activeFilterButton, { borderColor: theme.primary }]
+          timeRange === "all" && [styles.activeFilterButton, { borderColor: theme.primary }],
         ]}
         onPress={() => {
           setTimeRange("all");
@@ -1064,121 +1071,133 @@ export default function PrayerStatistics() {
           setShowDataPointInfo(false);
         }}
       >
-        <Text style={[
-          styles.filterButtonText,
-          timeRange === "all" && { color: theme.primary, fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.filterButtonText,
+            timeRange === "all" && { color: theme.primary, fontWeight: "600" },
+          ]}
+        >
           All
         </Text>
       </TouchableOpacity>
     </View>
   );
-  
+
   // Render mystery type filter
   const renderMysteryFilter = () => (
     <View style={styles.mysteryFilterContainer}>
       <TouchableOpacity
         style={[
           styles.mysteryFilterButton,
-          mysteryFilter === null && { backgroundColor: `${theme.primary}20` }
+          mysteryFilter === null && { backgroundColor: `${theme.primary}20` },
         ]}
         onPress={() => setMysteryFilter(null)}
       >
-        <FontAwesome5 
-          name="cross" 
-          size={16} 
-          color={mysteryFilter === null ? theme.primary : "#666666"} 
+        <FontAwesome5
+          name="cross"
+          size={16}
+          color={mysteryFilter === null ? theme.primary : "#666666"}
         />
-        <Text style={[
-          styles.mysteryFilterText,
-          mysteryFilter === null && { color: theme.primary, fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.mysteryFilterText,
+            mysteryFilter === null && { color: theme.primary, fontWeight: "600" },
+          ]}
+        >
           All
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.mysteryFilterButton,
-          mysteryFilter === "JOYFUL" && { backgroundColor: "#0ACF8320" }
+          mysteryFilter === "JOYFUL" && { backgroundColor: "#0ACF8320" },
         ]}
         onPress={() => setMysteryFilter("JOYFUL")}
       >
-        <FontAwesome5 
-          name="leaf" 
-          size={16} 
-          color={mysteryFilter === "JOYFUL" ? "#0ACF83" : "#666666"} 
+        <FontAwesome5
+          name="leaf"
+          size={16}
+          color={mysteryFilter === "JOYFUL" ? "#0ACF83" : "#666666"}
         />
-        <Text style={[
-          styles.mysteryFilterText,
-          mysteryFilter === "JOYFUL" && { color: "#0ACF83", fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.mysteryFilterText,
+            mysteryFilter === "JOYFUL" && { color: "#0ACF83", fontWeight: "600" },
+          ]}
+        >
           Joyful
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.mysteryFilterButton,
-          mysteryFilter === "SORROWFUL" && { backgroundColor: "#FF475720" }
+          mysteryFilter === "SORROWFUL" && { backgroundColor: "#FF475720" },
         ]}
         onPress={() => setMysteryFilter("SORROWFUL")}
       >
-        <FontAwesome5 
-          name="heart-broken" 
-          size={16} 
-          color={mysteryFilter === "SORROWFUL" ? "#FF4757" : "#666666"} 
+        <FontAwesome5
+          name="heart-broken"
+          size={16}
+          color={mysteryFilter === "SORROWFUL" ? "#FF4757" : "#666666"}
         />
-        <Text style={[
-          styles.mysteryFilterText,
-          mysteryFilter === "SORROWFUL" && { color: "#FF4757", fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.mysteryFilterText,
+            mysteryFilter === "SORROWFUL" && { color: "#FF4757", fontWeight: "600" },
+          ]}
+        >
           Sorrowful
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.mysteryFilterButton,
-          mysteryFilter === "GLORIOUS" && { backgroundColor: "#7158e220" }
+          mysteryFilter === "GLORIOUS" && { backgroundColor: "#7158e220" },
         ]}
         onPress={() => setMysteryFilter("GLORIOUS")}
       >
-        <FontAwesome5 
-          name="crown" 
-          size={16} 
-          color={mysteryFilter === "GLORIOUS" ? "#7158e2" : "#666666"} 
+        <FontAwesome5
+          name="crown"
+          size={16}
+          color={mysteryFilter === "GLORIOUS" ? "#7158e2" : "#666666"}
         />
-        <Text style={[
-          styles.mysteryFilterText,
-          mysteryFilter === "GLORIOUS" && { color: "#7158e2", fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.mysteryFilterText,
+            mysteryFilter === "GLORIOUS" && { color: "#7158e2", fontWeight: "600" },
+          ]}
+        >
           Glorious
         </Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[
           styles.mysteryFilterButton,
-          mysteryFilter === "LUMINOUS" && { backgroundColor: "#18DCFF20" }
+          mysteryFilter === "LUMINOUS" && { backgroundColor: "#18DCFF20" },
         ]}
         onPress={() => setMysteryFilter("LUMINOUS")}
       >
-        <FontAwesome5 
-          name="star" 
-          size={16} 
-          color={mysteryFilter === "LUMINOUS" ? "#18DCFF" : "#666666"} 
+        <FontAwesome5
+          name="star"
+          size={16}
+          color={mysteryFilter === "LUMINOUS" ? "#18DCFF" : "#666666"}
         />
-        <Text style={[
-          styles.mysteryFilterText,
-          mysteryFilter === "LUMINOUS" && { color: "#18DCFF", fontWeight: '600' }
-        ]}>
+        <Text
+          style={[
+            styles.mysteryFilterText,
+            mysteryFilter === "LUMINOUS" && { color: "#18DCFF", fontWeight: "600" },
+          ]}
+        >
           Luminous
         </Text>
       </TouchableOpacity>
     </View>
   );
-  
+
   // Render cloud storage card/button
   const renderCloudStorageButton = () => {
     if (isUsingSupabase) {
@@ -1213,7 +1232,9 @@ export default function PrayerStatistics() {
                 {isMigrating ? "Syncing to Cloud..." : "Sync to Cloud"}
               </Text>
               <Text style={styles.cloudStorageDescription}>
-                {isMigrating ? "Please wait while we sync your data" : "Back up and sync your prayer data across devices"}
+                {isMigrating
+                  ? "Please wait while we sync your data"
+                  : "Back up and sync your prayer data across devices"}
               </Text>
             </View>
             {isMigrating ? (
@@ -1226,17 +1247,17 @@ export default function PrayerStatistics() {
       );
     }
   };
-  
+
   // Render statistics tab
   const renderStatsTab = () => (
-    <ScrollView 
+    <ScrollView
       ref={scrollViewRef}
       contentContainerStyle={styles.tabContent}
       showsVerticalScrollIndicator={false}
     >
       {/* Cloud storage button */}
       {renderCloudStorageButton()}
-      
+
       {/* Summary cards */}
       <View style={styles.statsCardsContainer}>
         <View style={styles.statsRow}>
@@ -1249,7 +1270,7 @@ export default function PrayerStatistics() {
               <Text style={styles.statLabel}>Current Streak</Text>
             </View>
           </View>
-          
+
           <View style={styles.statCard}>
             <View style={styles.statIconContainer}>
               <FontAwesome5 name="trophy" size={20} color="#FF3B30" />
@@ -1260,7 +1281,7 @@ export default function PrayerStatistics() {
             </View>
           </View>
         </View>
-        
+
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <View style={styles.statIconContainer}>
@@ -1271,7 +1292,7 @@ export default function PrayerStatistics() {
               <Text style={styles.statLabel}>Total Rosaries</Text>
             </View>
           </View>
-          
+
           <View style={styles.statCard}>
             <View style={styles.statIconContainer}>
               <AntDesign name="clockcircleo" size={20} color="#34C759" />
@@ -1283,7 +1304,7 @@ export default function PrayerStatistics() {
           </View>
         </View>
       </View>
-      
+
       {/* Streak Graph */}
       <View style={styles.chartSection}>
         <View style={styles.sectionHeader}>
@@ -1291,45 +1312,42 @@ export default function PrayerStatistics() {
         </View>
         {renderStreakGraph()}
       </View>
-      
+
       {/* Activity chart */}
       <View style={styles.chartSection} id="activityChart">
         <View style={styles.sectionHeader}>
-          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+          >
             <Text style={styles.sectionTitle}>Prayer Activity</Text>
-            <TouchableOpacity 
-              style={styles.scrollToButton}
-              onPress={scrollToActivityChart}
-            >
+            <TouchableOpacity style={styles.scrollToButton} onPress={scrollToActivityChart}>
               <AntDesign name="arrowdown" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
-        
+
         {renderTimeRangeFilter()}
-        
-        {(weeklyData.datasets && weeklyData.datasets[0].data.length > 0) || 
-         (monthlyData.datasets && monthlyData.datasets[0].data.length > 0) ? (
+
+        {(weeklyData.datasets && weeklyData.datasets[0].data.length > 0) ||
+        (monthlyData.datasets && monthlyData.datasets[0].data.length > 0) ? (
           renderChart()
         ) : (
           <View style={styles.emptyChartContainer}>
             <Text style={styles.emptyChartText}>No data available</Text>
           </View>
         )}
-        
+
         <View style={styles.chartLegend}>
-          <Text style={styles.chartLegendText}>
-            Tap on data points to see details
-          </Text>
+          <Text style={styles.chartLegendText}>Tap on data points to see details</Text>
         </View>
       </View>
-      
+
       {/* Mystery distribution */}
       <View style={styles.chartSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Mystery Distribution</Text>
         </View>
-        
+
         {mysteryDistribution.length > 0 ? (
           renderMysteryDistribution()
         ) : (
@@ -1340,12 +1358,12 @@ export default function PrayerStatistics() {
       </View>
     </ScrollView>
   );
-  
+
   // Render history tab
   const renderHistoryTab = () => (
     <View style={styles.tabContent}>
       {renderMysteryFilter()}
-      
+
       {filteredHistory.length > 0 ? (
         <FlatList
           data={filteredHistory}
@@ -1359,7 +1377,7 @@ export default function PrayerStatistics() {
       )}
     </View>
   );
-  
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -1368,72 +1386,78 @@ export default function PrayerStatistics() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       />
-      
+
       {/* Header */}
       <View style={styles.header}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.push("/rosary/screens/RosaryHome")}
-        activeOpacity={0.7}
-      >
-        <AntDesign name="arrowleft" size={24} color="#FFF" />
-      </TouchableOpacity>
-        
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.push("/rosary/screens/RosaryHome")}
+          activeOpacity={0.7}
+        >
+          <AntDesign name="arrowleft" size={24} color="#FFF" />
+        </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Prayer Journal</Text>
-        
+
         <View style={styles.placeholderButton} />
       </View>
-      
+
       {/* Tabs */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === "stats" && [styles.activeTab, { borderColor: theme.primary }]
+            activeTab === "stats" && [styles.activeTab, { borderColor: theme.primary }],
           ]}
           onPress={() => setActiveTab("stats")}
         >
-          <Feather 
-            name="bar-chart-2" 
-            size={20} 
-            color={activeTab === "stats" ? theme.primary : "#666666"} 
+          <Feather
+            name="bar-chart-2"
+            size={20}
+            color={activeTab === "stats" ? theme.primary : "#666666"}
           />
-          <Text style={[
-            styles.tabText,
-            activeTab === "stats" && { color: theme.primary, fontWeight: '600' }
-          ]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "stats" && { color: theme.primary, fontWeight: "600" },
+            ]}
+          >
             Statistics
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === "history" && [styles.activeTab, { borderColor: theme.primary }]
+            activeTab === "history" && [styles.activeTab, { borderColor: theme.primary }],
           ]}
           onPress={() => setActiveTab("history")}
         >
-          <AntDesign 
-            name="calendar" 
-            size={20} 
-            color={activeTab === "history" ? theme.primary : "#666666"} 
+          <AntDesign
+            name="calendar"
+            size={20}
+            color={activeTab === "history" ? theme.primary : "#666666"}
           />
-          <Text style={[
-            styles.tabText,
-            activeTab === "history" && { color: theme.primary, fontWeight: '600' }
-          ]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "history" && { color: theme.primary, fontWeight: "600" },
+            ]}
+          >
             History
           </Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Loading indicator */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
+      ) : activeTab === "stats" ? (
+        renderStatsTab()
       ) : (
-        activeTab === "stats" ? renderStatsTab() : renderHistoryTab()
+        renderHistoryTab()
       )}
     </SafeAreaView>
   );
@@ -1448,7 +1472,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   scrollableChartContent: {
     paddingRight: 20, // Add some padding at the end for better scrolling
@@ -1458,7 +1482,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   headerGradient: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -1617,12 +1641,12 @@ const styles = StyleSheet.create({
     color: "#242424",
   },
   scrollToButton: {
-    backgroundColor: '#7158e2',
+    backgroundColor: "#7158e2",
     width: 30,
     height: 30,
     borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     elevation: 2,
   },
   filterContainer: {
@@ -1646,50 +1670,50 @@ const styles = StyleSheet.create({
     color: "#666666",
   },
   chartContainer: {
-    position: 'relative',
+    position: "relative",
     marginHorizontal: 20,
   },
   chart: {
     borderRadius: 16,
     elevation: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 10,
   },
   dataPointTooltip: {
-    position: 'absolute',
-    backgroundColor: '#333',
+    position: "absolute",
+    backgroundColor: "#333",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 5,
-    alignItems: 'center',
+    alignItems: "center",
     top: 40, // Position above the chart
     zIndex: 10,
   },
   tooltipDate: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   tooltipValue: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 12,
   },
   tooltipArrow: {
-    position: 'absolute',
+    position: "absolute",
     bottom: -5,
     width: 10,
     height: 10,
-    backgroundColor: '#333',
-    transform: [{ rotate: '45deg' }],
+    backgroundColor: "#333",
+    transform: [{ rotate: "45deg" }],
   },
   chartLegend: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
   },
   chartLegendText: {
     fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
+    color: "#666",
+    fontStyle: "italic",
   },
   emptyChartContainer: {
     height: 220,

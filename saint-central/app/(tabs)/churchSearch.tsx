@@ -15,18 +15,9 @@ import {
   Image,
   Alert,
 } from "react-native";
-import {
-  useNavigation,
-  NavigationProp,
-  ParamListBase,
-} from "@react-navigation/native";
+import { useNavigation, NavigationProp, ParamListBase } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
-import {
-  Ionicons,
-  FontAwesome5,
-  MaterialCommunityIcons,
-  Feather,
-} from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -92,12 +83,9 @@ export default function ChurchSearchScreen(): JSX.Element {
       const filtered = churches.filter((church) => {
         return (
           church.name.toLowerCase().includes(lowercaseQuery) ||
-          (church.address &&
-            church.address.toLowerCase().includes(lowercaseQuery)) ||
-          (church.category &&
-            church.category.toLowerCase().includes(lowercaseQuery)) ||
-          (church.description &&
-            church.description.toLowerCase().includes(lowercaseQuery))
+          (church.address && church.address.toLowerCase().includes(lowercaseQuery)) ||
+          (church.category && church.category.toLowerCase().includes(lowercaseQuery)) ||
+          (church.description && church.description.toLowerCase().includes(lowercaseQuery))
         );
       });
       setFilteredChurches(filtered);
@@ -112,20 +100,14 @@ export default function ChurchSearchScreen(): JSX.Element {
       // Log to debug
       console.log("Fetching churches...");
 
-      const { data, error: fetchError } = await supabase
-        .from("churches")
-        .select("*")
-        .order("name");
+      const { data, error: fetchError } = await supabase.from("churches").select("*").order("name");
 
       if (fetchError) {
         console.error("Supabase error:", fetchError);
         throw fetchError;
       }
 
-      console.log(
-        "Churches data:",
-        data ? `Found ${data.length} churches` : "No data"
-      );
+      console.log("Churches data:", data ? `Found ${data.length} churches` : "No data");
 
       if (data && data.length > 0) {
         setChurches(data);
@@ -155,47 +137,37 @@ export default function ChurchSearchScreen(): JSX.Element {
       setLoading(true);
 
       // Get current user
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
       const userId = sessionData?.session?.user?.id;
       if (!userId) {
-        Alert.alert(
-          "Authentication Error",
-          "You must be logged in to join a church"
-        );
+        Alert.alert("Authentication Error", "You must be logged in to join a church");
         return;
       }
 
       // Check if user is already a member
-      const { data: existingMembership, error: membershipError } =
-        await supabase
-          .from("church_members")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("church_id", churchId)
-          .single();
+      const { data: existingMembership, error: membershipError } = await supabase
+        .from("church_members")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("church_id", churchId)
+        .single();
 
       if (existingMembership) {
-        Alert.alert(
-          "Already a Member",
-          "You are already a member of this church"
-        );
+        Alert.alert("Already a Member", "You are already a member of this church");
         return;
       }
 
       // Add user directly to church_members
-      const { error: joinError } = await supabase
-        .from("church_members")
-        .insert([
-          {
-            user_id: userId,
-            church_id: churchId,
-            role: "member",
-            joined_at: new Date().toISOString(),
-          },
-        ]);
+      const { error: joinError } = await supabase.from("church_members").insert([
+        {
+          user_id: userId,
+          church_id: churchId,
+          role: "member",
+          joined_at: new Date().toISOString(),
+        },
+      ]);
 
       if (joinError) throw joinError;
 
@@ -261,11 +233,7 @@ export default function ChurchSearchScreen(): JSX.Element {
         <View style={styles.churchCardContent}>
           <View style={styles.churchImageContainer}>
             {item.image ? (
-              <Image
-                source={{ uri: item.image }}
-                style={styles.churchImage}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: item.image }} style={styles.churchImage} resizeMode="cover" />
             ) : (
               <View style={styles.churchImagePlaceholder}>
                 <FontAwesome5 name="church" size={24} color="#CBD5E1" />
@@ -274,37 +242,22 @@ export default function ChurchSearchScreen(): JSX.Element {
           </View>
 
           <View style={styles.churchInfoContainer}>
-            <Text
-              style={styles.churchName}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+            <Text style={styles.churchName} numberOfLines={1} ellipsizeMode="tail">
               {item.name}
             </Text>
 
-            <Text
-              style={styles.churchAddress}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+            <Text style={styles.churchAddress} numberOfLines={1} ellipsizeMode="tail">
               {item.address || "No address available"}
             </Text>
 
             {item.category && (
-              <Text
-                style={styles.churchCategory}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
+              <Text style={styles.churchCategory} numberOfLines={1} ellipsizeMode="tail">
                 {item.category}
               </Text>
             )}
           </View>
 
-          <TouchableOpacity
-            style={styles.joinButton}
-            onPress={() => handleJoinChurch(item.id)}
-          >
+          <TouchableOpacity style={styles.joinButton} onPress={() => handleJoinChurch(item.id)}>
             <LinearGradient
               colors={["#3A86FF", "#4361EE"]}
               start={{ x: 0, y: 0 }}
@@ -322,11 +275,7 @@ export default function ChurchSearchScreen(): JSX.Element {
   // Main UI
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Top decoration circles that extend into the safe area */}
       <View style={styles.topDecoration}>
@@ -337,10 +286,7 @@ export default function ChurchSearchScreen(): JSX.Element {
 
       {/* Header with back button and title */}
       <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
 
@@ -391,12 +337,7 @@ export default function ChurchSearchScreen(): JSX.Element {
           ]}
         >
           <View style={styles.searchBar}>
-            <Feather
-              name="search"
-              size={20}
-              color="#64748B"
-              style={styles.searchIcon}
-            />
+            <Feather name="search" size={20} color="#64748B" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search by name, address, or category"
@@ -417,13 +358,8 @@ export default function ChurchSearchScreen(): JSX.Element {
         {error && (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={20} color="#FF006E" />
-            <Text style={styles.errorText}>
-              Error loading churches: {error.message}
-            </Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={fetchChurches}
-            >
+            <Text style={styles.errorText}>Error loading churches: {error.message}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchChurches}>
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -432,8 +368,7 @@ export default function ChurchSearchScreen(): JSX.Element {
         {/* Results count */}
         <View style={styles.resultsContainer}>
           <Text style={styles.resultsText}>
-            {filteredChurches.length}{" "}
-            {filteredChurches.length === 1 ? "church" : "churches"} found
+            {filteredChurches.length} {filteredChurches.length === 1 ? "church" : "churches"} found
           </Text>
         </View>
 
@@ -454,20 +389,12 @@ export default function ChurchSearchScreen(): JSX.Element {
           <View style={styles.emptyStateContainer}>
             {!loading && (
               <>
-                <FontAwesome5
-                  name="church"
-                  size={48}
-                  color="#CBD5E1"
-                  style={styles.emptyIcon}
-                />
+                <FontAwesome5 name="church" size={48} color="#CBD5E1" style={styles.emptyIcon} />
                 <Text style={styles.emptyStateTitle}>No churches found</Text>
                 <Text style={styles.emptyStateDescription}>
                   Try adjusting your search or explore churches in nearby areas.
                 </Text>
-                <TouchableOpacity
-                  style={styles.emptyStateButton}
-                  onPress={fetchChurches}
-                >
+                <TouchableOpacity style={styles.emptyStateButton} onPress={fetchChurches}>
                   <Text style={styles.emptyStateButtonText}>Refresh</Text>
                 </TouchableOpacity>
               </>

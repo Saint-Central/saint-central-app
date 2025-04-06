@@ -13,11 +13,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
-import {
-  Ionicons,
-  FontAwesome5,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -26,15 +22,13 @@ export default function ChurchMembershipScreen(): JSX.Element {
   const navigation = useNavigation();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const [isMember, setIsMember] = useState<boolean | null>(null);
+  const [, setIsMember] = useState<boolean | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [shouldNavigate, setShouldNavigate] = useState<boolean>(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const buttonAnimValues = [0, 1].map(
-    () => useRef(new Animated.Value(0)).current
-  );
+  const buttonAnimValues = [0, 1].map(() => useRef(new Animated.Value(0)).current);
 
   // Handle animations
   useEffect(() => {
@@ -64,8 +58,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
         setLoading(true);
 
         // First get the session to ensure we have the most current session data
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
           throw sessionError;
@@ -87,11 +80,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
           if (userError) {
             console.log("Error fetching user data:", userError);
             // Continue with default name
-          } else if (
-            userData &&
-            userData.length > 0 &&
-            userData[0].first_name
-          ) {
+          } else if (userData && userData.length > 0 && userData[0].first_name) {
             userFirstName = userData[0].first_name;
           }
 
@@ -209,11 +198,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
   // Not a church member UI
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Top decoration circles that extend into the safe area */}
       <View style={styles.topDecoration}>
@@ -253,17 +238,13 @@ export default function ChurchMembershipScreen(): JSX.Element {
         {error ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={20} color="#FF006E" />
-            <Text style={styles.errorText}>
-              Something went wrong. Please try again.
-            </Text>
+            <Text style={styles.errorText}>Something went wrong. Please try again.</Text>
           </View>
         ) : (
           <>
             <View style={styles.welcomeContainer}>
               <Text style={styles.welcomeText}>Hello, {userName}</Text>
-              <Text style={styles.statusMessage}>
-                You are not a part of a church
-              </Text>
+              <Text style={styles.statusMessage}>You are not a part of a church</Text>
             </View>
 
             <View style={styles.infoCard}>
@@ -275,17 +256,14 @@ export default function ChurchMembershipScreen(): JSX.Element {
               >
                 <CardDecoration />
                 <View style={styles.infoIconContainer}>
-                  <LinearGradient
-                    colors={["#3A86FF", "#4361EE"]}
-                    style={styles.infoIcon}
-                  >
+                  <LinearGradient colors={["#3A86FF", "#4361EE"]} style={styles.infoIcon}>
                     <FontAwesome5 name="church" size={26} color="#FFFFFF" />
                   </LinearGradient>
                 </View>
                 <Text style={styles.infoTitle}>Join a Church Community</Text>
                 <Text style={styles.infoDescription}>
-                  Connect with a local church to grow in faith, access
-                  resources, and join fellowship activities.
+                  Connect with a local church to grow in faith, access resources, and join
+                  fellowship activities.
                 </Text>
               </LinearGradient>
             </View>
@@ -326,9 +304,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
                       color="#FFFFFF"
                       style={styles.buttonIcon}
                     />
-                    <Text style={styles.primaryButtonText}>
-                      Search for a Church
-                    </Text>
+                    <Text style={styles.primaryButtonText}>Search for a Church</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </Animated.View>

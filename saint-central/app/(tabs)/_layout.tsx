@@ -1,12 +1,6 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import {
-  Platform,
-  View,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-} from "react-native";
+import { Platform, View, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,7 +13,6 @@ import Animated, {
 import { BlurView } from "expo-blur";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
@@ -47,12 +40,7 @@ interface AnimatedTabIconProps {
 }
 
 // Animated tab icon with smooth transitions
-const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
-  name,
-  focused,
-  index,
-  activeIndex,
-}) => {
+const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused, index, activeIndex }) => {
   // Animation values with improved configurations
   const scale = useSharedValue(1);
   const circleScale = useSharedValue(0);
@@ -99,11 +87,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
 
   // Fixed white color for icons
   const iconColor = useDerivedValue(() => {
-    return interpolateColor(
-      circleOpacity.value,
-      [0, 1],
-      ["rgba(255, 255, 255, 0.7)", "#FFFFFF"]
-    );
+    return interpolateColor(circleOpacity.value, [0, 1], ["rgba(255, 255, 255, 0.7)", "#FFFFFF"]);
   });
 
   // Animated styles
@@ -194,19 +178,13 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
       {getIcon()}
 
       {/* Label with enhanced animation */}
-      <Animated.Text style={[styles.tabLabel, textStyle]}>
-        {getLabel()}
-      </Animated.Text>
+      <Animated.Text style={[styles.tabLabel, textStyle]}>{getLabel()}</Animated.Text>
     </View>
   );
 };
 
 // Custom tab bar with seamless design and improved visual aesthetics
-const CustomTabBar: React.FC<TabBarProps> = ({
-  state,
-  descriptors,
-  navigation,
-}) => {
+const CustomTabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }) => {
   const router = useRouter();
 
   // Only show these tabs in the tab bar
@@ -214,8 +192,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({
 
   // Track if Comments screen is active to keep Home tab selected
   const isCommentsScreen = state.routes.some(
-    (route: Route) =>
-      route.name === "" && state.index === state.routes.indexOf(route)
+    (route: Route) => route.name === "" && state.index === state.routes.indexOf(route),
   );
 
   return (
@@ -243,10 +220,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({
           </View>
 
           {/* Solid accent line for more defined appearance */}
-          <LinearGradient
-            colors={["#FAC898", "#FAC898"]}
-            style={styles.accentLine}
-          />
+          <LinearGradient colors={["#FAC898", "#FAC898"]} style={styles.accentLine} />
 
           {/* Tab buttons with improved spacing */}
           <View style={styles.tabButtonsRow}>
@@ -259,8 +233,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({
 
               // Check if this tab is focused OR if it's home and comments screen is active
               const isFocused =
-                state.index === index ||
-                (route.name === "home" && isCommentsScreen);
+                state.index === index || (route.name === "home" && isCommentsScreen);
 
               const onPress = () => {
                 const event = navigation.emit({
@@ -313,30 +286,12 @@ export default function TabLayout() {
 
       {/* Hidden screens */}
       <Tabs.Screen name="RosaryPrayer" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen
-        name="RosaryPrayer2"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="RosaryPrayer3"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="RosaryPrayer4"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="RosaryPrayer5"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="RosaryPrayer6"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="RosaryPrayer7"
-        options={{ tabBarButton: () => null }}
-      />
+      <Tabs.Screen name="RosaryPrayer2" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer3" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer4" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer5" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer6" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="RosaryPrayer7" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="statistics" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="community" options={{ tabBarButton: () => null }} />
@@ -344,22 +299,10 @@ export default function TabLayout() {
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/[id]" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen
-        name="womens-ministry/[id]"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="womens-ministry/index"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="culture-and-testimonies/index"
-        options={{ tabBarButton: () => null }}
-      />
-      <Tabs.Screen
-        name="culture-and-testimonies/[id]"
-        options={{ tabBarButton: () => null }}
-      />
+      <Tabs.Screen name="womens-ministry/[id]" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="womens-ministry/index" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="culture-and-testimonies/index" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="culture-and-testimonies/[id]" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="news/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="donate" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="groups" options={{ tabBarButton: () => null }} />

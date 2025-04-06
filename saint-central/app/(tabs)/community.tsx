@@ -75,8 +75,31 @@ interface Intention {
   selectedFriends?: (number | string)[];
 }
 
-type IntentionType = "resolution" | "prayer" | "goal" | "spiritual" | "family" | "health" | "work" | "friends" | "world" | "personal" | "other";
-type TabType = "all" | "resolutions" | "prayers" | "goals" | "spiritual" | "family" | "health" | "work" | "friends" | "world" | "personal" | "other";
+type IntentionType =
+  | "resolution"
+  | "prayer"
+  | "goal"
+  | "spiritual"
+  | "family"
+  | "health"
+  | "work"
+  | "friends"
+  | "world"
+  | "personal"
+  | "other";
+type TabType =
+  | "all"
+  | "resolutions"
+  | "prayers"
+  | "goals"
+  | "spiritual"
+  | "family"
+  | "health"
+  | "work"
+  | "friends"
+  | "world"
+  | "personal"
+  | "other";
 interface Notification {
   message: string;
   type: "error" | "success";
@@ -101,7 +124,7 @@ interface FriendRequestIncoming {
 interface Friend {
   id: string;
   friend: UserData;
-  created_at?: string;  // Make created_at optional
+  created_at?: string; // Make created_at optional
 }
 
 interface Like {
@@ -254,39 +277,37 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
         <View style={styles.intentionHeaderText}>
           <Text style={styles.intentionAuthor}>
             {item.user.first_name} {item.user.last_name}
-            {item.user_id === currentUserId && (
-              <Text style={styles.authorTag}> • You</Text>
-            )}
+            {item.user_id === currentUserId && <Text style={styles.authorTag}> • You</Text>}
           </Text>
           <View style={styles.intentionMeta}>
-          <View style={styles.intentionTypeTag}>
-  {item.type === "prayer" ? (
-    <FontAwesome name="hand-peace-o" size={12} color="#FAC898" />
-  ) : item.type === "resolution" ? (
-    <Feather name="book-open" size={12} color="#FAC898" />
-  ) : item.type === "goal" ? (
-    <Feather name="target" size={12} color="#FAC898" />
-  ) : item.type === "spiritual" ? (
-    <FontAwesome name="star" size={12} color="#FAC898" />
-  ) : item.type === "family" ? (
-    <Feather name="users" size={12} color="#FAC898" />
-  ) : item.type === "health" ? (
-    <Feather name="heart" size={12} color="#FAC898" />
-  ) : item.type === "work" ? (
-    <Feather name="briefcase" size={12} color="#FAC898" />
-  ) : item.type === "friends" ? (
-    <Feather name="user-plus" size={12} color="#FAC898" />
-  ) : item.type === "world" ? (
-    <Feather name="globe" size={12} color="#FAC898" />
-  ) : item.type === "personal" ? (
-    <Feather name="user" size={12} color="#FAC898" />
-  ) : (
-    <Feather name="more-horizontal" size={12} color="#FAC898" />
-  )}
-  <Text style={styles.intentionTypeText}>
-    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-  </Text>
-</View>
+            <View style={styles.intentionTypeTag}>
+              {item.type === "prayer" ? (
+                <FontAwesome name="hand-peace-o" size={12} color="#FAC898" />
+              ) : item.type === "resolution" ? (
+                <Feather name="book-open" size={12} color="#FAC898" />
+              ) : item.type === "goal" ? (
+                <Feather name="target" size={12} color="#FAC898" />
+              ) : item.type === "spiritual" ? (
+                <FontAwesome name="star" size={12} color="#FAC898" />
+              ) : item.type === "family" ? (
+                <Feather name="users" size={12} color="#FAC898" />
+              ) : item.type === "health" ? (
+                <Feather name="heart" size={12} color="#FAC898" />
+              ) : item.type === "work" ? (
+                <Feather name="briefcase" size={12} color="#FAC898" />
+              ) : item.type === "friends" ? (
+                <Feather name="user-plus" size={12} color="#FAC898" />
+              ) : item.type === "world" ? (
+                <Feather name="globe" size={12} color="#FAC898" />
+              ) : item.type === "personal" ? (
+                <Feather name="user" size={12} color="#FAC898" />
+              ) : (
+                <Feather name="more-horizontal" size={12} color="#FAC898" />
+              )}
+              <Text style={styles.intentionTypeText}>
+                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+              </Text>
+            </View>
             <Text style={styles.intentionTime}>
               {new Date(item.created_at).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -298,9 +319,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
           {item.group_info && (
             <View style={styles.groupTag}>
               <Feather name="users" size={12} color="#FAC898" />
-              <Text style={styles.groupTagText}>
-                Shared group(s): {item.group_info.name}
-              </Text>
+              <Text style={styles.groupTagText}>Shared group(s): {item.group_info.name}</Text>
             </View>
           )}
         </View>
@@ -311,10 +330,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
       </View>
       <View style={styles.intentionActions}>
         <TouchableOpacity
-          style={[
-            styles.intentionAction,
-            item.is_liked && styles.intentionActionActive,
-          ]}
+          style={[styles.intentionAction, item.is_liked && styles.intentionActionActive]}
           onPress={() => onLike(item.id, !!item.is_liked)}
         >
           <View style={styles.likeButtonContainer}>
@@ -335,20 +351,11 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
               />
             </Animated.View>
           </View>
-          <Text
-            style={[
-              styles.actionText,
-              item.is_liked && styles.actionTextActive,
-            ]}
-          >
-            {item.is_liked ? "Liked" : "Support"}{" "}
-            {item.likes_count ? `(${item.likes_count})` : ""}
+          <Text style={[styles.actionText, item.is_liked && styles.actionTextActive]}>
+            {item.is_liked ? "Liked" : "Support"} {item.likes_count ? `(${item.likes_count})` : ""}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.intentionAction}
-          onPress={() => onComment(item.id)}
-        >
+        <TouchableOpacity style={styles.intentionAction} onPress={() => onComment(item.id)}>
           <Feather name="message-circle" size={18} color="#FAC898" />
           <Text style={styles.actionText}>
             {isCommentsExpanded ? "Hide Comments" : "Comment"}{" "}
@@ -356,10 +363,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
           </Text>
         </TouchableOpacity>
         {item.user_id === currentUserId && (
-          <TouchableOpacity
-            style={styles.intentionAction}
-            onPress={() => onEdit(item)}
-          >
+          <TouchableOpacity style={styles.intentionAction} onPress={() => onEdit(item)}>
             <Feather name="edit" size={18} color="#FAC898" />
             <Text style={styles.actionText}>Edit</Text>
           </TouchableOpacity>
@@ -378,19 +382,12 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
               multiline={true}
               inputAccessoryViewID="accessoryViewID"
             />
-            <TouchableOpacity
-              style={styles.sendButton}
-              onPress={() => handleAddComment(item.id)}
-            >
+            <TouchableOpacity style={styles.sendButton} onPress={() => handleAddComment(item.id)}>
               <Feather name="send" size={22} color="#FAC898" />
             </TouchableOpacity>
           </View>
           {commentsLoading ? (
-            <ActivityIndicator
-              size="small"
-              color="#FAC898"
-              style={styles.commentsLoading}
-            />
+            <ActivityIndicator size="small" color="#FAC898" style={styles.commentsLoading} />
           ) : (
             <>
               {comments.length > 0 ? (
@@ -420,22 +417,16 @@ export default function CommunityScreen() {
   const [intentions, setIntentions] = useState<Intention[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeTab] = useState<TabType>("all");
-  const [intentionsFilter, setIntentionsFilter] = useState<
-    "all" | "mine" | "friends" | "groups"
-  >("all");
+  const [intentionsFilter, setIntentionsFilter] = useState<"all" | "mine" | "friends" | "groups">(
+    "all",
+  );
   const [showIntentionModal, setShowIntentionModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
-  const [editingIntention, setEditingIntention] = useState<Intention | null>(
-    null
-  );
+  const [editingIntention, setEditingIntention] = useState<Intention | null>(null);
   const [showFriendsSearch, setShowFriendsSearch] = useState<boolean>(false);
-  const [friendTab, setFriendTab] = useState<"search" | "requests" | "list">(
-    "search"
-  );
+  const [friendTab, setFriendTab] = useState<"search" | "requests" | "list">("search");
   const [sentRequests, setSentRequests] = useState<FriendRequestSent[]>([]);
-  const [incomingRequests, setIncomingRequests] = useState<
-    FriendRequestIncoming[]
-  >([]);
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequestIncoming[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [newIntention, setNewIntention] = useState<{
     title: string;
@@ -464,19 +455,14 @@ export default function CommunityScreen() {
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
   const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
-  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(
-    null
-  );
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
   const [showFabMenu, setShowFabMenu] = useState<boolean>(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
   // Visibility dropdown states in modals
-  const [showVisibilityDropdownNew, setShowVisibilityDropdownNew] =
-    useState<boolean>(false);
-  const [showVisibilityDropdownEdit, setShowVisibilityDropdownEdit] =
-    useState<boolean>(false);
+  const [showVisibilityDropdownNew, setShowVisibilityDropdownNew] = useState<boolean>(false);
+  const [showVisibilityDropdownEdit, setShowVisibilityDropdownEdit] = useState<boolean>(false);
   // Use state to track focus of description so the accessory view appears
-  const [createDescriptionFocused, setCreateDescriptionFocused] =
-    useState(false);
+  const [createDescriptionFocused, setCreateDescriptionFocused] = useState(false);
   const [editDescriptionFocused, setEditDescriptionFocused] = useState(false);
   const headerRef = useRef<View>(null);
   const [headerHeight, setHeaderHeight] = useState<number>(0);
@@ -526,7 +512,7 @@ export default function CommunityScreen() {
   const toggleNewFriendSelection = (friendId: string) => {
     const currentSelected = newIntention.selectedFriends || [];
     const isSelected = currentSelected.includes(friendId);
-    
+
     // Animate the selection
     Animated.spring(selectedAnim, {
       toValue: isSelected ? 0 : 1,
@@ -627,10 +613,7 @@ export default function CommunityScreen() {
     return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
   };
 
-  const isUserFriend = async (
-    currentUserId: string,
-    userId: string
-  ): Promise<boolean> => {
+  const isUserFriend = async (currentUserId: string, userId: string): Promise<boolean> => {
     try {
       if (currentUserId === userId) return false;
       const { data: sent, error: sentError } = await supabase
@@ -747,14 +730,12 @@ export default function CommunityScreen() {
       // Create a map of group ID to member IDs
       const groupMembersMap = new Map<string, Set<string>>();
       if (groupMembers) {
-        groupMembers.forEach(
-          (member: { user_id: string; group_id: string }) => {
-            if (!groupMembersMap.has(member.group_id)) {
-              groupMembersMap.set(member.group_id, new Set<string>());
-            }
-            groupMembersMap.get(member.group_id)?.add(member.user_id);
+        groupMembers.forEach((member: { user_id: string; group_id: string }) => {
+          if (!groupMembersMap.has(member.group_id)) {
+            groupMembersMap.set(member.group_id, new Set<string>());
           }
-        );
+          groupMembersMap.get(member.group_id)?.add(member.user_id);
+        });
       }
 
       // Filter intentions based on visibility settings
@@ -774,8 +755,7 @@ export default function CommunityScreen() {
           // In friends filter, only show posts from friends that are visible to friends
           return (
             friendIds.has(intention.user_id) &&
-            (intention.visibility === "Friends" ||
-              intention.visibility === "Friends & Groups")
+            (intention.visibility === "Friends" || intention.visibility === "Friends & Groups")
           );
         } else if (intentionsFilter === "groups") {
           // In groups filter, show only posts from group members that are visible to groups
@@ -804,7 +784,7 @@ export default function CommunityScreen() {
 
             // Check if there's any overlap between user's groups and post's selected groups
             const isInSelectedGroup = selectedGroupsStr.some((groupId) =>
-              userGroupIdsStr.includes(groupId)
+              userGroupIdsStr.includes(groupId),
             );
 
             return isInSelectedGroup;
@@ -827,10 +807,7 @@ export default function CommunityScreen() {
 
             case "Friends":
               // Visible to creator and friends
-              return (
-                intention.user_id === user.id ||
-                friendIds.has(intention.user_id)
-              );
+              return intention.user_id === user.id || friendIds.has(intention.user_id);
 
             case "Certain Friends":
               // Visible to creator and selected friends
@@ -851,9 +828,7 @@ export default function CommunityScreen() {
               const selectedGroupsStr = selectedGroups.map((id) => String(id));
 
               // Check if there's any overlap between user's groups and post's selected groups
-              return selectedGroupsStr.some((groupId) =>
-                userGroupIdsStr.includes(groupId)
-              );
+              return selectedGroupsStr.some((groupId) => userGroupIdsStr.includes(groupId));
 
             case "Friends & Groups":
               // Visible to creator, friends, and group members
@@ -907,30 +882,24 @@ export default function CommunityScreen() {
           let groupInfo = null;
           if (userGroups.length > 0) {
             const showGroupInfo =
-              (intentionsFilter === "groups" &&
-                intention.user_id !== user.id) ||
-              (intention.user_id !== user.id &&
-                !(await isUserFriend(user.id, intention.user_id)));
+              (intentionsFilter === "groups" && intention.user_id !== user.id) ||
+              (intention.user_id !== user.id && !(await isUserFriend(user.id, intention.user_id)));
             if (showGroupInfo) {
-              const { data: userGroupData, error: userGroupError } =
-                await supabase
-                  .from("group_members")
-                  .select("group_id")
-                  .eq("user_id", intention.user_id);
+              const { data: userGroupData, error: userGroupError } = await supabase
+                .from("group_members")
+                .select("group_id")
+                .eq("user_id", intention.user_id);
               if (userGroupError) throw userGroupError;
-              const { data: currentUserGroups, error: currentUserGroupError } =
-                await supabase
-                  .from("group_members")
-                  .select("group_id")
-                  .eq("user_id", user.id);
+              const { data: currentUserGroups, error: currentUserGroupError } = await supabase
+                .from("group_members")
+                .select("group_id")
+                .eq("user_id", user.id);
               if (currentUserGroupError) throw currentUserGroupError;
               if (userGroupData && currentUserGroups) {
                 const userGroupIds = userGroupData.map((g) => g.group_id);
-                const currentUserGroupIds = currentUserGroups.map(
-                  (g) => g.group_id
-                );
+                const currentUserGroupIds = currentUserGroups.map((g) => g.group_id);
                 const sharedGroupIds = userGroupIds.filter((id) =>
-                  currentUserGroupIds.includes(id)
+                  currentUserGroupIds.includes(id),
                 );
                 if (sharedGroupIds.length > 0) {
                   const { data: groupData, error: groupError } = await supabase
@@ -955,7 +924,7 @@ export default function CommunityScreen() {
             selectedGroups: parseSelectedGroups(intention.selected_groups),
             selectedFriends: parseSelectedFriends(intention.selected_friends),
           };
-        })
+        }),
       );
 
       setIntentions(intentionsWithCounts || []);
@@ -964,8 +933,7 @@ export default function CommunityScreen() {
       setIntentions([]);
       setNotification({
         message:
-          "Error fetching intentions: " +
-          (error instanceof Error ? error.message : String(error)),
+          "Error fetching intentions: " + (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -989,8 +957,7 @@ export default function CommunityScreen() {
       setComments([]);
       setNotification({
         message:
-          "Error fetching comments: " +
-          (error instanceof Error ? error.message : String(error)),
+          "Error fetching comments: " + (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -1009,9 +976,7 @@ export default function CommunityScreen() {
       if (!user) throw new Error("Not authenticated");
       const { data: sent, error: sentError } = await supabase
         .from("friends")
-        .select(
-          "id, user_id_2, status, created_at, user_2:users!friends_user_id_2_fkey(*)"
-        )
+        .select("id, user_id_2, status, created_at, user_2:users!friends_user_id_2_fkey(*)")
         .eq("user_id_1", user.id)
         .eq("status", "pending");
       if (sentError) throw sentError;
@@ -1022,17 +987,13 @@ export default function CommunityScreen() {
         created_at: string;
         user_2: UserData | UserData[];
       }
-      const formattedSent: FriendRequestSent[] = (
-        (sent as SentRow[]) || []
-      ).map((row) => ({
+      const formattedSent: FriendRequestSent[] = ((sent as SentRow[]) || []).map((row) => ({
         ...row,
         user_2: Array.isArray(row.user_2) ? row.user_2[0] : row.user_2,
       }));
       const { data: incoming, error: incomingError } = await supabase
         .from("friends")
-        .select(
-          "id, user_id_1, status, created_at, user_1:users!friends_user_id_1_fkey(*)"
-        )
+        .select("id, user_id_1, status, created_at, user_1:users!friends_user_id_1_fkey(*)")
         .eq("user_id_2", user.id)
         .eq("status", "pending");
       if (incomingError) throw incomingError;
@@ -1043,12 +1004,12 @@ export default function CommunityScreen() {
         created_at: string;
         user_1: UserData | UserData[];
       }
-      const formattedIncoming: FriendRequestIncoming[] = (
-        (incoming as IncomingRow[]) || []
-      ).map((row) => ({
-        ...row,
-        user_1: Array.isArray(row.user_1) ? row.user_1[0] : row.user_1,
-      }));
+      const formattedIncoming: FriendRequestIncoming[] = ((incoming as IncomingRow[]) || []).map(
+        (row) => ({
+          ...row,
+          user_1: Array.isArray(row.user_1) ? row.user_1[0] : row.user_1,
+        }),
+      );
       setSentRequests(formattedSent);
       setIncomingRequests(formattedIncoming);
       setFriendRequestCount(formattedIncoming.length);
@@ -1087,7 +1048,9 @@ export default function CommunityScreen() {
 
   const fetchFriends = async (): Promise<void> => {
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
       if (!currentUser) return;
 
       type FriendRow = {
@@ -1114,7 +1077,7 @@ export default function CommunityScreen() {
             profile_image,
             created_at
           )
-        `
+        `,
         )
         .eq("user_id_1", currentUser.id)
         .eq("status", "accepted")
@@ -1133,7 +1096,7 @@ export default function CommunityScreen() {
             profile_image,
             created_at
           )
-        `
+        `,
         )
         .eq("user_id_2", currentUser.id)
         .eq("status", "accepted")
@@ -1146,24 +1109,24 @@ export default function CommunityScreen() {
 
       // Format the friends data to match the Friend interface
       const formattedFriends: Friend[] = [
-        ...(sentFriends?.map(row => ({
+        ...(sentFriends?.map((row) => ({
           id: row.id,
           friend: {
             id: row.friend.id,
             first_name: row.friend.first_name,
             last_name: row.friend.last_name,
-            created_at: row.friend.created_at
-          }
+            created_at: row.friend.created_at,
+          },
         })) || []),
-        ...(receivedFriends?.map(row => ({
+        ...(receivedFriends?.map((row) => ({
           id: row.id,
           friend: {
             id: row.friend.id,
             first_name: row.friend.first_name,
             last_name: row.friend.last_name,
-            created_at: row.friend.created_at
-          }
-        })) || [])
+            created_at: row.friend.created_at,
+          },
+        })) || []),
       ];
 
       setFriends(formattedFriends);
@@ -1175,7 +1138,9 @@ export default function CommunityScreen() {
   // Update the useEffect to handle async properly
   useEffect(() => {
     const initializeFriends = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
       if (currentUser) {
         fetchFriends();
       }
@@ -1184,10 +1149,7 @@ export default function CommunityScreen() {
     initializeFriends();
   }, []);
 
-  const handleLikeIntention = async (
-    intentionId: string,
-    isLiked: boolean
-  ): Promise<void> => {
+  const handleLikeIntention = async (intentionId: string, isLiked: boolean): Promise<void> => {
     try {
       Vibration.vibrate(50);
       const scaleAnim = getLikeScaleAnimation(intentionId);
@@ -1278,8 +1240,8 @@ export default function CommunityScreen() {
                   ? (intention.likes_count || 1) - 1
                   : (intention.likes_count || 0) + 1,
               }
-            : intention
-        )
+            : intention,
+        ),
       );
     } catch (error: any) {
       console.error("Error toggling like:", error);
@@ -1322,16 +1284,14 @@ export default function CommunityScreen() {
                 ...intention,
                 comments_count: (intention.comments_count || 0) + 1,
               }
-            : intention
-        )
+            : intention,
+        ),
       );
       setNewComment("");
     } catch (error: any) {
       console.error("Error adding comment:", error);
       setNotification({
-        message: `Error adding comment: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error adding comment: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -1364,13 +1324,9 @@ export default function CommunityScreen() {
           type: newIntention.type,
           visibility: newIntention.visibility,
           selected_groups:
-            newIntention.visibility === "Certain Groups"
-              ? newIntention.selectedGroups
-              : [],
+            newIntention.visibility === "Certain Groups" ? newIntention.selectedGroups : [],
           selected_friends:
-            newIntention.visibility === "Certain Friends"
-              ? newIntention.selectedFriends
-              : [],
+            newIntention.visibility === "Certain Friends" ? newIntention.selectedFriends : [],
         },
       ]);
       if (error) throw error;
@@ -1464,10 +1420,7 @@ export default function CommunityScreen() {
       return;
     }
     try {
-      const { error } = await supabase
-        .from("intentions")
-        .delete()
-        .eq("id", intentionId);
+      const { error } = await supabase.from("intentions").delete().eq("id", intentionId);
       if (error) throw error;
       setNotification({
         message: "Intention deleted successfully!",
@@ -1493,9 +1446,7 @@ export default function CommunityScreen() {
       const { data, error } = await supabase
         .from("users")
         .select("*, created_at")
-        .or(
-          `first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`
-        )
+        .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
         .order("first_name", { ascending: true })
         .limit(20);
       if (error) throw error;
@@ -1505,8 +1456,7 @@ export default function CommunityScreen() {
       setUsers([]);
       setNotification({
         message:
-          "Error fetching users: " +
-          (error instanceof Error ? error.message : String(error)),
+          "Error fetching users: " + (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
     } finally {
@@ -1531,9 +1481,7 @@ export default function CommunityScreen() {
     } catch (error: any) {
       console.error("Error adding friend:", error);
       setNotification({
-        message: `Error adding friend: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error adding friend: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -1583,10 +1531,7 @@ export default function CommunityScreen() {
 
   const handleCancelRequest = async (requestId: string): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from("friends")
-        .delete()
-        .eq("id", requestId);
+      const { error } = await supabase.from("friends").delete().eq("id", requestId);
       if (error) throw error;
       setNotification({ message: "Friend request canceled.", type: "success" });
       fetchFriendRequests();
@@ -1602,14 +1547,9 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleRemoveFriend = async (
-    friendRelationshipId: string
-  ): Promise<void> => {
+  const handleRemoveFriend = async (friendRelationshipId: string): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from("friends")
-        .delete()
-        .eq("id", friendRelationshipId);
+      const { error } = await supabase.from("friends").delete().eq("id", friendRelationshipId);
       if (error) throw error;
       setNotification({
         message: "Friend removed successfully!",
@@ -1619,9 +1559,7 @@ export default function CommunityScreen() {
     } catch (error: any) {
       console.error("Error removing friend:", error);
       setNotification({
-        message: `Error removing friend: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error removing friend: ${error instanceof Error ? error.message : String(error)}`,
         type: "error",
       });
     }
@@ -1664,9 +1602,7 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleSelectFilter = (
-    filter: "all" | "mine" | "friends" | "groups"
-  ): void => {
+  const handleSelectFilter = (filter: "all" | "mine" | "friends" | "groups"): void => {
     setIntentionsFilter(filter);
     setShowFilterDropdown(false);
   };
@@ -1720,10 +1656,7 @@ export default function CommunityScreen() {
           <Feather name="message-circle" size={18} color="#FAC898" />
           <Text style={styles.actionText}>Message</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.userAction}
-          onPress={() => handleAddFriend(item.id)}
-        >
+        <TouchableOpacity style={styles.userAction} onPress={() => handleAddFriend(item.id)}>
           <Feather name="heart" size={18} color="#FAC898" />
           <Text style={styles.actionText}>Add Friend</Text>
         </TouchableOpacity>
@@ -1731,11 +1664,7 @@ export default function CommunityScreen() {
     </View>
   );
 
-  const renderSentRequestCard = ({
-    item,
-  }: {
-    item: FriendRequestSent;
-  }): JSX.Element => (
+  const renderSentRequestCard = ({ item }: { item: FriendRequestSent }): JSX.Element => (
     <View style={styles.friendCard}>
       <View style={styles.userHeader}>
         <View style={styles.userAvatar}>
@@ -1762,11 +1691,7 @@ export default function CommunityScreen() {
     </View>
   );
 
-  const renderIncomingRequestCard = ({
-    item,
-  }: {
-    item: FriendRequestIncoming;
-  }): JSX.Element => (
+  const renderIncomingRequestCard = ({ item }: { item: FriendRequestIncoming }): JSX.Element => (
     <View style={styles.friendCard}>
       <View style={styles.userHeader}>
         <View style={styles.userAvatar}>
@@ -1782,10 +1707,7 @@ export default function CommunityScreen() {
         </View>
       </View>
       <View style={styles.friendRequestActions}>
-        <TouchableOpacity
-          style={styles.acceptButton}
-          onPress={() => handleAcceptRequest(item.id)}
-        >
+        <TouchableOpacity style={styles.acceptButton} onPress={() => handleAcceptRequest(item.id)}>
           <Text style={styles.acceptButtonText}>Accept</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -1809,14 +1731,13 @@ export default function CommunityScreen() {
             {item.friend.first_name} {item.friend.last_name}
           </Text>
           <Text style={styles.userSubtitle}>
-            {item.created_at ? `Friends since ${new Date(item.created_at).toLocaleDateString()}` : 'Friends'}
+            {item.created_at
+              ? `Friends since ${new Date(item.created_at).toLocaleDateString()}`
+              : "Friends"}
           </Text>
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => handleRemoveFriend(item.id)}
-      >
+      <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveFriend(item.id)}>
         <Feather name="trash-2" size={18} color="#E9967A" />
         <Text style={styles.removeButtonText}>Remove</Text>
       </TouchableOpacity>
@@ -1824,10 +1745,7 @@ export default function CommunityScreen() {
   );
 
   return (
-    <ImageBackground
-      source={backgroundImageRequire}
-      style={styles.backgroundImage}
-    >
+    <ImageBackground source={backgroundImageRequire} style={styles.backgroundImage}>
       <View style={[styles.backgroundOverlay, { opacity: 0.7 }]} />
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
@@ -1835,9 +1753,7 @@ export default function CommunityScreen() {
           <View
             style={[
               styles.notification,
-              notification.type === "error"
-                ? styles.errorNotification
-                : styles.successNotification,
+              notification.type === "error" ? styles.errorNotification : styles.successNotification,
             ]}
           >
             <Text style={styles.notificationText}>{notification.message}</Text>
@@ -1878,10 +1794,7 @@ export default function CommunityScreen() {
           ]}
         >
           <TouchableOpacity
-            style={[
-              styles.filterOption,
-              intentionsFilter === "all" && styles.activeFilterOption,
-            ]}
+            style={[styles.filterOption, intentionsFilter === "all" && styles.activeFilterOption]}
             onPress={() => handleSelectFilter("all")}
           >
             <Text
@@ -1926,10 +1839,7 @@ export default function CommunityScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.filterOption,
-              intentionsFilter === "mine" && styles.activeFilterOption,
-            ]}
+            style={[styles.filterOption, intentionsFilter === "mine" && styles.activeFilterOption]}
             onPress={() => handleSelectFilter("mine")}
           >
             <Text
@@ -1950,34 +1860,26 @@ export default function CommunityScreen() {
             contentContainerStyle={styles.intentionList}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: true }
-            )}
-            refreshControl={
-              <RefreshControl
-                refreshing={isLoading}
-                onRefresh={fetchIntentions}
-              />
-            }
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+              useNativeDriver: true,
+            })}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchIntentions} />}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
                   {intentionsFilter === "mine"
                     ? "No intentions yet."
                     : intentionsFilter === "friends"
-                    ? "No friend intentions."
-                    : intentionsFilter === "groups"
-                    ? "No group intentions."
-                    : "No posts to show."}
+                      ? "No friend intentions."
+                      : intentionsFilter === "groups"
+                        ? "No group intentions."
+                        : "No posts to show."}
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyStateButton}
                   onPress={() => setShowIntentionModal(true)}
                 >
-                  <Text style={styles.emptyStateButtonText}>
-                    Create New Intention
-                  </Text>
+                  <Text style={styles.emptyStateButtonText}>Create New Intention</Text>
                 </TouchableOpacity>
               </View>
             }
@@ -1985,19 +1887,13 @@ export default function CommunityScreen() {
         )}
         {showFriendsSearch && (
           <View style={styles.friendsSection}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setShowFriendsSearch(false)}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={() => setShowFriendsSearch(false)}>
               <Feather name="arrow-left" size={24} color="#FAC898" />
               <Text style={styles.backButtonText}>Back to Feed</Text>
             </TouchableOpacity>
             <View style={styles.friendsTabs}>
               <TouchableOpacity
-                style={[
-                  styles.friendTab,
-                  friendTab === "search" && styles.activeFriendTab,
-                ]}
+                style={[styles.friendTab, friendTab === "search" && styles.activeFriendTab]}
                 onPress={() => setFriendTab("search")}
               >
                 <Text
@@ -2010,10 +1906,7 @@ export default function CommunityScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.friendTab,
-                  friendTab === "requests" && styles.activeFriendTab,
-                ]}
+                style={[styles.friendTab, friendTab === "requests" && styles.activeFriendTab]}
                 onPress={() => setFriendTab("requests")}
               >
                 <Text
@@ -2026,24 +1919,16 @@ export default function CommunityScreen() {
                 </Text>
                 {friendRequestCount > 0 && (
                   <View style={styles.tabBadge}>
-                    <Text style={styles.tabBadgeText}>
-                      {friendRequestCount}
-                    </Text>
+                    <Text style={styles.tabBadgeText}>{friendRequestCount}</Text>
                   </View>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.friendTab,
-                  friendTab === "list" && styles.activeFriendTab,
-                ]}
+                style={[styles.friendTab, friendTab === "list" && styles.activeFriendTab]}
                 onPress={() => setFriendTab("list")}
               >
                 <Text
-                  style={[
-                    styles.friendTabText,
-                    friendTab === "list" && styles.activeFriendTabText,
-                  ]}
+                  style={[styles.friendTabText, friendTab === "list" && styles.activeFriendTabText]}
                 >
                   Friends
                 </Text>
@@ -2052,12 +1937,7 @@ export default function CommunityScreen() {
             {friendTab === "search" && (
               <>
                 <View style={styles.searchContainer}>
-                  <Feather
-                    name="search"
-                    size={22}
-                    color="#FAC898"
-                    style={styles.searchIcon}
-                  />
+                  <Feather name="search" size={22} color="#FAC898" style={styles.searchIcon} />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search friends..."
@@ -2075,9 +1955,7 @@ export default function CommunityScreen() {
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
                     <View style={styles.emptyState}>
-                      <Text style={styles.emptyStateText}>
-                        Search for friends
-                      </Text>
+                      <Text style={styles.emptyStateText}>Search for friends</Text>
                     </View>
                   }
                 />
@@ -2091,9 +1969,7 @@ export default function CommunityScreen() {
                   <>
                     {sentRequests.length > 0 && (
                       <>
-                        <Text style={styles.requestSubtitle}>
-                          Sent Requests
-                        </Text>
+                        <Text style={styles.requestSubtitle}>Sent Requests</Text>
                         <FlatList
                           data={sentRequests}
                           renderItem={renderSentRequestCard}
@@ -2105,9 +1981,7 @@ export default function CommunityScreen() {
                     )}
                     {incomingRequests.length > 0 && (
                       <>
-                        <Text style={styles.requestSubtitle}>
-                          Incoming Requests
-                        </Text>
+                        <Text style={styles.requestSubtitle}>Incoming Requests</Text>
                         <FlatList
                           data={incomingRequests}
                           renderItem={renderIncomingRequestCard}
@@ -2130,9 +2004,7 @@ export default function CommunityScreen() {
                       style={styles.emptyStateButton}
                       onPress={() => setFriendTab("search")}
                     >
-                      <Text style={styles.emptyStateButtonText}>
-                        Find Friends
-                      </Text>
+                      <Text style={styles.emptyStateButtonText}>Find Friends</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -2177,32 +2049,20 @@ export default function CommunityScreen() {
               <Feather name="edit" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Add Intention</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              onPress={() => handleFabOption("friends")}
-            >
+            <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("friends")}>
               <Feather name="users" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>
                 Friends{" "}
                 {friendRequestCount > 0 && (
-                  <Text style={styles.fabMenuBadge}>
-                    {" "}
-                    • {friendRequestCount}
-                  </Text>
+                  <Text style={styles.fabMenuBadge}> • {friendRequestCount}</Text>
                 )}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              onPress={() => handleFabOption("lent")}
-            >
+            <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("lent")}>
               <Feather name="book-open" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Lent 2025</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              onPress={() => handleFabOption("groups")}
-            >
+            <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("groups")}>
               <Feather name="users" size={22} color="#FAC898" />
               <Text style={styles.fabMenuItemText}>Groups</Text>
             </TouchableOpacity>
@@ -2225,13 +2085,24 @@ export default function CommunityScreen() {
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Type</Text>
                     <View style={styles.pickerContainer}>
-                      {["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"].map((type) => (
+                      {[
+                        "prayer",
+                        "resolution",
+                        "goal",
+                        "spiritual",
+                        "family",
+                        "health",
+                        "work",
+                        "friends",
+                        "world",
+                        "personal",
+                        "other",
+                      ].map((type) => (
                         <TouchableOpacity
                           key={type}
                           style={[
                             styles.typeOption,
-                            newIntention.type === type &&
-                              styles.selectedTypeOption,
+                            newIntention.type === type && styles.selectedTypeOption,
                           ]}
                           onPress={() =>
                             setNewIntention({
@@ -2251,14 +2122,12 @@ export default function CommunityScreen() {
                     <Text style={styles.formLabel}>Visibility</Text>
                     <TouchableOpacity
                       style={styles.dropdown}
-                      onPress={() =>
-                        setShowVisibilityDropdownNew(!showVisibilityDropdownNew)
-                      }
+                      onPress={() => setShowVisibilityDropdownNew(!showVisibilityDropdownNew)}
                     >
                       <View style={styles.dropdownContent}>
                         {
                           visibilityOptions.find(
-                            (option) => option.label === newIntention.visibility
+                            (option) => option.label === newIntention.visibility,
                           )?.icon
                         }
                         <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
@@ -2266,11 +2135,7 @@ export default function CommunityScreen() {
                         </Text>
                       </View>
                       <Feather
-                        name={
-                          showVisibilityDropdownNew
-                            ? "chevron-up"
-                            : "chevron-down"
-                        }
+                        name={showVisibilityDropdownNew ? "chevron-up" : "chevron-down"}
                         size={18}
                         color="#FAC898"
                       />
@@ -2304,9 +2169,7 @@ export default function CommunityScreen() {
                           >
                             <View style={styles.dropdownOptionContent}>
                               {option.icon}
-                              <Text style={styles.dropdownOptionText}>
-                                {option.label}
-                              </Text>
+                              <Text style={styles.dropdownOptionText}>{option.label}</Text>
                             </View>
                           </TouchableOpacity>
                         ))}
@@ -2314,9 +2177,7 @@ export default function CommunityScreen() {
                     )}
                     {newIntention.visibility === "Certain Groups" && (
                       <View style={styles.groupSelectorContainer}>
-                        <Text style={styles.groupSelectorLabel}>
-                          Select Groups:
-                        </Text>
+                        <Text style={styles.groupSelectorLabel}>Select Groups:</Text>
                         <View style={styles.groupSelectorList}>
                           {userGroups.map((group) => (
                             <TouchableOpacity
@@ -2330,9 +2191,7 @@ export default function CommunityScreen() {
                               ]}
                               onPress={() => toggleNewGroupSelection(group.id)}
                             >
-                              <Text style={styles.groupOptionText}>
-                                {group.name}
-                              </Text>
+                              <Text style={styles.groupOptionText}>{group.name}</Text>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -2343,13 +2202,18 @@ export default function CommunityScreen() {
                         <Text style={styles.friendSelectorLabel}>
                           Select Friends ({friends.length})
                         </Text>
-                        <ScrollView 
+                        <ScrollView
                           style={styles.friendSelectorList}
-                          contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap' }}
+                          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
                           showsVerticalScrollIndicator={true}
                         >
                           {friends.length === 0 ? (
-                            <Text style={[styles.friendOptionText, { textAlign: 'center', marginTop: 10 }]}>
+                            <Text
+                              style={[
+                                styles.friendOptionText,
+                                { textAlign: "center", marginTop: 10 },
+                              ]}
+                            >
                               No friends found. Add friends to share intentions with them.
                             </Text>
                           ) : (
@@ -2379,9 +2243,7 @@ export default function CommunityScreen() {
                     <TextInput
                       style={styles.formInput}
                       value={newIntention.title}
-                      onChangeText={(text) =>
-                        setNewIntention({ ...newIntention, title: text })
-                      }
+                      onChangeText={(text) => setNewIntention({ ...newIntention, title: text })}
                       placeholder="Enter title..."
                       placeholderTextColor="rgba(250, 200, 152, 0.5)"
                       inputAccessoryViewID="accessoryViewID"
@@ -2391,7 +2253,10 @@ export default function CommunityScreen() {
                     <Text style={styles.formLabel}>Description</Text>
                     <View style={styles.textInputContainer}>
                       <TextInput
-                        style={[styles.formTextarea, createDescriptionFocused && styles.formTextareaFocused]}
+                        style={[
+                          styles.formTextarea,
+                          createDescriptionFocused && styles.formTextareaFocused,
+                        ]}
                         value={newIntention.description}
                         onChangeText={(text) =>
                           setNewIntention({ ...newIntention, description: text })
@@ -2406,7 +2271,7 @@ export default function CommunityScreen() {
                         onBlur={() => setCreateDescriptionFocused(false)}
                       />
                       {createDescriptionFocused && (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.closeButton}
                           onPress={() => {
                             Keyboard.dismiss();
@@ -2418,7 +2283,6 @@ export default function CommunityScreen() {
                       )}
                     </View>
                   </View>
-
 
                   <InputAccessoryView nativeID="accessoryViewID">
                     <View style={styles.accessory}>
@@ -2434,10 +2298,7 @@ export default function CommunityScreen() {
                     >
                       <Text style={styles.cancelButtonText}>Cancel</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.createButton}
-                      onPress={handleCreateIntention}
-                    >
+                    <TouchableOpacity style={styles.createButton} onPress={handleCreateIntention}>
                       <Text style={styles.createButtonText}>Create</Text>
                     </TouchableOpacity>
                   </View>
@@ -2466,13 +2327,24 @@ export default function CommunityScreen() {
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Type</Text>
                     <View style={styles.pickerContainer}>
-                      {["prayer", "resolution", "goal", "spiritual", "family", "health", "work", "friends", "world", "personal", "other"].map((type) => (
+                      {[
+                        "prayer",
+                        "resolution",
+                        "goal",
+                        "spiritual",
+                        "family",
+                        "health",
+                        "work",
+                        "friends",
+                        "world",
+                        "personal",
+                        "other",
+                      ].map((type) => (
                         <TouchableOpacity
                           key={type}
                           style={[
                             styles.typeOption,
-                            editingIntention.type === type &&
-                              styles.selectedTypeOption,
+                            editingIntention.type === type && styles.selectedTypeOption,
                           ]}
                           onPress={() =>
                             setEditingIntention({
@@ -2492,17 +2364,12 @@ export default function CommunityScreen() {
                     <Text style={styles.formLabel}>Visibility</Text>
                     <TouchableOpacity
                       style={styles.dropdown}
-                      onPress={() =>
-                        setShowVisibilityDropdownEdit(
-                          !showVisibilityDropdownEdit
-                        )
-                      }
+                      onPress={() => setShowVisibilityDropdownEdit(!showVisibilityDropdownEdit)}
                     >
                       <View style={styles.dropdownContent}>
                         {
                           visibilityOptions.find(
-                            (option) =>
-                              option.label === editingIntention.visibility
+                            (option) => option.label === editingIntention.visibility,
                           )?.icon
                         }
                         <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
@@ -2510,11 +2377,7 @@ export default function CommunityScreen() {
                         </Text>
                       </View>
                       <Feather
-                        name={
-                          showVisibilityDropdownEdit
-                            ? "chevron-up"
-                            : "chevron-down"
-                        }
+                        name={showVisibilityDropdownEdit ? "chevron-up" : "chevron-down"}
                         size={18}
                         color="#FAC898"
                       />
@@ -2548,9 +2411,7 @@ export default function CommunityScreen() {
                           >
                             <View style={styles.dropdownOptionContent}>
                               {option.icon}
-                              <Text style={styles.dropdownOptionText}>
-                                {option.label}
-                              </Text>
+                              <Text style={styles.dropdownOptionText}>{option.label}</Text>
                             </View>
                           </TouchableOpacity>
                         ))}
@@ -2558,9 +2419,7 @@ export default function CommunityScreen() {
                     )}
                     {editingIntention.visibility === "Certain Groups" && (
                       <View style={styles.groupSelectorContainer}>
-                        <Text style={styles.groupSelectorLabel}>
-                          Select Groups:
-                        </Text>
+                        <Text style={styles.groupSelectorLabel}>Select Groups:</Text>
                         <View style={styles.groupSelectorList}>
                           {userGroups.map((group) => (
                             <TouchableOpacity
@@ -2568,17 +2427,13 @@ export default function CommunityScreen() {
                               style={[
                                 styles.groupOption,
                                 editingIntention.selectedGroups &&
-                                editingIntention.selectedGroups.includes(
-                                  group.id
-                                )
+                                editingIntention.selectedGroups.includes(group.id)
                                   ? styles.groupOptionSelected
                                   : null,
                               ]}
                               onPress={() => toggleEditGroupSelection(group.id)}
                             >
-                              <Text style={styles.groupOptionText}>
-                                {group.name}
-                              </Text>
+                              <Text style={styles.groupOptionText}>{group.name}</Text>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -2589,13 +2444,18 @@ export default function CommunityScreen() {
                         <Text style={styles.friendSelectorLabel}>
                           Select Friends ({friends.length})
                         </Text>
-                        <ScrollView 
+                        <ScrollView
                           style={styles.friendSelectorList}
-                          contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap' }}
+                          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
                           showsVerticalScrollIndicator={true}
                         >
                           {friends.length === 0 ? (
-                            <Text style={[styles.friendOptionText, { textAlign: 'center', marginTop: 10 }]}>
+                            <Text
+                              style={[
+                                styles.friendOptionText,
+                                { textAlign: "center", marginTop: 10 },
+                              ]}
+                            >
                               No friends found. Add friends to share intentions with them.
                             </Text>
                           ) : (
@@ -2692,10 +2552,7 @@ export default function CommunityScreen() {
                     >
                       <Text style={styles.cancelButtonText}>Cancel</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.createButton}
-                      onPress={handleUpdateIntention}
-                    >
+                    <TouchableOpacity style={styles.createButton} onPress={handleUpdateIntention}>
                       <Text style={styles.createButtonText}>Save</Text>
                     </TouchableOpacity>
                   </View>
@@ -2708,29 +2565,20 @@ export default function CommunityScreen() {
           visible={deleteModal.isOpen}
           transparent={true}
           animationType="fade"
-          onRequestClose={() =>
-            setDeleteModal({ isOpen: false, intentionId: null })
-          }
+          onRequestClose={() => setDeleteModal({ isOpen: false, intentionId: null })}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Delete Intention</Text>
-              <Text style={styles.modalText}>
-                Are you sure you want to delete this intention?
-              </Text>
+              <Text style={styles.modalText}>Are you sure you want to delete this intention?</Text>
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.cancelButton}
-                  onPress={() =>
-                    setDeleteModal({ isOpen: false, intentionId: null })
-                  }
+                  onPress={() => setDeleteModal({ isOpen: false, intentionId: null })}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={handleDeleteIntention}
-                >
+                <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteIntention}>
                   <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -3183,18 +3031,18 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.92)', // Almost completely opaque
-    justifyContent: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.92)", // Almost completely opaque
+    justifyContent: "center",
     paddingVertical: 20,
     paddingBottom: 60,
   },
   modalContent: {
-    backgroundColor: 'rgba(20, 18, 17, 0.99)', // Even darker content
+    backgroundColor: "rgba(20, 18, 17, 0.99)", // Even darker content
     borderRadius: 15,
     padding: 20,
     margin: 20,
-    maxHeight: '80%',
-    borderColor: 'rgba(250, 200, 152, 0.1)', // Subtle border
+    maxHeight: "80%",
+    borderColor: "rgba(250, 200, 152, 0.1)", // Subtle border
     borderWidth: 1,
   },
   modalTitle: {
@@ -3375,21 +3223,21 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     zIndex: 1000,
   },
-  textInputContainer: { 
-    position: 'relative', 
+  textInputContainer: {
+    position: "relative",
   },
-  closeButton: { 
-    position: 'absolute', 
-    right: 10, 
-    top: 10, 
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-    borderRadius: 20, 
-    width: 36, 
-    height: 36, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 1, 
-    borderColor: 'rgba(250, 200, 152, 0.4)', 
+  closeButton: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
   },
   fabMenu: {
     position: "absolute",
@@ -3462,7 +3310,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
     minWidth: 120,
-    alignItems: 'center',
+    alignItems: "center",
   },
   friendOptionSelected: {
     backgroundColor: "rgba(250, 200, 152, 0.4)",
@@ -3473,24 +3321,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "500",
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
     paddingVertical: 20,
   },
   modalScrollView: {
-    maxHeight: '90%',
+    maxHeight: "90%",
   },
   friendSelectorLabel: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 10,
-  }
+  },
 });
-
-
-
