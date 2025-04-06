@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import React, { useEffect } from "react";
 import { Platform, View, StyleSheet, TouchableOpacity } from "react-native";
 import Animated, {
@@ -11,29 +11,22 @@ import Animated, {
 import { BlurView } from "expo-blur";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-
-interface Route {
-  key: string;
-  name: string;
-}
-
-interface TabState {
-  index: number;
-  routes: Route[];
-}
+import { ParamListBase, TabNavigationState } from "@react-navigation/native";
 
 interface TabBarProps {
-  state: TabState;
+  state: TabNavigationState<ParamListBase>;
   descriptors: Record<string, any>;
   navigation: any;
 }
 
 interface AnimatedTabIconProps {
-  name: string;
+  name: "home" | "discover" | "bible" | "profile";
   focused: boolean;
   index: number;
   activeIndex: number;
 }
+
+const ICON_SIZE = 20;
 
 // Animated tab icon with smooth transitions
 const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
@@ -45,18 +38,18 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
   const rotation = useSharedValue(0);
   const textOpacity = useSharedValue(0);
 
-  // Animation configuration for more fluid movements
-  const springConfig = {
-    damping: 10,
-    stiffness: 80,
-    mass: 0.5,
-    overshootClamping: false,
-  };
-
   // Enhance animations with rotation and improved timing
   useEffect(() => {
+    // Animation configuration for more fluid movements
+    const springConfig = {
+      damping: 10,
+      stiffness: 80,
+      mass: 0.5,
+      overshootClamping: false,
+    };
+
     if (focused) {
-      scale.value = withSpring(1.15, springConfig);
+      scale.value = withSpring(1.05, springConfig);
       circleScale.value = withSpring(1, springConfig);
       circleOpacity.value = withTiming(1, {
         duration: 300,
@@ -79,7 +72,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
       rotation.value = withTiming(0, { duration: 300 });
       textOpacity.value = withTiming(0, { duration: 150 });
     }
-  }, [focused]);
+  }, [circleOpacity, circleScale, focused, rotation, scale, textOpacity, translateY]);
 
   // Animated styles
   const iconStyle = useAnimatedStyle(() => ({
@@ -91,16 +84,6 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
     zIndex: 2,
   }));
 
-  const circleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: circleScale.value }],
-    opacity: circleOpacity.value * 0.25,
-  }));
-
-  const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: circleOpacity.value * 0.6,
-    transform: [{ scale: circleScale.value * 1.15 }],
-  }));
-
   const textStyle = useAnimatedStyle(() => ({
     opacity: textOpacity.value,
     transform: [
@@ -110,78 +93,42 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
   }));
 
   // Refined icon selection with improved naming
-  const getIcon = () => {
-    switch (name) {
-      case "home":
-        return (
-          <Animated.View style={iconStyle}>
-            <Feather name="home" size={22} color="#FFFFFF" />
-          </Animated.View>
-        );
-      case "discover":
-        return (
-          <Animated.View style={iconStyle}>
-            <Feather name="compass" size={22} color="#FFFFFF" />
-          </Animated.View>
-        );
-      case "bible":
-        return (
-          <Animated.View style={iconStyle}>
-            <Feather name="book" size={22} color="#FFFFFF" />
-          </Animated.View>
-        );
-      case "me":
-        return (
-          <Animated.View style={iconStyle}>
-            <Feather name="user" size={22} color="#FFFFFF" />
-          </Animated.View>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Refined labels with better naming
-  const getLabel = () => {
-    switch (name) {
-      case "home":
-        return "Home";
-      case "discover":
-        return "Explore";
-      case "bible":
-        return "Bible";
-      case "me":
-        return "Me";
-      default:
-        return "";
-    }
+  const icon = {
+    home: {
+      icon: <Feather name="home" size={ICON_SIZE} color="#FFFFFF" />,
+      label: "Home",
+    },
+    discover: {
+      icon: <Feather name="compass" size={ICON_SIZE} color="#FFFFFF" />,
+      label: "Explore",
+    },
+    bible: {
+      icon: <Feather name="book" size={ICON_SIZE} color="#FFFFFF" />,
+      label: "Bible",
+    },
+    profile: {
+      icon: <Feather name="user" size={ICON_SIZE} color="#FFFFFF" />,
+      label: "Profile",
+    },
   };
 
   return (
     <View style={styles.iconContainer}>
-      {/* Background glow effect */}
-      <Animated.View style={[styles.shimmerCircle, shimmerStyle]} />
-
-      {/* Main circle background */}
-      <Animated.View style={[styles.focusCircle, circleStyle]} />
-
-      {/* Icon */}
-      {getIcon()}
-
-      {/* Label with enhanced animation */}
-      <Animated.Text style={[styles.tabLabel, textStyle]}>{getLabel()}</Animated.Text>
+      <Animated.View style={[iconStyle, { opacity: focused ? 1 : 0.7 }]}>
+        {icon[name].icon}
+      </Animated.View>
+      <Animated.Text style={[styles.tabLabel, textStyle]}>{icon[name].label}</Animated.Text>
     </View>
   );
 };
 
-// Custom tab bar with seamless design and improved visual aesthetics
-const CustomTabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation }) => {
-  // Only show these tabs in the tab bar
-  const visibleTabs = ["home", "discover", "bible", "me"];
+const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
+  // TODO: fix this by not polluting the app router with components in the root routes
+  const visibleTabs = ["home", "discover", "bible", "profile"];
 
   // Track if Comments screen is active to keep Home tab selected
   const isCommentsScreen = state.routes.some(
-    (route: Route) => route.name === "" && state.index === state.routes.indexOf(route),
+    (route) => route.name === "" && state.index === state.routes.indexOf(route),
   );
 
   return (
@@ -213,12 +160,10 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation })
 
           {/* Tab buttons with improved spacing */}
           <View style={styles.tabButtonsRow}>
-            {state.routes.map((route: Route, index: number) => {
+            {state.routes.map((route, index) => {
               if (!visibleTabs.includes(route.name)) {
                 return null;
               }
-
-              const { options } = descriptors[route.key];
 
               // Check if this tab is focused OR if it's home and comments screen is active
               const isFocused =
@@ -244,7 +189,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, descriptors, navigation })
                   activeOpacity={0.65}
                 >
                   <AnimatedTabIcon
-                    name={route.name}
+                    name={route.name as AnimatedTabIconProps["name"]}
                     focused={isFocused}
                     index={index}
                     activeIndex={state.index}
@@ -271,7 +216,7 @@ export default function TabLayout() {
       <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
       <Tabs.Screen name="bible" options={{ title: "Bible" }} />
-      <Tabs.Screen name="me" options={{ title: "Me" }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
 
       {/* Hidden screens */}
       <Tabs.Screen name="RosaryPrayer" options={{ tabBarButton: () => null }} />
@@ -319,8 +264,6 @@ const styles = StyleSheet.create({
   tabBarWrapper: {
     width: "100%",
     height: Platform.OS === "ios" ? 85 : 65,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     overflow: "hidden",

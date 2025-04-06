@@ -15,8 +15,8 @@ import {
   StatusBar,
   TextInputProps,
   SafeAreaView,
+  Linking,
 } from "react-native";
-import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../supabaseClient";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -28,7 +28,7 @@ import Svg, { Rect } from "react-native-svg";
 // Import video background file
 const videoSource = require("../../assets/images/background.mp4");
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const isIpad = width >= 768;
 
 // --- SVG Cross Component ---
