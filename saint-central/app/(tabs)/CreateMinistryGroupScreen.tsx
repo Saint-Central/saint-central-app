@@ -1,3 +1,4 @@
+// CreateMinistryGroupScreen.tsx - WhatsApp-style group creation
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -7,85 +8,81 @@ import {
   StatusBar,
   TouchableOpacity,
   TextInput,
+  Image,
   ScrollView,
+  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  Image,
 } from "react-native";
-import { useNavigation, useRoute, CommonActions } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import {
   Ionicons,
   MaterialIcons,
   FontAwesome5,
-  AntDesign,
+  Entypo,
 } from "@expo/vector-icons";
 import { StackNavigationProp } from '@react-navigation/stack';
-import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from 'expo-image-picker';
 
-// Ministry preset interface
-interface MinistryPreset {
-  id: string;
-  name: string;
-  icon: string;
-  isDefault: boolean;
-}
-
-// Route params interface
+// Interface for route params
 interface RouteParams {
-  churchId?: number;
   selectedPresetId?: string;
+  participants?: any[];
 }
 
-// Add type definition for navigation - MUST match with MinistryGroupsScreen
+// Interface for group data
+interface GroupData {
+  name: string;
+  description: string;
+  image: string | null;
+  status_message: string;
+  church_id: number | null;
+  created_by: string | null;
+  member_count: number;
+}
+
+// Interface for navigation
 type RootStackParamList = {
-  // Include both possible screen names
-  Ministries: undefined;
-  MinistriesScreen: undefined;
-  ministryGroups: undefined;
-  ministryChat: { groupId: number };
-  createMinistryGroup: { selectedPresetId?: string };
-  // ... other screen types ...
+  MinistryGroupsScreen: { refresh?: boolean };
+  groupParticipants: { groupId?: number; isNewGroup: boolean; presetId?: string };
+  ministryChat: { groupId: number; groupName: string };
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-export default function CreateMinistryGroupScreen(): JSX.Element {
-  const navigation = useNavigation<NavigationProp>();
-  const route = useRoute();
-  const params = route.params as RouteParams;
+interface NavigationProps {
+  route: { params: RouteParams };
+  navigation: any;
+}
+
+const createMinistryGroupScreen = ({ route, navigation }: NavigationProps): JSX.Element => {
+  // Get params from route
+  const { selectedPresetId, participants: routeParticipants } = route.params || {};
   
-  // Debug params immediately
-  useEffect(() => {
-    console.log("CreateMinistryGroupScreen mounted with params:", params);
-    console.log("Selected preset ID:", params?.selectedPresetId);
-  }, []);
+  // State for group data
+  const [groupData, setGroupData] = useState<GroupData>({
+    name: "",
+    description: "",
+    image: null,
+    status_message: "",
+    church_id: null,
+    created_by: null,
+    member_count: 0,
+  });
   
-  // Form state
-  const [groupName, setGroupName] = useState<string>("");
-  const [groupDescription, setGroupDescription] = useState<string>("");
-  const [isPublic, setIsPublic] = useState<boolean>(true);
-  const [selectedPresetId, setSelectedPresetId] = useState<string | undefined>(
-    params?.selectedPresetId || undefined
-  );
+  // State for UI
   const [loading, setLoading] = useState<boolean>(false);
   const [churchId, setChurchId] = useState<number | null>(null);
-
-  // Ministry presets state
-  const [ministryPresets, setMinistryPresets] = useState<MinistryPreset[]>([
-    { id: '1', name: 'Liturgical', icon: 'book-outline', isDefault: true },
-    { id: '2', name: 'Music', icon: 'musical-notes-outline', isDefault: true },
-    { id: '3', name: 'Youth', icon: 'people-outline', isDefault: true },
-    { id: '4', name: 'Outreach', icon: 'hand-left-outline', isDefault: true },
-    { id: '5', name: 'Education', icon: 'school-outline', isDefault: true },
-    { id: '6', name: 'Service', icon: 'heart-outline', isDefault: true },
-    { id: '7', name: 'Prayer', icon: 'flower-outline', isDefault: true },
-  ]);
-
-  // Fetch initial data and params
+  const [userId, setUserId] = useState<string | null>(null);
+  const [selectedPresetName, setSelectedPresetName] = useState<string>("");
+  const [imageUploading, setImageUploading] = useState<boolean>(false);
+  const [participants, setParticipants] = useState<{ id: string, name: string, avatar?: string }[]>([]);
+  
+  // Initial setup
   useEffect(() => {
-    async function fetchInitialData() {
+    const setupScreen = async () => {
       try {
         // Get current user
         const {
@@ -95,424 +92,399 @@ export default function CreateMinistryGroupScreen(): JSX.Element {
 
         if (userError) {
           console.error("Error getting user:", userError);
-          return;
+          throw userError;
         }
 
         if (!user) {
           console.error("No user logged in");
-          return;
+          throw new Error("No user logged in");
         }
+        
+        setUserId(user.id);
+        
+        // Get user's church
+        const { data: memberData, error: memberError } = await supabase
+          .from("church_members")
+          .select("church_id")
+          .eq("user_id", user.id)
+          .single();
 
-        // Get church ID from route params or from user's membership
-        let churchIdToUse = params?.churchId;
-
-        if (!churchIdToUse) {
-          // Fetch from membership
-          const { data: memberData, error: memberError } = await supabase
-            .from("church_members")
-            .select("church_id")
-            .eq("user_id", user.id)
-            .single();
-
-          if (memberError) {
-            console.error("Error fetching membership:", memberError);
-            return;
-          }
-
-          churchIdToUse = memberData.church_id;
+        if (memberError) {
+          console.error("Error fetching membership:", memberError);
+          throw memberError;
         }
-
-        setChurchId(churchIdToUse ?? null);
-
-        // Load saved ministry presets from storage
-        try {
-          const { data: presetsData, error: presetsError } = await supabase
+        
+        setChurchId(memberData.church_id);
+        setGroupData(prev => ({ ...prev, church_id: memberData.church_id, created_by: user.id }));
+        
+        // Get preset name if applicable
+        if (selectedPresetId) {
+          const { data: presetData, error: presetError } = await supabase
             .from("ministry_presets")
-            .select("*")
-            .eq("user_id", user.id);
-
-          if (!presetsError && presetsData && presetsData.length > 0) {
-            // Combine default presets with user presets
-            const userPresets = presetsData.map(p => ({
-              id: p.id.toString(),
-              name: p.name,
-              icon: p.icon,
-              isDefault: false
-            }));
+            .select("name")
+            .eq("id", selectedPresetId)
+            .single();
             
-            // Keep default presets and add user's custom ones
-            setMinistryPresets(prev => [
-              ...prev.filter(p => p.isDefault),
-              ...userPresets
-            ]);
+          if (!presetError && presetData) {
+            setSelectedPresetName(presetData.name);
+            // Pre-fill name with preset name
+            setGroupData(prev => ({ ...prev, name: `${presetData.name} Group` }));
+          } else {
+            // Fallback to default presets
+            const defaultPresets = [
+              { id: '1', name: 'Liturgical' },
+              { id: '2', name: 'Music' },
+              { id: '3', name: 'Youth' },
+              { id: '4', name: 'Outreach' },
+              { id: '5', name: 'Education' },
+              { id: '6', name: 'Service' },
+              { id: '7', name: 'Prayer' },
+            ];
+            
+            const preset = defaultPresets.find(p => p.id === selectedPresetId);
+            if (preset) {
+              setSelectedPresetName(preset.name);
+              // Pre-fill name with preset name
+              setGroupData(prev => ({ ...prev, name: `${preset.name} Group` }));
+            }
           }
-        } catch (presetsError) {
-          console.error("Error loading ministry presets:", presetsError);
         }
-
-        // If a preset was selected from the previous screen, pre-select it
-        if (params?.selectedPresetId) {
-          setSelectedPresetId(params.selectedPresetId);
-          
-          // Also, use the preset name as the default group name
-          const selectedPreset = ministryPresets.find(p => p.id === params.selectedPresetId);
-          if (selectedPreset) {
-            setGroupName(`${selectedPreset.name} Group`);
-          }
+        
+        // Get participants if any
+        if (routeParticipants) {
+          setParticipants(routeParticipants);
+          setGroupData(prev => ({ ...prev, member_count: routeParticipants?.length || 0 }));
         }
+        
       } catch (error) {
-        console.error("Error in initial data fetch:", error);
+        console.error("Error setting up screen:", error);
+        Alert.alert("Error", "Could not set up group creation. Please try again.");
       }
-    }
-
-    fetchInitialData();
-  }, [params?.selectedPresetId]);
-
-  // Update group name when preset changes
-  useEffect(() => {
-    if (selectedPresetId) {
-      const preset = ministryPresets.find(p => p.id === selectedPresetId);
-      if (preset) {
-        setGroupName(`${preset.name} Group`);
-      }
-    }
-  }, [selectedPresetId, ministryPresets]);
-
-  // Navigate back to ministry groups screen
-  const navigateBack = () => {
-    console.log("Navigating back to MinistryGroupsScreen");
+    };
     
+    setupScreen();
+  }, []);
+  
+  // Pick an image from the gallery
+  const pickImage = async () => {
     try {
-      // Try multiple navigation methods
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
       
-      // Method 1: Standard navigation
-      navigation.navigate('MinistriesScreen');
-      
-      // Method 2: Fallback - use goBack
-      setTimeout(() => {
-        try {
-          navigation.goBack();
-          console.log("Navigation back using goBack succeeded");
-        } catch (backError) {
-          console.error("goBack navigation failed:", backError);
-          
-          // Method 3: Last resort - reset navigation
-          try {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'MinistriesScreen' }],
-              })
-            );
-            console.log("Navigation using CommonActions.reset succeeded");
-          } catch (resetError) {
-            console.error("Reset navigation failed:", resetError);
-            Alert.alert("Navigation Error", "Could not navigate back. Please try again.");
-          }
-        }
-      }, 200);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImageUploading(true);
+        const imageUri = result.assets[0].uri;
+        
+        // In a real app, you would upload to Supabase storage here
+        // For now, we'll just set the image URI directly
+        setGroupData(prev => ({ ...prev, image: imageUri }));
+        setImageUploading(false);
+      }
     } catch (error) {
-      console.error("Standard navigation failed:", error);
-      Alert.alert("Navigation Error", "Could not navigate back. Please try again.");
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Could not select image. Please try again.");
+      setImageUploading(false);
     }
   };
-
-  // Create a new ministry group
-  const createMinistryGroup = async () => {
-    if (!groupName.trim()) {
-      Alert.alert("Required Field", "Please enter a name for your group");
+  
+  // Navigate to select participants
+  const navigateToParticipants = () => {
+    if (selectedPresetId && groupData.name) {
+      try {
+        navigation.navigate('groupParticipants', {
+          isNewGroup: true,
+          presetId: selectedPresetId,
+        });
+      } catch (error) {
+        console.error("Navigation error:", error);
+        Alert.alert("Error", "Could not navigate to participants selection.");
+      }
+    } else {
+      Alert.alert("Required", "Please enter a group name first.");
+    }
+  };
+  
+  // Create the group
+  const createGroup = async () => {
+    // Validate
+    if (!groupData.name.trim()) {
+      Alert.alert("Required", "Please enter a group name.");
       return;
     }
-
-    if (!selectedPresetId) {
-      Alert.alert("Required Field", "Please select a ministry type");
-      return;
-    }
-
+    
     if (!churchId) {
-      Alert.alert("Error", "Could not determine your church. Please try again later.");
+      Alert.alert("Error", "Church information is missing. Please try again.");
       return;
     }
-
-    setLoading(true);
-
+    
     try {
+      setLoading(true);
+      
       // Create the group in Supabase
-      const { data: groupData, error: groupError } = await supabase
+      const { data: newGroup, error: groupError } = await supabase
         .from("ministry_groups")
         .insert({
+          name: groupData.name,
+          description: groupData.description || `${groupData.name} group chat`,
+          image: groupData.image, // In a real app, this would be a URL after uploading
+          status_message: `Group created`,
           church_id: churchId,
-          name: groupName,
-          description: groupDescription || "No description",
-          is_public: isPublic,
-          ministry_type_id: selectedPresetId,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
+          created_by: userId,
+          created_at: new Date().toISOString(),
           last_active: new Date().toISOString(),
-          member_count: 1 // Starting with the creator
+          member_count: 1 + (participants.length || 0), // Creator + participants
         })
-        .select();
-
+        .select()
+        .single();
+        
       if (groupError) {
+        console.error("Error creating group:", groupError);
         throw groupError;
       }
-
-      if (!groupData || groupData.length === 0) {
-        throw new Error("Failed to create group");
-      }
-
-      const newGroupId = groupData[0].id;
-
-      // Add the creator as a member and admin
+      
+      // Add creator as member and admin
       const { error: memberError } = await supabase
         .from("ministry_group_members")
         .insert({
-          ministry_group_id: newGroupId,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          role: "admin",
-          joined_at: new Date().toISOString()
+          ministry_group_id: newGroup.id,
+          user_id: userId,
+          joined_at: new Date().toISOString(),
+          role: 'admin'
         });
-
+        
       if (memberError) {
+        console.error("Error adding creator as member:", memberError);
         throw memberError;
       }
-
-      // Success! Navigate to the new group chat
-      Alert.alert(
-        "Group Created",
-        `${groupName} has been created successfully!`,
-        [
-          { 
-            text: "OK", 
-            onPress: () => {
-              try {
-                navigation.navigate('ministryChat', { groupId: newGroupId });
-              } catch (navError) {
-                console.error("Navigation error:", navError);
-                // Fallback to reset navigation
-                navigation.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [
-                      { name: 'MinistriesScreen' },
-                      { name: 'ministryChat', params: { groupId: newGroupId } }
-                    ],
-                  })
-                );
-              }
-            } 
-          }
-        ]
-      );
+      
+      // Add participants if any
+      if (participants.length > 0) {
+        const memberInserts = participants.map(p => ({
+          ministry_group_id: newGroup.id,
+          user_id: p.id,
+          joined_at: new Date().toISOString(),
+          role: 'member'
+        }));
+        
+        const { error: participantsError } = await supabase
+          .from("ministry_group_members")
+          .insert(memberInserts);
+          
+        if (participantsError) {
+          console.error("Error adding participants:", participantsError);
+          // Continue anyway - we'll at least have the group with the creator
+        }
+      }
+      
+      // Navigate to the new group chat
+      navigation.navigate('ministryChat', { 
+        groupId: newGroup.id,
+        groupName: newGroup.name
+      });
+      
+      // Refresh the groups list
+      setTimeout(() => {
+        navigation.navigate('MinistryGroupsScreen', { refresh: true });
+      }, 100);
+      
     } catch (error) {
-      console.error("Error creating ministry group:", error);
-      Alert.alert("Error", "Failed to create ministry group. Please try again.");
-    } finally {
+      console.error("Error creating group:", error);
+      Alert.alert("Error", "Could not create group. Please try again.");
       setLoading(false);
     }
   };
 
-  // Render each ministry preset option
-  const renderPresetOption = (preset: MinistryPreset) => (
-    <TouchableOpacity
-      key={preset.id}
-      style={[
-        styles.presetOption,
-        selectedPresetId === preset.id && styles.presetOptionSelected
-      ]}
-      onPress={() => setSelectedPresetId(preset.id)}
-    >
-      <Ionicons
-        name={preset.icon as any}
-        size={24}
-        color={selectedPresetId === preset.id ? "#FFFFFF" : "#3A86FF"}
-        style={styles.presetIcon}
-      />
-      <Text
-        style={[
-          styles.presetName,
-          selectedPresetId === preset.id && styles.presetNameSelected
-        ]}
-      >
-        {preset.name}
-      </Text>
-      {selectedPresetId === preset.id && (
-        <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={styles.checkIcon} />
-      )}
-    </TouchableOpacity>
-  );
-
+  // Generate a placeholder based on group name
+  const renderGroupAvatar = () => {
+    if (groupData.image) {
+      return (
+        <Image 
+          source={{ uri: groupData.image }} 
+          style={styles.groupImage}
+        />
+      );
+    }
+    
+    // Generate initials from name
+    const getInitials = (name: string): string => {
+      if (!name) return '?';
+      
+      const words = name.split(' ');
+      if (words.length === 1) {
+        return words[0].substring(0, 2).toUpperCase();
+      }
+      
+      return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+    };
+    
+    const initials = getInitials(groupData.name || 'New Group');
+    
+    return (
+      <View style={styles.groupImagePlaceholder}>
+        <Text style={styles.groupImagePlaceholderText}>{initials}</Text>
+      </View>
+    );
+  };
+  
+  // Make sure your navigation back to MinistryGroupsScreen is correct
+  const navigateBack = () => {
+    navigation.navigate('MinistryGroupsScreen', { refresh: true });
+  };
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.backButton} onPress={navigateBack}>
-            <Ionicons name="arrow-back" size={24} color="#3A86FF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Group</Text>
-        </View>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={navigateBack}
+        >
+          <Ionicons name="arrow-back" size={24} color="#075E54" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>New Group</Text>
       </View>
-
-      <KeyboardAvoidingView
+      
+      <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.formContainer}
+        style={styles.keyboardAvoidingView}
       >
         <ScrollView 
           style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollViewContent}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Group Icon */}
-          <View style={styles.groupIconContainer}>
-            <View style={styles.groupIconPlaceholder}>
-              <FontAwesome5 name="users" size={40} color="#FFFFFF" />
-              <TouchableOpacity style={styles.editIconButton}>
-                <AntDesign name="camerao" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+          {/* Group Image */}
+          <View style={styles.imageSection}>
+            <TouchableOpacity 
+              style={styles.imageContainer}
+              onPress={pickImage}
+              disabled={imageUploading}
+            >
+              {imageUploading ? (
+                <ActivityIndicator size="large" color="#075E54" />
+              ) : (
+                <>
+                  {renderGroupAvatar()}
+                  <View style={styles.cameraIconContainer}>
+                    <Ionicons name="camera" size={22} color="#FFFFFF" />
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+          
+          {/* Group Name */}
+          <View style={styles.inputSection}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Group Name (required)"
+                placeholderTextColor="#94A3B8"
+                value={groupData.name}
+                onChangeText={text => setGroupData(prev => ({ ...prev, name: text }))}
+                autoFocus
+              />
             </View>
-          </View>
-
-          {/* Form Fields */}
-          <View style={styles.formSection}>
-            <Text style={styles.formLabel}>Group Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter group name"
-              placeholderTextColor="#94A3B8"
-              value={groupName}
-              onChangeText={setGroupName}
-            />
-          </View>
-
-          <View style={styles.formSection}>
-            <Text style={styles.formLabel}>Description</Text>
-            <TextInput
-              style={[styles.textInput, styles.textAreaInput]}
-              placeholder="What's this group about?"
-              placeholderTextColor="#94A3B8"
-              value={groupDescription}
-              onChangeText={setGroupDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Ministry Type Selection */}
-          <View style={styles.formSection}>
-            <Text style={styles.formLabel}>Ministry Type</Text>
-            <Text style={styles.formSubLabel}>
-              Select what type of ministry this group will serve
-            </Text>
             
-            <View style={styles.presetsGrid}>
-              {ministryPresets.map(preset => renderPresetOption(preset))}
+            {/* Group Description */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Group Description (optional)"
+                placeholderTextColor="#94A3B8"
+                value={groupData.description}
+                onChangeText={text => setGroupData(prev => ({ ...prev, description: text }))}
+                multiline
+              />
             </View>
+            
+            {/* Preset */}
+            {selectedPresetName && (
+              <View style={styles.presetContainer}>
+                <Text style={styles.presetLabel}>Ministry Type:</Text>
+                <View style={styles.presetBadge}>
+                  <Text style={styles.presetText}>{selectedPresetName}</Text>
+                </View>
+              </View>
+            )}
           </View>
-
-          {/* Group Privacy */}
-          <View style={styles.formSection}>
-            <Text style={styles.formLabel}>Group Privacy</Text>
-            <View style={styles.privacyOptions}>
-              <TouchableOpacity
-                style={[
-                  styles.privacyOption,
-                  isPublic && styles.privacyOptionSelected
-                ]}
-                onPress={() => setIsPublic(true)}
-              >
-                <Ionicons
-                  name="globe-outline"
-                  size={24}
-                  color={isPublic ? "#FFFFFF" : "#3A86FF"}
-                  style={styles.privacyIcon}
-                />
-                <View style={styles.privacyTextContainer}>
-                  <Text
-                    style={[
-                      styles.privacyTitle,
-                      isPublic && styles.privacyTitleSelected
-                    ]}
-                  >
-                    Public
-                  </Text>
-                  <Text
-                    style={[
-                      styles.privacyDescription,
-                      isPublic && styles.privacyDescriptionSelected
-                    ]}
-                  >
-                    Anyone in your church can find and join
-                  </Text>
-                </View>
-                {isPublic && (
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={styles.checkIcon} />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.privacyOption,
-                  !isPublic && styles.privacyOptionSelected
-                ]}
-                onPress={() => setIsPublic(false)}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={24}
-                  color={!isPublic ? "#FFFFFF" : "#3A86FF"}
-                  style={styles.privacyIcon}
-                />
-                <View style={styles.privacyTextContainer}>
-                  <Text
-                    style={[
-                      styles.privacyTitle,
-                      !isPublic && styles.privacyTitleSelected
-                    ]}
-                  >
-                    Private
-                  </Text>
-                  <Text
-                    style={[
-                      styles.privacyDescription,
-                      !isPublic && styles.privacyDescriptionSelected
-                    ]}
-                  >
-                    Only people you invite can join
-                  </Text>
-                </View>
-                {!isPublic && (
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={styles.checkIcon} />
-                )}
-              </TouchableOpacity>
+          
+          {/* Participants */}
+          <TouchableOpacity 
+            style={styles.participantsButton}
+            onPress={navigateToParticipants}
+          >
+            <Ionicons name="people" size={24} color="#075E54" />
+            <View style={styles.participantsTextContainer}>
+              <Text style={styles.participantsButtonText}>
+                Add Participants
+              </Text>
+              {participants.length > 0 && (
+                <Text style={styles.participantsCount}>
+                  {participants.length} selected
+                </Text>
+              )}
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      {/* Create Button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={createMinistryGroup}
-          disabled={loading}
-        >
-          <LinearGradient
-            colors={["#3A86FF", "#4361EE"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.buttonGradient}
+            <MaterialIcons name="chevron-right" size={24} color="#94A3B8" />
+          </TouchableOpacity>
+          
+          {/* Selected participants preview */}
+          {participants.length > 0 && (
+            <View style={styles.selectedParticipantsContainer}>
+              <ScrollView 
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.selectedParticipantsContent}
+              >
+                {participants.map((participant) => (
+                  <View key={participant.id} style={styles.participantItem}>
+                    {participant.avatar ? (
+                      <Image 
+                        source={{ uri: participant.avatar }} 
+                        style={styles.participantAvatar} 
+                      />
+                    ) : (
+                      <View style={styles.participantAvatarPlaceholder}>
+                        <Text style={styles.participantInitials}>
+                          {participant.name.substring(0, 2).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.participantName} numberOfLines={1}>
+                      {participant.name}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          
+          {/* Create button */}
+          <TouchableOpacity 
+            style={[
+              styles.createButton,
+              (!groupData.name.trim() || loading) && styles.createButtonDisabled
+            ]}
+            onPress={createGroup}
+            disabled={!groupData.name.trim() || loading}
           >
             {loading ? (
-              <Text style={styles.buttonText}>Creating...</Text>
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.buttonText}>Create Group</Text>
+              <>
+                <MaterialIcons name="group-add" size={24} color="#FFFFFF" />
+                <Text style={styles.createButtonText}>Create Group</Text>
+              </>
             )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -522,6 +494,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    padding: 16,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -530,179 +511,172 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   backButton: {
     marginRight: 16,
-    padding: 4,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#1E293B",
   },
-  formContainer: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
-  },
-  groupIconContainer: {
+  imageSection: {
     alignItems: "center",
-    marginVertical: 20,
+    marginVertical: 24,
   },
-  groupIconPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#3A86FF",
+  imageContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
+    backgroundColor: "#F1F5F9",
+    overflow: "hidden",
   },
-  editIconButton: {
+  groupImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  groupImagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#075E54",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  groupImagePlaceholderText: {
+    fontSize: 40,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  cameraIconContainer: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#475569",
+    backgroundColor: "#25D366",
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "#FFFFFF",
   },
-  formSection: {
-    marginBottom: 24,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 8,
-  },
-  formSubLabel: {
-    fontSize: 14,
-    color: "#64748B",
+  inputSection: {
     marginBottom: 16,
   },
-  textInput: {
+  inputContainer: {
     backgroundColor: "#F8FAFC",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    marginBottom: 16,
+  },
+  input: {
     padding: 12,
     fontSize: 16,
     color: "#1E293B",
+    minHeight: 48,
   },
-  textAreaInput: {
-    minHeight: 100,
-    textAlignVertical: "top",
-  },
-  presetsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-    marginHorizontal: -8,
-  },
-  presetOption: {
+  presetContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 8,
-    padding: 10,
-    margin: 8,
-    width: "46%",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    marginBottom: 16,
   },
-  presetOptionSelected: {
-    backgroundColor: "#3A86FF",
-    borderColor: "#3A86FF",
-  },
-  presetIcon: {
-    marginRight: 8,
-  },
-  presetName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E293B",
-    flex: 1,
-  },
-  presetNameSelected: {
-    color: "#FFFFFF",
-  },
-  checkIcon: {
-    marginLeft: 4,
-  },
-  privacyOptions: {
-    marginTop: 16,
-  },
-  privacyOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  privacyOptionSelected: {
-    backgroundColor: "#3A86FF",
-    borderColor: "#3A86FF",
-  },
-  privacyIcon: {
-    marginRight: 12,
-  },
-  privacyTextContainer: {
-    flex: 1,
-  },
-  privacyTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 2,
-  },
-  privacyTitleSelected: {
-    color: "#FFFFFF",
-  },
-  privacyDescription: {
+  presetLabel: {
     fontSize: 14,
     color: "#64748B",
+    marginRight: 8,
   },
-  privacyDescriptionSelected: {
-    color: "#E2E8F0",
+  presetBadge: {
+    backgroundColor: "#075E54",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-  },
-  createButton: {
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  buttonGradient: {
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonText: {
+  presetText: {
     color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  participantsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 16,
+    marginBottom: 16,
+  },
+  participantsTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  participantsButtonText: {
+    fontSize: 16,
+    color: "#1E293B",
+  },
+  participantsCount: {
+    fontSize: 14,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  selectedParticipantsContainer: {
+    marginBottom: 24,
+  },
+  selectedParticipantsContent: {
+    paddingVertical: 8,
+  },
+  participantItem: {
+    alignItems: "center",
+    marginRight: 16,
+    width: 70,
+  },
+  participantAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 4,
+  },
+  participantAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#075E54",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  participantInitials: {
     fontSize: 16,
     fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  participantName: {
+    fontSize: 12,
+    color: "#475569",
+    textAlign: "center",
+  },
+  createButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#075E54",
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 16,
+  },
+  createButtonDisabled: {
+    backgroundColor: "#94A3B8",
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 8,
   },
 });
+
+export default createMinistryGroupScreen;
