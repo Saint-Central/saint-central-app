@@ -4,10 +4,7 @@ import {
   Text,
   View,
   SafeAreaView,
-  Platform,
   TouchableOpacity,
-  ActivityIndicator,
-  Dimensions,
   Animated,
   StatusBar,
   TextInput,
@@ -17,9 +14,11 @@ import {
 } from "react-native";
 import { useNavigation, NavigationProp, ParamListBase } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
-import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import DecoratedHeader from "@/components/ui/DecoratedHeader";
+import theme from "@/theme";
 
 // Types for church data
 interface Church {
@@ -67,7 +66,7 @@ export default function ChurchSearchScreen(): JSX.Element {
       delay: 300,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [fadeAnim, searchBarAnim]);
 
   // Fetch churches data on component mount
   useEffect(() => {
@@ -171,9 +170,6 @@ export default function ChurchSearchScreen(): JSX.Element {
 
       if (joinError) throw joinError;
 
-      // Show success
-      Alert.alert("Success", "You have joined this church successfully!");
-
       // Navigate to church page
       navigation.reset({
         index: 0,
@@ -186,15 +182,6 @@ export default function ChurchSearchScreen(): JSX.Element {
       setLoading(false);
     }
   };
-
-  // Card decorations (subtle visual elements)
-  const CardDecoration = () => (
-    <View style={styles.cardDecoration}>
-      <View style={[styles.decorationDot, styles.decorationDot1]} />
-      <View style={[styles.decorationDot, styles.decorationDot2]} />
-      <View style={[styles.decorationDot, styles.decorationDot3]} />
-    </View>
-  );
 
   // Loading State
   if (loading && churches.length === 0) {
@@ -229,7 +216,6 @@ export default function ChurchSearchScreen(): JSX.Element {
         end={{ x: 1, y: 1 }}
         style={styles.churchCardGradient}
       >
-        <CardDecoration />
         <View style={styles.churchCardContent}>
           <View style={styles.churchImageContainer}>
             {item.image ? (
@@ -277,28 +263,12 @@ export default function ChurchSearchScreen(): JSX.Element {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Top decoration circles that extend into the safe area */}
-      <View style={styles.topDecoration}>
-        <View style={[styles.circle1]} />
-        <View style={[styles.circle2]} />
-        <View style={[styles.circle3]} />
-      </View>
-
       {/* Header with back button and title */}
       <View style={styles.headerContainer}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-
-        <View style={styles.titleContainer}>
-          <LinearGradient
-            colors={["#3A86FF", "#4361EE"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.titleAccent}
-          />
-          <Text style={styles.headerTitle}>Church Search</Text>
-        </View>
+        <DecoratedHeader label="Church Search" topBarMargin={false} />
       </View>
 
       {/* Main Content */}
@@ -406,8 +376,6 @@ export default function ChurchSearchScreen(): JSX.Element {
   );
 }
 
-const { width } = Dimensions.get("window");
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -434,46 +402,11 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 12,
   },
-  topDecoration: {
-    position: "absolute",
-    top: 20,
-    right: -48,
-    width: 160,
-    height: 160,
-    zIndex: 0,
-  },
-  circle1: {
-    position: "absolute",
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(58, 134, 255, 0.03)",
-    top: 10,
-    right: 10,
-  },
-  circle2: {
-    position: "absolute",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(58, 134, 255, 0.05)",
-    top: 30,
-    right: 30,
-  },
-  circle3: {
-    position: "absolute",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(58, 134, 255, 0.07)",
-    top: 50,
-    right: 50,
-  },
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: theme.spacingTopBar,
     marginHorizontal: 20,
-    marginTop: Platform.OS === "ios" ? 60 : 50,
     marginBottom: 20,
   },
   backButton: {
@@ -486,28 +419,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-  },
-  refreshButton: {
-    // Removed refresh button styles
-  },
-  refreshButtonText: {
-    // Removed refresh button text styles
-  },
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  titleAccent: {
-    width: 4,
-    height: 24,
-    borderRadius: 2,
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1E293B",
-    letterSpacing: -0.5,
   },
   mainContent: {
     flex: 1,
@@ -611,7 +522,7 @@ const styles = StyleSheet.create({
   },
   joinButtonText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: theme.textWeightSemibold,
     color: "#FFFFFF",
   },
   errorContainer: {
@@ -678,37 +589,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
-  },
-  cardDecoration: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 60,
-    height: 60,
-  },
-  decorationDot: {
-    position: "absolute",
-    borderRadius: 50,
-  },
-  decorationDot1: {
-    width: 12,
-    height: 12,
-    backgroundColor: "rgba(58, 134, 255, 0.2)",
-    top: 15,
-    right: 15,
-  },
-  decorationDot2: {
-    width: 8,
-    height: 8,
-    backgroundColor: "rgba(58, 134, 255, 0.15)",
-    top: 30,
-    right: 22,
-  },
-  decorationDot3: {
-    width: 6,
-    height: 6,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
-    top: 24,
-    right: 35,
   },
 });

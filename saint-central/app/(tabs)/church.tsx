@@ -9,28 +9,22 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions,
   Animated,
   StatusBar,
-  Linking,
   Alert,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
-import {
-  Ionicons,
-  FontAwesome5,
-  MaterialCommunityIcons,
-  Feather,
-  MaterialIcons,
-  AntDesign,
-} from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 
 // Import the Sidebar component
 import Sidebar from "./sidebarComponent";
+import ChurchProfileCard from "@/components/church/ChurchProfileCard";
+import theme from "@/theme";
+import DecoratedHeader from "@/components/ui/DecoratedHeader";
 
 // Church interface based on database schema
 interface Church {
@@ -282,38 +276,6 @@ export default function ChurchScreen(): JSX.Element {
     extrapolate: "clamp",
   });
 
-  // Open phone call
-  const callPhone = () => {
-    if (church && church.phone) {
-      Linking.openURL(`tel:${church.phone}`);
-    }
-  };
-
-  // Open email
-  const sendEmail = () => {
-    if (church && church.email) {
-      Linking.openURL(`mailto:${church.email}`);
-    }
-  };
-
-  // Open website
-  const openWebsite = () => {
-    if (church && church.website) {
-      Linking.openURL(
-        church.website.startsWith("http") ? church.website : `https://${church.website}`,
-      );
-    }
-  };
-
-  // Card decorations (subtle visual elements)
-  const CardDecoration = () => (
-    <View style={styles.cardDecoration}>
-      <View style={[styles.decorationDot, styles.decorationDot1]} />
-      <View style={[styles.decorationDot, styles.decorationDot2]} />
-      <View style={[styles.decorationDot, styles.decorationDot3]} />
-    </View>
-  );
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -375,7 +337,7 @@ export default function ChurchScreen(): JSX.Element {
           },
         ]}
       >
-        <BlurView intensity={85} tint="light" style={styles.blurView} />
+        <BlurView intensity={98} tint="extraLight" style={styles.blurView} />
         <Animated.View
           style={[
             styles.floatingTitleContainer,
@@ -418,18 +380,13 @@ export default function ChurchScreen(): JSX.Element {
         })}
         scrollEventThrottle={16}
       >
-        {/* Header with location and profile - with menu button */}
+        {/* Header with menu button */}
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View style={styles.headerLeft}>
-            {/* Menu button */}
             <TouchableOpacity style={styles.menuButtonHeader} onPress={toggleSidebar}>
               <Ionicons name="menu" size={24} color="#3A86FF" />
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.locationContainer}>
-              <Ionicons name="location" size={16} color="#3A86FF" />
-              <Text style={styles.location}>{church.address.split(",")[0]}</Text>
-            </TouchableOpacity>
+            <DecoratedHeader label={church.name} />
           </View>
 
           <TouchableOpacity
@@ -451,142 +408,6 @@ export default function ChurchScreen(): JSX.Element {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Church title and category */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>{church.name}</Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{church.category}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Quick Action Buttons - MOVED UP HERE */}
-        <View style={styles.quickActionsSection}>
-          <View style={styles.sectionHeader}>
-            <FontAwesome5 name="bolt" size={16} color="#3A86FF" />
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickActionsScrollContainer}
-          >
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                /* Navigate to ministries */
-              }}
-            >
-              <View style={styles.buttonContent}>
-                <View style={styles.buttonIconWrapper}>
-                  <LinearGradient
-                    colors={["#3A86FF", "#4361EE"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.iconGradient}
-                  >
-                    <FontAwesome5 name="church" size={26} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <View style={styles.buttonTextContainer}>
-                  <Text style={styles.buttonText}>Ministries</Text>
-                  <Text style={styles.buttonDescription}>Faith in action</Text>
-                </View>
-                <View style={styles.arrowContainer}>
-                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                /* Navigate to courses */
-              }}
-            >
-              <View style={styles.buttonContent}>
-                <View style={styles.buttonIconWrapper}>
-                  <LinearGradient
-                    colors={["#FF006E", "#FB5607"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.iconGradient}
-                  >
-                    <Ionicons name="book-outline" size={26} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <View style={styles.buttonTextContainer}>
-                  <Text style={styles.buttonText}>Courses</Text>
-                  <Text style={styles.buttonDescription}>Grow in knowledge</Text>
-                </View>
-                <View style={styles.arrowContainer}>
-                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                /* Navigate to schedule */
-              }}
-            >
-              <View style={styles.buttonContent}>
-                <View style={styles.buttonIconWrapper}>
-                  <LinearGradient
-                    colors={["#8338EC", "#6A0DAD"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.iconGradient}
-                  >
-                    <MaterialCommunityIcons name="calendar-clock" size={26} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <View style={styles.buttonTextContainer}>
-                  <Text style={styles.buttonText}>Schedule</Text>
-                  <Text style={styles.buttonDescription}>Plan your worship</Text>
-                </View>
-                <View style={styles.arrowContainer}>
-                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                /* Navigate to community */
-              }}
-            >
-              <View style={styles.buttonContent}>
-                <View style={styles.buttonIconWrapper}>
-                  <LinearGradient
-                    colors={["#06D6A0", "#1A936F"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.iconGradient}
-                  >
-                    <Ionicons name="people" size={26} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <View style={styles.buttonTextContainer}>
-                  <Text style={styles.buttonText}>Community</Text>
-                  <Text style={styles.buttonDescription}>Connect with others</Text>
-                </View>
-                <View style={styles.arrowContainer}>
-                  <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
         {/* Church Image */}
         {church.image && (
           <View style={styles.imageContainer}>
@@ -594,171 +415,122 @@ export default function ChurchScreen(): JSX.Element {
           </View>
         )}
 
-        {/* Church Profile Card */}
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [
-                {
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.cardGradient}
+        {/* Quick Action Buttons - MOVED UP HERE */}
+        <ScrollView contentContainerStyle={styles.quickActionsScrollContainer}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => {
+              /* Navigate to ministries */
+            }}
           >
-            <CardDecoration />
-
-            {/* About Section */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <FontAwesome5 name="info-circle" size={16} color="#3A86FF" />
-                <Text style={styles.sectionTitle}>About</Text>
-              </View>
-              <Text style={styles.sectionText}>{church.description}</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Founded:</Text>
-                <Text style={styles.detailText}>{church.founded}</Text>
-              </View>
-            </View>
-
-            {/* Mass Schedule Section */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <FontAwesome5 name="calendar-alt" size={16} color="#3A86FF" />
-                <Text style={styles.sectionTitle}>Mass Schedule</Text>
-              </View>
-              <Text style={styles.sectionText}>{church.mass_schedule}</Text>
-            </View>
-
-            {/* Contact Section */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <FontAwesome5 name="address-book" size={16} color="#3A86FF" />
-                <Text style={styles.sectionTitle}>Contact</Text>
-              </View>
-
-              <TouchableOpacity onPress={callPhone} style={styles.contactItem}>
-                <View style={styles.contactIconContainer}>
-                  <FontAwesome5 name="phone" size={14} color="#FFFFFF" />
-                </View>
-                <Text style={styles.contactText}>{church.phone}</Text>
-                <Feather name="chevron-right" size={16} color="#94A3B8" />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={sendEmail} style={styles.contactItem}>
-                <View style={styles.contactIconContainer}>
-                  <FontAwesome5 name="envelope" size={14} color="#FFFFFF" />
-                </View>
-                <Text style={styles.contactText}>{church.email}</Text>
-                <Feather name="chevron-right" size={16} color="#94A3B8" />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={openWebsite} style={styles.contactItem}>
-                <View style={styles.contactIconContainer}>
-                  <FontAwesome5 name="globe" size={14} color="#FFFFFF" />
-                </View>
-                <Text style={styles.contactText}>{church.website}</Text>
-                <Feather name="chevron-right" size={16} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Location Section */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <FontAwesome5 name="map-marker-alt" size={16} color="#3A86FF" />
-                <Text style={styles.sectionTitle}>Location</Text>
-              </View>
-
-              <View style={styles.contactItem}>
-                <View style={styles.contactIconContainer}>
-                  <FontAwesome5 name="map-pin" size={14} color="#FFFFFF" />
-                </View>
-                <Text style={styles.contactText}>{church.address}</Text>
-              </View>
-            </View>
-
-            {/* Membership Section */}
-            {member && (
-              <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="user-circle" size={16} color="#3A86FF" />
-                  <Text style={styles.sectionTitle}>Membership</Text>
-                </View>
-
-                <View style={styles.membershipContainer}>
-                  <View style={styles.membershipInfo}>
-                    <Text style={styles.membershipLabel}>Your Role:</Text>
-                    <View style={styles.roleBadge}>
-                      <Text style={styles.roleText}>{member.role || "Member"}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.membershipInfo}>
-                    <Text style={styles.membershipLabel}>Member Since:</Text>
-                    <Text style={styles.membershipText}>
-                      {member.joined_at
-                        ? new Date(member.joined_at).toLocaleDateString()
-                        : "Unknown"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Action Buttons - Full set matching HomeScreen */}
-            <View style={styles.actionsContainer}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => {
-                  /* Navigate to events */
-                }}
-              >
+            <View style={styles.buttonContent}>
+              <View style={styles.buttonIconWrapper}>
                 <LinearGradient
                   colors={["#3A86FF", "#4361EE"]}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.actionGradient}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconGradient}
                 >
-                  <FontAwesome5
-                    name="calendar-alt"
-                    size={16}
-                    color="#FFFFFF"
-                    style={styles.actionIcon}
-                  />
-                  <Text style={styles.actionText}>Church Events</Text>
+                  <FontAwesome5 name="church" size={26} color="#FFFFFF" />
                 </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => {
-                  /* Navigate to members */
-                }}
-              >
-                <LinearGradient
-                  colors={["#4CC9F0", "#4895EF"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.actionGradient}
-                >
-                  <FontAwesome5 name="users" size={16} color="#FFFFFF" style={styles.actionIcon} />
-                  <Text style={styles.actionText}>Members</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.buttonText}>Ministries</Text>
+                <Text style={styles.buttonDescription}>Faith in action</Text>
+              </View>
+              <View style={styles.arrowContainer}>
+                <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
+              </View>
             </View>
-          </LinearGradient>
-        </Animated.View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => {
+              /* Navigate to courses */
+            }}
+          >
+            <View style={styles.buttonContent}>
+              <View style={styles.buttonIconWrapper}>
+                <LinearGradient
+                  colors={["#FF006E", "#FB5607"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconGradient}
+                >
+                  <Ionicons name="book-outline" size={26} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.buttonText}>Courses</Text>
+                <Text style={styles.buttonDescription}>Grow in knowledge</Text>
+              </View>
+              <View style={styles.arrowContainer}>
+                <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => {
+              /* Navigate to schedule */
+            }}
+          >
+            <View style={styles.buttonContent}>
+              <View style={styles.buttonIconWrapper}>
+                <LinearGradient
+                  colors={["#8338EC", "#6A0DAD"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconGradient}
+                >
+                  <MaterialCommunityIcons name="calendar-clock" size={26} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.buttonText}>Schedule</Text>
+                <Text style={styles.buttonDescription}>Plan your worship</Text>
+              </View>
+              <View style={styles.arrowContainer}>
+                <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => {
+              /* Navigate to community */
+            }}
+          >
+            <View style={styles.buttonContent}>
+              <View style={styles.buttonIconWrapper}>
+                <LinearGradient
+                  colors={["#06D6A0", "#1A936F"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconGradient}
+                >
+                  <Ionicons name="people" size={26} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.buttonText}>Community</Text>
+                <Text style={styles.buttonDescription}>Connect with others</Text>
+              </View>
+              <View style={styles.arrowContainer}>
+                <MaterialIcons name="arrow-forward-ios" size={14} color="#CBD5E1" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </ScrollView>
+
+        <ChurchProfileCard church={church} member={member} />
 
         {/* Leave Church Button */}
         <TouchableOpacity
@@ -766,55 +538,37 @@ export default function ChurchScreen(): JSX.Element {
           onPress={confirmLeaveChurch}
           disabled={leavingChurch}
         >
-          <LinearGradient
-            colors={["#FF4560", "#FF006E"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.leaveChurchGradient}
-          >
-            {leavingChurch ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons
-                  name="exit-outline"
-                  size={18}
-                  color="#FFFFFF"
-                  style={styles.leaveChurchIcon}
-                />
-                <Text style={styles.leaveChurchText}>Leave Church</Text>
-              </>
-            )}
-          </LinearGradient>
+          {leavingChurch ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons
+                name="exit-outline"
+                size={18}
+                color="#FFFFFF"
+                style={styles.leaveChurchIcon}
+              />
+              <Text style={styles.leaveChurchText}>Leave Church</Text>
+            </>
+          )}
         </TouchableOpacity>
-
-        {/* Bottom spacing */}
-        <View style={styles.bottomSpacing} />
       </Animated.ScrollView>
     </SafeAreaView>
   );
 }
 
-const { width } = Dimensions.get("window");
-
 const styles = StyleSheet.create({
   // New styles for the Leave Church button
   leaveChurchButton: {
     marginTop: 20,
-    marginBottom: 20,
+    marginBottom: 70,
     borderRadius: 12,
-    overflow: "hidden",
-    shadowColor: "#FF4560",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  leaveChurchGradient: {
+    // overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingBlock: 14,
+    backgroundColor: theme.destructiveBackground,
   },
   leaveChurchIcon: {
     marginRight: 10,
@@ -824,7 +578,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-
   // New styles for the menu button
   menuButton: {
     width: 40,
@@ -1036,9 +789,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  headerContainer: {
-    marginBottom: 20,
-  },
   headerTitleContainer: {
     flex: 1,
   },
@@ -1046,7 +796,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#1E293B",
-    marginBottom: 4,
   },
   categoryBadge: {
     alignSelf: "flex-start",
@@ -1069,163 +818,6 @@ const styles = StyleSheet.create({
   churchImage: {
     width: "100%",
     height: "100%",
-  },
-  card: {
-    borderRadius: 20,
-    overflow: "hidden",
-    marginBottom: 20,
-  },
-  cardGradient: {
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "rgba(203, 213, 225, 0.5)",
-  },
-  cardDecoration: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 60,
-    height: 60,
-  },
-  decorationDot: {
-    position: "absolute",
-    borderRadius: 50,
-  },
-  decorationDot1: {
-    width: 12,
-    height: 12,
-    backgroundColor: "rgba(58, 134, 255, 0.2)",
-    top: 15,
-    right: 15,
-  },
-  decorationDot2: {
-    width: 8,
-    height: 8,
-    backgroundColor: "rgba(58, 134, 255, 0.15)",
-    top: 30,
-    right: 22,
-  },
-  decorationDot3: {
-    width: 6,
-    height: 6,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
-    top: 24,
-    right: 35,
-  },
-  sectionContainer: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginLeft: 8,
-  },
-  sectionText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#475569",
-    marginBottom: 10,
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-    width: 80,
-  },
-  detailText: {
-    fontSize: 14,
-    color: "#1E293B",
-    flex: 1,
-  },
-  contactItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  contactIconContainer: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#3A86FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  contactText: {
-    fontSize: 14,
-    color: "#334155",
-    flex: 1,
-  },
-  membershipContainer: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 16,
-  },
-  membershipInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  membershipLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-    width: 120,
-  },
-  membershipText: {
-    fontSize: 14,
-    color: "#1E293B",
-  },
-  roleBadge: {
-    backgroundColor: "#EEF2FF",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4F46E5",
-  },
-  actionsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  actionButton: {
-    flex: 1,
-    marginHorizontal: 6,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  actionGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-  },
-  actionIcon: {
-    marginRight: 8,
-  },
-  actionText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
   },
   loadingContainer: {
     flex: 1,
@@ -1276,14 +868,12 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 50,
   },
-  quickActionsSection: {
-    marginBottom: 20,
-  },
   quickActionsScrollContainer: {
-    paddingRight: 20,
+    width: "100%",
+    marginBottom: 20,
+    gap: 10,
   },
   quickActionButton: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     shadowColor: "#94A3B8",
     shadowOffset: { width: 0, height: 4 },
@@ -1292,7 +882,16 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: "#F1F5F9",
-    marginRight: 16,
-    width: width * 0.75,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginLeft: 8,
   },
 });

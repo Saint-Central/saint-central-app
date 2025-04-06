@@ -346,9 +346,6 @@ export default function ChurchDetailsScreen(): JSX.Element {
       // Update membership status
       setIsMember(true);
 
-      // Show success
-      alert("You have joined this church successfully!");
-
       // Navigate to church page
       navigation.reset({
         index: 0,
@@ -550,7 +547,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           styles.joinButtonContainer,
           {
             opacity: fadeAnim,
-            bottom: Platform.OS === "ios" ? 90 : 80,
+            bottom: Platform.OS === "ios" ? 100 : 85,
           },
         ]}
       >
