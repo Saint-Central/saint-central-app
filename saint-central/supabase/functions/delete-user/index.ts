@@ -1,13 +1,20 @@
+/* eslint-disable import/no-unresolved */
 // /supabase/functions/delete-user/index.ts
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-serve(async (req) => {
+declare global {
+  var Deno: any;
+}
+
+serve(async (req: any) => {
   // Create supabase client with admin privileges
   const supabaseAdmin = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
+    { auth: { persistSession: false } },
   );
 
   const { userId } = await req.json();

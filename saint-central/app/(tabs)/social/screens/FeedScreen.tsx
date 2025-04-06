@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
-  Platform,
   Animated,
   TouchableOpacity,
   Text,
@@ -23,15 +21,7 @@ import { Post } from "../types";
 const SIDEBAR_WIDTH = Dimensions.get("window").width * 0.8;
 
 const FeedScreen: React.FC = () => {
-  const {
-    posts,
-    isLoading,
-    filter,
-    setFilter,
-    currentUserId,
-    handleLikePost,
-    getHeaderTitle,
-  } = useFeed();
+  const { posts, isLoading, currentUserId, handleLikePost, getHeaderTitle } = useFeed();
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
@@ -43,16 +33,13 @@ const FeedScreen: React.FC = () => {
 
   useEffect(() => {
     // Handle Android back button
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        if (sidebarVisible) {
-          toggleSidebar();
-          return true;
-        }
-        return false;
+    const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (sidebarVisible) {
+        toggleSidebar();
+        return true;
       }
-    );
+      return false;
+    });
 
     return () => backHandler.remove();
   }, [sidebarVisible]);
@@ -118,11 +105,7 @@ const FeedScreen: React.FC = () => {
             },
           ]}
         >
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={1}
-            onPress={toggleSidebar}
-          />
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={toggleSidebar} />
         </Animated.View>
 
         <Animated.View
@@ -148,16 +131,10 @@ const FeedScreen: React.FC = () => {
           <View style={styles.divider} />
 
           {/* Menu Items */}
-          <ScrollView
-            style={styles.sidebarContent}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView style={styles.sidebarContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionTitle}>Main Menu</Text>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateToScreen("/Lent2025")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateToScreen("/Lent2025")}>
               <View style={styles.menuIconContainer}>
                 <Feather name="calendar" size={20} color="#FFFFFF" />
               </View>
@@ -168,27 +145,14 @@ const FeedScreen: React.FC = () => {
               style={styles.menuItem}
               onPress={() => navigateToScreen("/rosary/screens/RosaryHome")}
             >
-              <View
-                style={[
-                  styles.menuIconContainer,
-                  { backgroundColor: "#9B82F7" },
-                ]}
-              >
+              <View style={[styles.menuIconContainer, { backgroundColor: "#9B82F7" }]}>
                 <Feather name="circle" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.menuItemText}>Rosary</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateToScreen("/events")}
-            >
-              <View
-                style={[
-                  styles.menuIconContainer,
-                  { backgroundColor: "#F5A623" },
-                ]}
-              >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateToScreen("/events")}>
+              <View style={[styles.menuIconContainer, { backgroundColor: "#F5A623" }]}>
                 <Feather name="calendar" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.menuItemText}>Events</Text>
@@ -196,31 +160,15 @@ const FeedScreen: React.FC = () => {
 
             <Text style={styles.sectionTitle}>Resources</Text>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateToScreen("/bible")}
-            >
-              <View
-                style={[
-                  styles.menuIconContainer,
-                  { backgroundColor: "#50C878" },
-                ]}
-              >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateToScreen("/bible")}>
+              <View style={[styles.menuIconContainer, { backgroundColor: "#50C878" }]}>
                 <Feather name="book" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.menuItemText}>Bible</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateToScreen("/donate")}
-            >
-              <View
-                style={[
-                  styles.menuIconContainer,
-                  { backgroundColor: "#FF6B6B" },
-                ]}
-              >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateToScreen("/donate")}>
+              <View style={[styles.menuIconContainer, { backgroundColor: "#FF6B6B" }]}>
                 <Feather name="heart" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.menuItemText}>Donation</Text>
@@ -230,10 +178,7 @@ const FeedScreen: React.FC = () => {
           </ScrollView>
 
           {/* Close Button - Floating at bottom */}
-          <TouchableOpacity
-            onPress={toggleSidebar}
-            style={styles.closeButtonContainer}
-          >
+          <TouchableOpacity onPress={toggleSidebar} style={styles.closeButtonContainer}>
             <View style={styles.closeButtonCircle}>
               <Feather name="x" size={20} color="#FFFFFF" />
             </View>

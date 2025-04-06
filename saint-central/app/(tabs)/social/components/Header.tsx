@@ -9,7 +9,6 @@ import {
   Platform,
   SafeAreaView,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 
 interface HeaderProps {
@@ -25,8 +24,6 @@ const Header: React.FC<HeaderProps> = ({
   showMenuIcon = false,
   onMenuPress,
 }) => {
-  const router = useRouter();
-
   // Animation values for header collapse/expand
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 120],
@@ -79,9 +76,7 @@ const Header: React.FC<HeaderProps> = ({
               <Feather name="menu" size={24} color="#1DA1F2" />
             </TouchableOpacity>
           )}
-          <Animated.Text
-            style={[styles.headerTitle, { fontSize: headerTitleSize }]}
-          >
+          <Animated.Text style={[styles.headerTitle, { fontSize: headerTitleSize }]}>
             {title}
           </Animated.Text>
 

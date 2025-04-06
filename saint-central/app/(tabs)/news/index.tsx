@@ -140,9 +140,7 @@ const NewsScreen: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from("news_posts")
-          .select(
-            "post_id, title, excerpt, image_url, video_link, created_at, author_name"
-          )
+          .select("post_id, title, excerpt, image_url, video_link, created_at, author_name")
           .order("created_at", { ascending: false });
 
         if (error) {
@@ -150,21 +148,19 @@ const NewsScreen: React.FC = () => {
           return;
         }
 
-        const postsTransformed = ((data as SupabasePost[]) || []).map(
-          (row) => ({
-            post_id: row.post_id,
-            title: row.title,
-            excerpt: row.excerpt,
-            image_url: row.image_url,
-            video_link: row.video_link,
-            date: new Date(row.created_at).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            }),
-            author_name: row.author_name,
-          })
-        );
+        const postsTransformed = ((data as SupabasePost[]) || []).map((row) => ({
+          post_id: row.post_id,
+          title: row.title,
+          excerpt: row.excerpt,
+          image_url: row.image_url,
+          video_link: row.video_link,
+          date: new Date(row.created_at).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          }),
+          author_name: row.author_name,
+        }));
 
         setPosts(postsTransformed);
       } catch (error) {
@@ -181,7 +177,7 @@ const NewsScreen: React.FC = () => {
     (post) =>
       post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post.author_name.toLowerCase().includes(searchTerm.toLowerCase())
+      post.author_name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Use a fixed dark theme
@@ -201,21 +197,15 @@ const NewsScreen: React.FC = () => {
     extrapolate: "clamp",
   });
 
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false }
-  );
+  const onScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: false,
+  });
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Progress Bar */}
       <Animated.View
-        style={[
-          styles.progressBar,
-          { backgroundColor: theme.progressBar, width: progressWidth },
-        ]}
+        style={[styles.progressBar, { backgroundColor: theme.progressBar, width: progressWidth }]}
       />
 
       {/* Header with safe area inset */}
@@ -230,15 +220,10 @@ const NewsScreen: React.FC = () => {
       >
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={[
-            styles.homeButton,
-            { backgroundColor: theme.inputBackground },
-          ]}
+          style={[styles.homeButton, { backgroundColor: theme.inputBackground }]}
         >
           <Ionicons name="chevron-back" size={20} color={theme.text} />
-          <Text style={[styles.homeButtonText, { color: theme.text }]}>
-            Home
-          </Text>
+          <Text style={[styles.homeButtonText, { color: theme.text }]}>Home</Text>
         </TouchableOpacity>
         {/* Removed theme toggle; only the search input remains */}
         <TextInput
@@ -278,22 +263,13 @@ const NewsScreen: React.FC = () => {
                 style={[styles.card, { backgroundColor: theme.cardBackground }]}
               >
                 <View style={styles.cardHeader}>
-                  <Text style={[styles.authorName, { color: theme.text }]}>
-                    {post.author_name}
-                  </Text>
-                  <Text style={[styles.postDate, { color: theme.text }]}>
-                    · {post.date}
-                  </Text>
+                  <Text style={[styles.authorName, { color: theme.text }]}>{post.author_name}</Text>
+                  <Text style={[styles.postDate, { color: theme.text }]}>· {post.date}</Text>
                 </View>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>
-                  {post.title}
-                </Text>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>{post.title}</Text>
                 {post.image_url ? (
                   <View style={styles.cardImageContainer}>
-                    <Image
-                      source={{ uri: post.image_url }}
-                      style={styles.cardImage}
-                    />
+                    <Image source={{ uri: post.image_url }} style={styles.cardImage} />
                   </View>
                 ) : null}
                 <View style={styles.excerptContainer}>
@@ -301,10 +277,7 @@ const NewsScreen: React.FC = () => {
                 </View>
                 {post.video_link ? (
                   <TouchableOpacity
-                    style={[
-                      styles.videoButton,
-                      { backgroundColor: theme.inputBackground },
-                    ]}
+                    style={[styles.videoButton, { backgroundColor: theme.inputBackground }]}
                     onPress={() => Linking.openURL(post.video_link as string)}
                   >
                     <Text style={styles.videoButtonText}>Watch Video →</Text>
