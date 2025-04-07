@@ -1,5 +1,4 @@
-// app/Events.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,10 +22,10 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { AntDesign, Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { supabase } from "../../supabaseClient";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
+import theme from "@/theme";
 
 const { height } = Dimensions.get("window");
 
@@ -59,24 +58,6 @@ interface CalendarDay {
 
 // Calendar view types
 type CalendarViewType = "month" | "list";
-
-// New cleaner color theme based on the reference image
-const THEME = {
-  primary: "#333333", // Dark text
-  secondary: "#666666", // Medium text
-  light: "#999999", // Light text
-  background: "#F5F3EE", // Soft beige background
-  card: "#FFFFFF", // White cards
-  accent1: "#E9D9BC", // Bible study accent
-  accent2: "#C8DFDF", // Sunday service accent
-  accent3: "#F2D0A4", // Youth event accent
-  accent4: "#D8E2DC", // Prayer breakfast accent
-  border: "#EEEEEE", // Light borders
-  buttonPrimary: "#7B68EE", // Action buttons
-  buttonText: "#FFFFFF", // Button text
-  error: "#FF5252", // Error color
-  shadow: "rgba(0, 0, 0, 0.1)", // Shadow color
-};
 
 export default function Events() {
   return <EventsComponent />;
@@ -133,74 +114,85 @@ function EventsComponent() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
 
+  // Get events for a specific day
+  const getEventsForDay = useCallback((date: Date, eventsData: Event[]) => {
+    return eventsData.filter((event) => {
+      const eventDate = new Date(event.time);
+      return isSameDay(eventDate, date);
+    });
+  }, []);
+
   // Generate calendar data
-  const generateCalendarData = (date: Date, eventsData: Event[]) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+  const generateCalendarData = useCallback(
+    (date: Date, eventsData: Event[]) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
 
-    // First day of the month
-    const firstDay = new Date(year, month, 1);
-    const firstDayOfWeek = firstDay.getDay();
+      // First day of the month
+      const firstDay = new Date(year, month, 1);
+      const firstDayOfWeek = firstDay.getDay();
 
-    // Last day of the month
-    const lastDay = new Date(year, month + 1, 0);
-    const lastDate = lastDay.getDate();
+      // Last day of the month
+      const lastDay = new Date(year, month + 1, 0);
+      const lastDate = lastDay.getDate();
 
-    // Create array for calendar days
-    const days: CalendarDay[] = [];
+      // Create array for calendar days
+      const days: CalendarDay[] = [];
 
-    // Add days from previous month to fill first week
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      const date = new Date(year, month - 1, prevMonthLastDay - i);
-      days.push({
-        date,
-        dayOfMonth: prevMonthLastDay - i,
-        dayOfWeek: date.getDay(),
-        isCurrentMonth: false,
-        isToday: isSameDay(date, new Date()),
-        events: getEventsForDay(date, eventsData),
-      });
-    }
-
-    // Add days of current month
-    const today = new Date();
-    for (let i = 1; i <= lastDate; i++) {
-      const date = new Date(year, month, i);
-      days.push({
-        date,
-        dayOfMonth: i,
-        dayOfWeek: date.getDay(),
-        isCurrentMonth: true,
-        isToday: isSameDay(date, today),
-        events: getEventsForDay(date, eventsData),
-      });
-
-      // Initialize animation for this day
-      const dateKey = getDateKey(date);
-      if (!dayAnimations[dateKey]) {
-        dayAnimations[dateKey] = new Animated.Value(0);
+      // Add days from previous month to fill first week
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+        const date = new Date(year, month - 1, prevMonthLastDay - i);
+        days.push({
+          date,
+          dayOfMonth: prevMonthLastDay - i,
+          dayOfWeek: date.getDay(),
+          isCurrentMonth: false,
+          isToday: isSameDay(date, new Date()),
+          events: getEventsForDay(date, eventsData),
+        });
       }
-    }
 
-    // Add days from next month to complete last week
-    const remainingDays = 7 - (days.length % 7);
-    if (remainingDays < 7) {
-      for (let i = 1; i <= remainingDays; i++) {
-        const date = new Date(year, month + 1, i);
+      // Add days of current month
+      const today = new Date();
+      for (let i = 1; i <= lastDate; i++) {
+        const date = new Date(year, month, i);
         days.push({
           date,
           dayOfMonth: i,
           dayOfWeek: date.getDay(),
-          isCurrentMonth: false,
+          isCurrentMonth: true,
           isToday: isSameDay(date, today),
           events: getEventsForDay(date, eventsData),
         });
-      }
-    }
 
-    return days;
-  };
+        // Initialize animation for this day
+        const dateKey = getDateKey(date);
+        if (!dayAnimations[dateKey]) {
+          dayAnimations[dateKey] = new Animated.Value(0);
+        }
+      }
+
+      // Add days from next month to complete last week
+      const remainingDays = 7 - (days.length % 7);
+      if (remainingDays < 7) {
+        for (let i = 1; i <= remainingDays; i++) {
+          const date = new Date(year, month + 1, i);
+          days.push({
+            date,
+            dayOfMonth: i,
+            dayOfWeek: date.getDay(),
+            isCurrentMonth: false,
+            isToday: isSameDay(date, today),
+            events: getEventsForDay(date, eventsData),
+          });
+        }
+      }
+
+      return days;
+    },
+    [dayAnimations, getEventsForDay],
+  );
 
   // Check if two dates are the same day
   const isSameDay = (date1: Date, date2: Date) => {
@@ -214,14 +206,6 @@ function EventsComponent() {
   // Get unique key for a date
   const getDateKey = (date: Date) => {
     return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-  };
-
-  // Get events for a specific day
-  const getEventsForDay = (date: Date, eventsData: Event[]) => {
-    return eventsData.filter((event) => {
-      const eventDate = new Date(event.time);
-      return isSameDay(eventDate, date);
-    });
   };
 
   // Change calendar month
@@ -333,7 +317,7 @@ function EventsComponent() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [calendarData]);
+  }, [calendarData, dayAnimations, fadeAnim, opacityAnim, slideAnim]);
 
   // Update calendar when month or events change
   useEffect(() => {
@@ -341,7 +325,7 @@ function EventsComponent() {
       const newCalendarData = generateCalendarData(currentMonth, events);
       setCalendarData(newCalendarData);
     }
-  }, [currentMonth, events, loading]);
+  }, [currentMonth, events, generateCalendarData, loading]);
 
   // Load events
   useEffect(() => {
@@ -353,9 +337,7 @@ function EventsComponent() {
       setLoading(true);
 
       // Check if user is authenticated
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      await supabase.auth.getSession();
 
       const { data, error } = await supabase
         .from("events")
@@ -401,7 +383,7 @@ function EventsComponent() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   const resetForm = () => {
     setFormTitle("");
@@ -480,7 +462,7 @@ function EventsComponent() {
         }
       }
 
-      const { data, error } = await supabase.from("events").insert([eventData]);
+      const { error } = await supabase.from("events").insert([eventData]);
 
       if (error) {
         if (error.code === "42501") {
@@ -636,10 +618,10 @@ function EventsComponent() {
           setFormImageUrl(urlData.publicUrl);
           Alert.alert("Success", "Image uploaded successfully!");
         }
-      } catch (uploadError) {
+      } catch {
         Alert.alert("Upload Notice", "Using local image only.");
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to select image");
     } finally {
       setFormImageLoading(false);
@@ -654,15 +636,15 @@ function EventsComponent() {
   ): { icon: "book" | "home" | "message-circle" | "coffee" | "calendar"; color: string } => {
     const title = event.title.toLowerCase();
     if (title.includes("bible") || title.includes("study")) {
-      return { icon: "book", color: THEME.accent1 };
+      return { icon: "book", color: theme.accent1 };
     } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
-      return { icon: "home", color: THEME.accent2 };
+      return { icon: "home", color: theme.accent2 };
     } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
-      return { icon: "message-circle", color: THEME.accent3 };
+      return { icon: "message-circle", color: theme.accent3 };
     } else if (title.includes("prayer") || title.includes("breakfast")) {
-      return { icon: "coffee", color: THEME.accent4 };
+      return { icon: "coffee", color: theme.accent4 };
     }
-    return { icon: "calendar", color: THEME.accent1 };
+    return { icon: "calendar", color: theme.accent1 };
   };
 
   const openImageViewer = (imageUrl: string) => {
@@ -684,12 +666,12 @@ function EventsComponent() {
           >
             <Image source={{ uri: event.image_url }} style={styles.eventImage} resizeMode="cover" />
             <View style={[styles.eventIconOverlay, { backgroundColor: color }]}>
-              <Feather name={icon} size={18} color={THEME.primary} />
+              <Feather name={icon} size={18} color={theme.textForeground} />
             </View>
           </TouchableOpacity>
         ) : (
           <View style={[styles.eventIconContainer, { backgroundColor: color }]}>
-            <Feather name={icon} size={28} color={THEME.primary} />
+            <Feather name={icon} size={28} color={theme.textForeground} />
           </View>
         )}
         <View style={styles.eventContent}>
@@ -712,14 +694,14 @@ function EventsComponent() {
           )}
           <View style={styles.eventActions}>
             <TouchableOpacity style={styles.eventActionButton} onPress={() => openEditModal(event)}>
-              <Feather name="edit-2" size={16} color={THEME.secondary} />
+              <Feather name="edit-2" size={16} color={theme.textForegroundMuted} />
               <Text style={styles.actionButtonText}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.eventActionButton}
               onPress={() => handleDeleteEvent(event.id)}
             >
-              <Feather name="trash-2" size={16} color={THEME.error} />
+              <Feather name="trash-2" size={16} color={theme.backgroundDestructive} />
               <Text style={styles.actionButtonText}>Delete</Text>
             </TouchableOpacity>
           </View>
@@ -784,9 +766,9 @@ function EventsComponent() {
                     key={i}
                     style={[
                       styles.eventIndicator,
-                      i === 0 && { backgroundColor: THEME.accent1 },
-                      i === 1 && { backgroundColor: THEME.accent2 },
-                      i === 2 && { backgroundColor: THEME.accent3 },
+                      i === 0 && { backgroundColor: theme.accent1 },
+                      i === 1 && { backgroundColor: theme.accent2 },
+                      i === 2 && { backgroundColor: theme.accent3 },
                     ]}
                   />
                 ))
@@ -896,11 +878,11 @@ function EventsComponent() {
           {calendarView === "month" && (
             <View style={styles.monthNavigation}>
               <TouchableOpacity style={styles.monthNavArrow} onPress={() => changeMonth(-1)}>
-                <Feather name="chevron-left" size={24} color={THEME.secondary} />
+                <Feather name="chevron-left" size={24} color={theme.textForegroundMuted} />
               </TouchableOpacity>
               <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
               <TouchableOpacity style={styles.monthNavArrow} onPress={() => changeMonth(1)}>
-                <Feather name="chevron-right" size={24} color={THEME.secondary} />
+                <Feather name="chevron-right" size={24} color={theme.textForegroundMuted} />
               </TouchableOpacity>
             </View>
           )}
@@ -917,7 +899,7 @@ function EventsComponent() {
               </View>
               {loading ? (
                 <View style={styles.calendarLoading}>
-                  <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                  <ActivityIndicator size="large" color={theme.primary} />
                   <Text style={styles.loadingText}>Loading calendar...</Text>
                 </View>
               ) : (
@@ -928,12 +910,12 @@ function EventsComponent() {
             <View style={styles.listContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                  <ActivityIndicator size="large" color={theme.primary} />
                   <Text style={styles.loadingText}>Loading events...</Text>
                 </View>
               ) : events.length === 0 ? (
                 <View style={styles.noEventsContainer}>
-                  <Feather name="calendar" size={50} color={THEME.light} />
+                  <Feather name="calendar" size={50} color={theme.textForegroundSubtle} />
                   <Text style={styles.noEventsText}>No events found</Text>
                   <Text style={styles.noEventsSubtext}>
                     Add your first event by tapping the button below
@@ -961,13 +943,13 @@ function EventsComponent() {
             <View style={styles.dateDetailHeader}>
               <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
               <TouchableOpacity style={styles.dateDetailCloseButton} onPress={closeDateDetail}>
-                <AntDesign name="close" size={24} color={THEME.primary} />
+                <AntDesign name="close" size={24} color={theme.textForeground} />
               </TouchableOpacity>
             </View>
             <View style={styles.dateDetailContent}>
               {selectedDayEvents.length === 0 ? (
                 <View style={styles.noEventsForDay}>
-                  <Feather name="calendar" size={50} color={THEME.light} />
+                  <Feather name="calendar" size={50} color={theme.textForegroundSubtle} />
                   <Text style={styles.noEventsForDayText}>No events for this day</Text>
                   <TouchableOpacity
                     style={styles.addEventForDayButton}
@@ -981,7 +963,7 @@ function EventsComponent() {
                     }}
                   >
                     <Text style={styles.addEventForDayText}>Add Event</Text>
-                    <Feather name="plus" size={16} color={THEME.buttonPrimary} />
+                    <Feather name="plus" size={16} color={theme.primary} />
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -1018,7 +1000,7 @@ function EventsComponent() {
                   onPress={() => setShowAddModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign name="close" size={22} color={THEME.primary} />
+                  <AntDesign name="close" size={22} color={theme.textForeground} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
@@ -1030,7 +1012,7 @@ function EventsComponent() {
                     value={formTitle}
                     onChangeText={setFormTitle}
                     placeholder="Enter event title"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1040,7 +1022,7 @@ function EventsComponent() {
                     value={formExcerpt}
                     onChangeText={setFormExcerpt}
                     placeholder="Event description"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                     multiline
                     numberOfLines={4}
                   />
@@ -1051,7 +1033,7 @@ function EventsComponent() {
                     style={styles.dateTimeButton}
                     onPress={() => setShowTimePicker(true)}
                   >
-                    <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
+                    <Feather name="calendar" size={18} color={theme.primary} />
                     <Text style={styles.dateTimeText}>{formTime.toLocaleString()}</Text>
                   </TouchableOpacity>
                 </View>
@@ -1075,7 +1057,7 @@ function EventsComponent() {
                     value={formAuthorName}
                     onChangeText={setFormAuthorName}
                     placeholder="Event location"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1085,7 +1067,7 @@ function EventsComponent() {
                       value={isRecurring}
                       onValueChange={setIsRecurring}
                       trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-                      thumbColor={isRecurring ? THEME.buttonPrimary : "#FFFFFF"}
+                      thumbColor={isRecurring ? theme.primary : "#FFFFFF"}
                       ios_backgroundColor="#E4E4E7"
                     />
                   </View>
@@ -1189,7 +1171,7 @@ function EventsComponent() {
                         style={styles.dateTimeButton}
                         onPress={() => setShowEndDatePicker(true)}
                       >
-                        <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+                        <Feather name="calendar" size={16} color={theme.primary} />
                         <Text style={styles.dateTimeText}>
                           {recurrenceEndDate
                             ? recurrenceEndDate.toLocaleDateString()
@@ -1229,10 +1211,10 @@ function EventsComponent() {
                     activeOpacity={0.8}
                   >
                     {formImageLoading ? (
-                      <ActivityIndicator size="small" color={THEME.buttonPrimary} />
+                      <ActivityIndicator size="small" color={theme.primary} />
                     ) : (
                       <>
-                        <Feather name="image" size={22} color={THEME.buttonPrimary} />
+                        <Feather name="image" size={22} color={theme.primary} />
                         <Text style={styles.imagePickerText}>
                           {formImageUrl ? "Change Image" : "Select Image"}
                         </Text>
@@ -1288,7 +1270,7 @@ function EventsComponent() {
                   onPress={() => setShowEditModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign name="close" size={22} color={THEME.primary} />
+                  <AntDesign name="close" size={22} color={theme.textForeground} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
@@ -1299,7 +1281,7 @@ function EventsComponent() {
                     value={formTitle}
                     onChangeText={setFormTitle}
                     placeholder="Enter event title"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1309,7 +1291,7 @@ function EventsComponent() {
                     value={formExcerpt}
                     onChangeText={setFormExcerpt}
                     placeholder="Event description"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                     multiline
                     numberOfLines={4}
                   />
@@ -1320,7 +1302,7 @@ function EventsComponent() {
                     style={styles.dateTimeButton}
                     onPress={() => setShowTimePicker(true)}
                   >
-                    <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
+                    <Feather name="calendar" size={18} color={theme.primary} />
                     <Text style={styles.dateTimeText}>{formTime.toLocaleString()}</Text>
                   </TouchableOpacity>
                 </View>
@@ -1344,7 +1326,7 @@ function EventsComponent() {
                     value={formAuthorName}
                     onChangeText={setFormAuthorName}
                     placeholder="Event location"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1354,7 +1336,7 @@ function EventsComponent() {
                       value={isRecurring}
                       onValueChange={setIsRecurring}
                       trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-                      thumbColor={isRecurring ? THEME.buttonPrimary : "#FFFFFF"}
+                      thumbColor={isRecurring ? theme.primary : "#FFFFFF"}
                       ios_backgroundColor="#E4E4E7"
                     />
                   </View>
@@ -1458,7 +1440,7 @@ function EventsComponent() {
                         style={styles.dateTimeButton}
                         onPress={() => setShowEndDatePicker(true)}
                       >
-                        <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+                        <Feather name="calendar" size={16} color={theme.primary} />
                         <Text style={styles.dateTimeText}>
                           {recurrenceEndDate
                             ? recurrenceEndDate.toLocaleDateString()
@@ -1498,10 +1480,10 @@ function EventsComponent() {
                     activeOpacity={0.8}
                   >
                     {formImageLoading ? (
-                      <ActivityIndicator size="small" color={THEME.buttonPrimary} />
+                      <ActivityIndicator size="small" color={theme.primary} />
                     ) : (
                       <>
-                        <Feather name="image" size={22} color={THEME.buttonPrimary} />
+                        <Feather name="image" size={22} color={theme.primary} />
                         <Text style={styles.imagePickerText}>
                           {formImageUrl ? "Change Image" : "Select Image"}
                         </Text>
@@ -1563,7 +1545,7 @@ function EventsComponent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
   },
   safeArea: {
     flex: 1,
@@ -1575,12 +1557,12 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   // View Selector
   viewSelector: {
@@ -1590,7 +1572,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 30,
     padding: 4,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1603,15 +1585,15 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   viewOptionActive: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
   },
   viewOptionText: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   viewOptionTextActive: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
   },
   // Month Navigation
   monthNavigation: {
@@ -1627,15 +1609,15 @@ const styles = StyleSheet.create({
   monthText: {
     fontSize: 18,
     fontWeight: "600",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   // Calendar
   calendarContainer: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderRadius: 16,
     marginHorizontal: 20,
     padding: 16,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1653,7 +1635,7 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     fontWeight: "600",
   },
   calendarGrid: {},
@@ -1686,22 +1668,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEEEF5",
   },
   selectedDayNumberContainer: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
   },
   dayNumber: {
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textForeground,
     fontWeight: "500",
   },
   dayNumberOtherMonth: {
-    color: THEME.light,
+    color: theme.textForegroundSubtle,
   },
   todayNumber: {
-    color: THEME.buttonPrimary,
+    color: theme.primary,
     fontWeight: "700",
   },
   selectedDayNumber: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontWeight: "700",
   },
   eventIndicatorContainer: {
@@ -1718,13 +1700,13 @@ const styles = StyleSheet.create({
     margin: 1,
   },
   multipleEventsIndicator: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     borderRadius: 10,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
   multipleEventsText: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontSize: 10,
     fontWeight: "700",
   },
@@ -1736,7 +1718,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   // List View
   listContainer: {
@@ -1750,11 +1732,11 @@ const styles = StyleSheet.create({
   noEventsContainer: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderRadius: 16,
     padding: 30,
     marginVertical: 20,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1763,13 +1745,13 @@ const styles = StyleSheet.create({
   noEventsText: {
     fontSize: 18,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
     marginTop: 16,
     marginBottom: 8,
   },
   noEventsSubtext: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     textAlign: "center",
   },
   eventsList: {
@@ -1778,11 +1760,11 @@ const styles = StyleSheet.create({
   // Event Cards
   eventCard: {
     flexDirection: "row",
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderRadius: 16,
     marginVertical: 8,
     overflow: "hidden",
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1844,7 +1826,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
     marginBottom: 4,
   },
   eventTimeLocationContainer: {
@@ -1852,16 +1834,16 @@ const styles = StyleSheet.create({
   },
   eventDateTime: {
     fontSize: 13,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginBottom: 2,
   },
   eventLocation: {
     fontSize: 13,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   eventDescription: {
     fontSize: 13,
-    color: THEME.light,
+    color: theme.textForegroundSubtle,
     marginBottom: 8,
     lineHeight: 18,
   },
@@ -1877,7 +1859,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginLeft: 4,
   },
   eventCardDetail: {
@@ -1918,13 +1900,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: THEME.primary,
+    color: theme.textForeground,
     textAlign: "center",
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     textAlign: "center",
     marginBottom: 16,
     maxWidth: 300,
@@ -1933,7 +1915,7 @@ const styles = StyleSheet.create({
   // Updated Button
   addEventButton: {
     flexDirection: "row",
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 30,
@@ -1948,7 +1930,7 @@ const styles = StyleSheet.create({
   },
   addEventButtonText: {
     fontSize: 16,
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontWeight: "700",
     marginRight: 10,
   },
@@ -1959,11 +1941,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: height * 0.7,
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 20,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -1973,7 +1955,7 @@ const styles = StyleSheet.create({
   dateDetailHandle: {
     width: 40,
     height: 5,
-    backgroundColor: THEME.border,
+    backgroundColor: theme.borderLight,
     borderRadius: 3,
     alignSelf: "center",
     marginTop: 10,
@@ -1986,18 +1968,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.borderLight,
   },
   dateDetailTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   dateDetailCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2012,7 +1994,7 @@ const styles = StyleSheet.create({
   },
   noEventsForDayText: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginTop: 16,
     marginBottom: 24,
   },
@@ -2020,14 +2002,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 20,
   },
   addEventForDayText: {
     fontSize: 16,
-    color: THEME.buttonPrimary,
+    color: theme.primary,
     fontWeight: "600",
     marginRight: 8,
   },
@@ -2045,12 +2027,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingBottom: 30,
     maxHeight: height * 0.9,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -2059,7 +2041,7 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 5,
-    backgroundColor: THEME.border,
+    backgroundColor: theme.borderLight,
     borderRadius: 3,
     alignSelf: "center",
     marginTop: 10,
@@ -2072,18 +2054,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.borderLight,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   modalCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2097,17 +2079,17 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.primary,
+    color: theme.textForeground,
     marginBottom: 8,
   },
   formInput: {
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     borderRadius: 12,
     padding: 16,
-    color: THEME.primary,
+    color: theme.textForeground,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   textAreaInput: {
     minHeight: 120,
@@ -2116,14 +2098,14 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   dateTimeText: {
-    color: THEME.primary,
+    color: theme.textForeground,
     marginLeft: 10,
     fontSize: 16,
   },
@@ -2131,16 +2113,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   toggleLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   recurringContainer: {
     marginBottom: 20,
@@ -2154,23 +2136,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   recurrenceTypeButtonSelected: {
-    backgroundColor: THEME.buttonPrimary,
-    borderColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   recurrenceTypeText: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     fontWeight: "500",
   },
   recurrenceTypeTextSelected: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontWeight: "600",
   },
   intervalRow: {
@@ -2179,25 +2161,25 @@ const styles = StyleSheet.create({
   },
   intervalLabel: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginRight: 8,
   },
   intervalInput: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     width: 60,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
     marginRight: 8,
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textForeground,
     textAlign: "center",
   },
   intervalText: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   daysRow: {
     flexDirection: "row",
@@ -2207,24 +2189,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 6,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   dayButtonSelected: {
-    backgroundColor: THEME.buttonPrimary,
-    borderColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   dayText: {
     fontSize: 14,
     fontWeight: "600",
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   dayTextSelected: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
   },
   clearButton: {
     paddingVertical: 8,
@@ -2236,7 +2218,7 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: 14,
-    color: THEME.error,
+    color: theme.backgroundDestructive,
     fontWeight: "500",
   },
   imagePickerButton: {
@@ -2244,14 +2226,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: THEME.buttonPrimary,
+    borderColor: theme.primary,
   },
   imagePickerText: {
-    color: THEME.buttonPrimary,
+    color: theme.primary,
     marginLeft: 10,
     fontSize: 16,
     fontWeight: "600",
@@ -2278,7 +2260,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   submitButton: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
@@ -2288,7 +2270,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: THEME.buttonText,
+    color: theme.buttonText,
   },
   // Image Viewer Modal Styles
   imageViewerContainer: {
