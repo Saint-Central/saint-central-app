@@ -27,7 +27,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const buttonAnimValues = [0, 1].map(() => useRef(new Animated.Value(0)).current);
+  const buttonAnimValues = [0, 1, 2].map(() => useRef(new Animated.Value(0)).current);
 
   // Handle animations
   useEffect(() => {
@@ -206,6 +206,31 @@ export default function ChurchMembershipScreen(): JSX.Element {
                 style={styles.infoCardGradient}
               >
                 <CardDecoration />
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPressIn={() => pressButton(2, true)}
+                  onPressOut={() => pressButton(2, false)}
+                  onPress={() => navigation.navigate("registerChurch" as never)}
+                  style={styles.registerButtonContainer}
+                >
+                  <Animated.View
+                    style={[
+                      {
+                        transform: [{ scale: buttonAnimValues[2] }],
+                      },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={["#4CAF50", "#2E7D32"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.registerButton}
+                    >
+                      <FontAwesome5 name="plus-circle" size={12} color="#FFFFFF" />
+                      <Text style={styles.registerButtonText}>Register Church</Text>
+                    </LinearGradient>
+                  </Animated.View>
+                </TouchableOpacity>
                 <View style={styles.infoIconContainer}>
                   <LinearGradient colors={["#3A86FF", "#4361EE"]} style={styles.infoIcon}>
                     <FontAwesome5 name="church" size={26} color="#FFFFFF" />
@@ -259,6 +284,46 @@ export default function ChurchMembershipScreen(): JSX.Element {
                   </LinearGradient>
                 </TouchableOpacity>
               </Animated.View>
+
+              <Animated.View
+                style={[
+                  styles.buttonWrapper,
+                  {
+                    transform: [
+                      { scale: buttonAnimValues[1] },
+                      {
+                        translateY: buttonAnimValues[1].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [20, 0],
+                        }),
+                      },
+                    ],
+                    opacity: buttonAnimValues[1],
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPressIn={() => pressButton(1, true)}
+                  onPressOut={() => pressButton(1, false)}
+                  onPress={() => navigation.navigate("communitySearch" as never)}
+                >
+                  <LinearGradient
+                    colors={["#FF9800", "#F57C00"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.primaryButton}
+                  >
+                    <MaterialCommunityIcons
+                      name="account-group"
+                      size={20}
+                      color="#FFFFFF"
+                      style={styles.buttonIcon}
+                    />
+                    <Text style={styles.primaryButtonText}>Search for a Community</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
           </>
         )}
@@ -302,6 +367,26 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: theme.infoCardBorderColor,
+  },
+  registerButtonContainer: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 10,
+  },
+  registerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  registerButtonText: {
+    fontSize: 11,
+    fontWeight: theme.textWeightSemibold,
+    color: "#FFFFFF",
+    marginLeft: 4,
   },
   infoIconContainer: {
     alignItems: "center",
