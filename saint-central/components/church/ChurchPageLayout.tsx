@@ -5,73 +5,43 @@ import { supabase } from "../../supabaseClient";
 import { Ionicons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { useRouter } from "expo-router";
-import { Church, ChurchMember } from "@/types/church";
+import { Church } from "@/types/church";
 import ChurchPage from "@/components/church/ChurchPage";
+import { useChurchContext } from "@/contexts/church";
 
 // Route params interface
 interface RouteParams {
   churchId?: number;
 }
 
-export default function ChurchPageLayout() {
+type Props = {
+  userData: {
+    username: string;
+    profileImage: string;
+  };
+};
+
+export default function ChurchPageLayout({ userData }: Props) {
   const route = useRoute();
   const router = useRouter();
 
   const [church, setChurch] = useState<Church | null>(null);
-  const [member, setMember] = useState<ChurchMember | null>(null);
-  const [userData, setUserData] = useState<{ username: string; profileImage: string }>({
-    username: "Friend",
-    profileImage: "",
-  });
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
+  const {
+    data: { member },
+  } = useChurchContext();
+
   // Fetch church data
   useEffect(() => {
-    async function fetchData(): Promise<void> {
+    async function fetchChurch() {
+      if (!member) return;
+      // Get church ID - either from route params or from membership
+      const churchId = (route?.params as RouteParams)?.churchId ?? member.church_id;
+      console.log(`Attempting to fetch church with ID ${churchId} from 'churches' table`);
       try {
-        setLoading(true);
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        if (userError) {
-          throw userError;
-        }
-        if (!user) {
-          throw new Error("No user logged in");
-        }
-
-        const { data: userData, error: profileError } = await supabase
-          .from("users")
-          .select("first_name, profile_image")
-          .eq("id", user.id)
-          .single();
-        if (profileError) {
-          console.error("Error fetching user profile:", profileError);
-        } else if (userData) {
-          setUserData((current) => ({
-            username: userData.first_name || current.username,
-            profileImage: userData.profile_image || current.profileImage,
-          }));
-        }
-
-        const { data: memberData, error: memberError } = await supabase
-          .from("church_members")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
-        if (memberError) {
-          console.error("Error fetching membership:", memberError);
-          throw memberError;
-        }
-        setMember(memberData);
-
-        // Get church ID - either from route params or from membership
-        const params = route.params as RouteParams;
-        const churchId = params?.churchId || memberData.church_id;
-        console.log(`Attempting to fetch church with ID ${churchId} from 'churches' table`);
         const { data: churchData, error: churchError } = await supabase
           .from("churches")
           .select("*")
@@ -94,21 +64,19 @@ export default function ChurchPageLayout() {
           }
           throw new Error(`Church with ID ${churchId} not found. Please check your database.`);
         }
-
         // Use the first result if multiple are returned
         const church = churchData[0];
         console.log("Successfully fetched church data:", church.name);
         setChurch(church);
       } catch (error) {
-        console.error("Error in data fetch:", error);
-        setError(error instanceof Error ? error : new Error("Unknown error"));
+        console.error("Error in fetching church data:", error);
+        setError(error as Error);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchData();
-  }, [route.params]);
+    fetchChurch();
+  }, [error, member, route.params]);
 
   if (loading) {
     return (

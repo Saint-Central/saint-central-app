@@ -349,7 +349,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
       // Navigate to church page
       navigation.reset({
         index: 0,
-        routes: [{ name: "church" as never }],
+        routes: [{ name: "home" as never }],
       });
     } catch (error) {
       console.error("Error joining church:", error);
