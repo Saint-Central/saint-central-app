@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, Text, View, SafeAreaView, Animated, StatusBar } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  Animated,
+  StatusBar,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
 import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
@@ -11,11 +20,18 @@ import Button from "@/components/ui/Button";
 import { useRouter } from "expo-router";
 import ChurchPageLayout from "@/components/church/ChurchPageLayout";
 
+// Add CardDecoration component
+const CardDecoration = () => (
+  <View style={{ position: "absolute", top: 10, right: 10, opacity: 0.1 }}>
+    <FontAwesome5 name="cross" size={80} color="#FFFFFF" />
+  </View>
+);
+
 export default function ChurchMembershipScreen(): JSX.Element {
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const [, setIsMember] = useState<boolean | null>(null);
+  const [isMember, setIsMember] = useState<boolean | null>(null);
   const [shouldNavigate, setShouldNavigate] = useState<boolean>(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -152,10 +168,9 @@ export default function ChurchMembershipScreen(): JSX.Element {
           </View>
         ) : (
           <>
-
             <View style={styles.infoCard}>
               <LinearGradient
-                colors={[theme.infoCardGradientStart, theme.infoCardGradientEnd]}
+                colors={[theme.cardInfoGradientStart, theme.cardInfoGradientEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.infoCardGradient}
@@ -165,7 +180,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
                   activeOpacity={0.85}
                   onPressIn={() => pressButton(2, true)}
                   onPressOut={() => pressButton(2, false)}
-                  onPress={() => navigation.navigate("registerChurch" as never)}
+                  onPress={() => router.navigate("/registerChurch")}
                   style={styles.registerButtonContainer}
                 >
                   <Animated.View
@@ -253,7 +268,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
                   activeOpacity={0.85}
                   onPressIn={() => pressButton(1, true)}
                   onPressOut={() => pressButton(1, false)}
-                  onPress={() => navigation.navigate("communitySearch" as never)}
+                  onPress={() => alert("In progress")}
                 >
                   <LinearGradient
                     colors={["#FF9800", "#F57C00"]}
@@ -313,7 +328,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: theme.infoCardBorderColor,
+    borderColor: theme.cardInfoBorderColor,
   },
   registerButtonContainer: {
     position: "absolute",
@@ -331,7 +346,7 @@ const styles = StyleSheet.create({
   },
   registerButtonText: {
     fontSize: 11,
-    fontWeight: theme.textWeightSemibold,
+    fontWeight: theme.fontMedium,
     color: "#FFFFFF",
     marginLeft: 4,
   },
@@ -373,10 +388,18 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginRight: 8,
   },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.buttonText,
   },
   errorContainer: {
     flexDirection: "row",
