@@ -173,7 +173,7 @@ export default function ChurchSearchScreen(): JSX.Element {
       // Navigate to church page
       navigation.reset({
         index: 0,
-        routes: [{ name: "church" }],
+        routes: [{ name: "home" }],
       });
     } catch (error) {
       console.error("Error joining church:", error);

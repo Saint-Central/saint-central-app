@@ -15,8 +15,8 @@ import ChurchProfileCard from "./ChurchProfileCard";
 import theme from "@/theme";
 import { useState } from "react";
 import { supabase } from "@/supabaseClient";
-import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { useChurchContext } from "@/contexts/church";
 
 type Props = {
   church: Church;
@@ -25,8 +25,8 @@ type Props = {
 };
 
 export default function ChurchPageContent({ church, member, userData }: Props) {
-  const router = useRouter();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
+  const { reset: resetChurchData } = useChurchContext();
 
   const handleLeaveChurch = async (): Promise<void> => {
     if (!member) return;
@@ -47,7 +47,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
         .eq("id", member.id);
       if (deleteError) throw deleteError;
 
-      router.navigate("/home");
+      resetChurchData();
     } catch (error) {
       console.error("Error leaving church:", error);
       Alert.alert("Error", "Failed to leave the church. Please try again later.");
