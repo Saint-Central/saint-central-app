@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { StyleSheet, View } from "react-native";
 import { supabase } from "../../supabaseClient";
-import LottieView from "lottie-react-native";
 import ChurchPageLayout from "@/components/church/ChurchPageLayout";
 import ChurchPageFallback from "@/components/church/ChuchPageFallback";
 import { ChurchContext, ChurchContextData } from "@/contexts/church";
 import { ChurchMember } from "@/types/church";
+import Spinner from "@/components/ui/Spinner";
 
-export default function ChurchMembershipScreen() {
+export default function HomeScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -77,23 +76,8 @@ export default function ChurchMembershipScreen() {
     });
   }, [updateChurchData]);
 
-  // Loading State
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <View style={styles.lottieWrapper}>
-          <LottieView
-            source={require("../../assets/lottie/loading.json")}
-            autoPlay
-            loop
-            style={styles.lottieAnimation}
-            renderMode="HARDWARE"
-            speed={0.8}
-            resizeMode="cover"
-          />
-        </View>
-      </View>
-    );
+    return <Spinner />;
   }
 
   // if we have a church member, render the layout
@@ -110,22 +94,3 @@ export default function ChurchMembershipScreen() {
 
   return <ChurchPageFallback error={error} />;
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  lottieWrapper: {
-    width: 200,
-    height: 200,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  lottieAnimation: {
-    width: 120,
-    height: 120,
-  },
-});
