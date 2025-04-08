@@ -13,13 +13,19 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import DecoratedHeader from "@/components/ui/DecoratedHeader";
 import theme from "@/theme";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import "react-native-url-polyfill/auto";
+// Import Buffer for base64 handling
+import { Buffer } from "buffer";
 
 // Church registration form interface
 interface ChurchFormData {
@@ -32,6 +38,7 @@ interface ChurchFormData {
   email: string;
   mass_schedule: string;
   website: string;
+  image: string; // Added image URL field
 }
 
 export default function RegisterChurchScreen(): JSX.Element {
@@ -47,8 +54,12 @@ export default function RegisterChurchScreen(): JSX.Element {
     email: "",
     mass_schedule: "",
     website: "",
+    image: "", // Initialize image URL as empty
   });
   const [errors, setErrors] = useState<Partial<Record<keyof ChurchFormData, string>>>({});
+  const [imageUploading, setImageUploading] = useState<boolean>(false);
+  const [imageSelected, setImageSelected] = useState<boolean>(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -72,6 +83,174 @@ export default function RegisterChurchScreen(): JSX.Element {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim, formAnim]);
+
+  // Request permission for accessing photos
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Sorry, we need camera roll permissions to upload church images!",
+        );
+      }
+    })();
+  }, []);
+
+  // Helper function to determine content type based on file extension - More precise MIME types
+  const getContentType = (extension: string): string => {
+    const mimeMap: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+      avif: "image/avif",
+      heic: "image/heic",
+    };
+
+    return mimeMap[extension.toLowerCase()] || "image/jpeg"; // Default fallback
+  };
+
+  // Improved base64 decoder function using Buffer
+  function decode(base64: string): Uint8Array {
+    // Remove any data URI prefix if present
+    if (base64.includes(";base64,")) {
+      base64 = base64.split(";base64,")[1];
+    }
+
+    // Use buffer conversion instead of atob
+    const buffer = Buffer.from(base64, "base64");
+    return new Uint8Array(buffer);
+  }
+
+  // Simplified image upload function
+  const uploadImage = async (uri: string): Promise<string | null> => {
+    try {
+      console.log(`Starting upload process for image: ${uri}`);
+      setImageUploading(true);
+
+      // Get file extension
+      const uriParts = uri.split(".");
+      const fileExtension = uriParts[uriParts.length - 1]?.toLowerCase() || "jpeg";
+      const fileName = `church-${Date.now()}.${fileExtension}`;
+
+      console.log(`Generated filename: ${fileName}`);
+
+      // Read the file as base64
+      console.log(`Reading file from URI: ${uri}`);
+      const fileContent = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      console.log(`File read successful. Base64 data length: ${fileContent.length}`);
+
+      // Create a clean Uint8Array from base64
+      const bytes = decode(fileContent);
+      console.log(`Converted to Uint8Array, size: ${bytes.length} bytes`);
+
+      // Get proper content type
+      const contentType = getContentType(fileExtension);
+      console.log(`Content type determined as: ${contentType}`);
+
+      // Upload to Supabase
+      console.log(`Uploading to Supabase storage bucket: church-images/${fileName}`);
+      const { data, error } = await supabase.storage.from("church-images").upload(fileName, bytes, {
+        contentType: contentType,
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        throw error;
+      }
+
+      console.log("Upload successful:", data);
+
+      // Get the public URL
+      const { data: urlData } = supabase.storage.from("church-images").getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error("Failed to get public URL");
+      }
+
+      console.log(`Got public URL: ${urlData.publicUrl}`);
+
+      // Update form data with image URL
+      const publicUrl = urlData.publicUrl;
+      setFormData((prev) => ({ ...prev, image: publicUrl }));
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Error in uploadImage:", error);
+      Alert.alert(
+        "Upload Failed",
+        "There was a problem uploading your image. Please try again with a different image.",
+      );
+      setImageSelected(false);
+      setImageUri(null);
+      return null;
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  // Pick image from gallery - with disabled editing to avoid image corruption
+  const pickImage = async () => {
+    try {
+      // Don't allow picking if already uploading
+      if (imageUploading) return;
+
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "You need to grant access to your photos to upload a church image.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false, // Changed to false to avoid potential image corruption
+        quality: 0.8,
+        base64: false, // Changed to false, we'll read the file directly
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        console.log("Image selected:", selectedAsset);
+
+        // Set image URI for preview
+        setImageUri(selectedAsset.uri);
+        setImageSelected(true);
+
+        // Clear image error if exists
+        if (errors.image) {
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.image;
+            return newErrors;
+          });
+        }
+
+        // Upload image using the new simplified function
+        const uploadedUrl = await uploadImage(selectedAsset.uri);
+
+        if (!uploadedUrl) {
+          throw new Error("Failed to upload image");
+        }
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to select image. Please try again.");
+      setImageSelected(false);
+      setImageUri(null);
+    }
+  };
 
   // Update form data
   const handleChange = (field: keyof ChurchFormData, value: string) => {
@@ -98,6 +277,11 @@ export default function RegisterChurchScreen(): JSX.Element {
 
     if (!formData.address.trim()) {
       newErrors.address = "Address is required";
+    }
+
+    // Image validation
+    if (!formData.image) {
+      newErrors.image = "Please upload a church image";
     }
 
     // Email validation if provided
@@ -232,6 +416,39 @@ export default function RegisterChurchScreen(): JSX.Element {
                 },
               ]}
             >
+              {/* Church Image Upload */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Church Image <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={[styles.imageUploadContainer, errors.image ? styles.inputError : null]}
+                  onPress={pickImage}
+                  disabled={imageUploading}
+                >
+                  {imageUploading ? (
+                    <View style={styles.imageUploadContent}>
+                      <ActivityIndicator size="large" color="#3A86FF" />
+                      <Text style={styles.uploadingText}>Uploading image...</Text>
+                    </View>
+                  ) : imageSelected && imageUri ? (
+                    <View style={styles.imagePreviewContainer}>
+                      <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                      <TouchableOpacity style={styles.changeImageButton} onPress={pickImage}>
+                        <Text style={styles.changeImageText}>Change Image</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.imageUploadContent}>
+                      <MaterialIcons name="add-photo-alternate" size={40} color="#3A86FF" />
+                      <Text style={styles.imageUploadText}>Upload Church Image</Text>
+                      <Text style={styles.imageUploadSubtext}>Tap to select from gallery</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {errors.image && <Text style={styles.errorText}>{errors.image}</Text>}
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
                   Church Name <Text style={styles.requiredStar}>*</Text>
@@ -474,6 +691,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#FF006E",
     marginTop: 4,
+  },
+  // Image upload styles
+  imageUploadContainer: {
+    height: 200,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  imageUploadContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  imageUploadText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#3A86FF",
+    marginTop: 12,
+  },
+  imageUploadSubtext: {
+    fontSize: 13,
+    color: "#64748B",
+    marginTop: 4,
+  },
+  uploadingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3A86FF",
+    marginTop: 8,
+  },
+  imagePreviewContainer: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
+  },
+  imagePreview: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  changeImageButton: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    left: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: 8,
+    alignItems: "center",
+  },
+  changeImageText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   submitButton: {
     marginTop: 8,
