@@ -32,7 +32,7 @@ interface SidebarProps {
 const { width } = Dimensions.get("window");
 const SIDEBAR_WIDTH = width * 0.85;
 
-export default function Sidebar({
+export default function ChurchSidebar({
   isOpen,
   onClose,
   userName,

@@ -146,7 +146,7 @@ export default function ChurchSearchScreen(): JSX.Element {
       }
 
       // Check if user is already a member
-      const { data: existingMembership, error: membershipError } = await supabase
+      const { data: existingMembership } = await supabase
         .from("church_members")
         .select("*")
         .eq("user_id", userId)
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   },
   joinButtonText: {
     fontSize: 14,
-    fontWeight: theme.textWeightSemibold,
+    fontWeight: theme.fontBold,
     color: "#FFFFFF",
   },
   errorContainer: {

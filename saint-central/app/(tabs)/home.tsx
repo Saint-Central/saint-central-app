@@ -1,25 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  SafeAreaView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Animated,
-  StatusBar,
-} from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { StyleSheet, Text, View, SafeAreaView, Animated, StatusBar } from "react-native";
 import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import theme from "@/theme";
 import DecoratedHeader from "@/components/ui/DecoratedHeader";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import { useRouter } from "expo-router";
+import ChurchPageLayout from "@/components/church/ChurchPageLayout";
 
-// ChurchMembership screen component
 export default function ChurchMembershipScreen(): JSX.Element {
-  const navigation = useNavigation();
+  const router = useRouter();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [, setIsMember] = useState<boolean | null>(null);
@@ -74,17 +67,12 @@ export default function ChurchMembershipScreen(): JSX.Element {
           .from("church_members")
           .select("id, church_id, role")
           .eq("user_id", userId);
-
         if (memberError) {
           throw memberError;
         }
 
-        console.log("Membership query results:", memberData);
-        // If we have any results, user is a church member
         const membershipStatus = memberData && memberData.length > 0;
-        console.log("Is user a church member?", membershipStatus);
         setIsMember(membershipStatus);
-        // Set navigation flag if user is a member
         if (membershipStatus) {
           console.log("Setting shouldNavigate to true");
           setShouldNavigate(true);
@@ -100,26 +88,6 @@ export default function ChurchMembershipScreen(): JSX.Element {
     checkChurchMembership();
   }, []);
 
-  // Handle navigation separately when membership is confirmed
-  useEffect(() => {
-    if (shouldNavigate && !loading) {
-      // Add debug logging
-      console.log("Ready to navigate to church page");
-
-      // Use immediate navigation - no delays
-      try {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "church" as never }],
-        });
-      } catch (navError) {
-        console.error("Navigation error:", navError);
-        // Fallback to navigate method if reset fails
-        navigation.navigate("church" as never);
-      }
-    }
-  }, [shouldNavigate, loading, navigation]);
-
   // Button press animation
   const pressButton = (index: number, pressed: boolean) => {
     Animated.spring(buttonAnimValues[index], {
@@ -129,15 +97,6 @@ export default function ChurchMembershipScreen(): JSX.Element {
       useNativeDriver: true,
     }).start();
   };
-
-  // Card decorations (subtle visual elements)
-  const CardDecoration = () => (
-    <View style={styles.cardDecoration}>
-      <View style={[styles.decorationDot, styles.decorationDot1]} />
-      <View style={[styles.decorationDot, styles.decorationDot2]} />
-      <View style={[styles.decorationDot, styles.decorationDot3]} />
-    </View>
-  );
 
   // Loading State
   if (loading) {
@@ -158,13 +117,8 @@ export default function ChurchMembershipScreen(): JSX.Element {
     );
   }
 
-  // Church member navigation loading state
-  if (shouldNavigate) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3A86FF" />
-      </View>
-    );
+  if (shouldNavigate && !loading) {
+    return <ChurchPageLayout />;
   }
 
   // Not a church member UI
@@ -198,6 +152,7 @@ export default function ChurchMembershipScreen(): JSX.Element {
           </View>
         ) : (
           <>
+
             <View style={styles.infoCard}>
               <LinearGradient
                 colors={[theme.infoCardGradientStart, theme.infoCardGradientEnd]}
@@ -262,27 +217,19 @@ export default function ChurchMembershipScreen(): JSX.Element {
                   },
                 ]}
               >
-                <TouchableOpacity
-                  activeOpacity={0.85}
+                <Button
                   onPressIn={() => pressButton(0, true)}
                   onPressOut={() => pressButton(0, false)}
-                  onPress={() => navigation.navigate("churchSearch" as never)}
+                  onPress={() => router.navigate("/churchSearch")}
                 >
-                  <LinearGradient
-                    colors={["#3A86FF", "#4361EE"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.primaryButton}
-                  >
-                    <MaterialCommunityIcons
-                      name="magnify"
-                      size={20}
-                      color="#FFFFFF"
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={styles.primaryButtonText}>Search for a Church</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  <MaterialCommunityIcons
+                    name="magnify"
+                    size={20}
+                    color="#FFFFFF"
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.primaryButtonText}>Search for a Church</Text>
+                </Button>
               </Animated.View>
 
               <Animated.View
@@ -406,15 +353,15 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 18,
-    fontWeight: theme.textWeightSemibold,
-    color: theme.textColor,
+    fontWeight: theme.fontBold,
+    color: theme.textForeground,
     textAlign: "center",
     marginBottom: 12,
   },
   infoDescription: {
     fontSize: 14,
     lineHeight: 22,
-    color: theme.textColorMuted,
+    color: theme.textForegroundMuted,
     textAlign: "center",
   },
   buttonsContainer: {
@@ -423,25 +370,18 @@ const styles = StyleSheet.create({
   buttonWrapper: {
     marginBottom: 16,
   },
-  primaryButton: {
-    height: 56,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   buttonIcon: {
     marginRight: 8,
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: theme.textWeightSemibold,
+    fontWeight: theme.fontBold,
     color: "#FFFFFF",
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.errorCardBackground,
+    backgroundColor: theme.cardErrorBackground,
     padding: 16,
     borderRadius: 16,
     marginBottom: 20,
@@ -450,39 +390,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.textErrorColor,
     marginLeft: 12,
-    fontWeight: "500",
+    fontWeight: theme.fontMedium,
     flex: 1,
-  },
-  cardDecoration: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 60,
-    height: 60,
-  },
-  decorationDot: {
-    position: "absolute",
-    borderRadius: 50,
-  },
-  decorationDot1: {
-    width: 12,
-    height: 12,
-    backgroundColor: "rgba(58, 134, 255, 0.2)",
-    top: 15,
-    right: 15,
-  },
-  decorationDot2: {
-    width: 8,
-    height: 8,
-    backgroundColor: "rgba(58, 134, 255, 0.15)",
-    top: 30,
-    right: 22,
-  },
-  decorationDot3: {
-    width: 6,
-    height: 6,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
-    top: 24,
-    right: 35,
   },
 });

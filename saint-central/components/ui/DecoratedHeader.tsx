@@ -31,8 +31,8 @@ const componentStyles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: theme.textWeightBold,
-    color: theme.textColor,
+    fontWeight: theme.fontExtraBold,
+    color: theme.textForeground,
     letterSpacing: -0.5,
   },
 });
