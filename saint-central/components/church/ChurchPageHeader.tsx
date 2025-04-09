@@ -7,6 +7,7 @@ import {
   Image,
   StyleSheet,
   GestureResponderEvent,
+  Platform,
 } from "react-native";
 import DecoratedHeader from "../ui/DecoratedHeader";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,34 +25,63 @@ export default function ChurchPageHeader({ church, userData, onPressMenu }: Prop
   const router = useRouter();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
-    // Animate content fade in
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]);
+    // Animate content fade in with spring effect
+    Animated.parallel([
+      Animated.spring(fadeAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, scaleAnim]);
 
   return (
-    <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+    <Animated.View
+      style={[
+        styles.header,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
       <View style={styles.headerLeft}>
         <TouchableOpacity style={styles.menuButtonHeader} onPress={onPressMenu}>
-          <Ionicons name="menu" size={24} color="#3A86FF" />
+          <LinearGradient
+            colors={["rgba(58, 134, 255, 0.15)", "rgba(58, 134, 255, 0.05)"]}
+            style={styles.menuGradient}
+          >
+            <Ionicons name="menu" size={24} color="#3A86FF" />
+          </LinearGradient>
         </TouchableOpacity>
         <DecoratedHeader label={church.name} />
       </View>
 
-      <TouchableOpacity onPress={() => router.navigate("/profile")} style={styles.profileContainer}>
+      <TouchableOpacity
+        onPress={() => router.navigate("/profile")}
+        style={styles.profileContainer}
+        activeOpacity={0.8}
+      >
         {userData.profileImage ? (
-          <Image
-            source={{ uri: userData.profileImage }}
-            style={styles.profilePic}
-            resizeMode="cover"
-          />
+          <View style={styles.profileWrapper}>
+            <Image
+              source={{ uri: userData.profileImage }}
+              style={styles.profilePic}
+              resizeMode="cover"
+            />
+          </View>
         ) : (
-          <View style={styles.profilePic}>
+          <View style={styles.profileWrapper}>
             <LinearGradient colors={["#3A86FF", "#4361EE"]} style={styles.profileGradient}>
               <Text style={styles.profileInitial}>
                 {userData.username ? userData.username[0].toUpperCase() : "?"}
@@ -71,17 +101,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
-    marginTop: 10,
+    marginTop: Platform.OS === "ios" ? 10 : 20,
     zIndex: 1,
   },
   menuButtonHeader: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 12,
+    shadowColor: "rgba(58, 134, 255, 0.3)",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  menuGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerLeft: {
     flexDirection: "row",
@@ -91,22 +132,33 @@ const styles = StyleSheet.create({
     position: "relative",
     zIndex: 1,
   },
+  profileWrapper: {
+    borderRadius: 24,
+    shadowColor: "#94A3B8",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   profilePic: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#E2E8F0",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.8)",
+    borderColor: "rgba(255, 255, 255, 0.9)",
   },
   profileGradient: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.9)",
   },
   profileInitial: {
     color: "white",
@@ -117,9 +169,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: "#FF006E",
     borderWidth: 2,
     borderColor: "#FFFFFF",
