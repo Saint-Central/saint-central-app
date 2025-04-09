@@ -244,7 +244,10 @@ export default function ChurchSidebar({
             <View style={styles.divider} />
 
             {/* Additional Menu Items */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("ministries")}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo("MinistriesScreen")}
+            >
               <View style={styles.menuIconContainer}>
                 <FontAwesome5 name="church" size={20} color="#64748B" />
               </View>
