@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#075E54",
+    backgroundColor: "#ADD8E6", // Changed from #075E54 (dark green) to light blue
     justifyContent: "center",
     alignItems: "center",
   },
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#25D366",
+    backgroundColor: "#ADD8E6", // Changed from #25D366 (green) to light blue
     width: 36,
     height: 36,
     borderRadius: 18,
