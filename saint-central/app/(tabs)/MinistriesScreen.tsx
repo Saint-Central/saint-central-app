@@ -27,6 +27,7 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useRouter } from 'expo-router';
 
 // Interface definitions based on Supabase schema
 interface Ministry {
@@ -46,7 +47,7 @@ interface MinistryMember {
   user_id: string;
   church_id: number;
   joined_at: string;
-  member_status: string;
+  role: string;
 }
 
 interface ChurchMember {
@@ -135,6 +136,7 @@ const getInitials = (name: string): string => {
 };
 
 export default function SimplifiedMinistriesScreen(): JSX.Element {
+  const router = useRouter();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'home'>>();
   const [ministries, setMinistries] = useState<Ministry[]>([]);
@@ -270,10 +272,10 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       // Fetch user's memberships with full details
       const { data: membershipData, error: membershipError } = await supabase
         .from("ministry_members")
-        .select("ministry_id, member_status, church_id")
+        .select("ministry_id, role, church_id")
         .eq("user_id", user.id)
         .eq("church_id", churchMember?.church_id)
-        .neq("member_status", "removed");  // Only get active memberships
+        .eq("role", "member");  // Only get active memberships
         
       if (membershipError) {
         console.error("Error fetching ministry memberships:", membershipError);
@@ -310,8 +312,47 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   }
 
   // Navigate to ministry detail screen
-  const navigateToMinistryDetail = (ministryId: number) => {
-    navigation.navigate('ministryDetail', { ministryId });
+  const navigateToMinistryDetail = async (ministryId: number) => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        Alert.alert("Error", "Please log in to continue");
+        return;
+      }
+
+      console.log(`[DEBUG] Checking membership - User ID: ${user.id}, Ministry ID: ${ministryId}`);
+
+      // Direct table query to check for member role
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('ministry_members')
+        .select('role')
+        .eq('ministry_id', ministryId)
+        .eq('user_id', user.id)
+        .eq('role', 'member')
+        .maybeSingle();
+
+      console.log('[DEBUG] Membership query result:', membershipData);
+
+      // If there's a record with role = 'member', go directly to detail screen
+      if (membershipData) {
+        console.log('[DEBUG] Found active membership, going to ministry detail');
+        router.push({
+          pathname: "/(tabs)/ministryDetail",
+          params: { id: ministryId }
+        });
+      } else {
+        console.log('[DEBUG] No active membership found, going to join screen');
+        router.push({
+          pathname: "/(tabs)/JoinMinistryScreen",
+          params: { id: ministryId }
+        });
+      }
+    } catch (error) {
+      console.error("[ERROR] Navigation error:", error);
+      Alert.alert("Error", "Could not verify membership status");
+    }
   };
   
   // Navigate to home
@@ -374,7 +415,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           user_id: user.id,
           church_id: userChurchId,
           joined_at: new Date().toISOString(),
-          member_status: "member"
+          role: "member"
         });
 
       if (error) {

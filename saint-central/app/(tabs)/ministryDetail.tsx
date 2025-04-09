@@ -32,6 +32,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 
 // Interface definitions based on Supabase schema
 interface Ministry {
@@ -51,7 +53,7 @@ interface MinistryMember {
   user_id: string;
   church_id: number;
   joined_at: string;
-  member_status: string;
+  role: string;
 }
 
 interface User {
@@ -185,8 +187,10 @@ const MESSAGES_CACHE_KEY = (ministryId: number) =>
 export default function MinistryDetails(): JSX.Element {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<MinistryDetailRouteProp>();
-  const ministryId = route.params?.ministryId;
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  const ministryId = typeof params.id === 'string' ? parseInt(params.id) : 0;
   
   const [ministry, setMinistry] = useState<Ministry | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -325,10 +329,16 @@ export default function MinistryDetails(): JSX.Element {
   // Use useFocusEffect for membership status refresh
   useFocusEffect(
     useCallback(() => {
-      console.log('Screen focused, refreshing membership status');
-      refreshMembershipStatus();
+      console.log('Screen focused, refreshing all data');
+      // Reset states when screen comes into focus
+      setMessages([]);
+      setMembers([]);
+      setUsers({});
+      // Fetch fresh data
+      fetchData();
       return () => {
         // Cleanup when screen is unfocused
+        console.log('Screen unfocused');
       };
     }, [ministryId])
   );
@@ -359,10 +369,10 @@ export default function MinistryDetails(): JSX.Element {
       // Get membership status directly with a specific query
       const { data: membershipData, error: membershipError } = await supabase
         .from("ministry_members")
-        .select("id, member_status")
+        .select("id, role")
         .eq("ministry_id", ministryId)
         .eq("user_id", user.id)
-        .neq("member_status", "removed")
+        .eq("role", "member")
         .maybeSingle();
         
       // Update membership status based on direct query
@@ -374,7 +384,7 @@ export default function MinistryDetails(): JSX.Element {
         JSON.stringify({ 
           isMember: isUserMember,
           lastChecked: new Date().toISOString(),
-          memberStatus: membershipData?.member_status || null
+          role: membershipData?.role || null
         })
       );
       
@@ -455,10 +465,10 @@ export default function MinistryDetails(): JSX.Element {
       // Verify membership status directly from the database
       const { data: membershipData, error: membershipError } = await supabase
         .from("ministry_members")
-        .select("id, member_status")
+        .select("id, role")
         .eq("ministry_id", ministryId)
         .eq("user_id", user.id)
-        .neq("member_status", "removed")
+        .eq("role", "member")
         .maybeSingle();
         
       // Set membership status based on direct query
@@ -470,7 +480,7 @@ export default function MinistryDetails(): JSX.Element {
         JSON.stringify({ 
           isMember: isUserMember,
           lastChecked: new Date().toISOString(),
-          memberStatus: membershipData?.member_status || null
+          role: membershipData?.role || null
         })
       );
       
@@ -481,7 +491,7 @@ export default function MinistryDetails(): JSX.Element {
         .from("ministry_members")
         .select("*")
         .eq("ministry_id", ministryId)
-        .neq("member_status", "removed");
+        .eq("role", "member");
         
       if (membersError) {
         console.error("Error fetching ministry members:", membersError);
@@ -689,528 +699,87 @@ export default function MinistryDetails(): JSX.Element {
   
   // Send a new message
   async function sendMessage(): Promise<void> {
-    if (!newMessage.trim()) return;
-    
-    // Check if user is a member
-    if (!isMember) {
-      Alert.alert(
-        "Join Required",
-        "You need to join this ministry to send messages.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Join Now", 
-            onPress: () => handleJoinMinistry()
-          }
-        ]
-      );
-      return;
-    }
+    if (!newMessage.trim() || !isMember) return;
     
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        Alert.alert("Error", "You must be logged in to send messages");
-        return;
-      }
-      
-      // Store message text before clearing input
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Clear input immediately
       const messageText = newMessage.trim();
-      
-      // Clear input immediately for better UX
       setNewMessage("");
-      
-      // Create a temporary message object for optimistic UI update
+
+      // Create temporary message
       const tempMessage: Message = {
-        id: Date.now(), // Temporary ID
+        id: Date.now(),
         ministry_id: ministryId,
         user_id: user.id,
         sent_at: new Date().toISOString(),
         message_text: messageText,
         user: currentUser || undefined,
-        _status: 'sending' // Custom field to track status
+        _status: 'sending'
       };
-      
-      // Add message to state for immediate display
-      const updatedMessages = [...messages, tempMessage];
-      setMessages(updatedMessages);
-      
-      // Scroll to bottom after adding message
-      setTimeout(() => {
-        messageListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-      
-      // Double-check membership directly from the database
-      const { data: membershipCheck, error: membershipError } = await supabase
-        .from("ministry_members")
-        .select("id, member_status")
-        .eq("ministry_id", ministryId)
-        .eq("user_id", user.id)
-        .neq("member_status", "removed")
-        .maybeSingle();
-        
-      if (!membershipCheck) {
-        console.error("Error verifying ministry membership: User is not a member");
-        
-        // Update the temporary message to show error
-        const messagesWithError = messages.map(msg => 
-          msg.id === tempMessage.id 
-            ? { ...msg, _status: 'error' as const } 
-            : msg
-        );
-        
-        setMessages(messagesWithError);
-        
-        // Update message cache with error state
-        await AsyncStorage.setItem(
-          MESSAGES_CACHE_KEY(ministryId),
-          JSON.stringify(messagesWithError)
-        );
-        
-        // Refresh membership status
-        refreshMembershipStatus();
-        
-        throw new Error("You must be a member of this ministry to send messages");
-      }
-      
-      // Use RLS-compliant insert operation
-      const { data, error } = await supabase
+
+      setMessages(prev => [...prev, tempMessage]);
+      messageListRef.current?.scrollToEnd({ animated: true });
+
+      const { error } = await supabase
         .from("ministry_messages")
         .insert({
           ministry_id: ministryId,
           user_id: user.id,
-          sent_at: tempMessage.sent_at,
           message_text: messageText
-        })
-        .select()
-        .single();
-        
+        });
+
       if (error) {
         console.error("Error sending message:", error);
-        
-        // Handle specific RLS error
-        if (error.code === '42501') {
-          // Row-level security policy violation
-          Alert.alert(
-            "Permission Error", 
-            "You don't have permission to send messages in this ministry. Please make sure you are a member.",
-            [
-              {
-                text: "Join Ministry",
-                onPress: () => handleJoinMinistry()
-              },
-              {
-                text: "Cancel",
-                style: "cancel"
-              }
-            ]
-          );
-          
-          // Refresh membership status
-          refreshMembershipStatus();
-        }
-        
-        // Update the temporary message to show error
-        const messagesWithError = messages.map(msg => 
-          msg.id === tempMessage.id 
-            ? { ...msg, _status: 'error' as const } 
-            : msg
-        );
-        
-        setMessages(messagesWithError);
-        
-        // Update message cache with error state
-        await AsyncStorage.setItem(
-          MESSAGES_CACHE_KEY(ministryId),
-          JSON.stringify(messagesWithError)
-        );
-        
-        // Show error alert
-        Alert.alert(
-          "Error", 
-          "Failed to send message. Tap to retry.", 
-          [
-            {
-              text: "Retry",
-              onPress: () => {
-                // Remove the failed message and retry
-                const filteredMessages = messages.filter(msg => msg.id !== tempMessage.id);
-                setMessages(filteredMessages);
-                
-                // Update message cache without the failed message
-                AsyncStorage.setItem(
-                  MESSAGES_CACHE_KEY(ministryId),
-                  JSON.stringify(filteredMessages)
-                );
-                
-                setNewMessage(messageText);
-              }
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-              onPress: () => {
-                // Just remove the failed message
-                const filteredMessages = messages.filter(msg => msg.id !== tempMessage.id);
-                setMessages(filteredMessages);
-                
-                // Update message cache without the failed message
-                AsyncStorage.setItem(
-                  MESSAGES_CACHE_KEY(ministryId),
-                  JSON.stringify(filteredMessages)
-                );
-              }
-            }
-          ]
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === tempMessage.id 
+              ? { ...msg, _status: 'error' } 
+              : msg
+          )
         );
       }
-      
-      // Note: We don't need to update state with the DB version
-      // The real-time subscription will handle this
-      
     } catch (error) {
       console.error("Error sending message:", error);
-      Alert.alert("Error", "Failed to send message. Please try again.");
-    }
-  }
-  
-  // Join a ministry
-  async function handleJoinMinistry(): Promise<void> {
-    try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        Alert.alert("Error", "You must be logged in to join a ministry");
-        return;
-      }
-      
-      // Check if user is a church member first
-      const { data: churchMember, error: churchMemberError } = await supabase
-        .from("church_members")
-        .select("church_id")
-        .eq("user_id", user.id)
-        .single();
-        
-      if (churchMemberError || !churchMember) {
-        Alert.alert("Error", "You must be a member of the church to join this ministry");
-        return;
-      }
-      
-      // Double check if already a member with a fresh query
-      const { data: existingMembership, error: membershipCheckError } = await supabase
-        .from("ministry_members")
-        .select("id, member_status")
-        .eq("ministry_id", ministryId)
-        .eq("user_id", user.id)
-        .neq("member_status", "removed")
-        .maybeSingle();
-        
-      if (!membershipCheckError && existingMembership) {
-        Alert.alert("Already a Member", "You are already a member of this ministry.");
-        
-        // Update local state to match server state
-        setIsMember(true);
-        
-        // Update cache
-        await AsyncStorage.setItem(
-          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-          JSON.stringify({ 
-            isMember: true,
-            lastChecked: new Date().toISOString(),
-            memberStatus: existingMembership.member_status
-          })
-        );
-        
-        if (ministry) {
-          const updatedMinistry = {
-            ...ministry,
-            is_member: true
-          };
-          
-          setMinistry(updatedMinistry);
-          
-          // Update ministry cache
-          await AsyncStorage.setItem(
-            MINISTRY_CACHE_KEY(ministryId),
-            JSON.stringify(updatedMinistry)
-          );
-        }
-        return;
-      }
-      
-      // Update UI state immediately for better responsiveness
-      setIsMember(true);
-      
-      // Update cache immediately
-      await AsyncStorage.setItem(
-        MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-        JSON.stringify({ 
-          isMember: true,
-          lastChecked: new Date().toISOString(),
-          memberStatus: "member"
-        })
-      );
-      
-      // If we have ministry data, update the member count
-      if (ministry) {
-        const updatedMinistry = {
-          ...ministry,
-          member_count: (ministry.member_count || 0) + 1,
-          is_member: true
-        };
-        
-        setMinistry(updatedMinistry);
-        
-        // Update ministry cache
-        await AsyncStorage.setItem(
-          MINISTRY_CACHE_KEY(ministryId),
-          JSON.stringify(updatedMinistry)
-        );
-      }
-      
-      // Join the ministry
-      const { error } = await supabase
-        .from("ministry_members")
-        .insert({
-          ministry_id: ministryId,
-          user_id: user.id,
-          church_id: churchMember.church_id,
-          joined_at: new Date().toISOString(),
-          member_status: "member"
-        });
-        
-      if (error) {
-        console.error("Error joining ministry:", error);
-        
-        // Revert UI state if the operation failed
-        setIsMember(false);
-        
-        // Update cache to match
-        await AsyncStorage.setItem(
-          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-          JSON.stringify({ 
-            isMember: false,
-            lastChecked: new Date().toISOString(),
-            memberStatus: null
-          })
-        );
-        
-        if (ministry) {
-          const updatedMinistry = {
-            ...ministry,
-            member_count: Math.max((ministry.member_count || 1) - 1, 0),
-            is_member: false
-          };
-          
-          setMinistry(updatedMinistry);
-          
-          // Update ministry cache
-          await AsyncStorage.setItem(
-            MINISTRY_CACHE_KEY(ministryId),
-            JSON.stringify(updatedMinistry)
-          );
-        }
-        
-        Alert.alert("Error", "Could not join the ministry. Please try again.");
-        return;
-      }
-      
-      Alert.alert("Success", "You have joined the ministry!");
-      
-      // Fetch messages to make sure we have the latest
-      fetchMessages();
-      
-    } catch (error) {
-      console.error("Error joining ministry:", error);
-      
-      // Ensure UI state is reverted on error
-      setIsMember(false);
-      
-      // Update cache to match
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await AsyncStorage.setItem(
-          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-          JSON.stringify({ 
-            isMember: false,
-            lastChecked: new Date().toISOString(),
-            memberStatus: null
-          })
-        );
-      }
-      
-      if (ministry) {
-        const updatedMinistry = {
-          ...ministry,
-          member_count: Math.max((ministry.member_count || 1) - 1, 0),
-          is_member: false
-        };
-        
-        setMinistry(updatedMinistry);
-        
-        // Update ministry cache
-        await AsyncStorage.setItem(
-          MINISTRY_CACHE_KEY(ministryId),
-          JSON.stringify(updatedMinistry)
-        );
-      }
-      
-      Alert.alert("Error", "Could not join the ministry. Please try again.");
+      Alert.alert("Error", "Failed to send message");
     }
   }
   
   // Leave a ministry
   async function handleLeaveMinistry(): Promise<void> {
-    try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        Alert.alert("Error", "You must be logged in to leave a ministry");
-        return;
-      }
-      
-      // Double check if actually a member with a fresh query
-      const { data: existingMembership, error: membershipCheckError } = await supabase
-        .from("ministry_members")
-        .select("id, member_status")
-        .eq("ministry_id", ministryId)
-        .eq("user_id", user.id)
-        .neq("member_status", "removed")
-        .maybeSingle();
-        
-      if (membershipCheckError || !existingMembership) {
-        Alert.alert("Not a Member", "You are not a member of this ministry.");
-        
-        // Update local state to match server state
-        setIsMember(false);
-        
-        // Update cache
-        await AsyncStorage.setItem(
-          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-          JSON.stringify({ 
-            isMember: false,
-            lastChecked: new Date().toISOString(),
-            memberStatus: null
-          })
-        );
-        
-        if (ministry) {
-          const updatedMinistry = {
-            ...ministry,
-            is_member: false
-          };
-          
-          setMinistry(updatedMinistry);
-          
-          // Update ministry cache
-          await AsyncStorage.setItem(
-            MINISTRY_CACHE_KEY(ministryId),
-            JSON.stringify(updatedMinistry)
-          );
-        }
-        return;
-      }
-      
-      // Confirm action
-      Alert.alert(
-        "Leave Ministry",
-        "Are you sure you want to leave this ministry?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Leave", 
-            style: "destructive",
-            onPress: async () => {
-              // Update UI state immediately for better responsiveness
-              setIsMember(false);
-              
-              // Update cache immediately
-              await AsyncStorage.setItem(
-                MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-                JSON.stringify({ 
-                  isMember: false,
-                  lastChecked: new Date().toISOString(),
-                  memberStatus: null
-                })
-              );
-              
-              // If we have ministry data, update the member count
-              if (ministry) {
-                const updatedMinistry = {
-                  ...ministry,
-                  member_count: Math.max((ministry.member_count || 1) - 1, 0),
-                  is_member: false
-                };
-                
-                setMinistry(updatedMinistry);
-                
-                // Update ministry cache
-                await AsyncStorage.setItem(
-                  MINISTRY_CACHE_KEY(ministryId),
-                  JSON.stringify(updatedMinistry)
-                );
-              }
-              
-              // Leave the ministry - delete the record
+    Alert.alert(
+      "Leave Ministry",
+      "Are you sure you want to leave this ministry?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) return;
+
               const { error } = await supabase
                 .from("ministry_members")
                 .delete()
                 .eq("ministry_id", ministryId)
                 .eq("user_id", user.id);
-                
-              if (error) {
-                console.error("Error leaving ministry:", error);
-                
-                // Revert UI state if the operation failed
-                setIsMember(true);
-                
-                // Update cache to match
-                await AsyncStorage.setItem(
-                  MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-                  JSON.stringify({ 
-                    isMember: true,
-                    lastChecked: new Date().toISOString(),
-                    memberStatus: existingMembership.member_status
-                  })
-                );
-                
-                if (ministry) {
-                  const updatedMinistry = {
-                    ...ministry,
-                    member_count: (ministry.member_count || 0) + 1,
-                    is_member: true
-                  };
-                  
-                  setMinistry(updatedMinistry);
-                  
-                  // Update ministry cache
-                  await AsyncStorage.setItem(
-                    MINISTRY_CACHE_KEY(ministryId),
-                    JSON.stringify(updatedMinistry)
-                  );
-                }
-                
-                Alert.alert("Error", "Could not leave the ministry. Please try again.");
-                return;
-              }
-              
-              Alert.alert("Success", "You have left the ministry.");
-              
-              // Fetch messages to make sure we have the latest
-              fetchMessages();
+
+              if (error) throw error;
+
+              Alert.alert("Success", "You have left the ministry");
+              router.back();
+            } catch (error) {
+              console.error("Error leaving ministry:", error);
+              Alert.alert("Error", "Could not leave the ministry");
             }
           }
-        ]
-      );
-      
-    } catch (error) {
-      console.error("Error leaving ministry:", error);
-      Alert.alert("Error", "Could not leave the ministry. Please try again.");
-    }
+        }
+      ]
+    );
   }
   
   // Navigate back
@@ -1522,17 +1091,14 @@ export default function MinistryDetails(): JSX.Element {
           </View>
         </View>
         
-        <TouchableOpacity 
-          style={[
-            styles.joinButton,
-            isMember ? styles.leaveButton : styles.joinButton
-          ]}
-          onPress={isMember ? handleLeaveMinistry : handleJoinMinistry}
-        >
-          <Text style={styles.joinButtonText}>
-            {isMember ? "Leave" : "Join"}
-          </Text>
-        </TouchableOpacity>
+        {isMember && (
+          <TouchableOpacity 
+            style={styles.leaveButton}
+            onPress={handleLeaveMinistry}
+          >
+            <Text style={styles.joinButtonText}>Leave</Text>
+          </TouchableOpacity>
+        )}
       </View>
       
       {/* Ministry Info */}
