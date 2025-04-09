@@ -21,8 +21,8 @@ type Props = {
 };
 
 const CardDecoration = () => (
-  <View style={{ position: "absolute", top: 10, right: 10, opacity: 0.15 }}>
-    <FontAwesome5 name="cross" size={90} color="#FFFFFF" />
+  <View style={{ position: "absolute", bottom: 30, right: 30, opacity: 0.06 }}>
+    <FontAwesome5 name="cross" size={100} color="#FFFFFF" />
   </View>
 );
 
@@ -35,6 +35,7 @@ export default function ChurchPageFallback({ error }: Props) {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const buttonAnimValues = [0, 1, 2].map(() => useRef(new Animated.Value(0)).current);
   const registerButtonAnim = useRef(new Animated.Value(0)).current;
+  const cardScaleAnim = useRef(new Animated.Value(0.96)).current;
 
   // Handle animations
   useEffect(() => {
@@ -43,44 +44,51 @@ export default function ChurchPageFallback({ error }: Props) {
       // Fade in the main content
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 650,
+        useNativeDriver: true,
+      }),
+      // Scale up card with subtle spring effect
+      Animated.spring(cardScaleAnim, {
+        toValue: 1,
+        friction: 10,
+        tension: 40,
         useNativeDriver: true,
       }),
       // Then animate content sliding up
       Animated.spring(contentAnim, {
         toValue: 1,
-        friction: 8,
-        tension: 45,
+        friction: 10,
+        tension: 40,
         useNativeDriver: true,
       }),
       // Then animate the register button
       Animated.spring(registerButtonAnim, {
         toValue: 1,
-        friction: 7,
-        tension: 40,
+        friction: 8,
+        tension: 35,
         useNativeDriver: true,
       }),
     ]).start();
 
     // Animate buttons entrance with staggered delay
     Animated.stagger(
-      150,
+      120,
       buttonAnimValues.map((anim) =>
         Animated.spring(anim, {
           toValue: 1,
-          tension: 60,
-          friction: 7,
+          tension: 50,
+          friction: 8,
           useNativeDriver: true,
         }),
       ),
     ).start();
-  }, [buttonAnimValues, fadeAnim, contentAnim, registerButtonAnim]);
+  }, [buttonAnimValues, fadeAnim, contentAnim, registerButtonAnim, cardScaleAnim]);
 
   // Button press animation
   const pressButton = (index: number, pressed: boolean) => {
     Animated.spring(buttonAnimValues[index], {
-      toValue: pressed ? 0.95 : 1,
-      friction: 5,
+      toValue: pressed ? 0.96 : 1,
+      friction: 6,
       tension: 40,
       useNativeDriver: true,
     }).start();
@@ -92,7 +100,7 @@ export default function ChurchPageFallback({ error }: Props) {
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       <DecoratedHeader
         label="Find Your Community"
-        styles={{ marginTop: theme.spacingTopBar, marginBottom: 30, marginLeft: 20 }}
+        styles={{ marginTop: theme.spacingTopBar, marginBottom: 30, marginLeft: 24 }}
       />
       <Animated.View
         style={[
@@ -113,7 +121,7 @@ export default function ChurchPageFallback({ error }: Props) {
         {error ? (
           <View style={styles.errorContainer}>
             <LinearGradient
-              colors={["rgba(239, 68, 68, 0.1)", "rgba(220, 38, 38, 0.15)"]}
+              colors={["rgba(239, 68, 68, 0.08)", "rgba(220, 38, 38, 0.12)"]}
               style={styles.errorGradient}
             >
               <Ionicons name="alert-circle-outline" size={22} color={theme.textErrorColor} />
@@ -122,14 +130,34 @@ export default function ChurchPageFallback({ error }: Props) {
           </View>
         ) : (
           <>
-            <View style={styles.infoCard}>
+            <Animated.View
+              style={[
+                styles.infoCard,
+                {
+                  transform: [{ scale: cardScaleAnim }],
+                },
+              ]}
+            >
               <LinearGradient
-                colors={[theme.cardInfoGradientStart, theme.cardInfoGradientEnd]}
+                colors={["#6172E4", "#4C59C9"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.infoCardGradient}
               >
                 <CardDecoration />
+                <View style={styles.infoIconContainer}>
+                  <View style={styles.iconBackgroundOuter}>
+                    <View style={styles.iconBackground}>
+                      <FontAwesome5 name="church" size={28} color="#FFFFFF" />
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.infoTitle}>Join a Church Community</Text>
+                <Text style={styles.infoDescription}>
+                  Connect with a local church to grow in faith, access resources, and join
+                  fellowship activities.
+                </Text>
+
                 <Animated.View
                   style={[
                     styles.registerButtonContainer,
@@ -140,7 +168,7 @@ export default function ChurchPageFallback({ error }: Props) {
                         {
                           translateY: registerButtonAnim.interpolate({
                             inputRange: [0, 1],
-                            outputRange: [-10, 0],
+                            outputRange: [10, 0],
                           }),
                         },
                       ],
@@ -162,7 +190,7 @@ export default function ChurchPageFallback({ error }: Props) {
                       ]}
                     >
                       <LinearGradient
-                        colors={["#4CAF50", "#2E7D32"]}
+                        colors={["#5CAF70", "#419458"]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.registerButton}
@@ -173,23 +201,8 @@ export default function ChurchPageFallback({ error }: Props) {
                     </Animated.View>
                   </TouchableOpacity>
                 </Animated.View>
-                <View style={styles.infoIconContainer}>
-                  <LinearGradient
-                    colors={["#3A86FF", "#4361EE"]}
-                    style={styles.infoIcon}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <FontAwesome5 name="church" size={26} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <Text style={styles.infoTitle}>Join a Church Community</Text>
-                <Text style={styles.infoDescription}>
-                  Connect with a local church to grow in faith, access resources, and join
-                  fellowship activities.
-                </Text>
               </LinearGradient>
-            </View>
+            </Animated.View>
 
             <View style={styles.buttonsContainer}>
               <Animated.View
@@ -201,7 +214,7 @@ export default function ChurchPageFallback({ error }: Props) {
                       {
                         translateY: buttonAnimValues[0].interpolate({
                           inputRange: [0, 1],
-                          outputRange: [40, 0],
+                          outputRange: [30, 0],
                         }),
                       },
                     ],
@@ -214,20 +227,20 @@ export default function ChurchPageFallback({ error }: Props) {
                   onPressIn={() => pressButton(0, true)}
                   onPressOut={() => pressButton(0, false)}
                   onPress={() => router.navigate("/churchSearch")}
+                  style={styles.buttonTouchable}
                 >
                   <LinearGradient
-                    colors={["#3A86FF", "#4361EE"]}
+                    colors={["#6172E4", "#4C59C9"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.primaryButton}
                   >
-                    <MaterialCommunityIcons
-                      name="magnify"
-                      size={20}
-                      color="#FFFFFF"
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={styles.primaryButtonText}>Search for a Church</Text>
+                    <View style={styles.primaryButtonContent}>
+                      <View style={styles.iconCircle}>
+                        <MaterialCommunityIcons name="magnify" size={18} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.primaryButtonText}>Search for a Church</Text>
+                    </View>
                   </LinearGradient>
                 </TouchableOpacity>
               </Animated.View>
@@ -241,7 +254,7 @@ export default function ChurchPageFallback({ error }: Props) {
                       {
                         translateY: buttonAnimValues[1].interpolate({
                           inputRange: [0, 1],
-                          outputRange: [40, 0],
+                          outputRange: [30, 0],
                         }),
                       },
                     ],
@@ -254,20 +267,20 @@ export default function ChurchPageFallback({ error }: Props) {
                   onPressIn={() => pressButton(1, true)}
                   onPressOut={() => pressButton(1, false)}
                   onPress={() => alert("In progress")}
+                  style={styles.buttonTouchable}
                 >
                   <LinearGradient
-                    colors={["#FF9800", "#F57C00"]}
+                    colors={["#E8A060", "#D88C44"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.primaryButton}
                   >
-                    <MaterialCommunityIcons
-                      name="account-group"
-                      size={20}
-                      color="#FFFFFF"
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={styles.primaryButtonText}>Search for a Community</Text>
+                    <View style={styles.primaryButtonContent}>
+                      <View style={styles.iconCircle}>
+                        <MaterialCommunityIcons name="account-group" size={18} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.primaryButtonText}>Search for a Community</Text>
+                    </View>
                   </LinearGradient>
                 </TouchableOpacity>
               </Animated.View>
@@ -282,29 +295,29 @@ export default function ChurchPageFallback({ error }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F7F8FB",
   },
   mainContent: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   errorContainer: {
     marginBottom: 20,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
-    shadowColor: "rgba(239, 68, 68, 0.5)",
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "rgba(239, 68, 68, 0.25)",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 6,
+    elevation: 3,
   },
   errorGradient: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.2)",
+    borderColor: "rgba(239, 68, 68, 0.15)",
   },
   errorText: {
     fontSize: 14,
@@ -315,102 +328,116 @@ const styles = StyleSheet.create({
   },
   infoIconContainer: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  infoIcon: {
-    width: 65,
-    height: 65,
-    borderRadius: 32,
+  iconBackgroundOuter: {
+    padding: 8,
+    borderRadius: 38,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+  },
+  iconBackground: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   infoTitle: {
-    fontSize: 20,
-    fontWeight: theme.fontBold,
-    color: theme.textForeground,
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#FFFFFF",
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 10,
+    letterSpacing: 0.2,
   },
   infoDescription: {
     fontSize: 15,
     lineHeight: 22,
-    color: theme.textForegroundMuted,
+    color: "rgba(255, 255, 255, 0.85)",
     textAlign: "center",
+    marginBottom: 24,
   },
   buttonsContainer: {
-    marginBottom: 40,
-    marginTop: 10,
+    marginBottom: 30,
+    marginTop: 16,
   },
   infoCard: {
-    marginBottom: 30,
-    borderRadius: 24,
+    marginBottom: 24,
+    borderRadius: 18,
     overflow: "hidden",
-    shadowColor: "rgba(67, 97, 238, 0.3)",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: "rgba(67, 97, 238, 0.2)",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   infoCardGradient: {
-    borderRadius: 24,
+    borderRadius: 18,
     padding: 24,
-    borderWidth: 1,
-    borderColor: theme.cardInfoBorderColor,
   },
   registerButtonContainer: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    zIndex: 10,
+    alignSelf: "center",
   },
   registerButtonTouchable: {
-    shadowColor: "rgba(46, 125, 50, 0.5)",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowColor: "rgba(46, 125, 50, 0.25)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   registerButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   registerButtonText: {
-    fontSize: 12,
-    fontWeight: theme.fontMedium,
+    fontSize: 13,
+    fontWeight: "500",
     color: "#FFFFFF",
     marginLeft: 6,
   },
   buttonWrapper: {
-    marginBottom: 16,
-    shadowColor: "rgba(67, 97, 238, 0.3)",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    marginBottom: 14,
+    shadowColor: "rgba(67, 97, 238, 0.15)",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  buttonIcon: {
-    marginRight: 8,
+  buttonTouchable: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   primaryButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  primaryButtonContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    justifyContent: "flex-start",
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: theme.fontBold,
+    fontSize: 15,
+    fontWeight: "600",
     color: theme.buttonText,
   },
 });
