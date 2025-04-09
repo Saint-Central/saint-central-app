@@ -6,31 +6,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  Dimensions,
   Animated,
   StatusBar,
-  ImageBackground,
-  Platform,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { AntDesign } from "@expo/vector-icons";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { AntDesign, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
-
-const { width, height } = Dimensions.get("window");
-
-// Mystery types
-const MYSTERY_TYPES = {
-  JOYFUL: "Joyful Mysteries",
-  SORROWFUL: "Sorrowful Mysteries",
-  GLORIOUS: "Glorious Mysteries",
-  LUMINOUS: "Luminous Mysteries",
-  INTRODUCTION: "Introduction",
-  CONCLUSION: "Conclusion",
-};
 
 // Audio Manager Class (simplified version for prayer screens)
 class AudioManager {
@@ -40,7 +22,7 @@ class AudioManager {
   totalDuration;
   onPlaybackStatusUpdate;
   playbackRate;
-  
+
   constructor() {
     this.sound = null;
     this.isPlaying = false;
@@ -65,18 +47,18 @@ class AudioManager {
         this.currentPosition = status.positionMillis;
         this.totalDuration = status.durationMillis ?? 0;
         this.isPlaying = status.isPlaying;
-        
+
         if (status.didJustFinish) {
           this.isPlaying = false;
           this.sound = null;
         }
       }
-      
+
       if (this.onPlaybackStatusUpdate) {
         this.onPlaybackStatusUpdate(status);
       }
     });
-    
+
     sound.setProgressUpdateIntervalAsync(100); // Update every 100ms
   }
 
@@ -94,29 +76,26 @@ class AudioManager {
     try {
       // Unload any existing audio
       await this.stopAudio();
-      
+
       // Create and play audio
-      const { sound } = await Audio.Sound.createAsync(
-        audioFile,
-        { 
-          shouldPlay: true,
-          rate: this.playbackRate,
-        }
-      );
-      
+      const { sound } = await Audio.Sound.createAsync(audioFile, {
+        shouldPlay: true,
+        rate: this.playbackRate,
+      });
+
       this.sound = sound;
       this.isPlaying = true;
-      
+
       // Set up status listener
       this.updateSoundStatusListener(sound);
-      
+
       return true;
     } catch (error) {
       console.error("Failed to play audio:", error);
       return false;
     }
   }
-  
+
   // Pause audio
   async pauseAudio() {
     if (this.sound && this.isPlaying) {
@@ -126,7 +105,7 @@ class AudioManager {
     }
     return false;
   }
-  
+
   // Resume audio
   async resumeAudio() {
     if (this.sound && !this.isPlaying) {
@@ -136,7 +115,7 @@ class AudioManager {
     }
     return false;
   }
-  
+
   // Stop and unload audio
   async stopAudio() {
     if (this.sound) {
@@ -154,16 +133,16 @@ class AudioManager {
   // Seek to a specific position in milliseconds
   async seekTo(positionMillis) {
     if (!this.sound) return false;
-    
+
     try {
       this.currentPosition = positionMillis;
       await this.sound.setPositionAsync(positionMillis);
-      
+
       const status = await this.sound.getStatusAsync();
       if (this.onPlaybackStatusUpdate && status.isLoaded) {
         this.onPlaybackStatusUpdate(status);
       }
-      
+
       return true;
     } catch (error) {
       console.error("Failed to seek:", error);
@@ -189,7 +168,7 @@ const getMysteryTheme = (mysteryKey) => {
       };
     case "SORROWFUL":
       return {
-        primary: "#FF4757", 
+        primary: "#FF4757",
         secondary: "#D63031",
         accent: "#FFE9EB",
         gradientStart: "#FF4757",
@@ -244,20 +223,20 @@ const getMysteryTheme = (mysteryKey) => {
   }
 };
 
-export default function RosaryPrayerBase({ 
-  title, 
-  description, 
-  prayers, 
-  audioFile, 
+export default function RosaryPrayerBase({
+  title,
+  description,
+  prayers,
+  audioFile,
   customContent,
   nextScreen,
-  prevScreen
+  prevScreen,
 }) {
   const router = useRouter();
   const params = useLocalSearchParams();
   const scrollRef = useRef();
   const scrollY = useRef(new Animated.Value(0)).current;
-  
+
   // Extract params
   const mysteryType = params.mysteryType || "INTRODUCTION";
   const mysteryKey = params.mysteryKey || "JOYFUL";
@@ -265,10 +244,10 @@ export default function RosaryPrayerBase({
   const mysteryTitle = params.mysteryTitle || title;
   const mysteryDescription = params.mysteryDescription || description;
   const guideName = params.guideName || "Francis";
-  
+
   // Get theme based on mystery type
   const theme = getMysteryTheme(mysteryKey);
-  
+
   // State management
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(0);
@@ -278,16 +257,16 @@ export default function RosaryPrayerBase({
   const [autoScroll, setAutoScroll] = useState(false);
   const [currentPrayerIndex, setCurrentPrayerIndex] = useState(0);
   const [showAutoScrollToast, setShowAutoScrollToast] = useState(false);
-  const [textSize, setTextSize] = useState('medium'); // 'small', 'medium', 'large'
-  
+  const [textSize, setTextSize] = useState("medium"); // 'small', 'medium', 'large'
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const toastAnim = useRef(new Animated.Value(100)).current;
-  
+
   // Prayer section refs
   const prayerRefs = useRef([]);
-  
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -299,16 +278,16 @@ export default function RosaryPrayerBase({
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
-      })
+      }),
     ]).start();
   }, []);
-  
+
   // Set audio mode
   useEffect(() => {
     Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
     });
-    
+
     // Register playback status update callback
     audioManager.registerPlaybackCallback((status) => {
       if (status.isLoaded) {
@@ -316,7 +295,7 @@ export default function RosaryPrayerBase({
           setCurrentPosition(status.positionMillis);
         }
         setTotalDuration(status.durationMillis);
-        
+
         // Auto-scroll based on playback position
         if (autoScroll && status.isPlaying) {
           const playbackPercentage = status.positionMillis / status.durationMillis;
@@ -324,27 +303,27 @@ export default function RosaryPrayerBase({
         }
       }
     });
-    
+
     // Clean up audio on unmount
     return () => {
       audioManager.stopAudio();
     };
   }, [autoScroll]);
-  
+
   // Update current prayer index based on audio position
   const updatePrayerIndexBasedOnPosition = (percentage) => {
     if (prayers && prayers.length > 0) {
       // Rough calculation - divide playback into equal sections for each prayer
       const sectionSize = 1 / prayers.length;
       const newIndex = Math.min(Math.floor(percentage / sectionSize), prayers.length - 1);
-      
+
       if (newIndex !== currentPrayerIndex) {
         setCurrentPrayerIndex(newIndex);
         scrollToPrayer(newIndex);
       }
     }
   };
-  
+
   // Scroll to specific prayer
   const scrollToPrayer = (index) => {
     if (scrollRef.current && prayerRefs.current[index]) {
@@ -356,11 +335,11 @@ export default function RosaryPrayerBase({
             animated: true,
           });
         },
-        (error) => console.error("Failed to measure layout:", error)
+        (error) => console.error("Failed to measure layout:", error),
       );
     }
   };
-  
+
   // Toggle playback
   const togglePlayback = async () => {
     try {
@@ -379,44 +358,44 @@ export default function RosaryPrayerBase({
       console.error("Failed to toggle playback:", error);
     }
   };
-  
+
   // Format time in MM:SS format
   const formatTime = (milliseconds) => {
     if (!milliseconds) return "00:00";
-    
+
     const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
-  
+
   // Handle seek start
   const handleSeekStart = () => {
     setIsSeeking(true);
     setSeekPosition(currentPosition);
   };
-  
+
   // Handle seek movement
   const handleSeekMove = (value) => {
     setSeekPosition(value);
   };
-  
+
   // Handle seek complete
   const handleSeekComplete = async () => {
     const newPosition = seekPosition;
     setCurrentPosition(newPosition);
     setIsSeeking(false);
-    
+
     // Seek in the audio
     await audioManager.seekTo(newPosition);
-    
+
     if (autoScroll) {
       const playbackPercentage = newPosition / totalDuration;
       updatePrayerIndexBasedOnPosition(playbackPercentage);
     }
   };
-  
+
   // Skip forward 10 seconds
   const skipForward = async () => {
     setIsSeeking(true);
@@ -425,13 +404,13 @@ export default function RosaryPrayerBase({
     setCurrentPosition(newPosition);
     await audioManager.seekTo(newPosition);
     setTimeout(() => setIsSeeking(false), 100);
-    
+
     if (autoScroll) {
       const playbackPercentage = newPosition / totalDuration;
       updatePrayerIndexBasedOnPosition(playbackPercentage);
     }
   };
-  
+
   // Skip backward 10 seconds
   const skipBackward = async () => {
     setIsSeeking(true);
@@ -440,22 +419,22 @@ export default function RosaryPrayerBase({
     setCurrentPosition(newPosition);
     await audioManager.seekTo(newPosition);
     setTimeout(() => setIsSeeking(false), 100);
-    
+
     if (autoScroll) {
       const playbackPercentage = newPosition / totalDuration;
       updatePrayerIndexBasedOnPosition(playbackPercentage);
     }
   };
-  
+
   // Toggle auto-scroll
   const toggleAutoScroll = () => {
     const newValue = !autoScroll;
     setAutoScroll(newValue);
-    
+
     // Show toast message
     setShowAutoScrollToast(true);
     toastAnim.setValue(100);
-    
+
     Animated.sequence([
       Animated.timing(toastAnim, {
         toValue: 0,
@@ -471,35 +450,35 @@ export default function RosaryPrayerBase({
     ]).start(() => {
       setShowAutoScrollToast(false);
     });
-    
+
     // If turning on auto-scroll and audio is playing, immediately scroll to current position
     if (newValue && isPlaying && totalDuration > 0) {
       const playbackPercentage = currentPosition / totalDuration;
       updatePrayerIndexBasedOnPosition(playbackPercentage);
     }
   };
-  
+
   // Change text size
   const cycleTextSize = () => {
-    if (textSize === 'small') setTextSize('medium');
-    else if (textSize === 'medium') setTextSize('large');
-    else setTextSize('small');
+    if (textSize === "small") setTextSize("medium");
+    else if (textSize === "medium") setTextSize("large");
+    else setTextSize("small");
   };
-  
+
   // Get text size styles
   const getTextSizeStyle = () => {
     switch (textSize) {
-      case 'small':
+      case "small":
         return { prayerText: 16, prayerTitle: 20 };
-      case 'large':
+      case "large":
         return { prayerText: 22, prayerTitle: 26 };
       default:
         return { prayerText: 18, prayerTitle: 24 };
     }
   };
-  
+
   const textSizes = getTextSizeStyle();
-  
+
   // Navigate to previous mystery
   const goToPreviousMystery = () => {
     audioManager.stopAudio();
@@ -509,7 +488,7 @@ export default function RosaryPrayerBase({
       router.back();
     }
   };
-  
+
   // Navigate to next mystery
   const goToNextMystery = () => {
     audioManager.stopAudio();
@@ -519,7 +498,7 @@ export default function RosaryPrayerBase({
       router.back();
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -529,7 +508,7 @@ export default function RosaryPrayerBase({
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       />
-      
+
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
@@ -540,13 +519,17 @@ export default function RosaryPrayerBase({
           >
             <AntDesign name="arrowleft" size={24} color="#FFF" />
           </TouchableOpacity>
-          
+
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{mysteryTitle}</Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>{mysteryType}</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {mysteryTitle}
+            </Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {mysteryType}
+            </Text>
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.textSizeButton}
             onPress={cycleTextSize}
             activeOpacity={0.7}
@@ -554,48 +537,47 @@ export default function RosaryPrayerBase({
             <AntDesign name="filetext1" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
-        
+
         {/* Audio Controls */}
         <View style={styles.audioControlsContainer}>
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatTime(isSeeking ? seekPosition : currentPosition)}</Text>
+            <Text style={styles.timeText}>
+              {formatTime(isSeeking ? seekPosition : currentPosition)}
+            </Text>
             <Text style={styles.timeText}>{formatTime(totalDuration)}</Text>
           </View>
-          
+
           <View style={styles.seekBarContainer}>
             <View style={styles.sliderBackground} />
-            <View 
+            <View
               style={[
-                styles.sliderFill, 
-                { 
-                  width: `${totalDuration > 0 ? ((isSeeking ? seekPosition : currentPosition) / totalDuration * 100) : 0}%`,
-                  backgroundColor: theme.primary 
-                }
-              ]} 
+                styles.sliderFill,
+                {
+                  width: `${totalDuration > 0 ? ((isSeeking ? seekPosition : currentPosition) / totalDuration) * 100 : 0}%`,
+                  backgroundColor: theme.primary,
+                },
+              ]}
             />
             <TouchableOpacity
               style={[
                 styles.sliderThumb,
-                { 
-                  left: `${totalDuration > 0 ? ((isSeeking ? seekPosition : currentPosition) / totalDuration * 100) : 0}%`,
+                {
+                  left: `${totalDuration > 0 ? ((isSeeking ? seekPosition : currentPosition) / totalDuration) * 100 : 0}%`,
                   backgroundColor: theme.primary,
-                  transform: [{ translateX: -10 }]
-                }
+                  transform: [{ translateX: -10 }],
+                },
               ]}
               onPressIn={handleSeekStart}
               onLongPress={handleSeekStart}
             />
           </View>
-          
+
           <View style={styles.controlButtonsContainer}>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={skipBackward}
-            >
+            <TouchableOpacity style={styles.controlButton} onPress={skipBackward}>
               <AntDesign name="banckward" size={24} color={theme.primary} />
               <Text style={[styles.controlButtonText, { color: theme.primary }]}>10s</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.playButton, { backgroundColor: theme.primary }]}
               onPress={togglePlayback}
@@ -606,21 +588,18 @@ export default function RosaryPrayerBase({
                 <AntDesign name="playcircleo" size={32} color="#FFFFFF" />
               )}
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={skipForward}
-            >
+
+            <TouchableOpacity style={styles.controlButton} onPress={skipForward}>
               <AntDesign name="forward" size={24} color={theme.primary} />
               <Text style={[styles.controlButtonText, { color: theme.primary }]}>10s</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.advancedControlsContainer}>
             <TouchableOpacity
               style={[
                 styles.advancedButton,
-                autoScroll && { backgroundColor: `${theme.primary}20` }
+                autoScroll && { backgroundColor: `${theme.primary}20` },
               ]}
               onPress={toggleAutoScroll}
             >
@@ -633,16 +612,14 @@ export default function RosaryPrayerBase({
                 {autoScroll ? "Auto-Scroll ON" : "Auto-Scroll OFF"}
               </Text>
             </TouchableOpacity>
-            
+
             <View style={styles.guideIndicator}>
               <AntDesign name="user" size={16} color={theme.primary} />
-              <Text style={[styles.guideText, { color: theme.primary }]}>
-                {guideName}
-              </Text>
+              <Text style={[styles.guideText, { color: theme.primary }]}>{guideName}</Text>
             </View>
           </View>
         </View>
-        
+
         {/* Navigation between mysteries */}
         <View style={styles.navigationContainer}>
           <TouchableOpacity
@@ -652,7 +629,7 @@ export default function RosaryPrayerBase({
             <AntDesign name="left" size={16} color={theme.primary} />
             <Text style={[styles.navigationButtonText, { color: theme.primary }]}>Previous</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.navigationButton, { backgroundColor: theme.accent }]}
             onPress={goToNextMystery}
@@ -661,35 +638,35 @@ export default function RosaryPrayerBase({
             <AntDesign name="right" size={16} color={theme.primary} />
           </TouchableOpacity>
         </View>
-        
+
         {/* Main Content */}
         <ScrollView
-  contentContainerStyle={styles.scrollContent}
-  showsVerticalScrollIndicator={false}
-  scrollEventThrottle={16}
-  onScroll={(event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    scrollY.setValue(offsetY);
-  }}
->
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            const offsetY = event.nativeEvent.contentOffset.y;
+            scrollY.setValue(offsetY);
+          }}
+        >
           {/* Mystery Description */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.mysteryDescriptionContainer,
               {
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
-              }
+              },
             ]}
           >
             <View style={styles.mysteryBadge}>
               <FontAwesome5 name={theme.icon} size={26} color={theme.primary} />
             </View>
-            
+
             <Text style={styles.mysteryTitle}>{mysteryTitle}</Text>
             <Text style={styles.mysteryDescription}>{mysteryDescription}</Text>
           </Animated.View>
-          
+
           {/* Custom Content (if provided) */}
           {customContent && (
             <Animated.View
@@ -701,78 +678,82 @@ export default function RosaryPrayerBase({
               {customContent}
             </Animated.View>
           )}
-          
+
           {/* Prayers */}
-          {prayers && prayers.map((prayer, index) => (
-            <Animated.View 
-              key={`prayer-${index}`}
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              }}
-              ref={ref => prayerRefs.current[index] = ref}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.prayerCard,
-                  currentPrayerIndex === index && autoScroll && { borderColor: theme.primary, borderWidth: 2 }
-                ]}
-                onPress={() => {
-                  setCurrentPrayerIndex(index);
-                  if (isPlaying && totalDuration > 0) {
-                    // Calculate rough position based on prayer index
-                    const sectionSize = totalDuration / prayers.length;
-                    const newPosition = index * sectionSize;
-                    audioManager.seekTo(newPosition);
-                  }
+          {prayers &&
+            prayers.map((prayer, index) => (
+              <Animated.View
+                key={`prayer-${index}`}
+                style={{
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
                 }}
-                activeOpacity={0.9}
+                ref={(ref) => (prayerRefs.current[index] = ref)}
               >
-                <View style={styles.prayerHeader}>
-                  <Text style={[styles.prayerTitle, { fontSize: textSizes.prayerTitle }]}>
-                    {prayer.title}
-                  </Text>
-                  
-                  {currentPrayerIndex === index && autoScroll && isPlaying && (
-                    <View style={[styles.activePrayerIndicator, { backgroundColor: theme.primary }]}>
-                      <AntDesign name="sound" size={16} color="#FFFFFF" />
-                    </View>
-                  )}
-                </View>
-                
-                <View style={styles.prayerTextContainer}>
-                  {prayer.content.map((paragraph, pIndex) => (
-                    <Text 
-                      key={`p-${index}-${pIndex}`} 
-                      style={[
-                        styles.prayerText, 
-                        { fontSize: textSizes.prayerText },
-                        paragraph.type === 'response' && styles.responseText,
-                        paragraph.type === 'instruction' && styles.instructionText,
-                      ]}
-                    >
-                      {paragraph.text}
+                <TouchableOpacity
+                  style={[
+                    styles.prayerCard,
+                    currentPrayerIndex === index &&
+                      autoScroll && { borderColor: theme.primary, borderWidth: 2 },
+                  ]}
+                  onPress={() => {
+                    setCurrentPrayerIndex(index);
+                    if (isPlaying && totalDuration > 0) {
+                      // Calculate rough position based on prayer index
+                      const sectionSize = totalDuration / prayers.length;
+                      const newPosition = index * sectionSize;
+                      audioManager.seekTo(newPosition);
+                    }
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.prayerHeader}>
+                    <Text style={[styles.prayerTitle, { fontSize: textSizes.prayerTitle }]}>
+                      {prayer.title}
                     </Text>
-                  ))}
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-          
+
+                    {currentPrayerIndex === index && autoScroll && isPlaying && (
+                      <View
+                        style={[styles.activePrayerIndicator, { backgroundColor: theme.primary }]}
+                      >
+                        <AntDesign name="sound" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.prayerTextContainer}>
+                    {prayer.content.map((paragraph, pIndex) => (
+                      <Text
+                        key={`p-${index}-${pIndex}`}
+                        style={[
+                          styles.prayerText,
+                          { fontSize: textSizes.prayerText },
+                          paragraph.type === "response" && styles.responseText,
+                          paragraph.type === "instruction" && styles.instructionText,
+                        ]}
+                      >
+                        {paragraph.text}
+                      </Text>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+
           {/* Bottom Spacing */}
           <View style={styles.bottomSpacing} />
         </ScrollView>
       </SafeAreaView>
-      
+
       {/* Auto-scroll Toast */}
       {showAutoScrollToast && (
-        <Animated.View 
+        <Animated.View
           style={[
             styles.autoScrollToast,
-            { 
+            {
               backgroundColor: theme.primary,
-              transform: [{ translateY: toastAnim }] 
-            }
+              transform: [{ translateY: toastAnim }],
+            },
           ]}
         >
           <Text style={styles.autoScrollToastText}>
@@ -790,7 +771,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   headerGradient: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,

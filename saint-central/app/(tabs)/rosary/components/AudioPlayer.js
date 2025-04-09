@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  Platform,
-} from "react-native";
-import { AntDesign } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from "react-native";
+import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
 
@@ -28,7 +20,7 @@ export default function AudioPlayer({
   onComplete,
   isPlaying: externalIsPlaying, // New prop for external play control
   initialSeekPosition, // New prop for initial seek position when loading audio
-  onAudioLoad // New prop to pass sound object to parent
+  onAudioLoad, // New prop to pass sound object to parent
 }) {
   // State management
   const [sound, setSound] = useState(null);
@@ -43,12 +35,12 @@ export default function AudioPlayer({
   const [isBuffering, setIsBuffering] = useState(false);
   const [shouldApplyInitialSeek, setShouldApplyInitialSeek] = useState(false);
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
-  
+
   // Animation refs
   const playButtonScale = useRef(new Animated.Value(1)).current;
   const loadingOpacity = useRef(new Animated.Value(0)).current;
   const bufferingAnimValue = useRef(new Animated.Value(0)).current;
-  
+
   // Loop animation for buffering indicator
   const startBufferingAnimation = () => {
     Animated.loop(
@@ -62,25 +54,25 @@ export default function AudioPlayer({
           toValue: 0,
           duration: 1000,
           useNativeDriver: true,
-        })
-      ])
+        }),
+      ]),
     ).start();
   };
-  
+
   // Stop buffering animation
   const stopBufferingAnimation = () => {
     bufferingAnimValue.stopAnimation();
     bufferingAnimValue.setValue(0);
   };
-  
+
   // Load sound effect
   useEffect(() => {
     loadSound();
-    
+
     // Reset state for new audio
     setIsAudioLoaded(false);
     setShouldApplyInitialSeek(!!initialSeekPosition);
-    
+
     // Cleanup function
     return () => {
       if (sound) {
@@ -88,14 +80,14 @@ export default function AudioPlayer({
       }
     };
   }, [audioFile]);
-  
+
   // Play audio when autoPlayOnMount is true
   useEffect(() => {
     if (autoPlayOnMount && sound && isAudioLoaded) {
       playSound();
     }
   }, [sound, autoPlayOnMount, isAudioLoaded]);
-  
+
   // Update playback rate when it changes
   useEffect(() => {
     if (sound && currentRate !== playbackRate) {
@@ -103,7 +95,7 @@ export default function AudioPlayer({
       sound.setRateAsync(playbackRate, true);
     }
   }, [playbackRate]);
-  
+
   // Handle buffering animation
   useEffect(() => {
     if (isBuffering) {
@@ -112,7 +104,7 @@ export default function AudioPlayer({
       stopBufferingAnimation();
     }
   }, [isBuffering]);
-  
+
   // Handle external isPlaying prop
   useEffect(() => {
     if (externalIsPlaying !== undefined && sound && isAudioLoaded) {
@@ -123,7 +115,7 @@ export default function AudioPlayer({
       }
     }
   }, [externalIsPlaying, sound, isAudioLoaded]);
-  
+
   // Handle initial seek position - seek after audio is loaded
   useEffect(() => {
     const applyInitialSeek = async () => {
@@ -138,29 +130,29 @@ export default function AudioPlayer({
         }
       }
     };
-    
+
     applyInitialSeek();
   }, [sound, isAudioLoaded, initialSeekPosition, shouldApplyInitialSeek]);
-  
+
   // Load sound function
   const loadSound = async () => {
     try {
       setIsLoading(true);
       setIsPlaying(false);
       setIsAudioLoaded(false);
-      
+
       // Show loading animation
       Animated.timing(loadingOpacity, {
         toValue: 1,
         duration: 200,
         useNativeDriver: true,
       }).start();
-      
+
       // Unload any existing sound
       if (sound) {
         await sound.unloadAsync();
       }
-      
+
       // Create new sound
       const { sound: newSound } = await Audio.Sound.createAsync(
         audioFile,
@@ -169,27 +161,27 @@ export default function AudioPlayer({
           rate: currentRate,
           isLooping: loopAudio,
         },
-        onPlaybackStatusUpdate
+        onPlaybackStatusUpdate,
       );
-      
+
       setSound(newSound);
-      
+
       // Expose sound object to parent component
-      if (onAudioLoad && typeof onAudioLoad === 'function') {
-        console.log('AudioPlayer: Providing sound object to parent component');
+      if (onAudioLoad && typeof onAudioLoad === "function") {
+        console.log("AudioPlayer: Providing sound object to parent component");
         onAudioLoad(newSound);
       }
-      
+
       // Hide loading animation
       Animated.timing(loadingOpacity, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start();
-      
+
       setIsLoading(false);
       setIsAudioLoaded(true);
-      
+
       if (autoPlayOnMount) {
         setIsPlaying(true);
       }
@@ -198,19 +190,19 @@ export default function AudioPlayer({
       setIsLoading(false);
     }
   };
-  
+
   // Playback status update handler
   const onPlaybackStatusUpdate = (status) => {
     if (status.isLoaded) {
       setDuration(status.durationMillis);
-      
+
       if (!isSeeking) {
         setPosition(status.positionMillis);
       }
-      
+
       setIsPlaying(status.isPlaying);
       setIsBuffering(status.isBuffering);
-      
+
       if (status.didJustFinish && !status.isLooping) {
         setIsPlaying(false);
         if (onComplete) {
@@ -218,17 +210,17 @@ export default function AudioPlayer({
         }
       }
     }
-    
+
     // Call external status change handler if provided
     if (onPlaybackStatusChange) {
       // Add the sound object to the status for external control
       onPlaybackStatusChange({
         ...status,
-        sound
+        sound,
       });
     }
   };
-  
+
   // Play sound function
   const playSound = async () => {
     try {
@@ -249,14 +241,14 @@ export default function AudioPlayer({
             toValue: 1,
             duration: 100,
             useNativeDriver: true,
-          })
+          }),
         ]).start();
-        
+
         // Trigger haptic feedback if on iOS
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-        
+
         await sound.playAsync();
         setIsPlaying(true);
       }
@@ -264,7 +256,7 @@ export default function AudioPlayer({
       console.error("Failed to play sound:", error);
     }
   };
-  
+
   // Pause sound function
   const pauseSound = async () => {
     try {
@@ -280,14 +272,14 @@ export default function AudioPlayer({
             toValue: 1,
             duration: 100,
             useNativeDriver: true,
-          })
+          }),
         ]).start();
-        
+
         // Trigger haptic feedback if on iOS
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-        
+
         await sound.pauseAsync();
         setIsPlaying(false);
       }
@@ -295,7 +287,7 @@ export default function AudioPlayer({
       console.error("Failed to pause sound:", error);
     }
   };
-  
+
   // Toggle playback function
   const togglePlayback = async () => {
     if (isPlaying) {
@@ -304,16 +296,16 @@ export default function AudioPlayer({
       await playSound();
     }
   };
-  
+
   // Skip forward function
   const skipForward = async () => {
     try {
       if (sound) {
         // Trigger haptic feedback if on iOS
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
-        
+
         const newPosition = Math.min(position + 10000, duration);
         setPosition(newPosition);
         await sound.setPositionAsync(newPosition);
@@ -322,16 +314,16 @@ export default function AudioPlayer({
       console.error("Failed to skip forward:", error);
     }
   };
-  
+
   // Skip backward function
   const skipBackward = async () => {
     try {
       if (sound) {
         // Trigger haptic feedback if on iOS
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
-        
+
         const newPosition = Math.max(position - 10000, 0);
         setPosition(newPosition);
         await sound.setPositionAsync(newPosition);
@@ -340,16 +332,16 @@ export default function AudioPlayer({
       console.error("Failed to skip backward:", error);
     }
   };
-  
+
   // Change playback speed function
   const changeSpeed = async (newRate) => {
     try {
       if (sound) {
         // Trigger haptic feedback if on iOS
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-        
+
         setCurrentRate(newRate);
         await sound.setRateAsync(newRate, true);
       }
@@ -357,32 +349,32 @@ export default function AudioPlayer({
       console.error("Failed to change speed:", error);
     }
   };
-  
+
   // Handle seek start
   const handleSeekStart = () => {
     setIsSeeking(true);
     setSeekPosition(position);
-    
+
     // Trigger haptic feedback if on iOS
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === "ios") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
-  
+
   // Handle seek movement
   const handleSeekMove = (value) => {
     setSeekPosition(value);
   };
-  
+
   // Handle seek complete
   const handleSeekComplete = async () => {
     try {
       if (sound) {
         await sound.setPositionAsync(seekPosition);
         setPosition(seekPosition);
-        
+
         // Trigger haptic feedback if on iOS
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
       }
@@ -392,30 +384,30 @@ export default function AudioPlayer({
       setIsSeeking(false);
     }
   };
-  
+
   // Format time in MM:SS format
   const formatTime = (milliseconds) => {
     if (!milliseconds) return "00:00";
-    
+
     const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
-  
+
   // Calculate progress percentage
   const getProgressPercentage = () => {
     if (!duration) return 0;
     return ((isSeeking ? seekPosition : position) / duration) * 100;
   };
-  
+
   // Render speed control buttons if enabled
   const renderSpeedControls = () => {
     if (!showSpeedControl) return null;
-    
+
     const speeds = [0.75, 1.0, 1.25, 1.5];
-    
+
     return (
       <View style={styles.speedControlsContainer}>
         <Text style={styles.speedLabel}>Speed:</Text>
@@ -425,14 +417,14 @@ export default function AudioPlayer({
               key={`speed-${speed}`}
               style={[
                 styles.speedButton,
-                currentRate === speed && { backgroundColor: `${theme.primary}20` }
+                currentRate === speed && { backgroundColor: `${theme.primary}20` },
               ]}
               onPress={() => changeSpeed(speed)}
             >
               <Text
                 style={[
                   styles.speedButtonText,
-                  { color: currentRate === speed ? theme.primary : "#666" }
+                  { color: currentRate === speed ? theme.primary : "#666" },
                 ]}
               >
                 {speed}x
@@ -443,7 +435,7 @@ export default function AudioPlayer({
       </View>
     );
   };
-  
+
   return (
     <View style={styles.container}>
       {/* Time display and progress bar */}
@@ -452,25 +444,25 @@ export default function AudioPlayer({
           <Text style={styles.timeText}>{formatTime(isSeeking ? seekPosition : position)}</Text>
           <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
-        
+
         <View
           style={styles.sliderContainer}
           onLayout={(event) => setSliderWidth(event.nativeEvent.layout.width)}
         >
           {/* Progress bar background */}
           <View style={styles.sliderBackground} />
-          
+
           {/* Progress bar fill */}
           <View
             style={[
               styles.sliderFill,
               {
                 width: `${getProgressPercentage()}%`,
-                backgroundColor: theme.primary
-              }
+                backgroundColor: theme.primary,
+              },
             ]}
           />
-          
+
           {/* Progress bar thumb */}
           <TouchableOpacity
             style={[
@@ -478,13 +470,13 @@ export default function AudioPlayer({
               {
                 left: `${getProgressPercentage()}%`,
                 backgroundColor: theme.primary,
-                transform: [{ translateX: -10 }]
-              }
+                transform: [{ translateX: -10 }],
+              },
             ]}
             onPressIn={handleSeekStart}
             onLongPress={handleSeekStart}
           />
-          
+
           {/* Invisible slider area for seeking */}
           <View
             style={styles.sliderTouchArea}
@@ -492,7 +484,7 @@ export default function AudioPlayer({
               const touchX = event.nativeEvent.locationX;
               const percentage = touchX / sliderWidth;
               const newPosition = Math.max(0, Math.min(percentage * duration, duration));
-              
+
               handleSeekStart();
               handleSeekMove(newPosition);
             }}
@@ -501,7 +493,7 @@ export default function AudioPlayer({
                 const touchX = event.nativeEvent.locationX;
                 const percentage = touchX / sliderWidth;
                 const newPosition = Math.max(0, Math.min(percentage * duration, duration));
-                
+
                 handleSeekMove(newPosition);
               }
             }}
@@ -513,29 +505,19 @@ export default function AudioPlayer({
           />
         </View>
       </View>
-      
+
       {/* Control buttons */}
       <View style={styles.controlsContainer}>
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={skipBackward}
-          disabled={isLoading}
-        >
+        <TouchableOpacity style={styles.skipButton} onPress={skipBackward} disabled={isLoading}>
           <AntDesign name="banckward" size={24} color="#555" />
           <Text style={styles.skipButtonText}>10s</Text>
         </TouchableOpacity>
-        
+
         <Animated.View
-          style={[
-            styles.playButtonContainer,
-            { transform: [{ scale: playButtonScale }] }
-          ]}
+          style={[styles.playButtonContainer, { transform: [{ scale: playButtonScale }] }]}
         >
           <TouchableOpacity
-            style={[
-              styles.playButton,
-              { backgroundColor: theme.primary }
-            ]}
+            style={[styles.playButton, { backgroundColor: theme.primary }]}
             onPress={togglePlayback}
             disabled={isLoading}
           >
@@ -548,8 +530,8 @@ export default function AudioPlayer({
                 style={{
                   opacity: bufferingAnimValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0.5, 1]
-                  })
+                    outputRange: [0.5, 1],
+                  }),
                 }}
               >
                 <MaterialCommunityIcons name="buffer" size={32} color="#FFFFFF" />
@@ -561,17 +543,13 @@ export default function AudioPlayer({
             )}
           </TouchableOpacity>
         </Animated.View>
-        
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={skipForward}
-          disabled={isLoading}
-        >
+
+        <TouchableOpacity style={styles.skipButton} onPress={skipForward} disabled={isLoading}>
           <AntDesign name="forward" size={24} color="#555" />
           <Text style={styles.skipButtonText}>10s</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Speed controls */}
       {renderSpeedControls()}
     </View>

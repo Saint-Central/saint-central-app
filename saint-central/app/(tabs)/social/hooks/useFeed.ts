@@ -1,14 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import { Post, PostType, Comment, User, Group } from "../types";
+import { useState, useEffect } from "react";
+import { Post, PostType, Comment, Group } from "../types";
 import { supabase } from "../../../../supabaseClient";
 import { parseSelectedGroups } from "../utils/formatters";
 
 export default function useFeed() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [filter, setFilter] = useState<"all" | "mine" | "friends" | "groups">(
-    "all"
-  );
+  const [filter, setFilter] = useState<"all" | "mine" | "friends" | "groups">("all");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -136,14 +134,12 @@ export default function useFeed() {
       // Create a map of group ID to member IDs
       const groupMembersMap = new Map<string, Set<string>>();
       if (groupMembers) {
-        groupMembers.forEach(
-          (member: { user_id: string; group_id: string }) => {
-            if (!groupMembersMap.has(member.group_id)) {
-              groupMembersMap.set(member.group_id, new Set<string>());
-            }
-            groupMembersMap.get(member.group_id)?.add(member.user_id);
+        groupMembers.forEach((member: { user_id: string; group_id: string }) => {
+          if (!groupMembersMap.has(member.group_id)) {
+            groupMembersMap.set(member.group_id, new Set<string>());
           }
-        );
+          groupMembersMap.get(member.group_id)?.add(member.user_id);
+        });
       }
 
       // Filter posts based on visibility settings and current filter
@@ -163,8 +159,7 @@ export default function useFeed() {
           // In friends filter, only show posts from friends that are visible to friends
           return (
             friendIds.has(post.user_id) &&
-            (post.visibility === "Friends" ||
-              post.visibility === "Friends & Groups")
+            (post.visibility === "Friends" || post.visibility === "Friends & Groups")
           );
         } else if (filter === "groups") {
           // In groups filter, show only posts from group members that are visible to groups
@@ -189,7 +184,7 @@ export default function useFeed() {
 
             // Check if there's any overlap between user's groups and post's selected groups
             const isInSelectedGroup = selectedGroupsStr.some((groupId) =>
-              userGroupIdsStr.includes(groupId)
+              userGroupIdsStr.includes(groupId),
             );
 
             return isInSelectedGroup;
@@ -197,8 +192,7 @@ export default function useFeed() {
 
           return (
             isInSameGroup &&
-            (post.visibility === "Friends & Groups" ||
-              post.visibility === "Certain Groups")
+            (post.visibility === "Friends & Groups" || post.visibility === "Certain Groups")
           );
         } else if (filter === "all") {
           // In "all" filter, show:
@@ -219,17 +213,14 @@ export default function useFeed() {
               if (post.user_id === user.id) return true;
 
               // If no groups are selected, only show to creator
-              if (!selectedGroups || selectedGroups.length === 0)
-                return post.user_id === user.id;
+              if (!selectedGroups || selectedGroups.length === 0) return post.user_id === user.id;
 
               // Convert all to strings for consistent comparison
               const userGroupIdsStr = userGroupIds.map((id) => String(id));
               const selectedGroupsStr = selectedGroups.map((id) => String(id));
 
               // Check if there's any overlap between user's groups and post's selected groups
-              return selectedGroupsStr.some((groupId) =>
-                userGroupIdsStr.includes(groupId)
-              );
+              return selectedGroupsStr.some((groupId) => userGroupIdsStr.includes(groupId));
 
             case "Friends & Groups":
               // Visible to creator, friends, and group members
@@ -288,27 +279,23 @@ export default function useFeed() {
               (post.user_id !== user.id && isNotFriend);
 
             if (showGroupInfo) {
-              const { data: userGroupData, error: userGroupError } =
-                await supabase
-                  .from("group_members")
-                  .select("group_id")
-                  .eq("user_id", post.user_id);
+              const { data: userGroupData, error: userGroupError } = await supabase
+                .from("group_members")
+                .select("group_id")
+                .eq("user_id", post.user_id);
               if (userGroupError) throw userGroupError;
 
-              const { data: currentUserGroups, error: currentUserGroupError } =
-                await supabase
-                  .from("group_members")
-                  .select("group_id")
-                  .eq("user_id", user.id);
+              const { data: currentUserGroups, error: currentUserGroupError } = await supabase
+                .from("group_members")
+                .select("group_id")
+                .eq("user_id", user.id);
               if (currentUserGroupError) throw currentUserGroupError;
 
               if (userGroupData && currentUserGroups) {
                 const userGroupIds = userGroupData.map((g) => g.group_id);
-                const currentUserGroupIds = currentUserGroups.map(
-                  (g) => g.group_id
-                );
+                const currentUserGroupIds = currentUserGroups.map((g) => g.group_id);
                 const sharedGroupIds = userGroupIds.filter((id) =>
-                  currentUserGroupIds.includes(id)
+                  currentUserGroupIds.includes(id),
                 );
 
                 if (sharedGroupIds.length > 0) {
@@ -333,7 +320,7 @@ export default function useFeed() {
             group_info: groupInfo,
             selectedGroups: parseSelectedGroups(post.selected_groups),
           };
-        })
+        }),
       );
 
       setPosts(postsWithCounts || []);
@@ -364,10 +351,7 @@ export default function useFeed() {
     }
   };
 
-  const handleLikePost = async (
-    postId: string,
-    isLiked: boolean
-  ): Promise<void> => {
+  const handleLikePost = async (postId: string, isLiked: boolean): Promise<void> => {
     try {
       const {
         data: { user },
@@ -399,22 +383,17 @@ export default function useFeed() {
             ? {
                 ...post,
                 is_liked: !isLiked,
-                likes_count: isLiked
-                  ? (post.likes_count || 1) - 1
-                  : (post.likes_count || 0) + 1,
+                likes_count: isLiked ? (post.likes_count || 1) - 1 : (post.likes_count || 0) + 1,
               }
-            : post
-        )
+            : post,
+        ),
       );
     } catch (error: any) {
       console.error("Error toggling like:", error);
     }
   };
 
-  const handleAddComment = async (
-    postId: string,
-    commentText: string
-  ): Promise<void> => {
+  const handleAddComment = async (postId: string, commentText: string): Promise<void> => {
     if (!commentText.trim()) return;
 
     try {
@@ -448,8 +427,8 @@ export default function useFeed() {
                   ...post,
                   comments_count: (post.comments_count || 0) + 1,
                 }
-              : post
-          )
+              : post,
+          ),
         );
       }
     } catch (error: any) {

@@ -32,7 +32,7 @@ interface SidebarProps {
 const { width } = Dimensions.get("window");
 const SIDEBAR_WIDTH = width * 0.85;
 
-export default function Sidebar({
+export default function ChurchSidebar({
   isOpen,
   onClose,
   userName,
@@ -104,11 +104,7 @@ export default function Sidebar({
       ]}
     >
       {/* Backdrop for clicking outside to close */}
-      <TouchableOpacity
-        style={styles.backdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      />
+      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
       {/* Sidebar Panel */}
       <Animated.View
@@ -160,9 +156,7 @@ export default function Sidebar({
                   )}
 
                   {/* User Name */}
-                  <Text style={styles.userName}>
-                    Welcome, {userName || "Friend"}
-                  </Text>
+                  <Text style={styles.userName}>Welcome, {userName || "Friend"}</Text>
                 </View>
 
                 {/* Close Button */}
@@ -174,15 +168,9 @@ export default function Sidebar({
           </View>
 
           {/* Menu Items */}
-          <ScrollView
-            style={styles.menuContainer}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false}>
             {/* Lent 2025 Section */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("Lent2025")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("Lent2025")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
                   colors={["#8338EC", "#6A0DAD"]}
@@ -193,15 +181,9 @@ export default function Sidebar({
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Lent 2025</Text>
-                <Text style={styles.menuDescription}>
-                  Journey through the Lenten season
-                </Text>
+                <Text style={styles.menuDescription}>Journey through the Lenten season</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
             {/* Rosary Section */}
@@ -214,31 +196,18 @@ export default function Sidebar({
                   colors={["#FF006E", "#FB5607"]}
                   style={[styles.iconGradient, styles.muted]}
                 >
-                  <FontAwesome5
-                    name="praying-hands"
-                    size={22}
-                    color="#FFFFFF"
-                  />
+                  <FontAwesome5 name="praying-hands" size={22} color="#FFFFFF" />
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Rosary</Text>
-                <Text style={styles.menuDescription}>
-                  Prayers and meditations
-                </Text>
+                <Text style={styles.menuDescription}>Prayers and meditations</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
             {/* Events Section */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("events")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("events")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
                   colors={["#3A86FF", "#4361EE"]}
@@ -249,22 +218,13 @@ export default function Sidebar({
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Events</Text>
-                <Text style={styles.menuDescription}>
-                  Upcoming church activities
-                </Text>
+                <Text style={styles.menuDescription}>Upcoming church activities</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
             {/* Donations Section */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("donate")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("donate")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
                   colors={["#06D6A0", "#1A936F"]}
@@ -275,108 +235,63 @@ export default function Sidebar({
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Donations</Text>
-                <Text style={styles.menuDescription}>
-                  Support our ministries
-                </Text>
+                <Text style={styles.menuDescription}>Support our ministries</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
             {/* Divider */}
             <View style={styles.divider} />
 
             {/* Additional Menu Items */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("ministries")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("ministries")}>
               <View style={styles.menuIconContainer}>
                 <FontAwesome5 name="church" size={20} color="#64748B" />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Ministries</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("courses")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("courses")}>
               <View style={styles.menuIconContainer}>
                 <Ionicons name="book-outline" size={20} color="#64748B" />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Courses</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("schedule")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("schedule")}>
               <View style={styles.menuIconContainer}>
-                <MaterialCommunityIcons
-                  name="calendar-clock"
-                  size={20}
-                  color="#64748B"
-                />
+                <MaterialCommunityIcons name="calendar-clock" size={20} color="#64748B" />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Mass Schedule</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("community")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("community")}>
               <View style={styles.menuIconContainer}>
                 <Ionicons name="people" size={20} color="#64748B" />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Community</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo("settings")}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("settings")}>
               <View style={styles.menuIconContainer}>
                 <Ionicons name="settings-outline" size={20} color="#64748B" />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Settings</Text>
               </View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color="#94A3B8"
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
             </TouchableOpacity>
           </ScrollView>
 

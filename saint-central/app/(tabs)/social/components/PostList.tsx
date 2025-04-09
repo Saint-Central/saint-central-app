@@ -67,10 +67,9 @@ const PostList: React.FC<PostListProps> = ({
   }, []);
 
   // Set up the animated scroll event
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false }
-  );
+  const handleScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: false,
+  });
 
   if (isLoading) {
     return (
@@ -112,10 +111,7 @@ const PostList: React.FC<PostListProps> = ({
         />
       )}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={[
-        styles.listContainer,
-        { paddingBottom: 80 + (insets.bottom || 0) },
-      ]}
+      contentContainerStyle={[styles.listContainer, { paddingBottom: 80 + (insets.bottom || 0) }]}
       showsVerticalScrollIndicator={false}
       onScroll={handleScroll}
       scrollEventThrottle={16}

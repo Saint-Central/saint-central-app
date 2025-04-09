@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -34,10 +28,7 @@ import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Enable layout animation for Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -336,8 +327,7 @@ export default function BibleScreen() {
 
   // Bible version state
   const [selectedVersion, setSelectedVersion] = useState<string>("KJV_bible");
-  const [showVersionSelector, setShowVersionSelector] =
-    useState<boolean>(false);
+  const [showVersionSelector, setShowVersionSelector] = useState<boolean>(false);
 
   // Book & chapter selection
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
@@ -366,9 +356,7 @@ export default function BibleScreen() {
 
   // Favorite details modal
   const [showFavoriteModal, setShowFavoriteModal] = useState<boolean>(false);
-  const [selectedFavorite, setSelectedFavorite] = useState<FavoriteItem | null>(
-    null
-  );
+  const [selectedFavorite, setSelectedFavorite] = useState<FavoriteItem | null>(null);
   const [favoriteNote, setFavoriteNote] = useState<string>("");
 
   // Loading state and mode
@@ -376,9 +364,7 @@ export default function BibleScreen() {
   const [offlineMode, setOfflineMode] = useState<boolean>(false);
 
   // Grouping favorites
-  const [favoriteGrouping, setFavoriteGrouping] = useState<
-    "book" | "date" | "none"
-  >("book");
+  const [favoriteGrouping, setFavoriteGrouping] = useState<"book" | "date" | "none">("book");
 
   // ---------------------
   // PERSISTENCE - LOAD AND SAVE FAVORITES
@@ -408,10 +394,8 @@ export default function BibleScreen() {
         const settings = JSON.parse(savedSettings);
         if (settings.readingTheme) setReadingTheme(settings.readingTheme);
         if (settings.fontSize) setFontSize(settings.fontSize);
-        if (settings.selectedVersion)
-          setSelectedVersion(settings.selectedVersion);
-        if (settings.favoriteGrouping)
-          setFavoriteGrouping(settings.favoriteGrouping);
+        if (settings.selectedVersion) setSelectedVersion(settings.selectedVersion);
+        if (settings.favoriteGrouping) setFavoriteGrouping(settings.favoriteGrouping);
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -521,10 +505,7 @@ export default function BibleScreen() {
       setFavorites(formattedFavorites);
 
       // Also save to AsyncStorage as backup
-      await AsyncStorage.setItem(
-        "bibleAppFavorites",
-        JSON.stringify(formattedFavorites)
-      );
+      await AsyncStorage.setItem("bibleAppFavorites", JSON.stringify(formattedFavorites));
     } catch (error) {
       console.error("Error loading favorites from Supabase:", error);
       loadFavoritesFromStorage();
@@ -556,10 +537,7 @@ export default function BibleScreen() {
   // Save favorites to AsyncStorage (for offline mode and backup)
   const saveFavoritesToStorage = async () => {
     try {
-      await AsyncStorage.setItem(
-        "bibleAppFavorites",
-        JSON.stringify(favorites)
-      );
+      await AsyncStorage.setItem("bibleAppFavorites", JSON.stringify(favorites));
     } catch (error) {
       console.error("Error saving favorites to storage:", error);
     }
@@ -572,7 +550,7 @@ export default function BibleScreen() {
     book: string,
     chapter: string,
     verse: string,
-    note: string = ""
+    note: string = "",
   ): Promise<void> => {
     try {
       // Create a new local favorite object
@@ -629,7 +607,7 @@ export default function BibleScreen() {
         setFavorites((prev) => {
           const updated = [...prev];
           const index = updated.findIndex(
-            (f) => f.book === book && f.chapter === chapter && f.verse === verse
+            (f) => f.book === book && f.chapter === chapter && f.verse === verse,
           );
           if (index !== -1) {
             updated[index] = {
@@ -648,15 +626,11 @@ export default function BibleScreen() {
     }
   };
 
-  const removeFavorite = async (
-    book: string,
-    chapter: string,
-    verse: string
-  ): Promise<void> => {
+  const removeFavorite = async (book: string, chapter: string, verse: string): Promise<void> => {
     try {
       // Find the favorite in state
       const favoriteToRemove = favorites.find(
-        (f) => f.book === book && f.chapter === chapter && f.verse === verse
+        (f) => f.book === book && f.chapter === chapter && f.verse === verse,
       );
 
       if (!favoriteToRemove) return;
@@ -664,13 +638,8 @@ export default function BibleScreen() {
       // Remove from state immediately for UI responsiveness
       setFavorites((prev) =>
         prev.filter(
-          (fav) =>
-            !(
-              fav.book === book &&
-              fav.chapter === chapter &&
-              fav.verse === verse
-            )
-        )
+          (fav) => !(fav.book === book && fav.chapter === chapter && fav.verse === verse),
+        ),
       );
 
       // Show animation
@@ -684,10 +653,7 @@ export default function BibleScreen() {
 
       // If online and we have an ID, remove from Supabase
       if (favoriteToRemove.id) {
-        const { error } = await supabase
-          .from("favorites")
-          .delete()
-          .eq("id", favoriteToRemove.id);
+        const { error } = await supabase.from("favorites").delete().eq("id", favoriteToRemove.id);
 
         if (error) throw error;
       } else {
@@ -726,17 +692,13 @@ export default function BibleScreen() {
     book: string,
     chapter: string,
     verse: string,
-    note: string
+    note: string,
   ): Promise<void> => {
     try {
       // Update state first
       setFavorites((prev) => {
         return prev.map((fav) => {
-          if (
-            fav.book === book &&
-            fav.chapter === chapter &&
-            fav.verse === verse
-          ) {
+          if (fav.book === book && fav.chapter === chapter && fav.verse === verse) {
             return { ...fav, note };
           }
           return fav;
@@ -751,7 +713,7 @@ export default function BibleScreen() {
 
       // Find the favorite's ID
       const favorite = favorites.find(
-        (f) => f.book === book && f.chapter === chapter && f.verse === verse
+        (f) => f.book === book && f.chapter === chapter && f.verse === verse,
       );
 
       if (!favorite?.id) {
@@ -760,10 +722,7 @@ export default function BibleScreen() {
       }
 
       // Update in Supabase
-      const { error } = await supabase
-        .from("favorites")
-        .update({ note })
-        .eq("id", favorite.id);
+      const { error } = await supabase.from("favorites").update({ note }).eq("id", favorite.id);
 
       if (error) throw error;
 
@@ -774,14 +733,9 @@ export default function BibleScreen() {
     }
   };
 
-  const toggleFavorite = (
-    book: string,
-    chapter: string,
-    verse: string
-  ): void => {
+  const toggleFavorite = (book: string, chapter: string, verse: string): void => {
     const exists = favorites.some(
-      (fav) =>
-        fav.book === book && fav.chapter === chapter && fav.verse === verse
+      (fav) => fav.book === book && fav.chapter === chapter && fav.verse === verse,
     );
 
     if (exists) {
@@ -794,7 +748,7 @@ export default function BibleScreen() {
   // Function to bookmark entire chapter
   const bookmarkChapter = (book: string, chapter: string): void => {
     const chapterExists = favorites.some(
-      (fav) => fav.book === book && fav.chapter === chapter && fav.verse === "0"
+      (fav) => fav.book === book && fav.chapter === chapter && fav.verse === "0",
     );
 
     if (chapterExists) {
@@ -967,10 +921,7 @@ export default function BibleScreen() {
     }
   }, [fontSize]);
 
-  const fontSizeStyles = useMemo(
-    () => getFontSizeStyles(),
-    [getFontSizeStyles]
-  );
+  const fontSizeStyles = useMemo(() => getFontSizeStyles(), [getFontSizeStyles]);
 
   // Increase/decrease font
   const increaseFontSize = () => {
@@ -1022,13 +973,9 @@ export default function BibleScreen() {
   const handleVersionSelect = (table: string) => {
     // If a book is selected and it's one of the CPDV‑exclusive ones,
     // prevent switching to a non‑CPDV bible version.
-    if (
-      selectedBook &&
-      CPDVExclusiveBooks.has(selectedBook) &&
-      table !== "CPDV_bible"
-    ) {
+    if (selectedBook && CPDVExclusiveBooks.has(selectedBook) && table !== "CPDV_bible") {
       showFeedback(
-        "This book is only available in the CPDV Bible version. Please continue reading on CPDV."
+        "This book is only available in the CPDV Bible version. Please continue reading on CPDV.",
       );
       return;
     }
@@ -1071,9 +1018,7 @@ export default function BibleScreen() {
     }
 
     if (searchText) {
-      return filteredBooks.filter((book) =>
-        book.toLowerCase().includes(searchText.toLowerCase())
-      );
+      return filteredBooks.filter((book) => book.toLowerCase().includes(searchText.toLowerCase()));
     }
     return filteredBooks;
   }, [testament, searchText, selectedVersion]);
@@ -1094,9 +1039,7 @@ export default function BibleScreen() {
 
       // Ensure data exists and filter out any undefined/null chapter values
       const chaptersArray = data ? data.map((item: any) => item.chapter) : [];
-      const uniqueChapters = Array.from(
-        new Set(chaptersArray.filter((ch) => ch != null))
-      );
+      const uniqueChapters = Array.from(new Set(chaptersArray.filter((ch) => ch != null)));
 
       // Sort chapters numerically (assumes chapter values are numeric strings)
       uniqueChapters.sort((a, b) => parseInt(a) - parseInt(b));
@@ -1148,7 +1091,7 @@ export default function BibleScreen() {
 
   // Helper function to parse search queries like "Genesis" or "Genesis 1"
   const parseBookQuery = (
-    query: string
+    query: string,
   ): { book: string; chapter?: string; verse?: string } | null => {
     query = query.trim();
     // Iterate over allBooks (defined earlier in your code)
@@ -1175,7 +1118,7 @@ export default function BibleScreen() {
   };
 
   const searchBible = async (
-    e: NativeSyntheticEvent<TextInputSubmitEditingEventData>
+    e: NativeSyntheticEvent<TextInputSubmitEditingEventData>,
   ): Promise<void> => {
     // First, check if the search query looks like a book/chapter search
     const parsed = parseBookQuery(searchText);
@@ -1241,9 +1184,7 @@ export default function BibleScreen() {
       // Update recently read, avoid duplicates
       const updatedRecents = [
         newRecent,
-        ...recentlyRead.filter(
-          (item) => !(item.book === selectedBook && item.chapter === chapter)
-        ),
+        ...recentlyRead.filter((item) => !(item.book === selectedBook && item.chapter === chapter)),
       ].slice(0, 5);
 
       setRecentlyRead(updatedRecents);
@@ -1257,22 +1198,20 @@ export default function BibleScreen() {
   const isFavorite = useCallback(
     (book: string, chapter: string, verse: string): boolean => {
       return favorites.some(
-        (fav) =>
-          fav.book === book && fav.chapter === chapter && fav.verse === verse
+        (fav) => fav.book === book && fav.chapter === chapter && fav.verse === verse,
       );
     },
-    [favorites]
+    [favorites],
   );
 
   // Check if a chapter is bookmarked (verse "0" represents entire chapter)
   const isChapterBookmarked = useCallback(
     (book: string, chapter: string): boolean => {
       return favorites.some(
-        (fav) =>
-          fav.book === book && fav.chapter === chapter && fav.verse === "0"
+        (fav) => fav.book === book && fav.chapter === chapter && fav.verse === "0",
       );
     },
-    [favorites]
+    [favorites],
   );
 
   // Go to next/previous chapter
@@ -1324,7 +1263,7 @@ export default function BibleScreen() {
         selectedFavorite.book,
         selectedFavorite.chapter,
         selectedFavorite.verse,
-        favoriteNote
+        favoriteNote,
       );
     }
     setShowFavoriteModal(false);
@@ -1397,74 +1336,62 @@ export default function BibleScreen() {
                 },
               ]}
             >
-              <Text
-                style={[styles.modalTitle, { color: themeStyles.textColor }]}
-              >
+              <Text style={[styles.modalTitle, { color: themeStyles.textColor }]}>
                 Select Theme
               </Text>
               <View style={styles.themeOptions}>
-                {(["paper", "sepia", "night"] as ReadingTheme[]).map(
-                  (theme) => (
-                    <TouchableOpacity
-                      key={theme}
+                {(["paper", "sepia", "night"] as ReadingTheme[]).map((theme) => (
+                  <TouchableOpacity
+                    key={theme}
+                    style={[
+                      styles.themeOption,
+                      readingTheme === theme && [
+                        styles.activeThemeOption,
+                        { borderColor: themeStyles.accentColor },
+                      ],
+                    ]}
+                    onPress={() => selectReadingTheme(theme)}
+                  >
+                    <View
                       style={[
-                        styles.themeOption,
-                        readingTheme === theme && [
-                          styles.activeThemeOption,
-                          { borderColor: themeStyles.accentColor },
-                        ],
-                      ]}
-                      onPress={() => selectReadingTheme(theme)}
-                    >
-                      <View
-                        style={[
-                          styles.themeIconContainer,
-                          {
-                            backgroundColor:
-                              theme === "night"
-                                ? "#333"
+                        styles.themeIconContainer,
+                        {
+                          backgroundColor:
+                            theme === "night" ? "#333" : theme === "sepia" ? "#E8D8BE" : "#F0F0F0",
+                          borderColor:
+                            readingTheme === theme
+                              ? theme === "night"
+                                ? "#7B9EB3"
                                 : theme === "sepia"
-                                ? "#E8D8BE"
-                                : "#F0F0F0",
-                            borderColor:
-                              readingTheme === theme
-                                ? theme === "night"
-                                  ? "#7B9EB3"
-                                  : theme === "sepia"
                                   ? "#8B7355"
                                   : "#4A6FA5"
-                                : "transparent",
-                          },
-                        ]}
-                      >
-                        <Feather
-                          name={themeIcons[theme]}
-                          size={24}
-                          color={
-                            theme === "night"
-                              ? "#E1E1E1"
-                              : theme === "sepia"
-                              ? "#5B4636"
-                              : "#333333"
-                          }
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.themeOptionText,
-                          {
-                            color:
-                              readingTheme === theme
-                                ? themeStyles.accentColor
-                                : themeStyles.textColor,
-                          },
-                        ]}
-                      >
-                        {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                )}
+                              : "transparent",
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={themeIcons[theme]}
+                        size={24}
+                        color={
+                          theme === "night" ? "#E1E1E1" : theme === "sepia" ? "#5B4636" : "#333333"
+                        }
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.themeOptionText,
+                        {
+                          color:
+                            readingTheme === theme
+                              ? themeStyles.accentColor
+                              : themeStyles.textColor,
+                        },
+                      ]}
+                    >
+                      {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </TouchableOpacity>
@@ -1493,9 +1420,7 @@ export default function BibleScreen() {
                 },
               ]}
             >
-              <Text
-                style={[styles.modalTitle, { color: themeStyles.textColor }]}
-              >
+              <Text style={[styles.modalTitle, { color: themeStyles.textColor }]}>
                 Select Bible Version
               </Text>
               <View style={styles.themeOptions}>
@@ -1580,20 +1505,13 @@ export default function BibleScreen() {
                 },
               ]}
             >
-              <Text
-                style={[styles.modalTitle, { color: themeStyles.textColor }]}
-              >
+              <Text style={[styles.modalTitle, { color: themeStyles.textColor }]}>
                 {selectedFavorite.verse === "0"
                   ? `${selectedFavorite.book} ${selectedFavorite.chapter}`
                   : `${selectedFavorite.book} ${selectedFavorite.chapter}:${selectedFavorite.verse}`}
               </Text>
 
-              <Text
-                style={[
-                  styles.modalSubtitle,
-                  { color: themeStyles.textColor, opacity: 0.7 },
-                ]}
-              >
+              <Text style={[styles.modalSubtitle, { color: themeStyles.textColor, opacity: 0.7 }]}>
                 Added on {selectedFavorite.dateAdded.toLocaleDateString()}
               </Text>
 
@@ -1606,25 +1524,18 @@ export default function BibleScreen() {
                   },
                 ]}
               >
-                <Text
-                  style={[styles.noteLabel, { color: themeStyles.textColor }]}
-                >
-                  Note:
-                </Text>
+                <Text style={[styles.noteLabel, { color: themeStyles.textColor }]}>Note:</Text>
                 <TextInput
                   style={[
                     styles.noteInput,
                     {
                       color: themeStyles.textColor,
-                      backgroundColor:
-                        readingTheme === "night" ? "#1A1A1A" : "#F5F5F5",
+                      backgroundColor: readingTheme === "night" ? "#1A1A1A" : "#F5F5F5",
                     },
                   ]}
                   placeholder="Add a note to this bookmark..."
                   placeholderTextColor={
-                    readingTheme === "night"
-                      ? "rgba(255, 255, 255, 0.5)"
-                      : "rgba(0, 0, 0, 0.5)"
+                    readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"
                   }
                   value={favoriteNote}
                   onChangeText={setFavoriteNote}
@@ -1671,15 +1582,13 @@ export default function BibleScreen() {
                   removeFavorite(
                     selectedFavorite.book,
                     selectedFavorite.chapter,
-                    selectedFavorite.verse
+                    selectedFavorite.verse,
                   );
                   setShowFavoriteModal(false);
                 }}
               >
                 <Feather name="trash-2" size={16} color="#FF5252" />
-                <Text style={{ color: "#FF5252", marginLeft: 8 }}>
-                  Remove Bookmark
-                </Text>
+                <Text style={{ color: "#FF5252", marginLeft: 8 }}>Remove Bookmark</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1706,20 +1615,10 @@ export default function BibleScreen() {
             color={`${themeStyles.textColor}40`}
             style={styles.emptyFavoritesIcon}
           />
-          <Text
-            style={[
-              styles.emptyFavoritesText,
-              { color: themeStyles.textColor },
-            ]}
-          >
+          <Text style={[styles.emptyFavoritesText, { color: themeStyles.textColor }]}>
             You don't have any bookmarks yet
           </Text>
-          <Text
-            style={[
-              styles.emptyFavoritesSubtext,
-              { color: `${themeStyles.textColor}80` },
-            ]}
-          >
+          <Text style={[styles.emptyFavoritesSubtext, { color: `${themeStyles.textColor}80` }]}>
             Add bookmarks by tapping the bookmark icon while reading
           </Text>
           <TouchableOpacity
@@ -1849,11 +1748,7 @@ export default function BibleScreen() {
                       ]}
                       onPress={() => openFavoriteDetails(favorite)}
                     >
-                      <Feather
-                        name="edit-2"
-                        size={16}
-                        color={themeStyles.accentColor}
-                      />
+                      <Feather name="edit-2" size={16} color={themeStyles.accentColor} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1865,18 +1760,10 @@ export default function BibleScreen() {
                         },
                       ]}
                       onPress={() =>
-                        removeFavorite(
-                          favorite.book,
-                          favorite.chapter,
-                          favorite.verse
-                        )
+                        removeFavorite(favorite.book, favorite.chapter, favorite.verse)
                       }
                     >
-                      <Feather
-                        name="trash-2"
-                        size={16}
-                        color={themeStyles.favoriteColor}
-                      />
+                      <Feather name="trash-2" size={16} color={themeStyles.favoriteColor} />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -1908,25 +1795,13 @@ export default function BibleScreen() {
             </Text>
 
             <TouchableOpacity
-              style={[
-                styles.viewAllButton,
-                { borderColor: themeStyles.borderColor },
-              ]}
+              style={[styles.viewAllButton, { borderColor: themeStyles.borderColor }]}
               onPress={() => setView("favorites")}
             >
-              <Text
-                style={[
-                  styles.viewAllText,
-                  { color: themeStyles.favoriteColor },
-                ]}
-              >
+              <Text style={[styles.viewAllText, { color: themeStyles.favoriteColor }]}>
                 View All
               </Text>
-              <Feather
-                name="chevron-right"
-                size={16}
-                color={themeStyles.favoriteColor}
-              />
+              <Feather name="chevron-right" size={16} color={themeStyles.favoriteColor} />
             </TouchableOpacity>
           </View>
 
@@ -1977,10 +1852,7 @@ export default function BibleScreen() {
 
                   {item.note ? (
                     <Text
-                      style={[
-                        styles.bookmarkNote,
-                        { color: `${themeStyles.textColor}80` },
-                      ]}
+                      style={[styles.bookmarkNote, { color: `${themeStyles.textColor}80` }]}
                       numberOfLines={1}
                     >
                       {item.note}
@@ -1988,10 +1860,7 @@ export default function BibleScreen() {
                   ) : null}
                 </View>
                 <View
-                  style={[
-                    styles.bookmarkArrow,
-                    { backgroundColor: themeStyles.favoriteColor },
-                  ]}
+                  style={[styles.bookmarkArrow, { backgroundColor: themeStyles.favoriteColor }]}
                 >
                   <Feather name="chevron-right" size={14} color="#fff" />
                 </View>
@@ -2045,10 +1914,7 @@ export default function BibleScreen() {
                   style={[
                     styles.recentItemIconContainer,
                     {
-                      backgroundColor: `${getBookColor(
-                        item.book,
-                        readingTheme
-                      )}20`,
+                      backgroundColor: `${getBookColor(item.book, readingTheme)}20`,
                     },
                   ]}
                 >
@@ -2096,15 +1962,9 @@ export default function BibleScreen() {
                           backgroundColor: `${themeStyles.favoriteColor}15`,
                         },
                       ]}
-                      onPress={() =>
-                        toggleFavorite(item.book, item.chapter, "0")
-                      }
+                      onPress={() => toggleFavorite(item.book, item.chapter, "0")}
                     >
-                      <Feather
-                        name="bookmark"
-                        size={16}
-                        color={themeStyles.favoriteColor}
-                      />
+                      <Feather name="bookmark" size={16} color={themeStyles.favoriteColor} />
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
@@ -2116,11 +1976,7 @@ export default function BibleScreen() {
                       ]}
                       onPress={() => bookmarkChapter(item.book, item.chapter)}
                     >
-                      <Feather
-                        name="bookmark"
-                        size={16}
-                        color={themeStyles.textColor}
-                      />
+                      <Feather name="bookmark" size={16} color={themeStyles.textColor} />
                     </TouchableOpacity>
                   )}
 
@@ -2137,9 +1993,7 @@ export default function BibleScreen() {
                 </View>
               </TouchableOpacity>
             )}
-            keyExtractor={(item, index) =>
-              `recent-${item.book}-${item.chapter}-${index}`
-            }
+            keyExtractor={(item, index) => `recent-${item.book}-${item.chapter}-${index}`}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.recentlyReadList}
@@ -2170,9 +2024,7 @@ export default function BibleScreen() {
               ],
               {
                 backgroundColor:
-                  testament === "all"
-                    ? `${themeStyles.accentColor}20`
-                    : themeStyles.cardColor,
+                  testament === "all" ? `${themeStyles.accentColor}20` : themeStyles.cardColor,
                 borderColor: themeStyles.borderColor,
               },
             ]}
@@ -2182,10 +2034,7 @@ export default function BibleScreen() {
               style={[
                 styles.testamentTabText,
                 {
-                  color:
-                    testament === "all"
-                      ? themeStyles.accentColor
-                      : themeStyles.textColor,
+                  color: testament === "all" ? themeStyles.accentColor : themeStyles.textColor,
                   fontWeight: testament === "all" ? "600" : "400",
                 },
               ]}
@@ -2202,9 +2051,7 @@ export default function BibleScreen() {
               ],
               {
                 backgroundColor:
-                  testament === "old"
-                    ? `${themeStyles.accentColor}20`
-                    : themeStyles.cardColor,
+                  testament === "old" ? `${themeStyles.accentColor}20` : themeStyles.cardColor,
                 borderColor: themeStyles.borderColor,
               },
             ]}
@@ -2214,10 +2061,7 @@ export default function BibleScreen() {
               style={[
                 styles.testamentTabText,
                 {
-                  color:
-                    testament === "old"
-                      ? themeStyles.accentColor
-                      : themeStyles.textColor,
+                  color: testament === "old" ? themeStyles.accentColor : themeStyles.textColor,
                   fontWeight: testament === "old" ? "600" : "400",
                 },
               ]}
@@ -2234,9 +2078,7 @@ export default function BibleScreen() {
               ],
               {
                 backgroundColor:
-                  testament === "new"
-                    ? `${themeStyles.accentColor}20`
-                    : themeStyles.cardColor,
+                  testament === "new" ? `${themeStyles.accentColor}20` : themeStyles.cardColor,
                 borderColor: themeStyles.borderColor,
               },
             ]}
@@ -2246,10 +2088,7 @@ export default function BibleScreen() {
               style={[
                 styles.testamentTabText,
                 {
-                  color:
-                    testament === "new"
-                      ? themeStyles.accentColor
-                      : themeStyles.textColor,
+                  color: testament === "new" ? themeStyles.accentColor : themeStyles.textColor,
                   fontWeight: testament === "new" ? "600" : "400",
                 },
               ]}
@@ -2274,12 +2113,7 @@ export default function BibleScreen() {
               ]}
               onPress={() => handleBookSelect(item)}
             >
-              <View
-                style={[
-                  styles.bookItemContent,
-                  { borderRightColor: themeStyles.borderColor },
-                ]}
-              >
+              <View style={[styles.bookItemContent, { borderRightColor: themeStyles.borderColor }]}>
                 <Text
                   style={[
                     styles.bookItemText,
@@ -2292,13 +2126,9 @@ export default function BibleScreen() {
                   {item}
                 </Text>
                 <Text
-                  style={[
-                    styles.bookItemCategory,
-                    { color: getBookColor(item, readingTheme) },
-                  ]}
+                  style={[styles.bookItemCategory, { color: getBookColor(item, readingTheme) }]}
                 >
-                  {getBookCategory(item).charAt(0).toUpperCase() +
-                    getBookCategory(item).slice(1)}
+                  {getBookCategory(item).charAt(0).toUpperCase() + getBookCategory(item).slice(1)}
                 </Text>
               </View>
               <View
@@ -2344,10 +2174,7 @@ export default function BibleScreen() {
           ]}
         >
           <Text
-            style={[
-              styles.bookIconLargeText,
-              { color: getBookColor(selectedBook!, readingTheme) },
-            ]}
+            style={[styles.bookIconLargeText, { color: getBookColor(selectedBook!, readingTheme) }]}
           >
             {getBookInitials(selectedBook!)}
           </Text>
@@ -2355,11 +2182,7 @@ export default function BibleScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          color={themeStyles.accentColor}
-          size="large"
-          style={styles.loader}
-        />
+        <ActivityIndicator color={themeStyles.accentColor} size="large" style={styles.loader} />
       ) : (
         <View style={styles.chaptersGrid}>
           {chapters.map((chapter) => (
@@ -2442,16 +2265,8 @@ export default function BibleScreen() {
             onPress={goToPrevChapter}
             disabled={chapters.indexOf(selectedChapter!) <= 0}
           >
-            <Feather
-              name="chevron-left"
-              size={20}
-              color={themeStyles.accentColor}
-            />
-            <Text
-              style={[styles.verseNavText, { color: themeStyles.accentColor }]}
-            >
-              Prev
-            </Text>
+            <Feather name="chevron-left" size={20} color={themeStyles.accentColor} />
+            <Text style={[styles.verseNavText, { color: themeStyles.accentColor }]}>Prev</Text>
           </TouchableOpacity>
 
           <View style={styles.fontSizeControls}>
@@ -2461,21 +2276,14 @@ export default function BibleScreen() {
                 {
                   opacity: fontSize === "small" ? 0.5 : 1,
                   backgroundColor:
-                    fontSize !== "small"
-                      ? `${themeStyles.accentColor}15`
-                      : "transparent",
+                    fontSize !== "small" ? `${themeStyles.accentColor}15` : "transparent",
                   borderColor: themeStyles.borderColor,
                 },
               ]}
               onPress={decreaseFontSize}
               disabled={fontSize === "small"}
             >
-              <Text
-                style={[
-                  styles.fontSizeButtonText,
-                  { color: themeStyles.accentColor },
-                ]}
-              >
+              <Text style={[styles.fontSizeButtonText, { color: themeStyles.accentColor }]}>
                 A-
               </Text>
             </TouchableOpacity>
@@ -2485,21 +2293,14 @@ export default function BibleScreen() {
                 {
                   opacity: fontSize === "xlarge" ? 0.5 : 1,
                   backgroundColor:
-                    fontSize !== "xlarge"
-                      ? `${themeStyles.accentColor}15`
-                      : "transparent",
+                    fontSize !== "xlarge" ? `${themeStyles.accentColor}15` : "transparent",
                   borderColor: themeStyles.borderColor,
                 },
               ]}
               onPress={increaseFontSize}
               disabled={fontSize === "xlarge"}
             >
-              <Text
-                style={[
-                  styles.fontSizeButtonText,
-                  { color: themeStyles.accentColor },
-                ]}
-              >
+              <Text style={[styles.fontSizeButtonText, { color: themeStyles.accentColor }]}>
                 A+
               </Text>
             </TouchableOpacity>
@@ -2509,10 +2310,7 @@ export default function BibleScreen() {
             style={[
               styles.verseNavButton,
               {
-                opacity:
-                  chapters.indexOf(selectedChapter!) < chapters.length - 1
-                    ? 1
-                    : 0.5,
+                opacity: chapters.indexOf(selectedChapter!) < chapters.length - 1 ? 1 : 0.5,
                 backgroundColor:
                   chapters.indexOf(selectedChapter!) < chapters.length - 1
                     ? `${themeStyles.accentColor}15`
@@ -2523,26 +2321,14 @@ export default function BibleScreen() {
             onPress={goToNextChapter}
             disabled={chapters.indexOf(selectedChapter!) >= chapters.length - 1}
           >
-            <Text
-              style={[styles.verseNavText, { color: themeStyles.accentColor }]}
-            >
-              Next
-            </Text>
-            <Feather
-              name="chevron-right"
-              size={20}
-              color={themeStyles.accentColor}
-            />
+            <Text style={[styles.verseNavText, { color: themeStyles.accentColor }]}>Next</Text>
+            <Feather name="chevron-right" size={20} color={themeStyles.accentColor} />
           </TouchableOpacity>
         </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          color={themeStyles.accentColor}
-          size="large"
-          style={styles.loader}
-        />
+        <ActivityIndicator color={themeStyles.accentColor} size="large" style={styles.loader} />
       ) : (
         <View style={styles.versesContent}>
           <View
@@ -2558,11 +2344,7 @@ export default function BibleScreen() {
                 style={[
                   styles.verseNumberCircle,
                   {
-                    backgroundColor: isFavorite(
-                      selectedBook!,
-                      selectedChapter!,
-                      item.verse
-                    )
+                    backgroundColor: isFavorite(selectedBook!, selectedChapter!, item.verse)
                       ? `${themeStyles.favoriteColor}20`
                       : `${getBookColor(item.book, readingTheme)}15`,
                   },
@@ -2572,11 +2354,7 @@ export default function BibleScreen() {
                   style={[
                     styles.verseNumber,
                     {
-                      color: isFavorite(
-                        selectedBook!,
-                        selectedChapter!,
-                        item.verse
-                      )
+                      color: isFavorite(selectedBook!, selectedChapter!, item.verse)
                         ? themeStyles.favoriteColor
                         : getBookColor(item.book, readingTheme),
                       fontSize: fontSizeStyles.verseText - 4,
@@ -2600,9 +2378,7 @@ export default function BibleScreen() {
                 >
                   {item.text}
                 </Text>
-                <Animated.View
-                  style={{ transform: [{ scale: favoriteScale }] }}
-                >
+                <Animated.View style={{ transform: [{ scale: favoriteScale }] }}>
                   <TouchableOpacity
                     style={[
                       styles.favoriteButton,
@@ -2610,9 +2386,7 @@ export default function BibleScreen() {
                         backgroundColor: `${themeStyles.favoriteColor}20`,
                       },
                     ]}
-                    onPress={() =>
-                      toggleFavorite(item.book, item.chapter, item.verse)
-                    }
+                    onPress={() => toggleFavorite(item.book, item.chapter, item.verse)}
                   >
                     <Feather
                       name="heart"
@@ -2675,9 +2449,7 @@ export default function BibleScreen() {
                   },
                 ]}
                 onPress={goToNextChapter}
-                disabled={
-                  chapters.indexOf(selectedChapter!) >= chapters.length - 1
-                }
+                disabled={chapters.indexOf(selectedChapter!) >= chapters.length - 1}
               >
                 <Text
                   style={[
@@ -2746,10 +2518,7 @@ export default function BibleScreen() {
               }}
             >
               <View
-                style={[
-                  styles.searchResultHeader,
-                  { borderBottomColor: themeStyles.borderColor },
-                ]}
+                style={[styles.searchResultHeader, { borderBottomColor: themeStyles.borderColor }]}
               >
                 <Text
                   style={[
@@ -2759,9 +2528,7 @@ export default function BibleScreen() {
                 >
                   {item.book} {item.chapter}:{item.verse}
                 </Text>
-                <Animated.View
-                  style={{ transform: [{ scale: favoriteScale }] }}
-                >
+                <Animated.View style={{ transform: [{ scale: favoriteScale }] }}>
                   <TouchableOpacity
                     style={[
                       styles.favoriteButton,
@@ -2769,9 +2536,7 @@ export default function BibleScreen() {
                         backgroundColor: `${themeStyles.favoriteColor}20`,
                       },
                     ]}
-                    onPress={() =>
-                      toggleFavorite(item.book, item.chapter, item.verse)
-                    }
+                    onPress={() => toggleFavorite(item.book, item.chapter, item.verse)}
                   >
                     <Feather
                       name="heart"
@@ -2813,12 +2578,7 @@ export default function BibleScreen() {
   // MAIN RENDER
   // ---------------------
   return (
-    <SafeAreaView
-      style={[
-        styles.safeArea,
-        { backgroundColor: themeStyles.backgroundColor },
-      ]}
-    >
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeStyles.backgroundColor }]}>
       <StatusBar barStyle={themeStyles.statusBarStyle} />
 
       {/* Background Pattern */}
@@ -2850,9 +2610,7 @@ export default function BibleScreen() {
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => {
-                  LayoutAnimation.configureNext(
-                    LayoutAnimation.Presets.easeInEaseOut
-                  );
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                   if (view === "verses") {
                     setView("chapters");
                   } else if (view === "favorites") {
@@ -2863,19 +2621,11 @@ export default function BibleScreen() {
                   }
                 }}
               >
-                <Feather
-                  name="arrow-left"
-                  size={24}
-                  color={themeStyles.accentColor}
-                />
+                <Feather name="arrow-left" size={24} color={themeStyles.accentColor} />
               </TouchableOpacity>
             ) : (
               <View style={styles.bibleIcon}>
-                <Feather
-                  name="book-open"
-                  size={24}
-                  color={themeStyles.accentColor}
-                />
+                <Feather name="book-open" size={24} color={themeStyles.accentColor} />
               </View>
             )}
 
@@ -2891,34 +2641,25 @@ export default function BibleScreen() {
               {view === "books"
                 ? "Bible"
                 : view === "chapters"
-                ? selectedBook
-                : view === "favorites"
-                ? "My Bookmarks"
-                : `${selectedBook} ${selectedChapter}`}
+                  ? selectedBook
+                  : view === "favorites"
+                    ? "My Bookmarks"
+                    : `${selectedBook} ${selectedChapter}`}
             </Text>
 
             <View style={styles.headerButtons}>
               {/* Prayer Intentions Button */}
               <TouchableOpacity
-                style={[
-                  styles.headerButton,
-                  { backgroundColor: `${themeStyles.accentColor}10` },
-                ]}
+                style={[styles.headerButton, { backgroundColor: `${themeStyles.accentColor}10` }]}
                 onPress={() => {
                   router.push("/PrayerIntentions");
                 }}
               >
-                <Feather
-                  name="heart"
-                  size={22}
-                  color={themeStyles.accentColor}
-                />
+                <Feather name="heart" size={22} color={themeStyles.accentColor} />
               </TouchableOpacity>
               {/* If in verses view, show a bookmark button for the chapter */}
               {view === "verses" && (
-                <Animated.View
-                  style={{ transform: [{ scale: bookmarkPulse }] }}
-                >
+                <Animated.View style={{ transform: [{ scale: bookmarkPulse }] }}>
                   <TouchableOpacity
                     style={[
                       styles.headerButton,
@@ -2927,9 +2668,7 @@ export default function BibleScreen() {
                         { backgroundColor: `${themeStyles.favoriteColor}20` },
                       ],
                     ]}
-                    onPress={() =>
-                      bookmarkChapter(selectedBook!, selectedChapter!)
-                    }
+                    onPress={() => bookmarkChapter(selectedBook!, selectedChapter!)}
                   >
                     <Feather
                       name="bookmark"
@@ -2956,11 +2695,7 @@ export default function BibleScreen() {
                     setView("favorites");
                   }}
                 >
-                  <Feather
-                    name="bookmark"
-                    size={22}
-                    color={themeStyles.favoriteColor}
-                  />
+                  <Feather name="bookmark" size={22} color={themeStyles.favoriteColor} />
                 </TouchableOpacity>
               )}
 
@@ -2969,18 +2704,11 @@ export default function BibleScreen() {
                 style={styles.headerButton}
                 onPress={() => setShowVersionSelector(true)}
               >
-                <Feather
-                  name="layers"
-                  size={22}
-                  color={themeStyles.accentColor}
-                />
+                <Feather name="layers" size={22} color={themeStyles.accentColor} />
               </TouchableOpacity>
 
               {/* Theme Selector Button */}
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={toggleReadingTheme}
-              >
+              <TouchableOpacity style={styles.headerButton} onPress={toggleReadingTheme}>
                 <Feather
                   name={readingTheme === "night" ? "moon" : "sun"}
                   size={22}
@@ -3016,9 +2744,7 @@ export default function BibleScreen() {
               style={[styles.searchInput, { color: themeStyles.textColor }]}
               placeholder="Search books or verses..."
               placeholderTextColor={
-                readingTheme === "night"
-                  ? "rgba(255, 255, 255, 0.5)"
-                  : "rgba(0, 0, 0, 0.5)"
+                readingTheme === "night" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"
               }
               value={searchText}
               onChangeText={setSearchText}
@@ -3049,12 +2775,7 @@ export default function BibleScreen() {
               },
             ]}
           >
-            <Text
-              style={[
-                styles.favoritesFilterLabel,
-                { color: themeStyles.textColor },
-              ]}
-            >
+            <Text style={[styles.favoritesFilterLabel, { color: themeStyles.textColor }]}>
               Group by:
             </Text>
             <View style={styles.favoritesFilterButtons}>
@@ -3140,17 +2861,14 @@ export default function BibleScreen() {
           ref={scrollViewRef}
           contentContainerStyle={styles.scrollContent}
           scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: false,
+          })}
           showsVerticalScrollIndicator={false}
           style={{ opacity: fadeAnim }}
         >
           {/* Search Results */}
-          {searchResults.length > 0 &&
-            view === "books" &&
-            renderSearchResults()}
+          {searchResults.length > 0 && view === "books" && renderSearchResults()}
 
           {/* FAVORITES VIEW */}
           {view === "favorites" && renderFavoritesView()}

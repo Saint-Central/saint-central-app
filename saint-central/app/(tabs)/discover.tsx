@@ -86,17 +86,12 @@ export default function DiscoverScreen() {
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           onPress={() =>
-            router.push(
-              `/${category.title.replace(/\s+/g, "-").toLowerCase()}` as any
-            )
+            router.push(`/${category.title.replace(/\s+/g, "-").toLowerCase()}` as any)
           }
         >
           <View style={styles.cardHeader}>
             <LinearGradient
-              colors={[
-                gradientMap[category.icon].start,
-                gradientMap[category.icon].end,
-              ]}
+              colors={[gradientMap[category.icon].start, gradientMap[category.icon].end]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconContainer}
@@ -122,10 +117,9 @@ export default function DiscoverScreen() {
       <Animated.ScrollView
         contentContainerStyle={styles.scrollContent}
         scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
       >
         {/* Full-Width Integrated Header */}
         <ImageBackground
@@ -150,14 +144,9 @@ export default function DiscoverScreen() {
         <View style={styles.eventsBanner}>
           <View style={styles.eventsTextContainer}>
             <Text style={styles.eventsTitle}>Upcoming Events</Text>
-            <Text style={styles.eventsSubtitle}>
-              Check out what's happening
-            </Text>
+            <Text style={styles.eventsSubtitle}>Check out what's happening</Text>
           </View>
-          <TouchableOpacity
-            style={styles.eventsButton}
-            onPress={() => router.push("/events")}
-          >
+          <TouchableOpacity style={styles.eventsButton} onPress={() => router.push("/events")}>
             <Text style={styles.buttonText}>View All</Text>
             <Feather name="arrow-right" size={14} color="#FFFFFF" />
           </TouchableOpacity>

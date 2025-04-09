@@ -11,13 +11,12 @@ import {
   Animated,
   FlatList,
 } from "react-native";
-import { AntDesign, FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 // Mystery types
 const MYSTERY_TYPES = {
@@ -30,7 +29,7 @@ const MYSTERY_TYPES = {
 // Get day of the week mystery
 const getDayMystery = () => {
   const day = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
-  
+
   switch (day) {
     case 0: // Sunday
       return { type: MYSTERY_TYPES.GLORIOUS, key: "GLORIOUS" };
@@ -65,7 +64,7 @@ const getMysteryTheme = (mysteryKey) => {
       };
     case "SORROWFUL":
       return {
-        primary: "#FF4757", 
+        primary: "#FF4757",
         secondary: "#D63031",
         accent: "#FFE9EB",
         gradientStart: "#FF4757",
@@ -104,7 +103,7 @@ const getMysteryTheme = (mysteryKey) => {
 
 // Format date
 const formatDate = (date = new Date()) => {
-  const options = { weekday: 'long', month: 'long', day: 'numeric' };
+  const options = { weekday: "long", month: "long", day: "numeric" };
   return date.toLocaleDateString(undefined, options);
 };
 
@@ -113,7 +112,7 @@ export default function RosaryHome() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const dayMystery = getDayMystery();
   const theme = getMysteryTheme(dayMystery.key);
-  
+
   // State management
   const [userName, setUserName] = useState("Friend");
   const [lastPrayed, setLastPrayed] = useState(null);
@@ -122,15 +121,15 @@ export default function RosaryHome() {
   const [favoriteIntentions, setFavoriteIntentions] = useState([]);
   const [recentMysteries, setRecentMysteries] = useState([]);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(true);
-  
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-  
+
   // Load user data on mount
   useEffect(() => {
     loadUserData();
-    
+
     // Animation sequence
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -142,49 +141,49 @@ export default function RosaryHome() {
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
-      })
+      }),
     ]).start();
   }, []);
-  
+
   // Load user data from AsyncStorage
   const loadUserData = async () => {
     try {
       // Load user profile
-      const userProfile = await AsyncStorage.getItem('userProfile');
+      const userProfile = await AsyncStorage.getItem("userProfile");
       if (userProfile) {
         const profile = JSON.parse(userProfile);
         if (profile.name) setUserName(profile.name);
       }
-      
+
       // Load prayer statistics
-      const prayerStats = await AsyncStorage.getItem('prayerStatistics');
+      const prayerStats = await AsyncStorage.getItem("prayerStatistics");
       if (prayerStats) {
         const stats = JSON.parse(prayerStats);
         if (stats.lastPrayed) setLastPrayed(new Date(stats.lastPrayed));
         if (stats.streakDays) setStreakDays(stats.streakDays);
         if (stats.totalPrayers) setTotalPrayers(stats.totalPrayers);
       }
-      
+
       // Load favorite intentions
-      const intentions = await AsyncStorage.getItem('rosaryIntentions');
+      const intentions = await AsyncStorage.getItem("rosaryIntentions");
       if (intentions) {
         const allIntentions = JSON.parse(intentions);
-        const favorites = allIntentions.filter(intention => intention.favorite).slice(0, 3);
+        const favorites = allIntentions.filter((intention) => intention.favorite).slice(0, 3);
         setFavoriteIntentions(favorites);
       }
-      
+
       // Load recent mysteries
-      const history = await AsyncStorage.getItem('prayerHistory');
+      const history = await AsyncStorage.getItem("prayerHistory");
       if (history) {
         const prayerHistory = JSON.parse(history);
         setRecentMysteries(prayerHistory.slice(0, 5));
       }
-      
+
       // Check if first time user
-      const isFirstTimeUser = await AsyncStorage.getItem('isFirstTimeUser');
+      const isFirstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
       if (isFirstTimeUser === null) {
         setShowWelcomeMessage(true);
-        await AsyncStorage.setItem('isFirstTimeUser', 'false');
+        await AsyncStorage.setItem("isFirstTimeUser", "false");
       } else {
         setShowWelcomeMessage(false);
       }
@@ -192,7 +191,7 @@ export default function RosaryHome() {
       console.error("Failed to load user data:", error);
     }
   };
-  
+
   // Start praying today's mystery
   const startTodayRosary = () => {
     router.push({
@@ -200,66 +199,67 @@ export default function RosaryHome() {
       params: {
         mysteryType: dayMystery.type,
         mysteryKey: dayMystery.key,
-      }
+      },
     });
   };
-  
+
   // Navigate to mystery selection
   const navigateToMysterySelection = () => {
-    router.push('/rosary/screens/MysterySelection');
+    router.push("/rosary/screens/MysterySelection");
   };
-  
+
   // Navigate to intentions screen
   const navigateToIntentions = () => {
-    router.push('/rosary/screens/RosaryIntentions');
+    router.push("/rosary/screens/RosaryIntentions");
   };
-  
+
   // Navigate to settings screen
   const navigateToSettings = () => {
     router.push("/rosary/screens/RosarySettings");
   };
-  
+
   // Navigate to statistics screen
   const navigateToStatistics = () => {
     router.push("/rosary/screens/PrayerStatistics");
   };
-  
+
   // Get greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    
+
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   };
-  
+
   // Render welcome message for first-time users
   const renderWelcomeMessage = () => {
     if (!showWelcomeMessage) return null;
-    
+
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.welcomeCard,
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-          }
+          },
         ]}
       >
         <View style={styles.welcomeHeader}>
-          <Image 
-            source={require('../../../../assets/images/rosary-icon.png')} 
+          <Image
+            source={require("../../../../assets/images/rosary-icon.png")}
             style={styles.welcomeIcon}
             resizeMode="contain"
           />
           <Text style={styles.welcomeTitle}>Welcome to Rosary</Text>
         </View>
-        
+
         <Text style={styles.welcomeDescription}>
-          This app will guide you through praying the Holy Rosary with beautiful audio, scripture readings, and meditations.
+          This app will guide you through praying the Holy Rosary with beautiful audio, scripture
+          readings, and meditations.
         </Text>
-        
+
         <TouchableOpacity
           style={[styles.welcomeButton, { backgroundColor: theme.primary }]}
           onPress={() => setShowWelcomeMessage(false)}
@@ -269,16 +269,16 @@ export default function RosaryHome() {
       </Animated.View>
     );
   };
-  
+
   // Render daily mystery card
   const renderDailyMysteryCard = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.dailyMysteryCard,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
-        }
+        },
       ]}
     >
       <LinearGradient
@@ -293,59 +293,49 @@ export default function RosaryHome() {
               <FontAwesome5 name={theme.icon} size={26} color="#FFFFFF" />
             </View>
           </View>
-          
+
           <View style={styles.mysteryTextContainer}>
             <Text style={styles.todayText}>Today's Mystery</Text>
             <Text style={styles.mysteryTitle}>{dayMystery.type}</Text>
             <Text style={styles.dateText}>{formatDate()}</Text>
           </View>
         </View>
-        
-        <TouchableOpacity
-          style={styles.startButton}
-          onPress={startTodayRosary}
-          activeOpacity={0.8}
-        >
+
+        <TouchableOpacity style={styles.startButton} onPress={startTodayRosary} activeOpacity={0.8}>
           <Text style={styles.startButtonText}>Begin Praying</Text>
           <AntDesign name="arrowright" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </LinearGradient>
     </Animated.View>
   );
-  
+
   // Render quick action buttons
   const renderQuickActions = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.quickActionsContainer,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
-        }
+        },
       ]}
     >
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        onPress={navigateToIntentions}
-      >
+      <TouchableOpacity style={styles.quickActionButton} onPress={navigateToIntentions}>
         <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}20` }]}>
           <FontAwesome5 name="pray" size={24} color={theme.primary} />
         </View>
         <Text style={styles.quickActionText}>Intentions</Text>
       </TouchableOpacity>
-      
+
       <View style={styles.quickActionButton}>
         <Image
-          source={require('../../../../assets/images/rosary-mascot.png')}
+          source={require("../../../../assets/images/rosary-mascot.png")}
           style={styles.mascotImage}
           resizeMode="contain"
         />
       </View>
-      
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        onPress={navigateToStatistics}
-      >
+
+      <TouchableOpacity style={styles.quickActionButton} onPress={navigateToStatistics}>
         <View style={[styles.quickActionIcon, { backgroundColor: `${theme.primary}20` }]}>
           <AntDesign name="barschart" size={24} color={theme.primary} />
         </View>
@@ -353,54 +343,56 @@ export default function RosaryHome() {
       </TouchableOpacity>
     </Animated.View>
   );
-  
+
   // Render prayer statistics
   const renderPrayerStats = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.statsContainer,
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
-        }
+        },
       ]}
     >
       <Text style={styles.sectionTitle}>Your Prayer Journey</Text>
-      
+
       <View style={styles.statsCards}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{streakDays}</Text>
           <Text style={styles.statLabel}>Day Streak</Text>
           <FontAwesome5 name="fire" size={20} color="#FF9500" style={styles.statIcon} />
         </View>
-        
+
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{totalPrayers}</Text>
           <Text style={styles.statLabel}>Rosaries Prayed</Text>
           <FontAwesome5 name="hand-holding" size={20} color="#5856D6" style={styles.statIcon} />
         </View>
-        
+
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{lastPrayed ? formatDate(lastPrayed).split(',')[0] : "Never"}</Text>
+          <Text style={styles.statValue}>
+            {lastPrayed ? formatDate(lastPrayed).split(",")[0] : "Never"}
+          </Text>
           <Text style={styles.statLabel}>Last Prayed</Text>
           <AntDesign name="calendar" size={20} color="#34C759" style={styles.statIcon} />
         </View>
       </View>
     </Animated.View>
   );
-  
+
   // Render favorite intentions
   const renderFavoriteIntentions = () => {
     if (favoriteIntentions.length === 0) return null;
-    
+
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.intentionsContainer,
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-          }
+          },
         ]}
       >
         <View style={styles.sectionHeader}>
@@ -409,35 +401,37 @@ export default function RosaryHome() {
             <Text style={[styles.seeAllText, { color: theme.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
-        
+
         {favoriteIntentions.map((intention, index) => (
           <View key={intention.id} style={styles.intentionItem}>
             <View style={[styles.intentionIcon, { backgroundColor: `${theme.primary}20` }]}>
-              <FontAwesome5 
-                name={intention.category === "Family" ? "users" : "heart"} 
-                size={16} 
-                color={theme.primary} 
+              <FontAwesome5
+                name={intention.category === "Family" ? "users" : "heart"}
+                size={16}
+                color={theme.primary}
               />
             </View>
-            <Text style={styles.intentionText} numberOfLines={1}>{intention.title}</Text>
+            <Text style={styles.intentionText} numberOfLines={1}>
+              {intention.title}
+            </Text>
           </View>
         ))}
       </Animated.View>
     );
   };
-  
+
   // Render recent mysteries
   const renderRecentMysteries = () => {
     if (recentMysteries.length === 0) return null;
-    
+
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.recentContainer,
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-          }
+          },
         ]}
       >
         <View style={styles.sectionHeader}>
@@ -446,7 +440,7 @@ export default function RosaryHome() {
             <Text style={[styles.seeAllText, { color: theme.primary }]}>History</Text>
           </TouchableOpacity>
         </View>
-        
+
         <FlatList
           data={recentMysteries}
           keyExtractor={(item, index) => `${item.mysteryKey}-${index}`}
@@ -455,9 +449,9 @@ export default function RosaryHome() {
           contentContainerStyle={styles.recentList}
           renderItem={({ item }) => {
             const mysteryTheme = getMysteryTheme(item.mysteryKey);
-            
+
             return (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.recentItem}
                 onPress={() => {
                   router.push({
@@ -465,7 +459,7 @@ export default function RosaryHome() {
                     params: {
                       mysteryType: item.mysteryType,
                       mysteryKey: item.mysteryKey,
-                    }
+                    },
                   });
                 }}
               >
@@ -479,7 +473,9 @@ export default function RosaryHome() {
                     <FontAwesome5 name={mysteryTheme.icon} size={20} color="#FFFFFF" />
                   </View>
                   <Text style={styles.recentItemTitle}>{item.mysteryType}</Text>
-                  <Text style={styles.recentItemDate}>{formatDate(new Date(item.date)).split(',')[0]}</Text>
+                  <Text style={styles.recentItemDate}>
+                    {formatDate(new Date(item.date)).split(",")[0]}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             );
@@ -488,7 +484,7 @@ export default function RosaryHome() {
       </Animated.View>
     );
   };
-  
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Overlay for scrolling header effect */}
@@ -499,17 +495,14 @@ export default function RosaryHome() {
             opacity: scrollY.interpolate({
               inputRange: [0, 100],
               outputRange: [0, 1],
-              extrapolate: 'clamp',
+              extrapolate: "clamp",
             }),
           },
         ]}
       >
-        <LinearGradient
-          colors={['#FFFFFF', '#FFFFFF']}
-          style={styles.headerGradient}
-        />
+        <LinearGradient colors={["#FFFFFF", "#FFFFFF"]} style={styles.headerGradient} />
       </Animated.View>
-      
+
       {/* Header - Removed profile icon */}
       <View style={styles.header}>
         <View style={styles.greetingContainer}>
@@ -517,7 +510,7 @@ export default function RosaryHome() {
           <Text style={styles.userName}>{userName}</Text>
         </View>
       </View>
-      
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -529,35 +522,36 @@ export default function RosaryHome() {
       >
         {/* Welcome message for first-time users */}
         {renderWelcomeMessage()}
-        
+
         {/* Daily mystery card */}
         {renderDailyMysteryCard()}
-        
+
         {/* Quick action buttons */}
         {renderQuickActions()}
-        
+
         {/* Prayer statistics */}
         {renderPrayerStats()}
-        
+
         {/* Favorite intentions */}
         {renderFavoriteIntentions()}
-        
+
         {/* Recent mysteries */}
         {renderRecentMysteries()}
-        
+
         {/* Catholic Quote of the Day */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.quoteContainer,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-            }
+            },
           ]}
         >
           <View style={styles.quoteContent}>
             <Text style={styles.quoteText}>
-              "The Rosary is the most excellent form of prayer and the most efficacious means of attaining eternal life."
+              "The Rosary is the most excellent form of prayer and the most efficacious means of
+              attaining eternal life."
             </Text>
             <Text style={styles.quoteAuthor}>- Pope St. Pius X</Text>
           </View>
@@ -573,7 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   headerOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -591,7 +585,7 @@ const styles = StyleSheet.create({
   },
   greetingContainer: {
     // Updated to take full width without the profile button
-    width: '100%',
+    width: "100%",
   },
   greeting: {
     fontSize: 16,

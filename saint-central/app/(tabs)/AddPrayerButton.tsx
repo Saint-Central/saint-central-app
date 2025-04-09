@@ -88,7 +88,7 @@ const AddPrayerButton: React.FC<AddPrayerButtonProps> = ({ onPress, theme = "lig
           useNativeDriver: true,
           easing: Easing.inOut(Easing.sin),
         }),
-      ])
+      ]),
     ).start();
 
     // Subtle pulse animation
@@ -106,7 +106,7 @@ const AddPrayerButton: React.FC<AddPrayerButtonProps> = ({ onPress, theme = "lig
           useNativeDriver: true,
           easing: Easing.inOut(Easing.cubic),
         }),
-      ])
+      ]),
     ).start();
   }, []);
 

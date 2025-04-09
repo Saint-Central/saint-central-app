@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  Animated,
   Alert,
 } from "react-native";
 import { AntDesign, FontAwesome5 } from "@expo/vector-icons";
@@ -34,17 +33,19 @@ const getMysteryTheme = (mysteryKey) => {
         gradientStart: "#0ACF83",
         gradientEnd: "#07A866",
         icon: "leaf",
-        description: "The Joyful Mysteries focus on the Incarnation and early life of Christ through the eyes of Mary.",
+        description:
+          "The Joyful Mysteries focus on the Incarnation and early life of Christ through the eyes of Mary.",
       };
     case "SORROWFUL":
       return {
-        primary: "#FF4757", 
+        primary: "#FF4757",
         secondary: "#D63031",
         accent: "#FFE9EB",
         gradientStart: "#FF4757",
         gradientEnd: "#D63031",
         icon: "heart-broken",
-        description: "The Sorrowful Mysteries focus on the Passion of Christ and his suffering for our salvation.",
+        description:
+          "The Sorrowful Mysteries focus on the Passion of Christ and his suffering for our salvation.",
       };
     case "GLORIOUS":
       return {
@@ -54,7 +55,8 @@ const getMysteryTheme = (mysteryKey) => {
         gradientStart: "#7158e2",
         gradientEnd: "#5F45C2",
         icon: "crown",
-        description: "The Glorious Mysteries focus on the Resurrection of Jesus and the glories of heaven.",
+        description:
+          "The Glorious Mysteries focus on the Resurrection of Jesus and the glories of heaven.",
       };
     case "LUMINOUS":
       return {
@@ -64,7 +66,8 @@ const getMysteryTheme = (mysteryKey) => {
         gradientStart: "#18DCFF",
         gradientEnd: "#0ABDE3",
         icon: "star",
-        description: "The Luminous Mysteries focus on the public ministry of Jesus and the institution of the Eucharist.",
+        description:
+          "The Luminous Mysteries focus on the public ministry of Jesus and the institution of the Eucharist.",
       };
     default:
       return {
@@ -74,7 +77,8 @@ const getMysteryTheme = (mysteryKey) => {
         gradientStart: "#0ACF83",
         gradientEnd: "#07A866",
         icon: "leaf",
-        description: "The Joyful Mysteries focus on the Incarnation and early life of Christ through the eyes of Mary.",
+        description:
+          "The Joyful Mysteries focus on the Incarnation and early life of Christ through the eyes of Mary.",
       };
   }
 };
@@ -82,39 +86,99 @@ const getMysteryTheme = (mysteryKey) => {
 // Mystery content
 const MYSTERIES = {
   JOYFUL: [
-    { id: 1, title: "The Annunciation", description: "The Angel Gabriel announces to Mary that she shall conceive the Son of God." },
-    { id: 2, title: "The Visitation", description: "Mary visits her cousin Elizabeth, who is pregnant with John the Baptist." },
+    {
+      id: 1,
+      title: "The Annunciation",
+      description: "The Angel Gabriel announces to Mary that she shall conceive the Son of God.",
+    },
+    {
+      id: 2,
+      title: "The Visitation",
+      description: "Mary visits her cousin Elizabeth, who is pregnant with John the Baptist.",
+    },
     { id: 3, title: "The Nativity", description: "Jesus is born in a stable in Bethlehem." },
-    { id: 4, title: "The Presentation", description: "Mary and Joseph present Jesus at the temple." },
-    { id: 5, title: "Finding in the Temple", description: "After being lost for three days, Jesus is found in the temple." },
+    {
+      id: 4,
+      title: "The Presentation",
+      description: "Mary and Joseph present Jesus at the temple.",
+    },
+    {
+      id: 5,
+      title: "Finding in the Temple",
+      description: "After being lost for three days, Jesus is found in the temple.",
+    },
   ],
   SORROWFUL: [
-    { id: 1, title: "The Agony in the Garden", description: "Jesus prays in the Garden of Gethsemane on the night of His betrayal." },
-    { id: 2, title: "The Scourging at the Pillar", description: "Jesus is tied to a pillar and whipped." },
-    { id: 3, title: "The Crowning with Thorns", description: "Jesus is mocked and crowned with thorns." },
-    { id: 4, title: "The Carrying of the Cross", description: "Jesus carries His cross to Calvary." },
+    {
+      id: 1,
+      title: "The Agony in the Garden",
+      description: "Jesus prays in the Garden of Gethsemane on the night of His betrayal.",
+    },
+    {
+      id: 2,
+      title: "The Scourging at the Pillar",
+      description: "Jesus is tied to a pillar and whipped.",
+    },
+    {
+      id: 3,
+      title: "The Crowning with Thorns",
+      description: "Jesus is mocked and crowned with thorns.",
+    },
+    {
+      id: 4,
+      title: "The Carrying of the Cross",
+      description: "Jesus carries His cross to Calvary.",
+    },
     { id: 5, title: "The Crucifixion", description: "Jesus is nailed to the cross and dies." },
   ],
   GLORIOUS: [
-    { id: 1, title: "The Resurrection", description: "Jesus rises from the dead on the third day." },
-    { id: 2, title: "The Ascension", description: "Jesus ascends into Heaven forty days after His resurrection." },
-    { id: 3, title: "The Descent of the Holy Spirit", description: "The Holy Spirit descends upon Mary and the apostles." },
+    {
+      id: 1,
+      title: "The Resurrection",
+      description: "Jesus rises from the dead on the third day.",
+    },
+    {
+      id: 2,
+      title: "The Ascension",
+      description: "Jesus ascends into Heaven forty days after His resurrection.",
+    },
+    {
+      id: 3,
+      title: "The Descent of the Holy Spirit",
+      description: "The Holy Spirit descends upon Mary and the apostles.",
+    },
     { id: 4, title: "The Assumption", description: "Mary is assumed body and soul into Heaven." },
     { id: 5, title: "The Coronation", description: "Mary is crowned Queen of Heaven and Earth." },
   ],
   LUMINOUS: [
-    { id: 1, title: "The Baptism in the Jordan", description: "Jesus is baptized by John the Baptist." },
-    { id: 2, title: "The Wedding at Cana", description: "Jesus performs His first miracle, changing water into wine." },
-    { id: 3, title: "The Proclamation of the Kingdom", description: "Jesus announces the Kingdom of God and calls all to conversion." },
+    {
+      id: 1,
+      title: "The Baptism in the Jordan",
+      description: "Jesus is baptized by John the Baptist.",
+    },
+    {
+      id: 2,
+      title: "The Wedding at Cana",
+      description: "Jesus performs His first miracle, changing water into wine.",
+    },
+    {
+      id: 3,
+      title: "The Proclamation of the Kingdom",
+      description: "Jesus announces the Kingdom of God and calls all to conversion.",
+    },
     { id: 4, title: "The Transfiguration", description: "Jesus is transfigured on Mount Tabor." },
-    { id: 5, title: "The Institution of the Eucharist", description: "Jesus institutes the Eucharist at the Last Supper." },
+    {
+      id: 5,
+      title: "The Institution of the Eucharist",
+      description: "Jesus institutes the Eucharist at the Last Supper.",
+    },
   ],
 };
 
 // Get day of the week mystery
 const getDayMystery = () => {
   const day = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
-  
+
   switch (day) {
     case 0: // Sunday
       return { type: MYSTERY_TYPES.GLORIOUS, key: "GLORIOUS" };
@@ -138,40 +202,40 @@ const getDayMystery = () => {
 export default function MysterySelection() {
   const router = useRouter();
   const navigation = useNavigation();
-  
+
   // State management
   const dayMystery = getDayMystery();
   const [selectedMystery, setSelectedMystery] = useState(dayMystery.key);
   const [selectedGuide, setSelectedGuide] = useState(null);
   const [selectedDuration, setSelectedDuration] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Setup navigation options
   useEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
   }, [navigation]);
-  
+
   // Load settings and previous selections
   useEffect(() => {
     async function initialize() {
       try {
         // Load previously selected mystery if exists
-        const savedMystery = await AsyncStorage.getItem('selectedMystery');
+        const savedMystery = await AsyncStorage.getItem("selectedMystery");
         if (savedMystery) {
           setSelectedMystery(savedMystery);
         }
-        
+
         // Load settings
-        const settingsJson = await AsyncStorage.getItem('rosarySettings');
+        const settingsJson = await AsyncStorage.getItem("rosarySettings");
         if (settingsJson !== null) {
           const settings = JSON.parse(settingsJson);
-          
+
           if (settings.guide) {
             setSelectedGuide(settings.guide);
           }
-          
+
           if (settings.duration) {
             setSelectedDuration(settings.duration);
           }
@@ -183,25 +247,25 @@ export default function MysterySelection() {
         setIsLoading(false);
       }
     }
-    
+
     initialize();
   }, []);
-  
+
   // Save mystery selection and navigate
   const startPraying = async () => {
     try {
       // Save selected mystery
-      await AsyncStorage.setItem('selectedMystery', selectedMystery);
-      
+      await AsyncStorage.setItem("selectedMystery", selectedMystery);
+
       // Navigate to Rosary screen with selected mystery
       router.push({
         pathname: "../../../../RosaryPrayer",
         params: {
           mysteryType: MYSTERY_TYPES[selectedMystery],
           mysteryKey: selectedMystery,
-        }
+        },
       });
-      
+
       // Haptic feedback
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
@@ -209,23 +273,23 @@ export default function MysterySelection() {
       Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
-  
+
   // Handle mystery selection
   const handleMysterySelect = (mysteryKey) => {
     setSelectedMystery(mysteryKey);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
-  
+
   // Navigate to settings
   const goToSettings = () => {
     router.push("../../../../RosaryPrayer");
   };
-  
+
   // Render mystery card
   const renderMysteryCard = (mysteryKey) => {
     const theme = getMysteryTheme(mysteryKey);
     const isSelected = selectedMystery === mysteryKey;
-    
+
     return (
       <View style={[styles.mysteryCard, isSelected && styles.selectedMysteryCard]}>
         <TouchableOpacity
@@ -234,48 +298,56 @@ export default function MysterySelection() {
           activeOpacity={0.9}
         >
           <LinearGradient
-            colors={isSelected ? [theme.gradientStart, theme.gradientEnd] : ['#FFFFFF', '#FFFFFF']}
+            colors={isSelected ? [theme.gradientStart, theme.gradientEnd] : ["#FFFFFF", "#FFFFFF"]}
             style={styles.mysteryCardGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
             <View style={styles.mysteryCardContent}>
-              <View style={[
-                styles.mysteryIconContainer,
-                { backgroundColor: isSelected ? "rgba(255, 255, 255, 0.2)" : `${theme.primary}20` }
-              ]}>
-                <FontAwesome5 
-                  name={theme.icon} 
-                  size={26} 
-                  color={isSelected ? "#FFFFFF" : theme.primary} 
+              <View
+                style={[
+                  styles.mysteryIconContainer,
+                  {
+                    backgroundColor: isSelected ? "rgba(255, 255, 255, 0.2)" : `${theme.primary}20`,
+                  },
+                ]}
+              >
+                <FontAwesome5
+                  name={theme.icon}
+                  size={26}
+                  color={isSelected ? "#FFFFFF" : theme.primary}
                 />
               </View>
-              
+
               <View style={styles.mysteryTextContainer}>
-                <Text style={[
-                  styles.mysteryTitle,
-                  { color: isSelected ? "#FFFFFF" : "#242424" }
-                ]}>
+                <Text style={[styles.mysteryTitle, { color: isSelected ? "#FFFFFF" : "#242424" }]}>
                   {MYSTERY_TYPES[mysteryKey]}
                 </Text>
-                
-                <Text style={[
-                  styles.mysteryDescription,
-                  { color: isSelected ? "#FFFFFF" : "#666666" }
-                ]}>
+
+                <Text
+                  style={[styles.mysteryDescription, { color: isSelected ? "#FFFFFF" : "#666666" }]}
+                >
                   {theme.description}
                 </Text>
               </View>
-              
+
               {mysteryKey === dayMystery.key && (
-                <View style={[
-                  styles.todayBadge,
-                  { backgroundColor: isSelected ? "rgba(255, 255, 255, 0.3)" : `${theme.primary}30` }
-                ]}>
-                  <Text style={[
-                    styles.todayBadgeText,
-                    { color: isSelected ? "#FFFFFF" : theme.primary }
-                  ]}>
+                <View
+                  style={[
+                    styles.todayBadge,
+                    {
+                      backgroundColor: isSelected
+                        ? "rgba(255, 255, 255, 0.3)"
+                        : `${theme.primary}30`,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.todayBadgeText,
+                      { color: isSelected ? "#FFFFFF" : theme.primary },
+                    ]}
+                  >
                     Today
                   </Text>
                 </View>
@@ -286,27 +358,24 @@ export default function MysterySelection() {
       </View>
     );
   };
-  
+
   // Render mystery details
   const renderMysteryDetails = () => {
     const theme = getMysteryTheme(selectedMystery);
     const mysteries = MYSTERIES[selectedMystery];
-    
+
     return (
       <View style={styles.detailsContainer}>
         <Text style={styles.detailsTitle}>The Five Mysteries</Text>
-        
+
         {mysteries.map((mystery) => (
           <View key={mystery.id} style={styles.mysteryItem}>
-            <View style={[
-              styles.mysteryItemNumber,
-              { backgroundColor: `${theme.primary}20` }
-            ]}>
+            <View style={[styles.mysteryItemNumber, { backgroundColor: `${theme.primary}20` }]}>
               <Text style={[styles.mysteryItemNumberText, { color: theme.primary }]}>
                 {mystery.id}
               </Text>
             </View>
-            
+
             <View style={styles.mysteryItemContent}>
               <Text style={styles.mysteryItemTitle}>{mystery.title}</Text>
               <Text style={styles.mysteryItemDescription}>{mystery.description}</Text>
@@ -316,7 +385,7 @@ export default function MysterySelection() {
       </View>
     );
   };
-  
+
   // If still loading, show nothing (could add a loading spinner here)
   if (isLoading) {
     return (
@@ -327,7 +396,7 @@ export default function MysterySelection() {
       </SafeAreaView>
     );
   }
-  
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -339,70 +408,64 @@ export default function MysterySelection() {
         >
           <AntDesign name="arrowleft" size={24} color="#242424" />
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>Select Mystery</Text>
-        
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={goToSettings}
-          activeOpacity={0.7}
-        >
+
+        <TouchableOpacity style={styles.settingsButton} onPress={goToSettings} activeOpacity={0.7}>
           <AntDesign name="setting" size={24} color="#242424" />
         </TouchableOpacity>
       </View>
-      
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Mystery cards */}
         <Text style={styles.sectionTitle}>Choose Mystery Type</Text>
         {renderMysteryCard("JOYFUL")}
         {renderMysteryCard("SORROWFUL")}
         {renderMysteryCard("GLORIOUS")}
         {renderMysteryCard("LUMINOUS")}
-        
+
         {/* Mystery details */}
         {renderMysteryDetails()}
-        
+
         {/* Prayer guide info */}
         <View style={styles.guideContainer}>
           <View style={styles.guideCard}>
             <Text style={styles.guideTitle}>Your Prayer Settings</Text>
-            
+
             <View style={styles.guideRow}>
               <View style={styles.guideIconContainer}>
                 <AntDesign name="user" size={20} color="#666666" />
               </View>
               <Text style={styles.guideLabel}>Voice Guide:</Text>
-              <Text style={styles.guideValue}>{selectedGuide ? selectedGuide.name : "Default"}</Text>
+              <Text style={styles.guideValue}>
+                {selectedGuide ? selectedGuide.name : "Default"}
+              </Text>
             </View>
-            
+
             <View style={styles.guideRow}>
               <View style={styles.guideIconContainer}>
                 <AntDesign name="clockcircleo" size={20} color="#666666" />
               </View>
               <Text style={styles.guideLabel}>Duration:</Text>
-              <Text style={styles.guideValue}>{selectedDuration ? selectedDuration.duration : "20 min"}</Text>
+              <Text style={styles.guideValue}>
+                {selectedDuration ? selectedDuration.duration : "20 min"}
+              </Text>
             </View>
-            
-            <TouchableOpacity
-              style={styles.changeSettingsButton}
-              onPress={goToSettings}
-            >
+
+            <TouchableOpacity style={styles.changeSettingsButton} onPress={goToSettings}>
               <Text style={styles.changeSettingsText}>Change Settings</Text>
               <AntDesign name="right" size={14} color="#666666" />
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-      
+
       {/* Start button */}
       <View style={styles.startButtonContainer}>
         <TouchableOpacity
           style={[
-            styles.startButton, 
-            { backgroundColor: getMysteryTheme(selectedMystery).primary }
+            styles.startButton,
+            { backgroundColor: getMysteryTheme(selectedMystery).primary },
           ]}
           onPress={startPraying}
           activeOpacity={0.8}
@@ -422,12 +485,12 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    color: "#666666",
   },
   header: {
     flexDirection: "row",

@@ -29,11 +29,7 @@ const Avatar: React.FC<AvatarProps> = ({ size = "md", imageUrl }) => {
       ]}
     >
       {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.avatarImage}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: imageUrl }} style={styles.avatarImage} resizeMode="cover" />
       ) : (
         <View style={styles.avatarPlaceholder}>
           <Feather name="user" size={selectedSize.icon} color="#FFFFFF" />

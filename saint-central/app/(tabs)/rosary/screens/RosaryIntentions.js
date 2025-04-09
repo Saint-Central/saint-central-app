@@ -31,8 +31,8 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../../../supabaseClient";
 import { BlurView } from "expo-blur";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 
 // Get device dimensions
 const { width, height } = Dimensions.get("window");
@@ -148,8 +148,8 @@ const parseSelectedGroups = (selected_groups) => {
   return [];
 };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
   const now = new Date();
   const diff = now - date;
   const day = 24 * 60 * 60 * 1000;
@@ -161,7 +161,7 @@ const parseSelectedGroups = (selected_groups) => {
   } else if (diff < 7 * day) {
     return `${Math.floor(diff / day)} days ago`;
   } else {
-    return date.toLocaleDateString(undefined, { 
+    return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -193,24 +193,19 @@ const IntentionCard = React.memo(
       inputRange: [0, 1],
       outputRange: [0, 1],
     });
-  
-  return (
-      <Animated.View
-        style={[
-          styles.intentionCard,
-          { opacity, transform: [{ translateY }] },
-        ]}
-      >
+
+    return (
+      <Animated.View style={[styles.intentionCard, { opacity, transform: [{ translateY }] }]}>
         <Pressable
           style={styles.intentionCardInner}
-        onPress={() => onPress(item)}
+          onPress={() => onPress(item)}
           android_ripple={{ color: "rgba(0,0,0,0.05)" }}
-      >
+        >
           <View style={styles.cardContent}>
             {/* Left side with icon */}
-        <LinearGradient
+            <LinearGradient
               colors={iconInfo.color}
-          start={{ x: 0, y: 0 }}
+              start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.cardIconContainer}
             >
@@ -220,10 +215,7 @@ const IntentionCard = React.memo(
             {/* Middle - title and description */}
             <View style={styles.cardTextContainer}>
               <Text
-                style={[
-                  styles.cardTitle,
-                  item.completed && styles.completedText,
-                ]}
+                style={[styles.cardTitle, item.completed && styles.completedText]}
                 numberOfLines={1}
               >
                 {item.title}
@@ -238,74 +230,44 @@ const IntentionCard = React.memo(
               <View style={styles.cardMetaRow}>
                 <View style={styles.visibilityContainer}>
                   {item.visibility === "Just Me" ? (
-                    <Ionicons
-                      name="lock-closed"
-                      size={10}
-                      color={theme.textTertiary}
-                    />
+                    <Ionicons name="lock-closed" size={10} color={theme.textTertiary} />
                   ) : item.visibility === "Friends" ? (
-                    <Ionicons
-                      name="people"
-                      size={10}
-                      color={theme.textTertiary}
-                    />
+                    <Ionicons name="people" size={10} color={theme.textTertiary} />
                   ) : item.visibility === "Friends & Groups" ? (
-                <FontAwesome5 
-                      name="globe"
-                      size={9}
-                      color={theme.textTertiary}
-                    />
+                    <FontAwesome5 name="globe" size={9} color={theme.textTertiary} />
                   ) : item.visibility === "Certain Groups" ? (
-                    <Ionicons
-                      name="people-circle"
-                      size={10}
-                      color={theme.textTertiary}
-                    />
+                    <Ionicons name="people-circle" size={10} color={theme.textTertiary} />
                   ) : (
-                    <Ionicons
-                      name="user-check"
-                      size={10}
-                      color={theme.textTertiary}
-                    />
+                    <Ionicons name="user-check" size={10} color={theme.textTertiary} />
                   )}
                   <Text style={styles.metaText}>{item.visibility}</Text>
-              </View>
+                </View>
 
                 <Text style={styles.metaText}>{formatDate(item.date)}</Text>
               </View>
             </View>
-            
+
             {/* Right side actions */}
             <View style={styles.cardActions}>
               <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  item.favorite && styles.actionButtonActive,
-                ]}
+                style={[styles.actionButton, item.favorite && styles.actionButtonActive]}
                 onPress={() => onToggleFavorite(item.id)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <AntDesign 
-                  name={item.favorite ? "heart" : "hearto"} 
+                <AntDesign
+                  name={item.favorite ? "heart" : "hearto"}
                   size={16}
                   color={item.favorite ? theme.error : theme.textTertiary}
                 />
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  item.completed && styles.actionButtonActive,
-                ]}
+                style={[styles.actionButton, item.completed && styles.actionButtonActive]}
                 onPress={() => onToggleCompleted(item.id)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons
-                  name={
-                    item.completed
-                      ? "checkmark-circle"
-                      : "checkmark-circle-outline"
-                  }
+                  name={item.completed ? "checkmark-circle" : "checkmark-circle-outline"}
                   size={16}
                   color={item.completed ? theme.success : theme.textTertiary}
                 />
@@ -315,7 +277,7 @@ const IntentionCard = React.memo(
         </Pressable>
       </Animated.View>
     );
-  }
+  },
 );
 
 // Type Option Item for the redesigned filter drawer
@@ -324,17 +286,11 @@ const TypeFilterItem = ({ type, isSelected, onSelect }) => {
   const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
 
   // Capitalize the label unless it's "all"
-  const label =
-    type === "all"
-      ? "All"
-      : type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  const label = type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
 
   return (
     <TouchableOpacity
-      style={[
-        styles.typeFilterItem,
-        isSelected && styles.typeFilterItemSelected,
-      ]}
+      style={[styles.typeFilterItem, isSelected && styles.typeFilterItemSelected]}
       onPress={() => onSelect(type)}
       activeOpacity={0.7}
     >
@@ -350,16 +306,11 @@ const TypeFilterItem = ({ type, isSelected, onSelect }) => {
           </LinearGradient>
         </View>
       )}
-          
-          <Text 
-            style={[
-          styles.typeFilterText,
-          isSelected && styles.typeFilterTextSelected,
-            ]}
-          >
+
+      <Text style={[styles.typeFilterText, isSelected && styles.typeFilterTextSelected]}>
         {label}
-          </Text>
-          
+      </Text>
+
       {isSelected && (
         <Ionicons
           name="checkmark"
@@ -375,24 +326,14 @@ const TypeFilterItem = ({ type, isSelected, onSelect }) => {
 // Sort Option for filter drawer
 const SortOption = ({ label, sortKey, currentSort, onSelect }) => (
   <TouchableOpacity
-    style={[
-      styles.sortOption,
-      currentSort === sortKey && styles.sortOptionSelected,
-    ]}
+    style={[styles.sortOption, currentSort === sortKey && styles.sortOptionSelected]}
     onPress={() => onSelect(sortKey)}
   >
-            <Text 
-              style={[
-        styles.sortOptionText,
-        currentSort === sortKey && styles.sortOptionTextSelected,
-              ]}
-            >
+    <Text style={[styles.sortOptionText, currentSort === sortKey && styles.sortOptionTextSelected]}>
       {label}
-            </Text>
+    </Text>
 
-    {currentSort === sortKey && (
-      <Ionicons name="checkmark" size={16} color={theme.primary} />
-    )}
+    {currentSort === sortKey && <Ionicons name="checkmark" size={16} color={theme.primary} />}
   </TouchableOpacity>
 );
 
@@ -402,33 +343,25 @@ const VisibilityOption = ({ option, selected, onSelect }) => {
 
   return (
     <TouchableOpacity
-      style={[
-        styles.visibilityOption,
-        selected && styles.visibilityOptionSelected,
-      ]}
+      style={[styles.visibilityOption, selected && styles.visibilityOptionSelected]}
       onPress={() => onSelect(option)}
       activeOpacity={0.7}
     >
       <View style={styles.visibilityOptionContent}>
-        <View
-          style={[
-            styles.visibilityIconContainer,
-            { backgroundColor: option.color + "15" },
-          ]}
-        >
+        <View style={[styles.visibilityIconContainer, { backgroundColor: option.color + "15" }]}>
           <IconComponent name={option.icon} size={18} color={option.color} />
-            </View>
-            
+        </View>
+
         <View style={styles.visibilityTextContainer}>
           <Text style={styles.visibilityLabel}>{option.label}</Text>
           <Text style={styles.visibilityDescription}>{option.description}</Text>
-          </View>
         </View>
+      </View>
 
       {selected && (
         <View style={styles.visibilitySelectedIndicator}>
           <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
-    </View>
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -438,16 +371,16 @@ const VisibilityOption = ({ option, selected, onSelect }) => {
 const TypeOption = ({ type, selected, onSelect }) => {
   const iconInfo = TYPE_ICONS[type] || TYPE_ICONS["other"];
   const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
-  
+
   return (
-      <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.typeOption, selected && styles.typeOptionSelected]}
       onPress={() => onSelect(type)}
       activeOpacity={0.7}
-      >
-        <LinearGradient
+    >
+      <LinearGradient
         colors={iconInfo.color}
-          start={{ x: 0, y: 0 }}
+        start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.typeOptionIconContainer}
       >
@@ -456,9 +389,7 @@ const TypeOption = ({ type, selected, onSelect }) => {
 
       <Text style={styles.typeOptionLabel}>{typeLabel}</Text>
 
-      {selected && (
-        <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
-      )}
+      {selected && <Ionicons name="checkmark-circle" size={20} color={theme.primary} />}
     </TouchableOpacity>
   );
 };
@@ -470,18 +401,11 @@ const GroupOption = ({ group, selected, onSelect }) => (
     onPress={() => onSelect(group.id)}
     activeOpacity={0.7}
   >
-    <Text
-      style={[
-        styles.groupOptionLabel,
-        selected && styles.groupOptionLabelSelected,
-      ]}
-    >
+    <Text style={[styles.groupOptionLabel, selected && styles.groupOptionLabelSelected]}>
       {group.name}
     </Text>
 
-    {selected && (
-      <Ionicons name="checkmark-circle" size={16} color={theme.primary} />
-    )}
+    {selected && <Ionicons name="checkmark-circle" size={16} color={theme.primary} />}
   </TouchableOpacity>
 );
 
@@ -495,32 +419,32 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
             activeTab === "completed"
               ? "checkmark-done-circle"
               : activeTab === "active"
-              ? "time-outline"
-              : "prayer"
+                ? "time-outline"
+                : "prayer"
           }
           size={56}
           color={theme.primary}
         />
-          </View>
-          
+      </View>
+
       <Text style={styles.emptyStateTitle}>
         {filterType
           ? `No ${activeTab === "completed" ? "completed" : ""} ${filterType} intentions found`
           : activeTab === "all"
-          ? "No intentions yet"
-          : activeTab === "active"
-          ? "No active intentions"
-          : "No completed intentions"}
+            ? "No intentions yet"
+            : activeTab === "active"
+              ? "No active intentions"
+              : "No completed intentions"}
       </Text>
 
       <Text style={styles.emptyStateDescription}>
         {filterType
           ? `Try changing filters or add a new ${filterType} intention`
           : activeTab === "all"
-          ? "Your prayer journey starts with your first intention"
-          : activeTab === "active"
-          ? "All your intentions are completed – great job!"
-          : "As you complete intentions, they'll appear here"}
+            ? "Your prayer journey starts with your first intention"
+            : activeTab === "active"
+              ? "All your intentions are completed – great job!"
+              : "As you complete intentions, they'll appear here"}
       </Text>
 
       {(activeTab === "all" || activeTab === "active") && (
@@ -536,7 +460,7 @@ const EmptyState = ({ filterType, activeTab, onAddIntention }) => {
           </LinearGradient>
         </TouchableOpacity>
       )}
-            </View>
+    </View>
   );
 };
 
@@ -577,7 +501,7 @@ const ToastNotification = ({ message, type, onDismiss }) => {
           color="white"
         />
         <Text style={styles.toastMessage}>{message}</Text>
-          </View>
+      </View>
     </Animated.View>
   );
 };
@@ -585,7 +509,7 @@ const ToastNotification = ({ message, type, onDismiss }) => {
 // Refresh Feedback Component
 const RefreshFeedback = ({ visible }) => {
   const translateY = useRef(new Animated.Value(-40)).current;
-  
+
   useEffect(() => {
     if (visible) {
       Animated.timing(translateY, {
@@ -601,20 +525,15 @@ const RefreshFeedback = ({ visible }) => {
       }).start();
     }
   }, [visible]);
-  
+
   if (!visible) return null;
-  
+
   return (
-    <Animated.View 
-      style={[
-        additionalStyles.refreshingOverlay,
-        { transform: [{ translateY }] }
-      ]}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <Animated.View style={[additionalStyles.refreshingOverlay, { transform: [{ translateY }] }]}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
         <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 8 }} />
         <Text style={additionalStyles.refreshingText}>Syncing intentions...</Text>
-        </View>
+      </View>
     </Animated.View>
   );
 };
@@ -622,27 +541,27 @@ const RefreshFeedback = ({ visible }) => {
 // Additional styles for refresh feedback
 const additionalStyles = StyleSheet.create({
   refreshingOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
     padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 1000,
   },
   refreshingText: {
     fontSize: 14,
     color: theme.textPrimary,
-    fontWeight: '500',
-  }
+    fontWeight: "500",
+  },
 });
 
 // Main Component
 export default function RosaryIntentions() {
   const router = useRouter();
-  
+
   // State variables
   const [intentions, setIntentions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -676,28 +595,28 @@ export default function RosaryIntentions() {
     selectedGroups: [],
     selectedFriends: [],
   });
-  
+
   const [editingIntention, setEditingIntention] = useState(null);
   const [userFriends, setUserFriends] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
-  
+
   // Reference to store the Supabase subscription
   const supabaseSubscription = useRef(null);
 
   // Check authentication on mount and setup real-time subscription
   useEffect(() => {
     checkAuth();
-    
+
     // Setup network listener to handle offline/online transitions
-    const unsubscribeNetInfo = NetInfo.addEventListener(state => {
+    const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
       setIsOnline(state.isConnected);
-      
+
       // If coming back online, refresh data
       if (state.isConnected && currentUserId) {
         loadIntentions(currentUserId);
       }
     });
-    
+
     // Cleanup subscription when component unmounts
     return () => {
       if (supabaseSubscription.current) {
@@ -706,7 +625,7 @@ export default function RosaryIntentions() {
       unsubscribeNetInfo();
     };
   }, []);
-  
+
   // Setup subscription when user ID changes
   useEffect(() => {
     if (currentUserId) {
@@ -737,10 +656,10 @@ export default function RosaryIntentions() {
           duration: 1200,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, []);
-  
+
   // Cleanup notification after timeout
   useEffect(() => {
     if (notification) {
@@ -750,11 +669,13 @@ export default function RosaryIntentions() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-  
+
   // Setup real-time subscription to listen for changes to the intentions table
   const setupRealtimeSubscription = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Clean up any existing subscription
@@ -764,54 +685,53 @@ export default function RosaryIntentions() {
 
       // Set up new subscription
       supabaseSubscription.current = supabase
-        .channel('intentions_changes')
+        .channel("intentions_changes")
         .on(
-          'postgres_changes',
+          "postgres_changes",
           {
-            event: '*',
-            schema: 'public',
-            table: 'intentions',
+            event: "*",
+            schema: "public",
+            table: "intentions",
             filter: `user_id=eq.${user.id}`,
           },
           async (payload) => {
             try {
               switch (payload.eventType) {
-                case 'INSERT':
+                case "INSERT":
                   await handleNewIntention(payload.new);
                   break;
-                case 'UPDATE':
+                case "UPDATE":
                   await handleUpdatedIntention(payload.new);
                   break;
-                case 'DELETE':
+                case "DELETE":
                   await handleDeletedIntention(payload.old);
                   break;
               }
             } catch (error) {
-              console.error('Error handling real-time update:', error);
+              console.error("Error handling real-time update:", error);
               setNotification({
                 message: "Error processing real-time update",
-                type: "error"
+                type: "error",
               });
             }
-          }
+          },
         )
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to intentions changes');
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('Error subscribing to intentions changes');
+          if (status === "SUBSCRIBED") {
+            console.log("Successfully subscribed to intentions changes");
+          } else if (status === "CHANNEL_ERROR") {
+            console.error("Error subscribing to intentions changes");
             setNotification({
               message: "Error subscribing to real-time updates",
-              type: "error"
+              type: "error",
             });
           }
         });
-
     } catch (error) {
-      console.error('Error setting up real-time subscription:', error);
+      console.error("Error setting up real-time subscription:", error);
       setNotification({
         message: "Error setting up real-time updates",
-        type: "error"
+        type: "error",
       });
     }
   };
@@ -822,16 +742,16 @@ export default function RosaryIntentions() {
       // Get current user session to check if this is the creator
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
-      
+
       // Determine if this intention should be visible to current user
       const shouldBeVisible = await checkIntentionVisibility(newIntention, userId);
-      
+
       if (!shouldBeVisible) return;
-      
+
       // Check if this intention is already in our state
       const exists = intentions.some((i) => i.id === newIntention.id.toString());
       if (exists) return;
-      
+
       // Format the intention for our state
       const formattedIntention = {
         id: newIntention.id.toString(),
@@ -848,24 +768,27 @@ export default function RosaryIntentions() {
         selectedFriends: parseSelectedGroups(newIntention.selected_friends),
         user_id: newIntention.user_id, // Make sure to include the user_id
       };
-      
+
       // Add to state
-      setIntentions(prev => [formattedIntention, ...prev]);
-      
+      setIntentions((prev) => [formattedIntention, ...prev]);
+
       // Save to local storage for offline access
       try {
-        const existingIntentions = await AsyncStorage.getItem('cachedIntentions');
+        const existingIntentions = await AsyncStorage.getItem("cachedIntentions");
         const parsedIntentions = existingIntentions ? JSON.parse(existingIntentions) : [];
-        await AsyncStorage.setItem('cachedIntentions', JSON.stringify([formattedIntention, ...parsedIntentions]));
+        await AsyncStorage.setItem(
+          "cachedIntentions",
+          JSON.stringify([formattedIntention, ...parsedIntentions]),
+        );
       } catch (error) {
-        console.error('Error saving intention to local storage:', error);
+        console.error("Error saving intention to local storage:", error);
       }
-      
+
       // Provide feedback if the intention was created by someone else
       if (newIntention.user_id !== userId) {
         setNotification({
           message: "New intention added",
-          type: "success"
+          type: "success",
         });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -880,10 +803,10 @@ export default function RosaryIntentions() {
       // Get current user session
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
-      
+
       // Determine if this intention should be visible to current user
       const shouldBeVisible = await checkIntentionVisibility(updatedIntention, userId);
-      
+
       // Format the intention for our state
       const formattedIntention = {
         id: updatedIntention.id.toString(),
@@ -900,41 +823,45 @@ export default function RosaryIntentions() {
         selectedFriends: parseSelectedGroups(updatedIntention.selected_friends),
         user_id: updatedIntention.user_id, // Make sure to include the user_id
       };
-      
+
       // Update in AsyncStorage regardless of visibility
       try {
-        const existingIntentions = await AsyncStorage.getItem('cachedIntentions');
+        const existingIntentions = await AsyncStorage.getItem("cachedIntentions");
         if (existingIntentions) {
           const parsedIntentions = JSON.parse(existingIntentions);
-          const updatedIntentions = parsedIntentions.map(item => 
-            item.id === formattedIntention.id ? formattedIntention : item
+          const updatedIntentions = parsedIntentions.map((item) =>
+            item.id === formattedIntention.id ? formattedIntention : item,
           );
-          await AsyncStorage.setItem('cachedIntentions', JSON.stringify(updatedIntentions));
+          await AsyncStorage.setItem("cachedIntentions", JSON.stringify(updatedIntentions));
         }
       } catch (error) {
-        console.error('Error updating intention in local storage:', error);
+        console.error("Error updating intention in local storage:", error);
       }
-      
+
       // If intention is visible, update in state
       if (shouldBeVisible) {
-        setIntentions(prev => 
-          prev.map((item) => (item.id === formattedIntention.id ? formattedIntention : item))
+        setIntentions((prev) =>
+          prev.map((item) => (item.id === formattedIntention.id ? formattedIntention : item)),
         );
-        
+
         // If this was updated by someone else and it's a completion status change
-        if (updatedIntention.user_id !== userId && 
-            intentions.some(i => i.id === formattedIntention.id && i.completed !== formattedIntention.completed)) {
+        if (
+          updatedIntention.user_id !== userId &&
+          intentions.some(
+            (i) => i.id === formattedIntention.id && i.completed !== formattedIntention.completed,
+          )
+        ) {
           setNotification({
-            message: formattedIntention.completed ? 
-              "An intention was marked as completed" : 
-              "An intention was reopened",
-            type: "success"
+            message: formattedIntention.completed
+              ? "An intention was marked as completed"
+              : "An intention was reopened",
+            type: "success",
           });
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       } else {
         // Remove from state if it's no longer visible to this user
-        setIntentions(prev => prev.filter((item) => item.id !== formattedIntention.id));
+        setIntentions((prev) => prev.filter((item) => item.id !== formattedIntention.id));
       }
     } catch (error) {
       console.error("Error handling updated intention:", error);
@@ -945,36 +872,40 @@ export default function RosaryIntentions() {
   const handleDeletedIntention = async (deletedIntention) => {
     try {
       // Remove the intention from our state
-      setIntentions(prev => prev.filter((item) => item.id !== deletedIntention.id.toString()));
-      
+      setIntentions((prev) => prev.filter((item) => item.id !== deletedIntention.id.toString()));
+
       // Remove from AsyncStorage
       try {
-        const existingIntentions = await AsyncStorage.getItem('cachedIntentions');
+        const existingIntentions = await AsyncStorage.getItem("cachedIntentions");
         if (existingIntentions) {
           const parsedIntentions = JSON.parse(existingIntentions);
-          const filteredIntentions = parsedIntentions.filter(item => 
-            item.id !== deletedIntention.id.toString()
+          const filteredIntentions = parsedIntentions.filter(
+            (item) => item.id !== deletedIntention.id.toString(),
           );
-          await AsyncStorage.setItem('cachedIntentions', JSON.stringify(filteredIntentions));
+          await AsyncStorage.setItem("cachedIntentions", JSON.stringify(filteredIntentions));
         }
       } catch (error) {
-        console.error('Error removing intention from local storage:', error);
+        console.error("Error removing intention from local storage:", error);
       }
-      
+
       // If we are currently editing this intention, close the modal
-      if (showEditModal && editingIntention && editingIntention.id === deletedIntention.id.toString()) {
+      if (
+        showEditModal &&
+        editingIntention &&
+        editingIntention.id === deletedIntention.id.toString()
+      ) {
         setShowEditModal(false);
         setEditingIntention(null);
       }
-      
+
       // Notify if it wasn't deleted by the current user
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
-      
+
       if (deletedIntention.user_id !== userId) {
         setNotification({
           message: "An intention was removed",
-          type: "info"
+          type: "info",
         });
       }
     } catch (error) {
@@ -987,13 +918,13 @@ export default function RosaryIntentions() {
     try {
       // Own intentions are always visible
       if (intention.user_id === userId) return true;
-      
+
       // Based on visibility setting, check if user should see this
       switch (intention.visibility) {
         case "Just Me":
           // Only visible to creator
           return false;
-          
+
         case "Friends":
           // Check if user is friends with the creator
           const { data: sentFriends } = await supabase
@@ -1002,35 +933,35 @@ export default function RosaryIntentions() {
             .eq("user_id_1", userId)
             .eq("user_id_2", intention.user_id)
             .eq("status", "accepted");
-            
+
           const { data: receivedFriends } = await supabase
             .from("friends")
             .select("user_id_1")
             .eq("user_id_2", userId)
             .eq("user_id_1", intention.user_id)
             .eq("status", "accepted");
-            
-          return (sentFriends && sentFriends.length > 0) || 
-                 (receivedFriends && receivedFriends.length > 0);
-        
+
+          return (
+            (sentFriends && sentFriends.length > 0) ||
+            (receivedFriends && receivedFriends.length > 0)
+          );
+
         case "Certain Groups":
           // Check if user is in any of the selected groups
           const selectedGroups = parseSelectedGroups(intention.selected_groups);
-          
+
           if (!selectedGroups || selectedGroups.length === 0) return false;
-          
+
           const { data: userGroups } = await supabase
             .from("group_members")
             .select("group_id")
             .eq("user_id", userId);
-            
+
           if (!userGroups || userGroups.length === 0) return false;
-          
-          const userGroupIds = userGroups.map(g => g.group_id);
-          return selectedGroups.some(groupId => 
-            userGroupIds.includes(Number(groupId))
-          );
-          
+
+          const userGroupIds = userGroups.map((g) => g.group_id);
+          return selectedGroups.some((groupId) => userGroupIds.includes(Number(groupId)));
+
         case "Friends & Groups":
           // Check if user is friends with creator
           const { data: areFriends1 } = await supabase
@@ -1039,44 +970,41 @@ export default function RosaryIntentions() {
             .eq("user_id_1", userId)
             .eq("user_id_2", intention.user_id)
             .eq("status", "accepted");
-            
+
           const { data: areFriends2 } = await supabase
             .from("friends")
             .select("user_id_1")
             .eq("user_id_2", userId)
             .eq("user_id_1", intention.user_id)
             .eq("status", "accepted");
-            
-          if ((areFriends1 && areFriends1.length > 0) || 
-              (areFriends2 && areFriends2.length > 0)) {
+
+          if ((areFriends1 && areFriends1.length > 0) || (areFriends2 && areFriends2.length > 0)) {
             return true;
           }
-          
+
           // Check if user is in same group as creator
           const { data: creatorGroups } = await supabase
             .from("group_members")
             .select("group_id")
             .eq("user_id", intention.user_id);
-            
+
           const { data: currentUserGroups } = await supabase
             .from("group_members")
             .select("group_id")
             .eq("user_id", userId);
-            
+
           if (!creatorGroups || !currentUserGroups) return false;
-          
-          const creatorGroupIds = creatorGroups.map(g => g.group_id);
-          const currentUserGroupIds = currentUserGroups.map(g => g.group_id);
-          
-          return creatorGroupIds.some(groupId => 
-            currentUserGroupIds.includes(groupId)
-          );
-          
+
+          const creatorGroupIds = creatorGroups.map((g) => g.group_id);
+          const currentUserGroupIds = currentUserGroups.map((g) => g.group_id);
+
+          return creatorGroupIds.some((groupId) => currentUserGroupIds.includes(groupId));
+
         case "Certain Friends":
           // Check if user is in the selected friends list
           const selectedFriends = intention.selected_friends || [];
           return selectedFriends.includes(userId);
-        
+
         default:
           return false;
       }
@@ -1096,24 +1024,21 @@ export default function RosaryIntentions() {
         setCurrentUserId(user.id);
         await fetchUserGroups(user.id);
         await loadIntentions(user.id);
-        
+
         // Check if we had an active subscription before
         try {
-          const wasSubscribed = await AsyncStorage.getItem('intentionsSubscriptionActive');
-          if (wasSubscribed === 'true') {
+          const wasSubscribed = await AsyncStorage.getItem("intentionsSubscriptionActive");
+          if (wasSubscribed === "true") {
             // Setup real-time subscription immediately
             setupRealtimeSubscription();
           }
         } catch (error) {
-          console.error('Error checking subscription status:', error);
+          console.error("Error checking subscription status:", error);
           // Setup subscription anyway
           setupRealtimeSubscription();
         }
       } else {
-        Alert.alert(
-          "Authentication Required",
-          "Please log in to manage your prayer intentions"
-        );
+        Alert.alert("Authentication Required", "Please log in to manage your prayer intentions");
         // router.push("/login");
       }
     } catch (error) {
@@ -1122,48 +1047,48 @@ export default function RosaryIntentions() {
       setIsLoading(false);
     }
   };
-  
+
   // Pull-to-refresh function
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    
+
     try {
       // Vibrate to give tactile feedback that refresh has started
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       // Check online status
       const netInfo = await NetInfo.fetch();
-      
+
       if (netInfo.isConnected) {
         // If online, reload intentions from server
         if (currentUserId) {
           await loadIntentions(currentUserId);
         }
-        
+
         // Reconnect subscription if needed
         if (!supabaseSubscription.current) {
           setupRealtimeSubscription();
         }
-        
+
         // Show success toast after 1 second
         setTimeout(() => {
           setNotification({
             message: "Intentions refreshed successfully",
-            type: "success"
+            type: "success",
           });
         }, 1000);
       } else {
         // If offline, show a message
         setNotification({
           message: "You're offline. Using cached data.",
-          type: "info"
+          type: "info",
         });
       }
     } catch (error) {
       console.error("Error during refresh:", error);
       setNotification({
         message: "Failed to refresh data",
-        type: "error"
+        type: "error",
       });
     } finally {
       // Give a slight delay so the user can see the spinner and feedback
@@ -1180,9 +1105,9 @@ export default function RosaryIntentions() {
         .from("group_members")
         .select("group:groups(*)")
         .eq("user_id", userId);
-      
+
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         const groups = data.map((item) => item.group);
         setUserGroups(groups);
@@ -1191,25 +1116,25 @@ export default function RosaryIntentions() {
       console.error("Error fetching user groups:", error);
     }
   };
-  
+
   // Load intentions function with offline support
   const loadIntentions = async (userId) => {
     try {
       setIsLoading(true);
-      
+
       // Check if we're online
       const netInfo = await NetInfo.fetch();
       if (!netInfo.isConnected) {
         // Load from AsyncStorage if offline
         try {
-          const cachedIntentions = await AsyncStorage.getItem('cachedIntentions');
+          const cachedIntentions = await AsyncStorage.getItem("cachedIntentions");
           if (cachedIntentions) {
             setIntentions(JSON.parse(cachedIntentions));
           }
           setIsLoading(false);
           return;
         } catch (error) {
-          console.error('Error loading cached intentions:', error);
+          console.error("Error loading cached intentions:", error);
         }
       }
 
@@ -1251,9 +1176,9 @@ export default function RosaryIntentions() {
         .from("intentions")
         .select("*")
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         // Filter intentions based on visibility settings
         const filteredData = await Promise.all(
@@ -1274,7 +1199,7 @@ export default function RosaryIntentions() {
 
               case "Friends":
                 // Visible to creator and friends
-                return (item.user_id === userId || friendIds.has(item.user_id)) ? item : null;
+                return item.user_id === userId || friendIds.has(item.user_id) ? item : null;
 
               case "Certain Groups":
                 // Visible to creator and members of selected groups
@@ -1286,8 +1211,8 @@ export default function RosaryIntentions() {
                 }
 
                 // Check if user is in any of the selected groups
-                const isInSelectedGroup = selectedGroups.some((groupId) => 
-                  userGroupIds.includes(Number(groupId))
+                const isInSelectedGroup = selectedGroups.some((groupId) =>
+                  userGroupIds.includes(Number(groupId)),
                 );
                 return isInSelectedGroup ? item : null;
 
@@ -1308,8 +1233,10 @@ export default function RosaryIntentions() {
                   return null;
                 }
 
-                const creatorGroupIds = creatorGroups.map(g => g.group_id);
-                const isInSameGroup = userGroupIds.some(groupId => creatorGroupIds.includes(groupId));
+                const creatorGroupIds = creatorGroups.map((g) => g.group_id);
+                const isInSameGroup = userGroupIds.some((groupId) =>
+                  creatorGroupIds.includes(groupId),
+                );
                 return isInSameGroup ? item : null;
 
               case "Certain Friends":
@@ -1320,35 +1247,35 @@ export default function RosaryIntentions() {
               default:
                 return null;
             }
-          })
+          }),
         );
 
         // Remove null values and format the data
         const formattedData = filteredData
-          .filter(item => item !== null)
+          .filter((item) => item !== null)
           .map((item) => ({
-          id: item.id.toString(),
-          title: item.title,
-          description: item.description,
+            id: item.id.toString(),
+            title: item.title,
+            description: item.description,
             type: item.type || "prayer",
-          date: item.created_at,
+            date: item.created_at,
             completed: item.completed || false,
             favorite: item.favorite || false,
             visibility: item.visibility || "Just Me",
-          selected_groups: item.selected_groups,
-          selectedGroups: parseSelectedGroups(item.selected_groups),
+            selected_groups: item.selected_groups,
+            selectedGroups: parseSelectedGroups(item.selected_groups),
             selected_friends: item.selected_friends,
             selectedFriends: parseSelectedGroups(item.selected_friends),
             user_id: item.user_id, // Make sure to include the user_id
-        }));
-        
+          }));
+
         setIntentions(formattedData);
-        
+
         // Cache intentions for offline use
         try {
-          await AsyncStorage.setItem('cachedIntentions', JSON.stringify(formattedData));
+          await AsyncStorage.setItem("cachedIntentions", JSON.stringify(formattedData));
         } catch (error) {
-          console.error('Error caching intentions:', error);
+          console.error("Error caching intentions:", error);
         }
       } else {
         setIntentions([]);
@@ -1359,21 +1286,21 @@ export default function RosaryIntentions() {
         message: "Failed to load intentions",
         type: "error",
       });
-      
+
       // Try to load from cache if online load fails
       try {
-        const cachedIntentions = await AsyncStorage.getItem('cachedIntentions');
+        const cachedIntentions = await AsyncStorage.getItem("cachedIntentions");
         if (cachedIntentions) {
           setIntentions(JSON.parse(cachedIntentions));
         }
       } catch (cacheError) {
-        console.error('Error loading cached intentions after online failure:', cacheError);
+        console.error("Error loading cached intentions after online failure:", cacheError);
       }
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   // Create new intention function
   const handleCreateIntention = async () => {
     if (!newIntention.title.trim()) {
@@ -1383,15 +1310,15 @@ export default function RosaryIntentions() {
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      
+
       // Prepare intention data for Supabase
       const intentionData = {
         user_id: user.id,
@@ -1401,19 +1328,18 @@ export default function RosaryIntentions() {
         completed: newIntention.completed,
         favorite: newIntention.favorite,
         visibility: newIntention.visibility,
-        selected_groups: newIntention.visibility === "Certain Groups" ? newIntention.selectedGroups : [],
-        selected_friends: newIntention.visibility === "Certain Friends" ? newIntention.selectedFriends : [],
+        selected_groups:
+          newIntention.visibility === "Certain Groups" ? newIntention.selectedGroups : [],
+        selected_friends:
+          newIntention.visibility === "Certain Friends" ? newIntention.selectedFriends : [],
         created_at: new Date().toISOString(),
       };
-      
+
       // Insert into Supabase
-      const { data, error } = await supabase
-        .from("intentions")
-        .insert(intentionData)
-        .select();
-      
+      const { data, error } = await supabase.from("intentions").insert(intentionData).select();
+
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         // Format the new intention for our state
         const newItem = {
@@ -1431,10 +1357,10 @@ export default function RosaryIntentions() {
           selectedFriends: parseSelectedGroups(data[0].selected_friends),
           user_id: data[0].user_id,
         };
-        
+
         // Update state
         setIntentions([newItem, ...intentions]);
-        
+
         // Reset form and close modal
         setNewIntention({
           title: "",
@@ -1447,7 +1373,7 @@ export default function RosaryIntentions() {
           selectedFriends: [],
         });
         setShowAddModal(false);
-        
+
         // Success feedback
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setNotification({
@@ -1465,7 +1391,7 @@ export default function RosaryIntentions() {
       setIsLoading(false);
     }
   };
-  
+
   // Edit intention function
   const startEditIntention = (intention) => {
     let parsedGroups = [];
@@ -1474,24 +1400,20 @@ export default function RosaryIntentions() {
         try {
           parsedGroups = JSON.parse(intention.selected_groups);
         } catch (e) {
-          parsedGroups = intention.selected_groups
-            .split(",")
-            .map((id) => id.trim());
+          parsedGroups = intention.selected_groups.split(",").map((id) => id.trim());
         }
       } else if (Array.isArray(intention.selected_groups)) {
         parsedGroups = intention.selected_groups;
       }
     }
-    
+
     let parsedFriends = [];
     if (intention.selected_friends) {
       if (typeof intention.selected_friends === "string") {
         try {
           parsedFriends = JSON.parse(intention.selected_friends);
         } catch (e) {
-          parsedFriends = intention.selected_friends
-            .split(",")
-            .map((id) => id.trim());
+          parsedFriends = intention.selected_friends.split(",").map((id) => id.trim());
         }
       } else if (Array.isArray(intention.selected_friends)) {
         parsedFriends = intention.selected_friends;
@@ -1505,7 +1427,7 @@ export default function RosaryIntentions() {
     });
     setShowEditModal(true);
   };
-  
+
   // Update intention function
   const updateIntention = async () => {
     if (!editingIntention.title.trim()) {
@@ -1515,10 +1437,10 @@ export default function RosaryIntentions() {
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       const intentionData = {
         title: editingIntention.title,
         description: editingIntention.description,
@@ -1526,17 +1448,19 @@ export default function RosaryIntentions() {
         completed: editingIntention.completed,
         favorite: editingIntention.favorite,
         visibility: editingIntention.visibility,
-        selected_groups: editingIntention.visibility === "Certain Groups" ? editingIntention.selectedGroups : [],
-        selected_friends: editingIntention.visibility === "Certain Friends" ? editingIntention.selectedFriends : [],
+        selected_groups:
+          editingIntention.visibility === "Certain Groups" ? editingIntention.selectedGroups : [],
+        selected_friends:
+          editingIntention.visibility === "Certain Friends" ? editingIntention.selectedFriends : [],
       };
-      
+
       const { error } = await supabase
         .from("intentions")
         .update(intentionData)
         .eq("id", editingIntention.id);
-      
+
       if (error) throw error;
-      
+
       const updatedIntention = {
         ...editingIntention,
         selected_groups: intentionData.selected_groups,
@@ -1546,14 +1470,12 @@ export default function RosaryIntentions() {
       };
 
       setIntentions((prev) =>
-        prev.map((item) =>
-          item.id === updatedIntention.id ? updatedIntention : item
-        )
+        prev.map((item) => (item.id === updatedIntention.id ? updatedIntention : item)),
       );
-      
+
       setShowEditModal(false);
       setEditingIntention(null);
-      
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setNotification({
         message: "Prayer intention updated successfully",
@@ -1569,48 +1491,48 @@ export default function RosaryIntentions() {
       setIsLoading(false);
     }
   };
-  
+
   // Delete intention function
   const deleteIntention = (intentionId) => {
     Alert.alert("Delete Intention", "Are you sure you want to delete this prayer intention?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              
-              const { error } = await supabase
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            setIsLoading(true);
+
+            const { error } = await supabase
               .from("intentions")
-                .delete()
+              .delete()
               .eq("id", intentionId)
               .eq("user_id", currentUserId);
-              
-              if (error) throw error;
-              
+
+            if (error) throw error;
+
             const updatedIntentions = intentions.filter((item) => item.id !== intentionId);
-              setIntentions(updatedIntentions);
-              
-              if (showEditModal && editingIntention && editingIntention.id === intentionId) {
-                setShowEditModal(false);
-                setEditingIntention(null);
-              }
-              
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              setNotification({
+            setIntentions(updatedIntentions);
+
+            if (showEditModal && editingIntention && editingIntention.id === intentionId) {
+              setShowEditModal(false);
+              setEditingIntention(null);
+            }
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setNotification({
               message: "Prayer intention deleted successfully",
               type: "success",
-              });
-            } catch (error) {
-              console.error("Failed to delete intention:", error);
-              setNotification({
+            });
+          } catch (error) {
+            console.error("Failed to delete intention:", error);
+            setNotification({
               message: "Failed to delete intention",
               type: "error",
-              });
-            } finally {
-              setIsLoading(false);
-            }
-          },
+            });
+          } finally {
+            setIsLoading(false);
+          }
+        },
         style: "destructive",
       },
     ]);
@@ -1621,9 +1543,9 @@ export default function RosaryIntentions() {
     try {
       const intention = intentions.find((item) => item.id === intentionId);
       if (!intention) return;
-      
+
       const newCompletedStatus = !intention.completed;
-      
+
       // Update local state
       const updatedIntentions = intentions.map((item) => {
         if (item.id === intentionId) {
@@ -1631,10 +1553,10 @@ export default function RosaryIntentions() {
         }
         return item;
       });
-      
+
       setIntentions(updatedIntentions);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       // Update in database
       await supabase
         .from("intentions")
@@ -1649,15 +1571,15 @@ export default function RosaryIntentions() {
       });
     }
   };
-  
+
   // Toggle favorite function
   const toggleFavorite = async (intentionId) => {
     try {
       const intention = intentions.find((item) => item.id === intentionId);
       if (!intention) return;
-      
+
       const newFavoriteStatus = !intention.favorite;
-      
+
       // Update local state
       const updatedIntentions = intentions.map((item) => {
         if (item.id === intentionId) {
@@ -1665,10 +1587,10 @@ export default function RosaryIntentions() {
         }
         return item;
       });
-      
+
       setIntentions(updatedIntentions);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       // Update in database
       await supabase
         .from("intentions")
@@ -1683,7 +1605,7 @@ export default function RosaryIntentions() {
       });
     }
   };
-  
+
   // Group selection toggles
   const toggleGroupSelection = (groupId) => {
     if (newIntention.selectedGroups.includes(groupId)) {
@@ -1698,7 +1620,7 @@ export default function RosaryIntentions() {
       });
     }
   };
-  
+
   const toggleEditGroupSelection = (groupId) => {
     if (!editingIntention) return;
     const currentSelected = editingIntention.selectedGroups || [];
@@ -1725,7 +1647,7 @@ export default function RosaryIntentions() {
       filtered = filtered.filter(
         (item) =>
           item.title.toLowerCase().includes(query) ||
-          (item.description && item.description.toLowerCase().includes(query))
+          (item.description && item.description.toLowerCase().includes(query)),
       );
     }
 
@@ -1759,10 +1681,10 @@ export default function RosaryIntentions() {
     const active = intentions.filter((i) => !i.completed).length;
     const completed = intentions.filter((i) => i.completed).length;
     const favorites = intentions.filter((i) => i.favorite).length;
-    
+
     return { total, active, completed, favorites };
   };
-  
+
   // Add button scale animation
   const addButtonScale = addButtonAnimation.interpolate({
     inputRange: [0, 0.5, 1],
@@ -1812,8 +1734,8 @@ export default function RosaryIntentions() {
               <TouchableOpacity style={styles.headerButton} onPress={toggleSearchBar}>
                 <Ionicons name="search" size={22} color="white" />
               </TouchableOpacity>
-              
-                <TouchableOpacity
+
+              <TouchableOpacity
                 style={styles.headerButton}
                 onPress={() => setShowFilterDrawer(true)}
               >
@@ -1826,12 +1748,12 @@ export default function RosaryIntentions() {
                       : "white"
                   }
                 />
-                </TouchableOpacity>
+              </TouchableOpacity>
             </View>
           </View>
-          
+
           <Animated.View
-                style={[
+            style={[
               styles.searchBarContainer,
               {
                 maxHeight: searchBarAnim.interpolate({
@@ -1857,12 +1779,12 @@ export default function RosaryIntentions() {
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
-              <TouchableOpacity
+                <TouchableOpacity
                   style={styles.clearSearchButton}
                   onPress={() => setSearchQuery("")}
                 >
                   <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
-              </TouchableOpacity>
+                </TouchableOpacity>
               )}
             </View>
           </Animated.View>
@@ -1878,8 +1800,8 @@ export default function RosaryIntentions() {
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{getStats().active}</Text>
               <Text style={styles.statLabel}>Active</Text>
-          </View>
-          
+            </View>
+
             <View style={styles.statDivider} />
 
             <View style={styles.statItem}>
@@ -1899,45 +1821,41 @@ export default function RosaryIntentions() {
 
       {/* Status Tabs */}
       <View style={styles.tabsContainer}>
-              <TouchableOpacity
+        <TouchableOpacity
           style={[styles.tab, activeTab === "all" && styles.activeTab]}
-                onPress={() => {
+          onPress={() => {
             setActiveTab("all");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-          <Text style={[styles.tabText, activeTab === "all" && styles.activeTabText]}>
-            All
-          </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === "all" && styles.activeTabText]}>All</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tab, activeTab === "active" && styles.activeTab]}
-                onPress={() => {
+          onPress={() => {
             setActiveTab("active");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
           <Text style={[styles.tabText, activeTab === "active" && styles.activeTabText]}>
             Active
           </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tab, activeTab === "completed" && styles.activeTab]}
-                onPress={() => {
+          onPress={() => {
             setActiveTab("completed");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-          <Text
-            style={[styles.tabText, activeTab === "completed" && styles.activeTabText]}
-          >
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === "completed" && styles.activeTabText]}>
             Completed
           </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   // COMPLETELY REDESIGNED: Main content with list
@@ -2016,10 +1934,8 @@ export default function RosaryIntentions() {
     });
 
     return (
-      <Animated.View
-        style={[styles.filterDrawerContainer, { transform: [{ translateX }] }]}
-      >
-            <TouchableOpacity 
+      <Animated.View style={[styles.filterDrawerContainer, { transform: [{ translateX }] }]}>
+        <TouchableOpacity
           style={styles.filterDrawerOverlay}
           activeOpacity={1}
           onPress={() => setShowFilterDrawer(false)}
@@ -2034,7 +1950,7 @@ export default function RosaryIntentions() {
               <Ionicons name="close" size={22} color={theme.textPrimary} />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.filterDrawerContent}>
             {/* Filter by Type */}
             <View style={styles.filterSection}>
@@ -2145,8 +2061,8 @@ export default function RosaryIntentions() {
                   setFilterType(filterType === selectedType ? null : selectedType);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
-                  />
-                </View>
+              />
+            </View>
 
             {/* Sort By */}
             <View style={styles.filterSection}>
@@ -2183,8 +2099,8 @@ export default function RosaryIntentions() {
               />
             </View>
           </ScrollView>
-          
-            <TouchableOpacity
+
+          <TouchableOpacity
             style={styles.applyFiltersButton}
             onPress={() => setShowFilterDrawer(false)}
           >
@@ -2196,18 +2112,16 @@ export default function RosaryIntentions() {
             >
               <Text style={styles.applyFiltersButtonText}>Apply Filters</Text>
             </LinearGradient>
-            </TouchableOpacity>
+          </TouchableOpacity>
         </View>
       </Animated.View>
     );
   };
-            
+
   // Add button
   const renderAddButton = () => (
-    <Animated.View
-      style={[styles.addButtonContainer, { transform: [{ scale: addButtonScale }] }]}
-    >
-            <TouchableOpacity
+    <Animated.View style={[styles.addButtonContainer, { transform: [{ scale: addButtonScale }] }]}>
+      <TouchableOpacity
         style={styles.addButton}
         onPress={() => {
           setNewIntention({
@@ -2233,10 +2147,10 @@ export default function RosaryIntentions() {
         >
           <Ionicons name="add" size={24} color="white" />
         </LinearGradient>
-            </TouchableOpacity>
+      </TouchableOpacity>
     </Animated.View>
   );
-  
+
   // Add modal
   const renderAddModal = () => (
     <Modal
@@ -2254,20 +2168,18 @@ export default function RosaryIntentions() {
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>New Prayer Intention</Text>
-                    <TouchableOpacity
+            <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowAddModal(false)}
             >
               <Ionicons name="close" size={22} color={theme.textSecondary} />
-                    </TouchableOpacity>
+            </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalBody}>
             {/* Type Selection */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>
-                Type
-              </Text>
+              <Text style={styles.formLabel}>Type</Text>
               <View style={styles.typeOptionsGrid}>
                 {Object.keys(TYPE_ICONS).map((type) => (
                   <TypeOption
@@ -2279,15 +2191,15 @@ export default function RosaryIntentions() {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
                   />
-                  ))}
-                </View>
+                ))}
               </View>
-              
+            </View>
+
             {/* Title Input */}
-              <View style={styles.formGroup}>
+            <View style={styles.formGroup}>
               <Text style={styles.formLabel}>
                 Title <Text style={styles.requiredIndicator}>*</Text>
-                    </Text>
+              </Text>
               <TextInput
                 style={styles.formInput}
                 placeholder="What is your prayer intention?"
@@ -2296,7 +2208,7 @@ export default function RosaryIntentions() {
                 onChangeText={(text) => setNewIntention({ ...newIntention, title: text })}
                 maxLength={100}
               />
-                  </View>
+            </View>
 
             {/* Description Input */}
             <View style={styles.formGroup}>
@@ -2308,9 +2220,7 @@ export default function RosaryIntentions() {
                 placeholder="Add details about your intention..."
                 placeholderTextColor={theme.textTertiary}
                 value={newIntention.description}
-                onChangeText={(text) =>
-                  setNewIntention({ ...newIntention, description: text })
-                }
+                onChangeText={(text) => setNewIntention({ ...newIntention, description: text })}
                 multiline={true}
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -2321,19 +2231,19 @@ export default function RosaryIntentions() {
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Visibility</Text>
               <View style={styles.visibilityOptionsContainer}>
-                    {VISIBILITY_OPTIONS.map((option) => (
+                {VISIBILITY_OPTIONS.map((option) => (
                   <VisibilityOption
                     key={option.id}
                     option={option}
                     selected={newIntention.visibility === option.label}
                     onSelect={(selectedOption) => {
-                          setNewIntention({
-                            ...newIntention,
+                      setNewIntention({
+                        ...newIntention,
                         visibility: selectedOption.label,
-                            selectedGroups:
+                        selectedGroups:
                           selectedOption.label === "Certain Groups"
-                                ? newIntention.selectedGroups
-                                : [],
+                            ? newIntention.selectedGroups
+                            : [],
                         selectedFriends:
                           selectedOption.label === "Certain Friends"
                             ? newIntention.selectedFriends
@@ -2342,11 +2252,11 @@ export default function RosaryIntentions() {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
                   />
-                    ))}
-                  </View>
-                
+                ))}
+              </View>
+
               {/* Group Selection (if visibility is "Certain Groups") */}
-                {newIntention.visibility === "Certain Groups" && (
+              {newIntention.visibility === "Certain Groups" && (
                 <View style={styles.groupSelectionContainer}>
                   <Text style={styles.groupSelectionTitle}>Select Groups</Text>
                   {userGroups.length > 0 ? (
@@ -2361,9 +2271,7 @@ export default function RosaryIntentions() {
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.noGroupsText}>
-                      You don't have any groups yet
-                    </Text>
+                    <Text style={styles.noGroupsText}>You don't have any groups yet</Text>
                   )}
                 </View>
               )}
@@ -2373,7 +2281,11 @@ export default function RosaryIntentions() {
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Select Friends</Text>
                   {loadingFriends ? (
-                    <ActivityIndicator size="small" color={theme.primary} style={{ marginVertical: 10 }} />
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.primary}
+                      style={{ marginVertical: 10 }}
+                    />
                   ) : userFriends.length > 0 ? (
                     <View style={styles.friendGrid}>
                       {userFriends.map((friend) => (
@@ -2383,7 +2295,7 @@ export default function RosaryIntentions() {
                             styles.friendOption,
                             newIntention.selectedFriends.includes(friend.id) && [
                               styles.activeFriendOption,
-                              { 
+                              {
                                 backgroundColor: `${theme.primary}20`,
                                 borderColor: theme.primary,
                               },
@@ -2391,14 +2303,14 @@ export default function RosaryIntentions() {
                             {
                               backgroundColor: theme.surface,
                               borderColor: theme.divider,
-                            }
+                            },
                           ]}
                           onPress={() => {
-                            setNewIntention(prev => ({
+                            setNewIntention((prev) => ({
                               ...prev,
                               selectedFriends: prev.selectedFriends.includes(friend.id)
-                                ? prev.selectedFriends.filter(id => id !== friend.id)
-                                : [...prev.selectedFriends, friend.id]
+                                ? prev.selectedFriends.filter((id) => id !== friend.id)
+                                : [...prev.selectedFriends, friend.id],
                             }));
                           }}
                         >
@@ -2410,11 +2322,7 @@ export default function RosaryIntentions() {
                               },
                             ]}
                           >
-                            <Feather
-                              name="user"
-                              size={20}
-                              color={theme.primary}
-                            />
+                            <Feather name="user" size={20} color={theme.primary} />
                           </View>
                           <Text
                             style={[
@@ -2429,11 +2337,11 @@ export default function RosaryIntentions() {
                             {friend.username}
                           </Text>
                           {newIntention.selectedFriends.includes(friend.id) && (
-                            <Feather 
+                            <Feather
                               name="check"
-                              size={18} 
+                              size={18}
                               color={theme.primary}
-                              style={{ marginLeft: 'auto' }}
+                              style={{ marginLeft: "auto" }}
                             />
                           )}
                         </TouchableOpacity>
@@ -2444,10 +2352,10 @@ export default function RosaryIntentions() {
                       You don't have any friends yet. Add friends in the Community tab.
                     </Text>
                   )}
-                  </View>
-                )}
-              </View>
-              
+                </View>
+              )}
+            </View>
+
             {/* Additional Options */}
             <View style={styles.additionalOptions}>
               <Text style={styles.additionalOptionsTitle}>Additional Options</Text>
@@ -2461,17 +2369,14 @@ export default function RosaryIntentions() {
               >
                 <Text style={styles.optionLabel}>Mark as favorite</Text>
                 <View
-                  style={[
-                    styles.optionToggle,
-                    newIntention.favorite && styles.optionToggleActive,
-                  ]}
+                  style={[styles.optionToggle, newIntention.favorite && styles.optionToggleActive]}
                 >
                   <AntDesign
                     name={newIntention.favorite ? "heart" : "hearto"}
                     size={18}
                     color={newIntention.favorite ? theme.error : theme.textSecondary}
-                />
-              </View>
+                  />
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -2483,33 +2388,23 @@ export default function RosaryIntentions() {
               >
                 <Text style={styles.optionLabel}>Mark as completed</Text>
                 <View
-                  style={[
-                    styles.optionToggle,
-                    newIntention.completed && styles.optionToggleActive,
-                  ]}
+                  style={[styles.optionToggle, newIntention.completed && styles.optionToggleActive]}
                 >
                   <Ionicons
-                    name={
-                      newIntention.completed
-                        ? "checkmark-circle"
-                        : "checkmark-circle-outline"
-                    }
+                    name={newIntention.completed ? "checkmark-circle" : "checkmark-circle-outline"}
                     size={18}
                     color={newIntention.completed ? theme.success : theme.textSecondary}
-                />
-              </View>
-                    </TouchableOpacity>
-                  </View>
+                  />
+                </View>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
-              
+
           <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-              onPress={() => setShowAddModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAddModal(false)}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.submitButton} onPress={handleCreateIntention}>
               <LinearGradient
                 colors={[theme.primary, theme.secondary]}
@@ -2519,17 +2414,17 @@ export default function RosaryIntentions() {
               >
                 <Text style={styles.submitButtonText}>Create Intention</Text>
               </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </TouchableOpacity>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
-  
+
   // Edit modal
   const renderEditModal = () => {
     if (!editingIntention) return null;
-    
+
     return (
       <Modal
         visible={showEditModal}
@@ -2537,7 +2432,7 @@ export default function RosaryIntentions() {
         transparent={true}
         onRequestClose={() => setShowEditModal(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           style={styles.modalContainer}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
@@ -2546,14 +2441,14 @@ export default function RosaryIntentions() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Prayer Intention</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setShowEditModal(false)}
               >
                 <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalBody}>
               {/* Type Selection */}
               <View style={styles.formGroup}>
@@ -2578,16 +2473,14 @@ export default function RosaryIntentions() {
                 <Text style={styles.formLabel}>
                   Title <Text style={styles.requiredIndicator}>*</Text>
                 </Text>
-              <TextInput
+                <TextInput
                   style={styles.formInput}
                   placeholder="What is your prayer intention?"
                   placeholderTextColor={theme.textTertiary}
-                value={editingIntention.title}
-                  onChangeText={(text) =>
-                    setEditingIntention({ ...editingIntention, title: text })
-                  }
-                maxLength={100}
-              />
+                  value={editingIntention.title}
+                  onChangeText={(text) => setEditingIntention({ ...editingIntention, title: text })}
+                  maxLength={100}
+                />
               </View>
 
               {/* Description Input */}
@@ -2595,16 +2488,16 @@ export default function RosaryIntentions() {
                 <Text style={styles.formLabel}>
                   Description <Text style={styles.optionalIndicator}>(optional)</Text>
                 </Text>
-              <TextInput
+                <TextInput
                   style={[styles.formInput, styles.textArea]}
                   placeholder="Add details about your intention..."
                   placeholderTextColor={theme.textTertiary}
-                value={editingIntention.description}
+                  value={editingIntention.description}
                   onChangeText={(text) =>
                     setEditingIntention({ ...editingIntention, description: text })
                   }
-                multiline={true}
-                numberOfLines={4}
+                  multiline={true}
+                  numberOfLines={4}
                   textAlignVertical="top"
                 />
               </View>
@@ -2635,7 +2528,7 @@ export default function RosaryIntentions() {
                       }}
                     />
                   ))}
-                  </View>
+                </View>
 
                 {/* Group Selection (if visibility is "Certain Groups") */}
                 {editingIntention.visibility === "Certain Groups" && (
@@ -2654,11 +2547,9 @@ export default function RosaryIntentions() {
                             onSelect={toggleEditGroupSelection}
                           />
                         ))}
-                </View>
+                      </View>
                     ) : (
-                      <Text style={styles.noGroupsText}>
-                        You don't have any groups yet
-                      </Text>
+                      <Text style={styles.noGroupsText}>You don't have any groups yet</Text>
                     )}
                   </View>
                 )}
@@ -2668,17 +2559,21 @@ export default function RosaryIntentions() {
                   <View style={styles.formGroup}>
                     <Text style={styles.formLabel}>Select Friends</Text>
                     {loadingFriends ? (
-                      <ActivityIndicator size="small" color={theme.primary} style={{ marginVertical: 10 }} />
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.primary}
+                        style={{ marginVertical: 10 }}
+                      />
                     ) : userFriends.length > 0 ? (
                       <View style={styles.friendGrid}>
                         {userFriends.map((friend) => (
-                  <TouchableOpacity
+                          <TouchableOpacity
                             key={friend.id}
-                    style={[
+                            style={[
                               styles.friendOption,
                               editingIntention.selectedFriends.includes(friend.id) && [
                                 styles.activeFriendOption,
-                                { 
+                                {
                                   backgroundColor: `${theme.primary}20`,
                                   borderColor: theme.primary,
                                 },
@@ -2686,14 +2581,14 @@ export default function RosaryIntentions() {
                               {
                                 backgroundColor: theme.surface,
                                 borderColor: theme.divider,
-                              }
-                    ]}
-                    onPress={() => {
-                              setEditingIntention(prev => ({
+                              },
+                            ]}
+                            onPress={() => {
+                              setEditingIntention((prev) => ({
                                 ...prev,
                                 selectedFriends: prev.selectedFriends.includes(friend.id)
-                                  ? prev.selectedFriends.filter(id => id !== friend.id)
-                                  : [...prev.selectedFriends, friend.id]
+                                  ? prev.selectedFriends.filter((id) => id !== friend.id)
+                                  : [...prev.selectedFriends, friend.id],
                               }));
                             }}
                           >
@@ -2705,14 +2600,10 @@ export default function RosaryIntentions() {
                                 },
                               ]}
                             >
-                              <Feather
-                                name="user"
-                      size={20} 
-                      color={theme.primary} 
-                    />
-                </View>
+                              <Feather name="user" size={20} color={theme.primary} />
+                            </View>
                             <Text
-                    style={[
+                              style={[
                                 styles.friendText,
                                 {
                                   color: editingIntention.selectedFriends.includes(friend.id)
@@ -2724,39 +2615,41 @@ export default function RosaryIntentions() {
                               {friend.username}
                             </Text>
                             {editingIntention.selectedFriends.includes(friend.id) && (
-                              <Feather 
+                              <Feather
                                 name="check"
-                                size={18} 
-                      color={theme.primary} 
-                                style={{ marginLeft: 'auto' }}
-                    />
+                                size={18}
+                                color={theme.primary}
+                                style={{ marginLeft: "auto" }}
+                              />
                             )}
-                  </TouchableOpacity>
+                          </TouchableOpacity>
                         ))}
-                </View>
+                      </View>
                     ) : (
-                      <Text style={[styles.emptyFriendsText, { color: `${theme.textSecondary}80` }]}>
+                      <Text
+                        style={[styles.emptyFriendsText, { color: `${theme.textSecondary}80` }]}
+                      >
                         You don't have any friends yet. Add friends in the Community tab.
                       </Text>
                     )}
-              </View>
+                  </View>
                 )}
-            </View>
+              </View>
 
               {/* Additional Options */}
               <View style={styles.additionalOptions}>
                 <Text style={styles.additionalOptionsTitle}>Additional Options</Text>
 
-              <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.optionRow}
-                    onPress={() => {
+                  onPress={() => {
                     setEditingIntention({
                       ...editingIntention,
                       favorite: !editingIntention.favorite,
                     });
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
                   <Text style={styles.optionLabel}>Mark as favorite</Text>
                   <View
                     style={[
@@ -2767,14 +2660,12 @@ export default function RosaryIntentions() {
                     <AntDesign
                       name={editingIntention.favorite ? "heart" : "hearto"}
                       size={18}
-                      color={
-                        editingIntention.favorite ? theme.error : theme.textSecondary
-                      }
-                      />
-                    </View>
-                  </TouchableOpacity>
+                      color={editingIntention.favorite ? theme.error : theme.textSecondary}
+                    />
+                  </View>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.optionRow}
                   onPress={() => {
                     setEditingIntention({
@@ -2793,47 +2684,40 @@ export default function RosaryIntentions() {
                   >
                     <Ionicons
                       name={
-                        editingIntention.completed
-                          ? "checkmark-circle"
-                          : "checkmark-circle-outline"
+                        editingIntention.completed ? "checkmark-circle" : "checkmark-circle-outline"
                       }
                       size={18}
-                      color={
-                        editingIntention.completed ? theme.success : theme.textSecondary
-                      }
-                      />
-                    </View>
-                  </TouchableOpacity>
+                      color={editingIntention.completed ? theme.success : theme.textSecondary}
+                    />
+                  </View>
+                </TouchableOpacity>
 
-      <TouchableOpacity
+                <TouchableOpacity
                   style={styles.deleteButtonContainer}
                   onPress={() => deleteIntention(editingIntention.id)}
                 >
                   <Text style={styles.deleteButtonText}>Delete Intention</Text>
-      </TouchableOpacity>
-    </View>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
 
             <View style={styles.modalFooter}>
-          <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowEditModal(false)}
-              >
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.submitButton} onPress={updateIntention}>
-            <LinearGradient
+                <LinearGradient
                   colors={[theme.primary, theme.secondary]}
                   style={styles.submitButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
                   <Text style={styles.submitButtonText}>Save Changes</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-    </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     );
@@ -2843,16 +2727,19 @@ export default function RosaryIntentions() {
   const fetchUserFriends = async () => {
     try {
       setLoadingFriends(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         setLoadingFriends(false);
         return;
       }
 
       const { data, error: friendsError } = await supabase
-        .from('friends')
-        .select(`
+        .from("friends")
+        .select(
+          `
           id,
           friend:users!friends_user_id_2_fkey(
             id,
@@ -2861,23 +2748,24 @@ export default function RosaryIntentions() {
             profile_image,
             created_at
           )
-        `)
-        .eq('user_id_1', user.id)
-        .eq('status', 'accepted');
+        `,
+        )
+        .eq("user_id_1", user.id)
+        .eq("status", "accepted");
 
       if (friendsError) throw friendsError;
 
       const friends = data.map((f) => ({
         id: f.friend.id,
-        username: `${f.friend.first_name} ${f.friend.last_name}`
+        username: `${f.friend.first_name} ${f.friend.last_name}`,
       }));
 
       setUserFriends(friends);
     } catch (error) {
-      console.error('Error fetching friends:', error);
+      console.error("Error fetching friends:", error);
       setNotification({
         message: "Failed to load friends",
-        type: "error"
+        type: "error",
       });
     } finally {
       setLoadingFriends(false);
@@ -2886,21 +2774,21 @@ export default function RosaryIntentions() {
 
   // Toggle friend selection
   const toggleFriendSelection = (friendId) => {
-    setNewIntention(prev => ({
+    setNewIntention((prev) => ({
       ...prev,
       selectedFriends: prev.selectedFriends.includes(friendId)
-        ? prev.selectedFriends.filter(id => id !== friendId)
-        : [...prev.selectedFriends, friendId]
+        ? prev.selectedFriends.filter((id) => id !== friendId)
+        : [...prev.selectedFriends, friendId],
     }));
   };
 
   const toggleEditFriendSelection = (friendId) => {
     if (!editingIntention) return;
-    setEditingIntention(prev => ({
+    setEditingIntention((prev) => ({
       ...prev,
       selectedFriends: prev.selectedFriends.includes(friendId)
-        ? prev.selectedFriends.filter(id => id !== friendId)
-        : [...prev.selectedFriends, friendId]
+        ? prev.selectedFriends.filter((id) => id !== friendId)
+        : [...prev.selectedFriends, friendId],
     }));
   };
 
@@ -2929,7 +2817,7 @@ export default function RosaryIntentions() {
       {renderMainContent()}
       {renderAddButton()}
       {renderFilterDrawer()}
-      
+
       {/* Modals */}
       {renderAddModal()}
       {renderEditModal()}
@@ -3378,7 +3266,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.textSecondary,
   },
-  
+
   // Empty state
   emptyStateContainer: {
     flex: 1,
@@ -3431,7 +3319,7 @@ const styles = StyleSheet.create({
     color: "white",
     marginLeft: 8,
   },
-  
+
   // Modal
   modalContainer: {
     flex: 1,
@@ -3721,8 +3609,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   friendOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -3738,11 +3626,11 @@ const styles = StyleSheet.create({
   },
   friendText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   emptyFriendsText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginVertical: 10,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 });

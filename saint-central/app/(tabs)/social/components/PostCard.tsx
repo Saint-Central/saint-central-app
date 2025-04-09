@@ -1,16 +1,9 @@
 import React, { useRef, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { Post } from "../types";
 import Avatar from "./ui/Avatar";
 import { formatDateTime } from "../utils/formatters";
-import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 interface PostCardProps {
@@ -148,11 +141,7 @@ const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={handleCommentPress}
-      style={styles.container}
-    >
+    <TouchableOpacity activeOpacity={0.9} onPress={handleCommentPress} style={styles.container}>
       <View style={styles.postHeader}>
         <Avatar size="md" imageUrl={(post.user as any).profile_image} />
 
@@ -169,9 +158,7 @@ const PostCard: React.FC<PostCardProps> = ({
           </View>
 
           <View style={styles.metaRow}>
-            <Text style={styles.username}>
-              @{post.user.first_name.toLowerCase()}
-            </Text>
+            <Text style={styles.username}>@{post.user.first_name.toLowerCase()}</Text>
             <Text style={styles.metaDot}>•</Text>
             <Text style={styles.timestamp}>{formattedDate}</Text>
             <Text style={styles.metaDot}>•</Text>
@@ -223,9 +210,7 @@ const PostCard: React.FC<PostCardProps> = ({
           activeOpacity={0.7}
         >
           <View style={styles.likeButtonContainer}>
-            <Animated.View
-              style={[styles.likeRipple, { opacity: likeOpacityAnim }]}
-            />
+            <Animated.View style={[styles.likeRipple, { opacity: likeOpacityAnim }]} />
             <Animated.View style={{ transform: [{ scale: likeScaleAnim }] }}>
               <Feather
                 name={post.is_liked ? "heart" : "heart"}
@@ -237,9 +222,7 @@ const PostCard: React.FC<PostCardProps> = ({
           </View>
 
           {(post.likes_count ?? 0) > 0 && (
-            <Text
-              style={[styles.actionCount, post.is_liked && styles.likedCount]}
-            >
+            <Text style={[styles.actionCount, post.is_liked && styles.likedCount]}>
               {post.likes_count}
             </Text>
           )}
