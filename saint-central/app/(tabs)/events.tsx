@@ -1,5 +1,4 @@
-// app/Events.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -22,24 +21,13 @@ import {
   FlatList,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import {
-  AntDesign,
-  MaterialCommunityIcons,
-  FontAwesome5,
-  Feather,
-  Ionicons,
-  FontAwesome,
-  Entypo,
-} from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { AntDesign, Feather } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
-import { LinearGradient } from "expo-linear-gradient";
-import { PanGestureHandler } from "react-native-gesture-handler";
+import theme from "@/theme";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 // Event Interface
 interface Event {
@@ -71,32 +59,12 @@ interface CalendarDay {
 // Calendar view types
 type CalendarViewType = "month" | "list";
 
-// New cleaner color theme based on the reference image
-const THEME = {
-  primary: "#333333",         // Dark text
-  secondary: "#666666",       // Medium text
-  light: "#999999",           // Light text
-  background: "#F5F3EE",      // Soft beige background
-  card: "#FFFFFF",            // White cards
-  accent1: "#E9D9BC",         // Bible study accent
-  accent2: "#C8DFDF",         // Sunday service accent
-  accent3: "#F2D0A4",         // Youth event accent
-  accent4: "#D8E2DC",         // Prayer breakfast accent
-  border: "#EEEEEE",          // Light borders
-  buttonPrimary: "#7B68EE",   // Action buttons
-  buttonText: "#FFFFFF",      // Button text
-  error: "#FF5252",           // Error color
-  shadow: "rgba(0, 0, 0, 0.1)" // Shadow color
-};
-
 export default function Events() {
   return <EventsComponent />;
 }
 
 function EventsComponent() {
-  const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
-  const monthScrollRef = useRef<ScrollView>(null);
 
   // Calendar states
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -112,7 +80,6 @@ function EventsComponent() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Form states
   const [formTitle, setFormTitle] = useState("");
@@ -123,10 +90,12 @@ function EventsComponent() {
   const [formAuthorName, setFormAuthorName] = useState("");
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [formImageLoading, setFormImageLoading] = useState(false);
-  
+
   // Recurring event states
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly" | "yearly">("weekly");
+  const [recurrenceType, setRecurrenceType] = useState<
+    "daily" | "weekly" | "monthly" | "yearly"
+  >("weekly");
   const [recurrenceInterval, setRecurrenceInterval] = useState("1");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -137,83 +106,94 @@ function EventsComponent() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const detailSlideAnim = useRef(new Animated.Value(height)).current;
-  
+
   // Animation for calendar days
-  const dayAnimations = useRef<{[key: string]: Animated.Value}>({}).current;
-  
+  const dayAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
+
   // New state variables
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
-  
+
+  // Get events for a specific day
+  const getEventsForDay = useCallback((date: Date, eventsData: Event[]) => {
+    return eventsData.filter((event) => {
+      const eventDate = new Date(event.time);
+      return isSameDay(eventDate, date);
+    });
+  }, []);
+
   // Generate calendar data
-  const generateCalendarData = (date: Date, eventsData: Event[]) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    
-    // First day of the month
-    const firstDay = new Date(year, month, 1);
-    const firstDayOfWeek = firstDay.getDay();
-    
-    // Last day of the month
-    const lastDay = new Date(year, month + 1, 0);
-    const lastDate = lastDay.getDate();
-    
-    // Create array for calendar days
-    const days: CalendarDay[] = [];
-    
-    // Add days from previous month to fill first week
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      const date = new Date(year, month - 1, prevMonthLastDay - i);
-      days.push({
-        date,
-        dayOfMonth: prevMonthLastDay - i,
-        dayOfWeek: date.getDay(),
-        isCurrentMonth: false,
-        isToday: isSameDay(date, new Date()),
-        events: getEventsForDay(date, eventsData),
-      });
-    }
-    
-    // Add days of current month
-    const today = new Date();
-    for (let i = 1; i <= lastDate; i++) {
-      const date = new Date(year, month, i);
-      days.push({
-        date,
-        dayOfMonth: i,
-        dayOfWeek: date.getDay(),
-        isCurrentMonth: true,
-        isToday: isSameDay(date, today),
-        events: getEventsForDay(date, eventsData),
-      });
-      
-      // Initialize animation for this day
-      const dateKey = getDateKey(date);
-      if (!dayAnimations[dateKey]) {
-        dayAnimations[dateKey] = new Animated.Value(0);
+  const generateCalendarData = useCallback(
+    (date: Date, eventsData: Event[]) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      // First day of the month
+      const firstDay = new Date(year, month, 1);
+      const firstDayOfWeek = firstDay.getDay();
+
+      // Last day of the month
+      const lastDay = new Date(year, month + 1, 0);
+      const lastDate = lastDay.getDate();
+
+      // Create array for calendar days
+      const days: CalendarDay[] = [];
+
+      // Add days from previous month to fill first week
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+        const date = new Date(year, month - 1, prevMonthLastDay - i);
+        days.push({
+          date,
+          dayOfMonth: prevMonthLastDay - i,
+          dayOfWeek: date.getDay(),
+          isCurrentMonth: false,
+          isToday: isSameDay(date, new Date()),
+          events: getEventsForDay(date, eventsData),
+        });
       }
-    }
-    
-    // Add days from next month to complete last week
-    const remainingDays = 7 - (days.length % 7);
-    if (remainingDays < 7) {
-      for (let i = 1; i <= remainingDays; i++) {
-        const date = new Date(year, month + 1, i);
+
+      // Add days of current month
+      const today = new Date();
+      for (let i = 1; i <= lastDate; i++) {
+        const date = new Date(year, month, i);
         days.push({
           date,
           dayOfMonth: i,
           dayOfWeek: date.getDay(),
-          isCurrentMonth: false,
+          isCurrentMonth: true,
           isToday: isSameDay(date, today),
           events: getEventsForDay(date, eventsData),
         });
+
+        // Initialize animation for this day
+        const dateKey = getDateKey(date);
+        if (!dayAnimations[dateKey]) {
+          dayAnimations[dateKey] = new Animated.Value(0);
+        }
       }
-    }
-    
-    return days;
-  };
-  
+
+      // Add days from next month to complete last week
+      const remainingDays = 7 - (days.length % 7);
+      if (remainingDays < 7) {
+        for (let i = 1; i <= remainingDays; i++) {
+          const date = new Date(year, month + 1, i);
+          days.push({
+            date,
+            dayOfMonth: i,
+            dayOfWeek: date.getDay(),
+            isCurrentMonth: false,
+            isToday: isSameDay(date, today),
+            events: getEventsForDay(date, eventsData),
+          });
+        }
+      }
+
+      return days;
+    },
+    [dayAnimations, getEventsForDay]
+  );
+
   // Check if two dates are the same day
   const isSameDay = (date1: Date, date2: Date) => {
     return (
@@ -222,55 +202,47 @@ function EventsComponent() {
       date1.getDate() === date2.getDate()
     );
   };
-  
+
   // Get unique key for a date
   const getDateKey = (date: Date) => {
     return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
   };
-  
-  // Get events for a specific day
-  const getEventsForDay = (date: Date, eventsData: Event[]) => {
-    return eventsData.filter(event => {
-      const eventDate = new Date(event.time);
-      return isSameDay(eventDate, date);
-    });
-  };
-  
+
   // Change calendar month
   const changeMonth = (direction: 1 | -1) => {
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() + direction);
     setCurrentMonth(newMonth);
   };
-  
+
   // Format month name
   const formatMonth = (date: Date) => {
-    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+    return date.toLocaleString("default", { month: "long", year: "numeric" });
   };
-  
+
   // Get day name
   const getDayName = (day: number, short = false) => {
-    const days = short 
-      ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] 
-      : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = short
+      ? ["S", "M", "T", "W", "T", "F", "S"]
+      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return days[day];
   };
-  
+
   // Handle day selection
   const selectDay = (day: CalendarDay) => {
     setSelectedDate(day.date);
     setSelectedDayEvents(day.events);
-    
+
     // Animate the detail view
     Animated.timing(detailSlideAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
     }).start();
-    
+
     setShowDateDetail(true);
   };
-  
+
   // Close date detail view
   const closeDateDetail = () => {
     Animated.timing(detailSlideAnim, {
@@ -281,52 +253,52 @@ function EventsComponent() {
       setShowDateDetail(false);
     });
   };
-  
+
   // Format date for display
   const formatDate = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     };
     return date.toLocaleDateString(undefined, options);
   };
-  
+
   // Format date parts for event display
   const formatEventDay = (dateTimeString: string) => {
     const date = new Date(dateTimeString);
-    return date.toLocaleString('default', { weekday: 'long' });
+    return date.toLocaleString("default", { weekday: "long" });
   };
-  
+
   const formatEventMonth = (dateTimeString: string) => {
     const date = new Date(dateTimeString);
-    return date.toLocaleString('default', { month: 'long' });
+    return date.toLocaleString("default", { month: "long" });
   };
-  
+
   const formatEventDate = (dateTimeString: string) => {
     const date = new Date(dateTimeString);
     return date.getDate();
   };
-  
+
   const formatEventTime = (dateTimeString: string) => {
     const date = new Date(dateTimeString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   // Generate animation for calendar
   useEffect(() => {
     // Animate calendar days
-    const animations = Object.values(dayAnimations).map(anim => 
+    const animations = Object.values(dayAnimations).map((anim) =>
       Animated.timing(anim, {
-            toValue: 1,
+        toValue: 1,
         duration: 500,
-            useNativeDriver: true,
-          })
+        useNativeDriver: true,
+      })
     );
-  
+
     Animated.stagger(20, animations).start();
-    
+
     // Animate page elements
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -345,7 +317,7 @@ function EventsComponent() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [calendarData]);
+  }, [calendarData, dayAnimations, fadeAnim, opacityAnim, slideAnim]);
 
   // Update calendar when month or events change
   useEffect(() => {
@@ -353,7 +325,7 @@ function EventsComponent() {
       const newCalendarData = generateCalendarData(currentMonth, events);
       setCalendarData(newCalendarData);
     }
-  }, [currentMonth, events, loading]);
+  }, [currentMonth, events, generateCalendarData, loading]);
 
   // Load events
   useEffect(() => {
@@ -365,9 +337,7 @@ function EventsComponent() {
       setLoading(true);
 
       // Check if user is authenticated
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      await supabase.auth.getSession();
 
       const { data, error } = await supabase
         .from("events")
@@ -415,7 +385,7 @@ function EventsComponent() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   const resetForm = () => {
     setFormTitle("");
@@ -447,7 +417,9 @@ function EventsComponent() {
     setFormAuthorName(event.author_name || "");
     setIsRecurring(event.is_recurring || false);
     setRecurrenceType(event.recurrence_type || "weekly");
-    setRecurrenceInterval(event.recurrence_interval ? event.recurrence_interval.toString() : "1");
+    setRecurrenceInterval(
+      event.recurrence_interval ? event.recurrence_interval.toString() : "1"
+    );
     if (event.recurrence_end_date) {
       setRecurrenceEndDate(new Date(event.recurrence_end_date));
     } else {
@@ -484,7 +456,7 @@ function EventsComponent() {
         author_name: formAuthorName || user.email,
         is_recurring: isRecurring,
       };
-      
+
       if (isRecurring) {
         eventData.recurrence_type = recurrenceType;
         eventData.recurrence_interval = parseInt(recurrenceInterval) || 1;
@@ -494,7 +466,7 @@ function EventsComponent() {
         }
       }
 
-      const { data, error } = await supabase.from("events").insert([eventData]);
+      const { error } = await supabase.from("events").insert([eventData]);
 
       if (error) {
         if (error.code === "42501") {
@@ -543,7 +515,7 @@ function EventsComponent() {
         author_name: formAuthorName || user.email,
         is_recurring: isRecurring,
       };
-      
+
       if (isRecurring) {
         eventData.recurrence_type = recurrenceType;
         eventData.recurrence_interval = parseInt(recurrenceInterval) || 1;
@@ -662,10 +634,10 @@ function EventsComponent() {
           setFormImageUrl(urlData.publicUrl);
           Alert.alert("Success", "Image uploaded successfully!");
         }
-      } catch (uploadError) {
+      } catch {
         Alert.alert("Upload Notice", "Using local image only.");
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to select image");
     } finally {
       setFormImageLoading(false);
@@ -675,18 +647,31 @@ function EventsComponent() {
   // ----------------------------
   // Render functions (calendar, event cards, etc.)
   // ----------------------------
-  const getEventIconAndColor = (event: Event): { icon: "book" | "home" | "message-circle" | "coffee" | "calendar", color: string } => {
+  const getEventIconAndColor = (
+    event: Event
+  ): {
+    icon: "book" | "home" | "message-circle" | "coffee" | "calendar";
+    color: string;
+  } => {
     const title = event.title.toLowerCase();
     if (title.includes("bible") || title.includes("study")) {
-      return { icon: "book", color: THEME.accent1 };
-    } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
-      return { icon: "home", color: THEME.accent2 };
-    } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
-      return { icon: "message-circle", color: THEME.accent3 };
+      return { icon: "book", color: theme.accent1 };
+    } else if (
+      title.includes("sunday") ||
+      title.includes("service") ||
+      title.includes("worship")
+    ) {
+      return { icon: "home", color: theme.accent2 };
+    } else if (
+      title.includes("youth") ||
+      title.includes("meetup") ||
+      title.includes("young")
+    ) {
+      return { icon: "message-circle", color: theme.accent3 };
     } else if (title.includes("prayer") || title.includes("breakfast")) {
-      return { icon: "coffee", color: THEME.accent4 };
+      return { icon: "coffee", color: theme.accent4 };
     }
-    return { icon: "calendar", color: THEME.accent1 };
+    return { icon: "calendar", color: theme.accent1 };
   };
 
   const openImageViewer = (imageUrl: string) => {
@@ -697,48 +682,80 @@ function EventsComponent() {
   const renderEventCard = (event: Event, isDetail: boolean = false) => {
     const { icon, color } = getEventIconAndColor(event);
     const hasImage = event.image_url && event.image_url.trim().length > 0;
-    
+
     return (
-      <View key={event.id} style={[
-        styles.eventCard,
-        { height: 140 }
-      ]}>
+      <View key={event.id} style={[styles.eventCard, { height: 140 }]}>
         {hasImage ? (
-          <TouchableOpacity 
-            style={styles.eventImageContainer} 
+          <TouchableOpacity
+            style={styles.eventImageContainer}
             onPress={() => openImageViewer(event.image_url)}
             activeOpacity={0.9}
           >
-            <Image source={{ uri: event.image_url }} style={styles.eventImage} resizeMode="cover" />
+            <Image
+              source={{ uri: event.image_url }}
+              style={styles.eventImage}
+              resizeMode="cover"
+            />
             <View style={[styles.eventIconOverlay, { backgroundColor: color }]}>
-              <Feather name={icon} size={18} color={THEME.primary} />
+              <Feather name={icon} size={18} color={theme.textForeground} />
             </View>
           </TouchableOpacity>
         ) : (
           <View style={[styles.eventIconContainer, { backgroundColor: color }]}>
-            <Feather name={icon} size={28} color={THEME.primary} />
+            <Feather name={icon} size={28} color={theme.textForeground} />
           </View>
         )}
         <View style={styles.eventContent}>
-          <Text style={styles.eventTitle} numberOfLines={1} ellipsizeMode="tail">{event.title}</Text>
+          <Text
+            style={styles.eventTitle}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {event.title}
+          </Text>
           <View style={styles.eventTimeLocationContainer}>
             <Text style={styles.eventDateTime} numberOfLines={1}>
-              {formatEventDay(event.time)}, {formatEventMonth(event.time)} {formatEventDate(event.time)}  {formatEventTime(event.time)}
+              {formatEventDay(event.time)}, {formatEventMonth(event.time)}{" "}
+              {formatEventDate(event.time)} {formatEventTime(event.time)}
             </Text>
-            <Text style={styles.eventLocation} numberOfLines={1} ellipsizeMode="tail">{event.author_name || "Community Church"}</Text>
+            <Text
+              style={styles.eventLocation}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {event.author_name || "Community Church"}
+            </Text>
           </View>
           {event.excerpt && (
-            <Text style={styles.eventDescription} numberOfLines={2} ellipsizeMode="tail">
+            <Text
+              style={styles.eventDescription}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
               {event.excerpt}
             </Text>
           )}
           <View style={styles.eventActions}>
-            <TouchableOpacity style={styles.eventActionButton} onPress={() => openEditModal(event)}>
-              <Feather name="edit-2" size={16} color={THEME.secondary} />
+            <TouchableOpacity
+              style={styles.eventActionButton}
+              onPress={() => openEditModal(event)}
+            >
+              <Feather
+                name="edit-2"
+                size={16}
+                color={theme.textForegroundMuted}
+              />
               <Text style={styles.actionButtonText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.eventActionButton} onPress={() => handleDeleteEvent(event.id)}>
-              <Feather name="trash-2" size={16} color={THEME.error} />
+            <TouchableOpacity
+              style={styles.eventActionButton}
+              onPress={() => handleDeleteEvent(event.id)}
+            >
+              <Feather
+                name="trash-2"
+                size={16}
+                color={theme.backgroundDestructive}
+              />
               <Text style={styles.actionButtonText}>Delete</Text>
             </TouchableOpacity>
           </View>
@@ -777,17 +794,21 @@ function EventsComponent() {
           onPress={() => selectDay(day)}
           activeOpacity={0.7}
         >
-          <View style={[
-            styles.dayNumberContainer, 
-            day.isToday && styles.todayContainer,
-            isSelected && styles.selectedDayNumberContainer
-          ]}>
-            <Text style={[
-              styles.dayNumber, 
-              !day.isCurrentMonth && styles.dayNumberOtherMonth,
-              day.isToday && styles.todayNumber,
-              isSelected && styles.selectedDayNumber
-            ]}>
+          <View
+            style={[
+              styles.dayNumberContainer,
+              day.isToday && styles.todayContainer,
+              isSelected && styles.selectedDayNumberContainer,
+            ]}
+          >
+            <Text
+              style={[
+                styles.dayNumber,
+                !day.isCurrentMonth && styles.dayNumberOtherMonth,
+                day.isToday && styles.todayNumber,
+                isSelected && styles.selectedDayNumber,
+              ]}
+            >
               {day.dayOfMonth}
             </Text>
           </View>
@@ -795,19 +816,21 @@ function EventsComponent() {
             <View style={styles.eventIndicatorContainer}>
               {day.events.length <= 3 ? (
                 day.events.map((_, i) => (
-                  <View 
-                    key={i} 
+                  <View
+                    key={i}
                     style={[
                       styles.eventIndicator,
-                      i === 0 && { backgroundColor: THEME.accent1 },
-                      i === 1 && { backgroundColor: THEME.accent2 },
-                      i === 2 && { backgroundColor: THEME.accent3 },
-                    ]} 
+                      i === 0 && { backgroundColor: theme.accent1 },
+                      i === 1 && { backgroundColor: theme.accent2 },
+                      i === 2 && { backgroundColor: theme.accent3 },
+                    ]}
                   />
                 ))
               ) : (
                 <View style={styles.multipleEventsIndicator}>
-                  <Text style={styles.multipleEventsText}>{day.events.length}</Text>
+                  <Text style={styles.multipleEventsText}>
+                    {day.events.length}
+                  </Text>
                 </View>
               )}
             </View>
@@ -840,8 +863,8 @@ function EventsComponent() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Events</Text>
-      </View>
-      
+        </View>
+
         {/* Animated Hero Section with "CREATE EVENT" button (isolated from the shorter file) */}
         <Animated.View
           style={[
@@ -854,18 +877,17 @@ function EventsComponent() {
           </View>
           <Text style={styles.heroTitle}>Community Events</Text>
           <Text style={styles.heroSubtitle}>
-          Join Saint Central and our guest speakers for live events, prayer nights, and Bible studies.
-
-
+            Join Saint Central and our guest speakers for live events, prayer
+            nights, and Bible studies.
           </Text>
-              <TouchableOpacity
+          <TouchableOpacity
             style={styles.addEventButton}
-                onPress={openAddModal}
+            onPress={openAddModal}
             activeOpacity={0.8}
-              >
+          >
             <Text style={styles.addEventButtonText}>CREATE EVENT</Text>
             <AntDesign name="plus" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Main Scrollable Content */}
@@ -875,24 +897,30 @@ function EventsComponent() {
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
+            {
+              useNativeDriver: true,
+            }
           )}
         >
           {/* View Selector */}
           <View style={styles.viewSelector}>
-            <TouchableOpacity 
-            style={[
+            <TouchableOpacity
+              style={[
                 styles.viewOption,
                 calendarView === "list" && styles.viewOptionActive,
               ]}
               onPress={() => setCalendarView("list")}
             >
-              <Text style={[
-                styles.viewOptionText,
-                calendarView === "list" && styles.viewOptionTextActive,
-              ]}>List</Text>
+              <Text
+                style={[
+                  styles.viewOptionText,
+                  calendarView === "list" && styles.viewOptionTextActive,
+                ]}
+              >
+                List
+              </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[
                 styles.viewOption,
@@ -900,103 +928,131 @@ function EventsComponent() {
               ]}
               onPress={() => setCalendarView("month")}
             >
-              <Text style={[
-                styles.viewOptionText,
-                calendarView === "month" && styles.viewOptionTextActive,
-              ]}>Calendar</Text>
+              <Text
+                style={[
+                  styles.viewOptionText,
+                  calendarView === "month" && styles.viewOptionTextActive,
+                ]}
+              >
+                Calendar
+              </Text>
             </TouchableOpacity>
-              </View>
-          
+          </View>
+
           {/* Month Navigation (for calendar view) */}
           {calendarView === "month" && (
             <View style={styles.monthNavigation}>
-                <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.monthNavArrow}
                 onPress={() => changeMonth(-1)}
               >
-                <Feather name="chevron-left" size={24} color={THEME.secondary} />
+                <Feather
+                  name="chevron-left"
+                  size={24}
+                  color={theme.textForegroundMuted}
+                />
               </TouchableOpacity>
               <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.monthNavArrow}
                 onPress={() => changeMonth(1)}
               >
-                <Feather name="chevron-right" size={24} color={THEME.secondary} />
-                </TouchableOpacity>
-              </View>
+                <Feather
+                  name="chevron-right"
+                  size={24}
+                  color={theme.textForegroundMuted}
+                />
+              </TouchableOpacity>
+            </View>
           )}
-          
+
           {/* Calendar or List View */}
           {calendarView === "month" ? (
             <View style={styles.calendarContainer}>
               <View style={styles.dayLabelsRow}>
-                {[0, 1, 2, 3, 4, 5, 6].map(day => (
+                {[0, 1, 2, 3, 4, 5, 6].map((day) => (
                   <View key={day} style={styles.dayLabelContainer}>
                     <Text style={styles.dayLabel}>{getDayName(day, true)}</Text>
-                      </View>
+                  </View>
                 ))}
               </View>
               {loading ? (
                 <View style={styles.calendarLoading}>
-                  <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                  <ActivityIndicator size="large" color={theme.primary} />
                   <Text style={styles.loadingText}>Loading calendar...</Text>
                 </View>
               ) : (
-                <View style={styles.calendarGrid}>
-                  {renderCalendarWeeks()}
-                          </View>
-                        )}
-                              </View>
+                <View style={styles.calendarGrid}>{renderCalendarWeeks()}</View>
+              )}
+            </View>
           ) : (
             <View style={styles.listContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                  <ActivityIndicator size="large" color={theme.primary} />
                   <Text style={styles.loadingText}>Loading events...</Text>
-                          </View>
+                </View>
               ) : events.length === 0 ? (
                 <View style={styles.noEventsContainer}>
-                  <Feather name="calendar" size={50} color={THEME.light} />
+                  <Feather
+                    name="calendar"
+                    size={50}
+                    color={theme.textForegroundSubtle}
+                  />
                   <Text style={styles.noEventsText}>No events found</Text>
-                  <Text style={styles.noEventsSubtext}>Add your first event by tapping the button below</Text>
-                            </View>
+                  <Text style={styles.noEventsSubtext}>
+                    Add your first event by tapping the button below
+                  </Text>
+                </View>
               ) : (
                 <FlatList
                   data={events}
                   renderItem={({ item }) => renderEventCard(item, false)}
-                  keyExtractor={item => item.id.toString()}
+                  keyExtractor={(item) => item.id.toString()}
                   scrollEnabled={false}
                   contentContainerStyle={styles.eventsList}
                 />
               )}
-                              </View>
-                            )}
+            </View>
+          )}
         </Animated.ScrollView>
-        
+
         {/* Date Detail Modal */}
         {showDateDetail && (
-          <Animated.View 
+          <Animated.View
             style={[
               styles.dateDetailContainer,
-              { transform: [{ translateY: detailSlideAnim }] }
+              { transform: [{ translateY: detailSlideAnim }] },
             ]}
           >
             <View style={styles.dateDetailHandle} />
             <View style={styles.dateDetailHeader}>
-              <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
-                            <TouchableOpacity 
+              <Text style={styles.dateDetailTitle}>
+                {formatDate(selectedDate)}
+              </Text>
+              <TouchableOpacity
                 style={styles.dateDetailCloseButton}
                 onPress={closeDateDetail}
-                            >
-                <AntDesign name="close" size={24} color={THEME.primary} />
-                            </TouchableOpacity>
-                          </View>
+              >
+                <AntDesign
+                  name="close"
+                  size={24}
+                  color={theme.textForeground}
+                />
+              </TouchableOpacity>
+            </View>
             <View style={styles.dateDetailContent}>
               {selectedDayEvents.length === 0 ? (
                 <View style={styles.noEventsForDay}>
-                  <Feather name="calendar" size={50} color={THEME.light} />
-                  <Text style={styles.noEventsForDayText}>No events for this day</Text>
-                <TouchableOpacity
+                  <Feather
+                    name="calendar"
+                    size={50}
+                    color={theme.textForegroundSubtle}
+                  />
+                  <Text style={styles.noEventsForDayText}>
+                    No events for this day
+                  </Text>
+                  <TouchableOpacity
                     style={styles.addEventForDayButton}
                     onPress={() => {
                       const newFormTime = new Date(selectedDate);
@@ -1008,19 +1064,19 @@ function EventsComponent() {
                     }}
                   >
                     <Text style={styles.addEventForDayText}>Add Event</Text>
-                    <Feather name="plus" size={16} color={THEME.buttonPrimary} />
-                </TouchableOpacity>
-              </View>
+                    <Feather name="plus" size={16} color={theme.primary} />
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <FlatList
                   data={selectedDayEvents}
                   renderItem={({ item }) => renderEventCard(item, true)}
-                  keyExtractor={item => item.id.toString()}
+                  keyExtractor={(item) => item.id.toString()}
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.eventsList}
                 />
-            )}
-          </View>
+              )}
+            </View>
           </Animated.View>
         )}
 
@@ -1035,7 +1091,7 @@ function EventsComponent() {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalContainer}
           >
-            <Pressable 
+            <Pressable
               style={styles.modalBackdrop}
               onPress={() => setShowAddModal(false)}
             />
@@ -1043,49 +1099,53 @@ function EventsComponent() {
               <View style={styles.modalHandle} />
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Create Event</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => setShowAddModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign name="close" size={22} color={THEME.primary} />
+                  <AntDesign
+                    name="close"
+                    size={22}
+                    color={theme.textForeground}
+                  />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
                 {/* Form fields... (same as before) */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Title*</Text>
-                <TextInput
+                  <TextInput
                     style={styles.formInput}
-                  value={formTitle}
-                  onChangeText={setFormTitle}
+                    value={formTitle}
+                    onChangeText={setFormTitle}
                     placeholder="Enter event title"
-                    placeholderTextColor={THEME.light}
-                />
+                    placeholderTextColor={theme.textForegroundSubtle}
+                  />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Description*</Text>
-                <TextInput
+                  <TextInput
                     style={[styles.formInput, styles.textAreaInput]}
-                  value={formExcerpt}
-                  onChangeText={setFormExcerpt}
-                  placeholder="Event description"
-                    placeholderTextColor={THEME.light}
-                  multiline
-                  numberOfLines={4}
-                />
+                    value={formExcerpt}
+                    onChangeText={setFormExcerpt}
+                    placeholder="Event description"
+                    placeholderTextColor={theme.textForegroundSubtle}
+                    multiline
+                    numberOfLines={4}
+                  />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Date & Time*</Text>
-                <TouchableOpacity
+                  <TouchableOpacity
                     style={styles.dateTimeButton}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                    <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
-                  <Text style={styles.dateTimeText}>
-                    {formTime.toLocaleString()}
-                  </Text>
-                </TouchableOpacity>
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Feather name="calendar" size={18} color={theme.primary} />
+                    <Text style={styles.dateTimeText}>
+                      {formTime.toLocaleString()}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 {showTimePicker && (
                   <DateTimePicker
@@ -1107,66 +1167,75 @@ function EventsComponent() {
                     value={formAuthorName}
                     onChangeText={setFormAuthorName}
                     placeholder="Event location"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                   />
                 </View>
                 <View style={styles.formGroup}>
-                <View style={styles.toggleRow}>
+                  <View style={styles.toggleRow}>
                     <Text style={styles.toggleLabel}>Recurring event</Text>
-                  <Switch
-                    value={isRecurring}
-                    onValueChange={setIsRecurring}
+                    <Switch
+                      value={isRecurring}
+                      onValueChange={setIsRecurring}
                       trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-                      thumbColor={isRecurring ? THEME.buttonPrimary : "#FFFFFF"}
-                    ios_backgroundColor="#E4E4E7"
-                  />
-                </View>
+                      thumbColor={isRecurring ? theme.primary : "#FFFFFF"}
+                      ios_backgroundColor="#E4E4E7"
+                    />
+                  </View>
                 </View>
                 {isRecurring && (
                   <View style={styles.recurringContainer}>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Repeat</Text>
-                    <View style={styles.recurrenceTypeContainer}>
-                      {["daily", "weekly", "monthly", "yearly"].map((type) => (
-                        <TouchableOpacity
-                          key={type}
-                          style={[
-                            styles.recurrenceTypeButton,
-                            recurrenceType === type && styles.recurrenceTypeButtonSelected
-                          ]}
-                          onPress={() => setRecurrenceType(type as any)}
-                        >
-                          <Text 
-                            style={[
-                              styles.recurrenceTypeText,
-                              recurrenceType === type && styles.recurrenceTypeTextSelected
-                            ]}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                      <View style={styles.recurrenceTypeContainer}>
+                        {["daily", "weekly", "monthly", "yearly"].map(
+                          (type) => (
+                            <TouchableOpacity
+                              key={type}
+                              style={[
+                                styles.recurrenceTypeButton,
+                                recurrenceType === type &&
+                                  styles.recurrenceTypeButtonSelected,
+                              ]}
+                              onPress={() => setRecurrenceType(type as any)}
+                            >
+                              <Text
+                                style={[
+                                  styles.recurrenceTypeText,
+                                  recurrenceType === type &&
+                                    styles.recurrenceTypeTextSelected,
+                                ]}
+                              >
+                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                              </Text>
+                            </TouchableOpacity>
+                          )
+                        )}
+                      </View>
                     </View>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Frequency</Text>
-                    <View style={styles.intervalRow}>
-                      <Text style={styles.intervalLabel}>Every</Text>
-                      <TextInput
-                        style={styles.intervalInput}
-                        value={recurrenceInterval}
-                        onChangeText={(text) => {
-                          const filtered = text.replace(/[^0-9]/g, '');
-                          setRecurrenceInterval(filtered || "1");
-                        }}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                      />
-                      <Text style={styles.intervalText}>
-                        {recurrenceType === "daily" ? "day(s)" :
-                         recurrenceType === "weekly" ? "week(s)" :
-                         recurrenceType === "monthly" ? "month(s)" : "year(s)"}
-                      </Text>
-                    </View>
+                      <View style={styles.intervalRow}>
+                        <Text style={styles.intervalLabel}>Every</Text>
+                        <TextInput
+                          style={styles.intervalInput}
+                          value={recurrenceInterval}
+                          onChangeText={(text) => {
+                            const filtered = text.replace(/[^0-9]/g, "");
+                            setRecurrenceInterval(filtered || "1");
+                          }}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.intervalText}>
+                          {recurrenceType === "daily"
+                            ? "day(s)"
+                            : recurrenceType === "weekly"
+                            ? "week(s)"
+                            : recurrenceType === "monthly"
+                            ? "month(s)"
+                            : "year(s)"}
+                        </Text>
+                      </View>
                     </View>
                     {recurrenceType === "weekly" && (
                       <View style={styles.formGroup}>
@@ -1179,29 +1248,34 @@ function EventsComponent() {
                             { day: 3, label: "W" },
                             { day: 4, label: "T" },
                             { day: 5, label: "F" },
-                            { day: 6, label: "S" }
-                          ].map(item => (
+                            { day: 6, label: "S" },
+                          ].map((item) => (
                             <TouchableOpacity
                               key={item.day}
                               style={[
                                 styles.dayButton,
-                                selectedDays.includes(item.day) && styles.dayButtonSelected
+                                selectedDays.includes(item.day) &&
+                                  styles.dayButtonSelected,
                               ]}
                               onPress={() => {
                                 if (selectedDays.includes(item.day)) {
                                   if (selectedDays.length > 1) {
-                                    setSelectedDays(selectedDays.filter(d => d !== item.day));
+                                    setSelectedDays(
+                                      selectedDays.filter((d) => d !== item.day)
+                                    );
                                   }
                                 } else {
                                   setSelectedDays([...selectedDays, item.day]);
                                 }
                               }}
                             >
-                              <Text 
+                              <Text
                                 style={[
                                   styles.dayText,
-                                  selectedDays.includes(item.day) && styles.dayTextSelected
-                                ]}>
+                                  selectedDays.includes(item.day) &&
+                                    styles.dayTextSelected,
+                                ]}
+                              >
                                 {item.label}
                               </Text>
                             </TouchableOpacity>
@@ -1215,9 +1289,15 @@ function EventsComponent() {
                         style={styles.dateTimeButton}
                         onPress={() => setShowEndDatePicker(true)}
                       >
-                        <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+                        <Feather
+                          name="calendar"
+                          size={16}
+                          color={theme.primary}
+                        />
                         <Text style={styles.dateTimeText}>
-                          {recurrenceEndDate ? recurrenceEndDate.toLocaleDateString() : "No end date"}
+                          {recurrenceEndDate
+                            ? recurrenceEndDate.toLocaleDateString()
+                            : "No end date"}
                         </Text>
                       </TouchableOpacity>
                       {recurrenceEndDate && (
@@ -1246,23 +1326,23 @@ function EventsComponent() {
                 )}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Image</Text>
-                <TouchableOpacity
-                  style={styles.imagePickerButton}
-                  onPress={pickImage}
-                  disabled={formImageLoading}
-                  activeOpacity={0.8}
-                >
-                  {formImageLoading ? (
-                      <ActivityIndicator size="small" color={THEME.buttonPrimary} />
-                  ) : (
-                    <>
-                        <Feather name="image" size={22} color={THEME.buttonPrimary} />
-                      <Text style={styles.imagePickerText}>
-                        {formImageUrl ? "Change Image" : "Select Image"}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.imagePickerButton}
+                    onPress={pickImage}
+                    disabled={formImageLoading}
+                    activeOpacity={0.8}
+                  >
+                    {formImageLoading ? (
+                      <ActivityIndicator size="small" color={theme.primary} />
+                    ) : (
+                      <>
+                        <Feather name="image" size={22} color={theme.primary} />
+                        <Text style={styles.imagePickerText}>
+                          {formImageUrl ? "Change Image" : "Select Image"}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
                 {formImageUrl ? (
                   <View style={styles.previewImageContainer}>
@@ -1271,7 +1351,7 @@ function EventsComponent() {
                       style={styles.previewImage}
                       resizeMode="cover"
                     />
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.removeImageButton}
                       onPress={() => setFormImageUrl("")}
                     >
@@ -1283,8 +1363,8 @@ function EventsComponent() {
                   style={styles.submitButton}
                   onPress={handleAddEvent}
                   activeOpacity={0.9}
-                  >
-                    <Text style={styles.submitButtonText}>CREATE EVENT</Text>
+                >
+                  <Text style={styles.submitButtonText}>CREATE EVENT</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1302,7 +1382,7 @@ function EventsComponent() {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalContainer}
           >
-            <Pressable 
+            <Pressable
               style={styles.modalBackdrop}
               onPress={() => setShowEditModal(false)}
             />
@@ -1310,48 +1390,52 @@ function EventsComponent() {
               <View style={styles.modalHandle} />
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Edit Event</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => setShowEditModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign name="close" size={22} color={THEME.primary} />
+                  <AntDesign
+                    name="close"
+                    size={22}
+                    color={theme.textForeground}
+                  />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Title*</Text>
-                <TextInput
+                  <TextInput
                     style={styles.formInput}
-                  value={formTitle}
-                  onChangeText={setFormTitle}
+                    value={formTitle}
+                    onChangeText={setFormTitle}
                     placeholder="Enter event title"
-                    placeholderTextColor={THEME.light}
-                />
+                    placeholderTextColor={theme.textForegroundSubtle}
+                  />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Description*</Text>
-                <TextInput
+                  <TextInput
                     style={[styles.formInput, styles.textAreaInput]}
-                  value={formExcerpt}
-                  onChangeText={setFormExcerpt}
-                  placeholder="Event description"
-                    placeholderTextColor={THEME.light}
-                  multiline
-                  numberOfLines={4}
-                />
+                    value={formExcerpt}
+                    onChangeText={setFormExcerpt}
+                    placeholder="Event description"
+                    placeholderTextColor={theme.textForegroundSubtle}
+                    multiline
+                    numberOfLines={4}
+                  />
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Date & Time*</Text>
-                <TouchableOpacity
+                  <TouchableOpacity
                     style={styles.dateTimeButton}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                    <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
-                  <Text style={styles.dateTimeText}>
-                    {formTime.toLocaleString()}
-                  </Text>
-                </TouchableOpacity>
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Feather name="calendar" size={18} color={theme.primary} />
+                    <Text style={styles.dateTimeText}>
+                      {formTime.toLocaleString()}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 {showTimePicker && (
                   <DateTimePicker
@@ -1373,66 +1457,75 @@ function EventsComponent() {
                     value={formAuthorName}
                     onChangeText={setFormAuthorName}
                     placeholder="Event location"
-                    placeholderTextColor={THEME.light}
+                    placeholderTextColor={theme.textForegroundSubtle}
                   />
                 </View>
                 <View style={styles.formGroup}>
-                <View style={styles.toggleRow}>
+                  <View style={styles.toggleRow}>
                     <Text style={styles.toggleLabel}>Recurring event</Text>
-                  <Switch
-                    value={isRecurring}
-                    onValueChange={setIsRecurring}
+                    <Switch
+                      value={isRecurring}
+                      onValueChange={setIsRecurring}
                       trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-                      thumbColor={isRecurring ? THEME.buttonPrimary : "#FFFFFF"}
-                    ios_backgroundColor="#E4E4E7"
-                  />
-                </View>
+                      thumbColor={isRecurring ? theme.primary : "#FFFFFF"}
+                      ios_backgroundColor="#E4E4E7"
+                    />
+                  </View>
                 </View>
                 {isRecurring && (
                   <View style={styles.recurringContainer}>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Repeat</Text>
-                    <View style={styles.recurrenceTypeContainer}>
-                      {["daily", "weekly", "monthly", "yearly"].map((type) => (
-                        <TouchableOpacity
-                          key={type}
-                          style={[
-                            styles.recurrenceTypeButton,
-                            recurrenceType === type && styles.recurrenceTypeButtonSelected
-                          ]}
-                          onPress={() => setRecurrenceType(type as any)}
-                        >
-                          <Text 
-                            style={[
-                              styles.recurrenceTypeText,
-                              recurrenceType === type && styles.recurrenceTypeTextSelected
-                            ]}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                      <View style={styles.recurrenceTypeContainer}>
+                        {["daily", "weekly", "monthly", "yearly"].map(
+                          (type) => (
+                            <TouchableOpacity
+                              key={type}
+                              style={[
+                                styles.recurrenceTypeButton,
+                                recurrenceType === type &&
+                                  styles.recurrenceTypeButtonSelected,
+                              ]}
+                              onPress={() => setRecurrenceType(type as any)}
+                            >
+                              <Text
+                                style={[
+                                  styles.recurrenceTypeText,
+                                  recurrenceType === type &&
+                                    styles.recurrenceTypeTextSelected,
+                                ]}
+                              >
+                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                              </Text>
+                            </TouchableOpacity>
+                          )
+                        )}
+                      </View>
                     </View>
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Frequency</Text>
-                    <View style={styles.intervalRow}>
-                      <Text style={styles.intervalLabel}>Every</Text>
-                      <TextInput
-                        style={styles.intervalInput}
-                        value={recurrenceInterval}
-                        onChangeText={(text) => {
-                          const filtered = text.replace(/[^0-9]/g, '');
-                          setRecurrenceInterval(filtered || "1");
-                        }}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                      />
-                      <Text style={styles.intervalText}>
-                        {recurrenceType === "daily" ? "day(s)" :
-                         recurrenceType === "weekly" ? "week(s)" :
-                         recurrenceType === "monthly" ? "month(s)" : "year(s)"}
-                      </Text>
-                    </View>
+                      <View style={styles.intervalRow}>
+                        <Text style={styles.intervalLabel}>Every</Text>
+                        <TextInput
+                          style={styles.intervalInput}
+                          value={recurrenceInterval}
+                          onChangeText={(text) => {
+                            const filtered = text.replace(/[^0-9]/g, "");
+                            setRecurrenceInterval(filtered || "1");
+                          }}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.intervalText}>
+                          {recurrenceType === "daily"
+                            ? "day(s)"
+                            : recurrenceType === "weekly"
+                            ? "week(s)"
+                            : recurrenceType === "monthly"
+                            ? "month(s)"
+                            : "year(s)"}
+                        </Text>
+                      </View>
                     </View>
                     {recurrenceType === "weekly" && (
                       <View style={styles.formGroup}>
@@ -1445,29 +1538,34 @@ function EventsComponent() {
                             { day: 3, label: "W" },
                             { day: 4, label: "T" },
                             { day: 5, label: "F" },
-                            { day: 6, label: "S" }
-                          ].map(item => (
+                            { day: 6, label: "S" },
+                          ].map((item) => (
                             <TouchableOpacity
                               key={item.day}
                               style={[
                                 styles.dayButton,
-                                selectedDays.includes(item.day) && styles.dayButtonSelected
+                                selectedDays.includes(item.day) &&
+                                  styles.dayButtonSelected,
                               ]}
                               onPress={() => {
                                 if (selectedDays.includes(item.day)) {
                                   if (selectedDays.length > 1) {
-                                    setSelectedDays(selectedDays.filter(d => d !== item.day));
+                                    setSelectedDays(
+                                      selectedDays.filter((d) => d !== item.day)
+                                    );
                                   }
                                 } else {
                                   setSelectedDays([...selectedDays, item.day]);
                                 }
                               }}
                             >
-                              <Text 
+                              <Text
                                 style={[
                                   styles.dayText,
-                                  selectedDays.includes(item.day) && styles.dayTextSelected
-                                ]}>
+                                  selectedDays.includes(item.day) &&
+                                    styles.dayTextSelected,
+                                ]}
+                              >
                                 {item.label}
                               </Text>
                             </TouchableOpacity>
@@ -1481,9 +1579,15 @@ function EventsComponent() {
                         style={styles.dateTimeButton}
                         onPress={() => setShowEndDatePicker(true)}
                       >
-                        <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+                        <Feather
+                          name="calendar"
+                          size={16}
+                          color={theme.primary}
+                        />
                         <Text style={styles.dateTimeText}>
-                          {recurrenceEndDate ? recurrenceEndDate.toLocaleDateString() : "No end date"}
+                          {recurrenceEndDate
+                            ? recurrenceEndDate.toLocaleDateString()
+                            : "No end date"}
                         </Text>
                       </TouchableOpacity>
                       {recurrenceEndDate && (
@@ -1512,23 +1616,23 @@ function EventsComponent() {
                 )}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Event Image</Text>
-                <TouchableOpacity
-                  style={styles.imagePickerButton}
-                  onPress={pickImage}
-                  disabled={formImageLoading}
-                  activeOpacity={0.8}
-                >
-                  {formImageLoading ? (
-                      <ActivityIndicator size="small" color={THEME.buttonPrimary} />
-                  ) : (
-                    <>
-                        <Feather name="image" size={22} color={THEME.buttonPrimary} />
-                      <Text style={styles.imagePickerText}>
-                        {formImageUrl ? "Change Image" : "Select Image"}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.imagePickerButton}
+                    onPress={pickImage}
+                    disabled={formImageLoading}
+                    activeOpacity={0.8}
+                  >
+                    {formImageLoading ? (
+                      <ActivityIndicator size="small" color={theme.primary} />
+                    ) : (
+                      <>
+                        <Feather name="image" size={22} color={theme.primary} />
+                        <Text style={styles.imagePickerText}>
+                          {formImageUrl ? "Change Image" : "Select Image"}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
                 {formImageUrl ? (
                   <View style={styles.previewImageContainer}>
@@ -1537,7 +1641,7 @@ function EventsComponent() {
                       style={styles.previewImage}
                       resizeMode="cover"
                     />
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.removeImageButton}
                       onPress={() => setFormImageUrl("")}
                     >
@@ -1549,8 +1653,8 @@ function EventsComponent() {
                   style={styles.submitButton}
                   onPress={handleEditEvent}
                   activeOpacity={0.9}
-                  >
-                    <Text style={styles.submitButtonText}>UPDATE EVENT</Text>
+                >
+                  <Text style={styles.submitButtonText}>UPDATE EVENT</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1565,17 +1669,21 @@ function EventsComponent() {
           onRequestClose={() => setShowImageModal(false)}
         >
           <View style={styles.imageViewerContainer}>
-            <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
-            <TouchableOpacity 
+            <BlurView
+              intensity={80}
+              style={StyleSheet.absoluteFill}
+              tint="dark"
+            />
+            <TouchableOpacity
               style={styles.imageViewerCloseButton}
               onPress={() => setShowImageModal(false)}
             >
               <AntDesign name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Image 
-              source={{ uri: selectedImage }} 
-              style={styles.fullImage} 
-              resizeMode="contain" 
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.fullImage}
+              resizeMode="contain"
             />
           </View>
         </Modal>
@@ -1588,7 +1696,7 @@ function EventsComponent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
   },
   safeArea: {
     flex: 1,
@@ -1600,22 +1708,22 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   // View Selector
   viewSelector: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginHorizontal: 20,
     marginBottom: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 30,
     padding: 4,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1624,25 +1732,25 @@ const styles = StyleSheet.create({
   viewOption: {
     flex: 1,
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 25,
   },
   viewOptionActive: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
   },
   viewOptionText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: THEME.secondary,
+    fontWeight: "600",
+    color: theme.textForegroundMuted,
   },
   viewOptionTextActive: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
   },
   // Month Navigation
   monthNavigation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     marginBottom: 16,
   },
@@ -1651,46 +1759,46 @@ const styles = StyleSheet.create({
   },
   monthText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: THEME.primary,
+    fontWeight: "600",
+    color: theme.textForeground,
   },
   // Calendar
   calendarContainer: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderRadius: 16,
     marginHorizontal: 20,
     padding: 16,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   dayLabelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
     paddingHorizontal: 4,
   },
   dayLabelContainer: {
     width: 38,
-    alignItems: 'center',
+    alignItems: "center",
   },
   dayLabel: {
     fontSize: 14,
-    color: THEME.secondary,
-    fontWeight: '600',
+    color: theme.textForegroundMuted,
+    fontWeight: "600",
   },
   calendarGrid: {},
   calendarWeek: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   calendarDay: {
     width: 38,
     height: 60,
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 6,
     borderRadius: 10,
   },
@@ -1698,43 +1806,43 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   calendarDaySelected: {
-    backgroundColor: '#F0F0F5',
+    backgroundColor: "#F0F0F5",
   },
   dayNumberContainer: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   todayContainer: {
-    backgroundColor: '#EEEEF5',
+    backgroundColor: "#EEEEF5",
   },
   selectedDayNumberContainer: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
   },
   dayNumber: {
     fontSize: 16,
-    color: THEME.primary,
-    fontWeight: '500',
+    color: theme.textForeground,
+    fontWeight: "500",
   },
   dayNumberOtherMonth: {
-    color: THEME.light,
+    color: theme.textForegroundSubtle,
   },
   todayNumber: {
-    color: THEME.buttonPrimary,
-    fontWeight: '700',
+    color: theme.primary,
+    fontWeight: "700",
   },
   selectedDayNumber: {
-    color: THEME.buttonText,
-    fontWeight: '700',
+    color: theme.buttonText,
+    fontWeight: "700",
   },
   eventIndicatorContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 4,
-    justifyContent: 'center',
+    justifyContent: "center",
     maxWidth: 32,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   eventIndicator: {
     width: 6,
@@ -1743,43 +1851,43 @@ const styles = StyleSheet.create({
     margin: 1,
   },
   multipleEventsIndicator: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     borderRadius: 10,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
   multipleEventsText: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   calendarLoading: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 50,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   // List View
   listContainer: {
     paddingHorizontal: 20,
   },
   loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 50,
   },
   noEventsContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: THEME.card,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.cardBackground,
     borderRadius: 16,
     padding: 30,
     marginVertical: 20,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1787,27 +1895,27 @@ const styles = StyleSheet.create({
   },
   noEventsText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: THEME.primary,
+    fontWeight: "700",
+    color: theme.textForeground,
     marginTop: 16,
     marginBottom: 8,
   },
   noEventsSubtext: {
     fontSize: 14,
-    color: THEME.secondary,
-    textAlign: 'center',
+    color: theme.textForegroundMuted,
+    textAlign: "center",
   },
   eventsList: {
     paddingVertical: 8,
   },
   // Event Cards
   eventCard: {
-    flexDirection: 'row',
-    backgroundColor: THEME.card,
+    flexDirection: "row",
+    backgroundColor: theme.cardBackground,
     borderRadius: 16,
     marginVertical: 8,
-    overflow: 'hidden',
-    shadowColor: THEME.shadow,
+    overflow: "hidden",
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1815,61 +1923,61 @@ const styles = StyleSheet.create({
   },
   eventIconContainer: {
     width: 90,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    position: 'relative',
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    position: "relative",
   },
   eventImageContainer: {
     width: 90,
-    height: '100%',
-    overflow: 'hidden',
-    position: 'relative',
+    height: "100%",
+    overflow: "hidden",
+    position: "relative",
   },
   eventImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   eventIconOverlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     padding: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
   },
   centerIcon: {
-    position: 'absolute',
+    position: "absolute",
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    top: '50%',
-    left: '50%',
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    top: "50%",
+    left: "50%",
     marginTop: -18,
     marginLeft: -18,
   },
   eventContent: {
     flex: 1,
     padding: 12,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   eventTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: THEME.primary,
+    fontWeight: "700",
+    color: theme.textForeground,
     marginBottom: 4,
   },
   eventTimeLocationContainer: {
@@ -1877,44 +1985,44 @@ const styles = StyleSheet.create({
   },
   eventDateTime: {
     fontSize: 13,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginBottom: 2,
   },
   eventLocation: {
     fontSize: 13,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   eventDescription: {
     fontSize: 13,
-    color: THEME.light,
+    color: theme.textForegroundSubtle,
     marginBottom: 8,
     lineHeight: 18,
   },
   eventActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 8,
   },
   eventActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginLeft: 16,
   },
   actionButtonText: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginLeft: 4,
   },
   eventCardDetail: {
-    flexDirection: 'column',
+    flexDirection: "column",
   },
   eventDetailImageContainer: {
-    width: '100%',
+    width: "100%",
     height: 180,
   },
   eventDetailImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
@@ -1943,13 +2051,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: THEME.primary,
+    color: theme.textForeground,
     textAlign: "center",
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     textAlign: "center",
     marginBottom: 16,
     maxWidth: 300,
@@ -1958,7 +2066,7 @@ const styles = StyleSheet.create({
   // Updated Button
   addEventButton: {
     flexDirection: "row",
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 30,
@@ -1973,22 +2081,22 @@ const styles = StyleSheet.create({
   },
   addEventButtonText: {
     fontSize: 16,
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontWeight: "700",
     marginRight: 10,
   },
   // Date Detail Modal
   dateDetailContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     height: height * 0.7,
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 20,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -1998,62 +2106,62 @@ const styles = StyleSheet.create({
   dateDetailHandle: {
     width: 40,
     height: 5,
-    backgroundColor: THEME.border,
+    backgroundColor: theme.borderLight,
     borderRadius: 3,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginTop: 10,
     marginBottom: 10,
   },
   dateDetailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.borderLight,
   },
   dateDetailTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: THEME.primary,
+    fontWeight: "700",
+    color: theme.textForeground,
   },
   dateDetailCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: THEME.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: theme.backgroundBeige,
+    justifyContent: "center",
+    alignItems: "center",
   },
   dateDetailContent: {
     flex: 1,
     padding: 20,
   },
   noEventsForDay: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 50,
   },
   noEventsForDayText: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginTop: 16,
     marginBottom: 24,
   },
   addEventForDayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: THEME.background,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.backgroundBeige,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 20,
   },
   addEventForDayText: {
     fontSize: 16,
-    color: THEME.buttonPrimary,
-    fontWeight: '600',
+    color: theme.primary,
+    fontWeight: "600",
     marginRight: 8,
   },
   // Modal
@@ -2062,20 +2170,20 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalBackdrop: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingBottom: 30,
     maxHeight: height * 0.9,
-    shadowColor: THEME.shadow,
+    shadowColor: theme.shadowLight,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -2084,9 +2192,9 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 5,
-    backgroundColor: THEME.border,
+    backgroundColor: theme.borderLight,
     borderRadius: 3,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginTop: 10,
     marginBottom: 10,
   },
@@ -2097,18 +2205,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.borderLight,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   modalCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2122,17 +2230,17 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.primary,
+    color: theme.textForeground,
     marginBottom: 8,
   },
   formInput: {
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     borderRadius: 12,
     padding: 16,
-    color: THEME.primary,
+    color: theme.textForeground,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   textAreaInput: {
     minHeight: 120,
@@ -2141,14 +2249,14 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   dateTimeText: {
-    color: THEME.primary,
+    color: theme.textForeground,
     marginLeft: 10,
     fontSize: 16,
   },
@@ -2156,16 +2264,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   toggleLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.primary,
+    color: theme.textForeground,
   },
   recurringContainer: {
     marginBottom: 20,
@@ -2179,23 +2287,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   recurrenceTypeButtonSelected: {
-    backgroundColor: THEME.buttonPrimary,
-    borderColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   recurrenceTypeText: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     fontWeight: "500",
   },
   recurrenceTypeTextSelected: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
     fontWeight: "600",
   },
   intervalRow: {
@@ -2204,25 +2312,25 @@ const styles = StyleSheet.create({
   },
   intervalLabel: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
     marginRight: 8,
   },
   intervalInput: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBackground,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     width: 60,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
     marginRight: 8,
     fontSize: 16,
-    color: THEME.primary,
-    textAlign: 'center',
+    color: theme.textForeground,
+    textAlign: "center",
   },
   intervalText: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   daysRow: {
     flexDirection: "row",
@@ -2232,24 +2340,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 6,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.borderLight,
   },
   dayButtonSelected: {
-    backgroundColor: THEME.buttonPrimary,
-    borderColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   dayText: {
     fontSize: 14,
     fontWeight: "600",
-    color: THEME.secondary,
+    color: theme.textForegroundMuted,
   },
   dayTextSelected: {
-    color: THEME.buttonText,
+    color: theme.buttonText,
   },
   clearButton: {
     paddingVertical: 8,
@@ -2257,11 +2365,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#FEE2E2",
     marginTop: 8,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   clearButtonText: {
     fontSize: 14,
-    color: THEME.error,
+    color: theme.backgroundDestructive,
     fontWeight: "500",
   },
   imagePickerButton: {
@@ -2269,14 +2377,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.backgroundBeige,
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: THEME.buttonPrimary,
+    borderColor: theme.primary,
   },
   imagePickerText: {
-    color: THEME.buttonPrimary,
+    color: theme.primary,
     marginLeft: 10,
     fontSize: 16,
     fontWeight: "600",
@@ -2285,57 +2393,57 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 20,
-    position: 'relative',
+    position: "relative",
   },
   previewImage: {
     width: "100%",
     height: 180,
   },
   removeImageButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 8,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   submitButton: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
     marginBottom: 16,
   },
   submitButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: THEME.buttonText,
+    color: theme.buttonText,
   },
   // Image Viewer Modal Styles
   imageViewerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.9)",
   },
   imageViewerCloseButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 40,
     right: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 999,
   },
   fullImage: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height * 0.8,
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height * 0.8,
   },
 });
