@@ -309,6 +309,17 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   
   // Navigate to create ministry screen
   const navigateToCreateMinistry = () => {
+    // Check if user is admin first
+    if (!isAdmin) {
+      // Show alert for non-admin users
+      Alert.alert(
+        "Admin Access Required",
+        "Only church admin and owner can create a new ministry.",
+        [{ text: "OK", style: "default" }]
+      );
+      return;
+    }
+    
     try {
       // Update primary navigation target to CreateMinistryGroupScreen
       navigation.navigate('CreateMinistryGroupScreen', {});
@@ -643,16 +654,14 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           <Text style={styles.headerTitle}>Ministries</Text>
         </View>
         
-        {/* Create Ministry Button - now only visible to admins */}
-        {isAdmin && (
-          <TouchableOpacity 
-            style={styles.createMinistryButton}
-            onPress={navigateToCreateMinistry}
-          >
-            <MaterialIcons name="add-circle" size={24} color="#2196F3" />
-            <Text style={styles.createButtonText}>New</Text>
-          </TouchableOpacity>
-        )}
+        {/* Create Ministry Button - now visible to all users */}
+        <TouchableOpacity 
+          style={styles.createMinistryButton}
+          onPress={navigateToCreateMinistry}
+        >
+          <MaterialIcons name="add-circle" size={24} color="#2196F3" />
+          <Text style={styles.createButtonText}>New</Text>
+        </TouchableOpacity>
       </View>
       
       {/* Search Box */}
@@ -688,7 +697,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             }
           </Text>
           
-          {!searchText && isAdmin && (
+          {!searchText && (
             <TouchableOpacity 
               style={styles.emptyStateButton}
               onPress={navigateToCreateMinistry}
@@ -720,16 +729,14 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         )}
       </Animated.View>
       
-      {/* Add Ministry Button (FAB) - Only visible for admins */}
-      {isAdmin && (
-        <TouchableOpacity 
-          style={styles.addMinistryButton}
-          onPress={navigateToCreateMinistry}
-          activeOpacity={0.9}
-        >
-          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
+      {/* Add Ministry Button (FAB) - Now visible to all users */}
+      <TouchableOpacity 
+        style={styles.addMinistryButton}
+        onPress={navigateToCreateMinistry}
+        activeOpacity={0.9}
+      >
+        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
