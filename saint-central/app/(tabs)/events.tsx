@@ -633,10 +633,7 @@ function EventsComponent() {
   // ----------------------------
   const getEventIconAndColor = (
     event: Event
-  ): {
-    icon: "book" | "home" | "message-circle" | "coffee" | "calendar";
-    color: string;
-  } => {
+  ): { icon: "book" | "home" | "message-circle" | "coffee" | "calendar"; color: string } => {
     const title = event.title.toLowerCase();
     if (title.includes("bible") || title.includes("study")) {
       return { icon: "book", color: theme.accent1 };
