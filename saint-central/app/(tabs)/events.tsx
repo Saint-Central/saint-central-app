@@ -93,9 +93,9 @@ function EventsComponent() {
 
   // Recurring event states
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceType, setRecurrenceType] = useState<
-    "daily" | "weekly" | "monthly" | "yearly"
-  >("weekly");
+  const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly" | "yearly">(
+    "weekly"
+  );
   const [recurrenceInterval, setRecurrenceInterval] = useState("1");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -347,11 +347,9 @@ function EventsComponent() {
       if (error) {
         // Handle RLS read restrictions if any
         if (error.code === "42501") {
-          Alert.alert(
-            "Access Restricted",
-            "You do not have permission to view events.",
-            [{ text: "OK" }]
-          );
+          Alert.alert("Access Restricted", "You do not have permission to view events.", [
+            { text: "OK" },
+          ]);
           setEvents([]);
           return;
         }
@@ -417,9 +415,7 @@ function EventsComponent() {
     setFormAuthorName(event.author_name || "");
     setIsRecurring(event.is_recurring || false);
     setRecurrenceType(event.recurrence_type || "weekly");
-    setRecurrenceInterval(
-      event.recurrence_interval ? event.recurrence_interval.toString() : "1"
-    );
+    setRecurrenceInterval(event.recurrence_interval ? event.recurrence_interval.toString() : "1");
     if (event.recurrence_end_date) {
       setRecurrenceEndDate(new Date(event.recurrence_end_date));
     } else {
@@ -532,10 +528,7 @@ function EventsComponent() {
         eventData.recurrence_end_date = null;
       }
 
-      const { error } = await supabase
-        .from("events")
-        .update(eventData)
-        .eq("id", selectedEvent.id);
+      const { error } = await supabase.from("events").update(eventData).eq("id", selectedEvent.id);
 
       if (error) {
         if (error.code === "42501") {
@@ -560,36 +553,29 @@ function EventsComponent() {
 
   const handleDeleteEvent = async (eventId: number) => {
     try {
-      Alert.alert(
-        "Confirm Deletion",
-        "Are you sure you want to delete this event?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              const { error } = await supabase
-                .from("events")
-                .delete()
-                .eq("id", eventId);
-              if (error) {
-                if (error.code === "42501") {
-                  Alert.alert(
-                    "Permission Error",
-                    "You do not have permission to delete this event. You may only delete events you created.",
-                    [{ text: "OK" }]
-                  );
-                  return;
-                }
-                throw error;
+      Alert.alert("Confirm Deletion", "Are you sure you want to delete this event?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.from("events").delete().eq("id", eventId);
+            if (error) {
+              if (error.code === "42501") {
+                Alert.alert(
+                  "Permission Error",
+                  "You do not have permission to delete this event. You may only delete events you created.",
+                  [{ text: "OK" }]
+                );
+                return;
               }
-              Alert.alert("Success", "Event deleted successfully!");
-              fetchEvents();
-            },
+              throw error;
+            }
+            Alert.alert("Success", "Event deleted successfully!");
+            fetchEvents();
           },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
       console.error("Error deleting event:", error);
       Alert.alert("Error", "Failed to delete event. Please try again.");
@@ -627,9 +613,7 @@ function EventsComponent() {
         if (uploadError) {
           throw uploadError;
         }
-        const { data: urlData } = supabase.storage
-          .from("event-images")
-          .getPublicUrl(fileName);
+        const { data: urlData } = supabase.storage.from("event-images").getPublicUrl(fileName);
         if (urlData?.publicUrl) {
           setFormImageUrl(urlData.publicUrl);
           Alert.alert("Success", "Image uploaded successfully!");
@@ -656,17 +640,9 @@ function EventsComponent() {
     const title = event.title.toLowerCase();
     if (title.includes("bible") || title.includes("study")) {
       return { icon: "book", color: theme.accent1 };
-    } else if (
-      title.includes("sunday") ||
-      title.includes("service") ||
-      title.includes("worship")
-    ) {
+    } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
       return { icon: "home", color: theme.accent2 };
-    } else if (
-      title.includes("youth") ||
-      title.includes("meetup") ||
-      title.includes("young")
-    ) {
+    } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
       return { icon: "message-circle", color: theme.accent3 };
     } else if (title.includes("prayer") || title.includes("breakfast")) {
       return { icon: "coffee", color: theme.accent4 };
@@ -691,11 +667,7 @@ function EventsComponent() {
             onPress={() => openImageViewer(event.image_url)}
             activeOpacity={0.9}
           >
-            <Image
-              source={{ uri: event.image_url }}
-              style={styles.eventImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: event.image_url }} style={styles.eventImage} resizeMode="cover" />
             <View style={[styles.eventIconOverlay, { backgroundColor: color }]}>
               <Feather name={icon} size={18} color={theme.textForeground} />
             </View>
@@ -706,11 +678,7 @@ function EventsComponent() {
           </View>
         )}
         <View style={styles.eventContent}>
-          <Text
-            style={styles.eventTitle}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
+          <Text style={styles.eventTitle} numberOfLines={1} ellipsizeMode="tail">
             {event.title}
           </Text>
           <View style={styles.eventTimeLocationContainer}>
@@ -718,44 +686,25 @@ function EventsComponent() {
               {formatEventDay(event.time)}, {formatEventMonth(event.time)}{" "}
               {formatEventDate(event.time)} {formatEventTime(event.time)}
             </Text>
-            <Text
-              style={styles.eventLocation}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+            <Text style={styles.eventLocation} numberOfLines={1} ellipsizeMode="tail">
               {event.author_name || "Community Church"}
             </Text>
           </View>
           {event.excerpt && (
-            <Text
-              style={styles.eventDescription}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
+            <Text style={styles.eventDescription} numberOfLines={2} ellipsizeMode="tail">
               {event.excerpt}
             </Text>
           )}
           <View style={styles.eventActions}>
-            <TouchableOpacity
-              style={styles.eventActionButton}
-              onPress={() => openEditModal(event)}
-            >
-              <Feather
-                name="edit-2"
-                size={16}
-                color={theme.textForegroundMuted}
-              />
+            <TouchableOpacity style={styles.eventActionButton} onPress={() => openEditModal(event)}>
+              <Feather name="edit-2" size={16} color={theme.textForegroundMuted} />
               <Text style={styles.actionButtonText}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.eventActionButton}
               onPress={() => handleDeleteEvent(event.id)}
             >
-              <Feather
-                name="trash-2"
-                size={16}
-                color={theme.backgroundDestructive}
-              />
+              <Feather name="trash-2" size={16} color={theme.backgroundDestructive} />
               <Text style={styles.actionButtonText}>Delete</Text>
             </TouchableOpacity>
           </View>
@@ -828,9 +777,7 @@ function EventsComponent() {
                 ))
               ) : (
                 <View style={styles.multipleEventsIndicator}>
-                  <Text style={styles.multipleEventsText}>
-                    {day.events.length}
-                  </Text>
+                  <Text style={styles.multipleEventsText}>{day.events.length}</Text>
                 </View>
               )}
             </View>
@@ -877,8 +824,8 @@ function EventsComponent() {
           </View>
           <Text style={styles.heroTitle}>Community Events</Text>
           <Text style={styles.heroSubtitle}>
-            Join Saint Central and our guest speakers for live events, prayer
-            nights, and Bible studies.
+            Join Saint Central and our guest speakers for live events, prayer nights, and Bible
+            studies.
           </Text>
           <TouchableOpacity
             style={styles.addEventButton}
@@ -895,20 +842,14 @@ function EventsComponent() {
           contentContainerStyle={styles.scrollContent}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            {
-              useNativeDriver: true,
-            }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
         >
           {/* View Selector */}
           <View style={styles.viewSelector}>
             <TouchableOpacity
-              style={[
-                styles.viewOption,
-                calendarView === "list" && styles.viewOptionActive,
-              ]}
+              style={[styles.viewOption, calendarView === "list" && styles.viewOptionActive]}
               onPress={() => setCalendarView("list")}
             >
               <Text
@@ -922,10 +863,7 @@ function EventsComponent() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.viewOption,
-                calendarView === "month" && styles.viewOptionActive,
-              ]}
+              style={[styles.viewOption, calendarView === "month" && styles.viewOptionActive]}
               onPress={() => setCalendarView("month")}
             >
               <Text
@@ -942,26 +880,12 @@ function EventsComponent() {
           {/* Month Navigation (for calendar view) */}
           {calendarView === "month" && (
             <View style={styles.monthNavigation}>
-              <TouchableOpacity
-                style={styles.monthNavArrow}
-                onPress={() => changeMonth(-1)}
-              >
-                <Feather
-                  name="chevron-left"
-                  size={24}
-                  color={theme.textForegroundMuted}
-                />
+              <TouchableOpacity style={styles.monthNavArrow} onPress={() => changeMonth(-1)}>
+                <Feather name="chevron-left" size={24} color={theme.textForegroundMuted} />
               </TouchableOpacity>
               <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
-              <TouchableOpacity
-                style={styles.monthNavArrow}
-                onPress={() => changeMonth(1)}
-              >
-                <Feather
-                  name="chevron-right"
-                  size={24}
-                  color={theme.textForegroundMuted}
-                />
+              <TouchableOpacity style={styles.monthNavArrow} onPress={() => changeMonth(1)}>
+                <Feather name="chevron-right" size={24} color={theme.textForegroundMuted} />
               </TouchableOpacity>
             </View>
           )}
@@ -994,11 +918,7 @@ function EventsComponent() {
                 </View>
               ) : events.length === 0 ? (
                 <View style={styles.noEventsContainer}>
-                  <Feather
-                    name="calendar"
-                    size={50}
-                    color={theme.textForegroundSubtle}
-                  />
+                  <Feather name="calendar" size={50} color={theme.textForegroundSubtle} />
                   <Text style={styles.noEventsText}>No events found</Text>
                   <Text style={styles.noEventsSubtext}>
                     Add your first event by tapping the button below
@@ -1020,38 +940,20 @@ function EventsComponent() {
         {/* Date Detail Modal */}
         {showDateDetail && (
           <Animated.View
-            style={[
-              styles.dateDetailContainer,
-              { transform: [{ translateY: detailSlideAnim }] },
-            ]}
+            style={[styles.dateDetailContainer, { transform: [{ translateY: detailSlideAnim }] }]}
           >
             <View style={styles.dateDetailHandle} />
             <View style={styles.dateDetailHeader}>
-              <Text style={styles.dateDetailTitle}>
-                {formatDate(selectedDate)}
-              </Text>
-              <TouchableOpacity
-                style={styles.dateDetailCloseButton}
-                onPress={closeDateDetail}
-              >
-                <AntDesign
-                  name="close"
-                  size={24}
-                  color={theme.textForeground}
-                />
+              <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
+              <TouchableOpacity style={styles.dateDetailCloseButton} onPress={closeDateDetail}>
+                <AntDesign name="close" size={24} color={theme.textForeground} />
               </TouchableOpacity>
             </View>
             <View style={styles.dateDetailContent}>
               {selectedDayEvents.length === 0 ? (
                 <View style={styles.noEventsForDay}>
-                  <Feather
-                    name="calendar"
-                    size={50}
-                    color={theme.textForegroundSubtle}
-                  />
-                  <Text style={styles.noEventsForDayText}>
-                    No events for this day
-                  </Text>
+                  <Feather name="calendar" size={50} color={theme.textForegroundSubtle} />
+                  <Text style={styles.noEventsForDayText}>No events for this day</Text>
                   <TouchableOpacity
                     style={styles.addEventForDayButton}
                     onPress={() => {
@@ -1091,10 +993,7 @@ function EventsComponent() {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalContainer}
           >
-            <Pressable
-              style={styles.modalBackdrop}
-              onPress={() => setShowAddModal(false)}
-            />
+            <Pressable style={styles.modalBackdrop} onPress={() => setShowAddModal(false)} />
             <View style={styles.modalContent}>
               <View style={styles.modalHandle} />
               <View style={styles.modalHeader}>
@@ -1104,11 +1003,7 @@ function EventsComponent() {
                   onPress={() => setShowAddModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign
-                    name="close"
-                    size={22}
-                    color={theme.textForeground}
-                  />
+                  <AntDesign name="close" size={22} color={theme.textForeground} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
@@ -1142,9 +1037,7 @@ function EventsComponent() {
                     onPress={() => setShowTimePicker(true)}
                   >
                     <Feather name="calendar" size={18} color={theme.primary} />
-                    <Text style={styles.dateTimeText}>
-                      {formTime.toLocaleString()}
-                    </Text>
+                    <Text style={styles.dateTimeText}>{formTime.toLocaleString()}</Text>
                   </TouchableOpacity>
                 </View>
                 {showTimePicker && (
@@ -1187,29 +1080,25 @@ function EventsComponent() {
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Repeat</Text>
                       <View style={styles.recurrenceTypeContainer}>
-                        {["daily", "weekly", "monthly", "yearly"].map(
-                          (type) => (
-                            <TouchableOpacity
-                              key={type}
+                        {["daily", "weekly", "monthly", "yearly"].map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={[
+                              styles.recurrenceTypeButton,
+                              recurrenceType === type && styles.recurrenceTypeButtonSelected,
+                            ]}
+                            onPress={() => setRecurrenceType(type as any)}
+                          >
+                            <Text
                               style={[
-                                styles.recurrenceTypeButton,
-                                recurrenceType === type &&
-                                  styles.recurrenceTypeButtonSelected,
+                                styles.recurrenceTypeText,
+                                recurrenceType === type && styles.recurrenceTypeTextSelected,
                               ]}
-                              onPress={() => setRecurrenceType(type as any)}
                             >
-                              <Text
-                                style={[
-                                  styles.recurrenceTypeText,
-                                  recurrenceType === type &&
-                                    styles.recurrenceTypeTextSelected,
-                                ]}
-                              >
-                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                              </Text>
-                            </TouchableOpacity>
-                          )
-                        )}
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
                       </View>
                     </View>
                     <View style={styles.formGroup}>
@@ -1254,15 +1143,12 @@ function EventsComponent() {
                               key={item.day}
                               style={[
                                 styles.dayButton,
-                                selectedDays.includes(item.day) &&
-                                  styles.dayButtonSelected,
+                                selectedDays.includes(item.day) && styles.dayButtonSelected,
                               ]}
                               onPress={() => {
                                 if (selectedDays.includes(item.day)) {
                                   if (selectedDays.length > 1) {
-                                    setSelectedDays(
-                                      selectedDays.filter((d) => d !== item.day)
-                                    );
+                                    setSelectedDays(selectedDays.filter((d) => d !== item.day));
                                   }
                                 } else {
                                   setSelectedDays([...selectedDays, item.day]);
@@ -1272,8 +1158,7 @@ function EventsComponent() {
                               <Text
                                 style={[
                                   styles.dayText,
-                                  selectedDays.includes(item.day) &&
-                                    styles.dayTextSelected,
+                                  selectedDays.includes(item.day) && styles.dayTextSelected,
                                 ]}
                               >
                                 {item.label}
@@ -1289,11 +1174,7 @@ function EventsComponent() {
                         style={styles.dateTimeButton}
                         onPress={() => setShowEndDatePicker(true)}
                       >
-                        <Feather
-                          name="calendar"
-                          size={16}
-                          color={theme.primary}
-                        />
+                        <Feather name="calendar" size={16} color={theme.primary} />
                         <Text style={styles.dateTimeText}>
                           {recurrenceEndDate
                             ? recurrenceEndDate.toLocaleDateString()
@@ -1382,10 +1263,7 @@ function EventsComponent() {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalContainer}
           >
-            <Pressable
-              style={styles.modalBackdrop}
-              onPress={() => setShowEditModal(false)}
-            />
+            <Pressable style={styles.modalBackdrop} onPress={() => setShowEditModal(false)} />
             <View style={styles.modalContent}>
               <View style={styles.modalHandle} />
               <View style={styles.modalHeader}>
@@ -1395,11 +1273,7 @@ function EventsComponent() {
                   onPress={() => setShowEditModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign
-                    name="close"
-                    size={22}
-                    color={theme.textForeground}
-                  />
+                  <AntDesign name="close" size={22} color={theme.textForeground} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
@@ -1432,9 +1306,7 @@ function EventsComponent() {
                     onPress={() => setShowTimePicker(true)}
                   >
                     <Feather name="calendar" size={18} color={theme.primary} />
-                    <Text style={styles.dateTimeText}>
-                      {formTime.toLocaleString()}
-                    </Text>
+                    <Text style={styles.dateTimeText}>{formTime.toLocaleString()}</Text>
                   </TouchableOpacity>
                 </View>
                 {showTimePicker && (
@@ -1477,29 +1349,25 @@ function EventsComponent() {
                     <View style={styles.formGroup}>
                       <Text style={styles.formLabel}>Repeat</Text>
                       <View style={styles.recurrenceTypeContainer}>
-                        {["daily", "weekly", "monthly", "yearly"].map(
-                          (type) => (
-                            <TouchableOpacity
-                              key={type}
+                        {["daily", "weekly", "monthly", "yearly"].map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={[
+                              styles.recurrenceTypeButton,
+                              recurrenceType === type && styles.recurrenceTypeButtonSelected,
+                            ]}
+                            onPress={() => setRecurrenceType(type as any)}
+                          >
+                            <Text
                               style={[
-                                styles.recurrenceTypeButton,
-                                recurrenceType === type &&
-                                  styles.recurrenceTypeButtonSelected,
+                                styles.recurrenceTypeText,
+                                recurrenceType === type && styles.recurrenceTypeTextSelected,
                               ]}
-                              onPress={() => setRecurrenceType(type as any)}
                             >
-                              <Text
-                                style={[
-                                  styles.recurrenceTypeText,
-                                  recurrenceType === type &&
-                                    styles.recurrenceTypeTextSelected,
-                                ]}
-                              >
-                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                              </Text>
-                            </TouchableOpacity>
-                          )
-                        )}
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
                       </View>
                     </View>
                     <View style={styles.formGroup}>
@@ -1544,15 +1412,12 @@ function EventsComponent() {
                               key={item.day}
                               style={[
                                 styles.dayButton,
-                                selectedDays.includes(item.day) &&
-                                  styles.dayButtonSelected,
+                                selectedDays.includes(item.day) && styles.dayButtonSelected,
                               ]}
                               onPress={() => {
                                 if (selectedDays.includes(item.day)) {
                                   if (selectedDays.length > 1) {
-                                    setSelectedDays(
-                                      selectedDays.filter((d) => d !== item.day)
-                                    );
+                                    setSelectedDays(selectedDays.filter((d) => d !== item.day));
                                   }
                                 } else {
                                   setSelectedDays([...selectedDays, item.day]);
@@ -1562,8 +1427,7 @@ function EventsComponent() {
                               <Text
                                 style={[
                                   styles.dayText,
-                                  selectedDays.includes(item.day) &&
-                                    styles.dayTextSelected,
+                                  selectedDays.includes(item.day) && styles.dayTextSelected,
                                 ]}
                               >
                                 {item.label}
@@ -1579,11 +1443,7 @@ function EventsComponent() {
                         style={styles.dateTimeButton}
                         onPress={() => setShowEndDatePicker(true)}
                       >
-                        <Feather
-                          name="calendar"
-                          size={16}
-                          color={theme.primary}
-                        />
+                        <Feather name="calendar" size={16} color={theme.primary} />
                         <Text style={styles.dateTimeText}>
                           {recurrenceEndDate
                             ? recurrenceEndDate.toLocaleDateString()
@@ -1669,22 +1529,14 @@ function EventsComponent() {
           onRequestClose={() => setShowImageModal(false)}
         >
           <View style={styles.imageViewerContainer}>
-            <BlurView
-              intensity={80}
-              style={StyleSheet.absoluteFill}
-              tint="dark"
-            />
+            <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
             <TouchableOpacity
               style={styles.imageViewerCloseButton}
               onPress={() => setShowImageModal(false)}
             >
               <AntDesign name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: selectedImage }} style={styles.fullImage} resizeMode="contain" />
           </View>
         </Modal>
       </SafeAreaView>

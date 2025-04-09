@@ -1,14 +1,6 @@
 // AddPrayerButton.tsx - A completely new design from the ground up
 import React, { useEffect, useRef } from "react";
-import {
-  View,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  Animated,
-  Easing,
-  Platform,
-} from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Animated, Easing, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -29,10 +21,7 @@ interface AddPrayerButtonProps {
   theme?: "light" | "dark" | "sepia";
 }
 
-const AddPrayerButton: React.FC<AddPrayerButtonProps> = ({
-  onPress,
-  theme = "light",
-}) => {
+const AddPrayerButton: React.FC<AddPrayerButtonProps> = ({ onPress, theme = "light" }) => {
   // Animation values
   const floatAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
