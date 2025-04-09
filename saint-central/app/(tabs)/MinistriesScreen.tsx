@@ -219,6 +219,8 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         throw new Error("No user logged in");
       }
 
+      console.log("Current user ID:", user.id);
+
       // Check if user is a church member and get their church_id
       const { data: churchMember, error: churchMemberError } = await supabase
         .from("church_members")
@@ -228,13 +230,10 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         
       if (churchMemberError) {
         console.error("Error fetching church member data:", churchMemberError);
-        // Don't throw here, as we can still show ministries even if role check fails
         setIsAdmin(false);
       } else {
-        // Set user's church ID for later use
+        console.log("Church member data:", churchMember);
         setUserChurchId(churchMember?.church_id);
-        
-        // Check if user's role is in the admin roles list
         setIsAdmin(churchMember?.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
       }
 
@@ -249,6 +248,8 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         console.error("Error fetching ministries data:", ministriesError);
         throw ministriesError;
       }
+
+      console.log("Fetched ministries:", ministriesData?.length);
 
       // Fetch member counts for each ministry
       const { data: memberCounts, error: countError } = await supabase
@@ -266,17 +267,22 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         return acc;
       }, {}) || {};
 
-      // Fetch user's memberships
+      // Fetch user's memberships with full details
       const { data: membershipData, error: membershipError } = await supabase
         .from("ministry_members")
-        .select("ministry_id")
-        .eq("user_id", user.id);
+        .select("ministry_id, member_status, church_id")
+        .eq("user_id", user.id)
+        .eq("church_id", churchMember?.church_id)
+        .neq("member_status", "removed");  // Only get active memberships
         
       if (membershipError) {
         console.error("Error fetching ministry memberships:", membershipError);
+      } else {
+        console.log("User memberships:", membershipData);
       }
       
       const memberMinistryIds = membershipData?.map(item => item.ministry_id) || [];
+      console.log("Member ministry IDs:", memberMinistryIds);
       
       // Process the ministries data with member counts and membership status
       const processedMinistries = ministriesData.map(ministry => ({
@@ -284,6 +290,12 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         member_count: memberCountMap[ministry.id] || 0,
         is_member: memberMinistryIds.includes(ministry.id)
       }));
+
+      console.log("Processed ministries with membership:", processedMinistries.map(m => ({
+        id: m.id,
+        name: m.name,
+        is_member: m.is_member
+      })));
 
       // Store ministries
       setMinistries(processedMinistries || []);

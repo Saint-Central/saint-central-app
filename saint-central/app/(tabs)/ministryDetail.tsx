@@ -1,68 +1,5 @@
-// Input Area Component props type
-interface MessageInputAreaProps {
-    value: string;
-    onChangeText: (text: string) => void;
-    onSend: () => void;
-  }
-
-  // Input Area Component
-  const MessageInputArea = ({ value, onChangeText, onSend }: MessageInputAreaProps) => {
-    const [isComposing, setIsComposing] = useState(false);
-    const [inputHeight, setInputHeight] = useState(40);
-    
-    // Handle content size change for auto-expanding input
-    const handleContentSizeChange = (event: any) => {
-      const { height } = event.nativeEvent.contentSize;
-      const newHeight = Math.min(Math.max(40, height), 120); // min 40, max 120
-      setInputHeight(newHeight);
-    };
-    
-    return (
-      <View style={styles.inputContainer}>
-        {/* Attachment button */}
-        <TouchableOpacity style={styles.attachButton}>
-          <Ionicons name="add-circle-outline" size={24} color="#64748B" />
-        </TouchableOpacity>
-        
-        {/* Message input */}
-        <TextInput
-          style={[styles.messageInput, { height: inputHeight }]}
-          placeholder="Type a message..."
-          placeholderTextColor="#94A3B8"
-          value={value}
-          onChangeText={onChangeText}
-          multiline
-          maxLength={1000}
-          onFocus={() => setIsComposing(true)}
-          onBlur={() => setIsComposing(false)}
-          onContentSizeChange={handleContentSizeChange}
-        />
-        
-        {/* Send button */}
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            !value.trim() && styles.sendButtonDisabled
-          ]}
-          onPress={() => {
-            Keyboard.dismiss();
-            if (Platform.OS === 'ios' || Platform.OS === 'android') {
-              Vibration.vibrate(10); // Light haptic feedback
-            }
-            onSend();
-          }}
-          disabled={!value.trim()}
-        >
-          <Ionicons 
-            name="send" 
-            size={20} 
-            color={value.trim() ? "#FFFFFF" : "#94A3B8"} 
-          />
-        </TouchableOpacity>
-      </View>
-    );
-  };// MinistryDetails.tsx
-import React, { useState, useEffect, useRef } from "react";
+// MinistryDetails.tsx
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -83,7 +20,7 @@ import {
   Vibration,
 } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import {
   Ionicons,
@@ -94,6 +31,7 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Interface definitions based on Supabase schema
 interface Ministry {
@@ -133,8 +71,8 @@ interface Message {
   sent_at: string;
   message_text: string;
   attachment_url?: string;
-  user?: User; // This will be populated after join
-  _status?: 'sending' | 'sent' | 'error'; // Custom status field
+  user?: User;
+  _status?: 'sending' | 'sent' | 'error';
 }
 
 // Type definition for navigation
@@ -148,7 +86,7 @@ type RootStackParamList = {
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type MinistryDetailRouteProp = RouteProp<RootStackParamList, 'ministryDetail'>;
 
-// Format time to display
+// Time formatting functions
 const formatTime = (timestamp: string): string => {
   const date = new Date(timestamp);
   const now = new Date();
@@ -176,13 +114,11 @@ const formatTime = (timestamp: string): string => {
   return date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
 };
 
-// Format detailed time for messages
 const formatMessageTime = (timestamp: string): string => {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// Format date for message groups
 const formatMessageDate = (timestamp: string): string => {
   const date = new Date(timestamp);
   const now = new Date();
@@ -238,11 +174,19 @@ const getInitials = (name: string): string => {
   return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
 };
 
+// AsyncStorage keys for caching
+const MEMBERSHIP_CACHE_KEY = (ministryId: number, userId: string) => 
+  `ministry_membership_${ministryId}_${userId}`;
+const MINISTRY_CACHE_KEY = (ministryId: number) => 
+  `ministry_details_${ministryId}`;
+const MESSAGES_CACHE_KEY = (ministryId: number) => 
+  `ministry_messages_${ministryId}`;
+
 export default function MinistryDetails(): JSX.Element {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<MinistryDetailRouteProp>();
   const ministryId = route.params?.ministryId;
-  const insets = useSafeAreaInsets(); // Get safe area insets
+  const insets = useSafeAreaInsets();
   
   const [ministry, setMinistry] = useState<Ministry | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -255,6 +199,7 @@ export default function MinistryDetails(): JSX.Element {
   const [isMember, setIsMember] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [cachedMembershipChecked, setCachedMembershipChecked] = useState<boolean>(false);
   
   // Ref for FlatList to scroll to bottom
   const messageListRef = useRef<FlatList>(null);
@@ -263,15 +208,77 @@ export default function MinistryDetails(): JSX.Element {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
   
+  // Check cached membership status on initial load
   useEffect(() => {
+    const checkCachedMembership = async () => {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          console.error("No user logged in");
+          return;
+        }
+        
+        // Check cached membership status first
+        const cachedMembership = await AsyncStorage.getItem(
+          MEMBERSHIP_CACHE_KEY(ministryId, user.id)
+        );
+        
+        if (cachedMembership) {
+          const membershipData = JSON.parse(cachedMembership);
+          const isUserMember = membershipData.isMember === true;
+          
+          // Set the membership status from cache
+          setIsMember(isUserMember);
+          console.log("Using cached membership status:", isUserMember);
+          
+          // If we have cached ministry data, use that too
+          const cachedMinistry = await AsyncStorage.getItem(
+            MINISTRY_CACHE_KEY(ministryId)
+          );
+          
+          if (cachedMinistry) {
+            const ministryData = JSON.parse(cachedMinistry);
+            setMinistry({
+              ...ministryData,
+              is_member: isUserMember
+            });
+          }
+          
+          // If we have cached messages, use those too
+          const cachedMessages = await AsyncStorage.getItem(
+            MESSAGES_CACHE_KEY(ministryId)
+          );
+          
+          if (cachedMessages) {
+            const messagesData = JSON.parse(cachedMessages);
+            setMessages(messagesData);
+          }
+        }
+        
+        // Mark cached membership as checked
+        setCachedMembershipChecked(true);
+        
+        // Regardless of cached status, fetch fresh data
+        fetchData();
+        
+      } catch (error) {
+        console.error("Error checking cached membership:", error);
+        // If there's an error, proceed to fetch data from server anyway
+        setCachedMembershipChecked(true);
+        fetchData();
+      }
+    };
+    
+    checkCachedMembership();
+    
     // Animate content fade in
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
     }).start();
-    
-    fetchData();
     
     // Set up real-time subscription to messages
     const messageSubscription = supabase
@@ -290,8 +297,9 @@ export default function MinistryDetails(): JSX.Element {
     // Handle app going to background/foreground
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === 'active') {
-        // App came to foreground, refresh messages
+        // App came to foreground, refresh messages and membership
         fetchMessages();
+        refreshMembershipStatus();
       }
     };
     
@@ -314,6 +322,17 @@ export default function MinistryDetails(): JSX.Element {
     };
   }, [ministryId]);
   
+  // Use useFocusEffect for membership status refresh
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Screen focused, refreshing membership status');
+      refreshMembershipStatus();
+      return () => {
+        // Cleanup when screen is unfocused
+      };
+    }, [ministryId])
+  );
+  
   // Header animations based on scroll
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 80],
@@ -327,9 +346,71 @@ export default function MinistryDetails(): JSX.Element {
     extrapolate: "clamp",
   });
   
+  // Function to refresh membership status - both from server and update cache
+  async function refreshMembershipStatus(): Promise<void> {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error("Error getting user for membership refresh:", userError);
+        return;
+      }
+      
+      // Get membership status directly with a specific query
+      const { data: membershipData, error: membershipError } = await supabase
+        .from("ministry_members")
+        .select("id, member_status")
+        .eq("ministry_id", ministryId)
+        .eq("user_id", user.id)
+        .neq("member_status", "removed")
+        .maybeSingle();
+        
+      // Update membership status based on direct query
+      const isUserMember = !membershipError && membershipData !== null;
+      
+      // Cache the membership status
+      await AsyncStorage.setItem(
+        MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+        JSON.stringify({ 
+          isMember: isUserMember,
+          lastChecked: new Date().toISOString(),
+          memberStatus: membershipData?.member_status || null
+        })
+      );
+      
+      // Only update if there's a change to avoid unnecessary re-renders
+      if (isUserMember !== isMember) {
+        console.log("Membership status changed, updating UI...");
+        setIsMember(isUserMember);
+        
+        // Update ministry state if available
+        if (ministry) {
+          const updatedMinistry = {
+            ...ministry,
+            is_member: isUserMember
+          };
+          setMinistry(updatedMinistry);
+          
+          // Update ministry cache
+          await AsyncStorage.setItem(
+            MINISTRY_CACHE_KEY(ministryId),
+            JSON.stringify(updatedMinistry)
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing membership status:", error);
+    }
+  }
+  
   // Fetch all necessary data
   async function fetchData(): Promise<void> {
     try {
+      if (!cachedMembershipChecked) {
+        // Wait for cached membership check to complete first
+        return;
+      }
+      
       setLoading(true);
       
       // Get current user
@@ -371,29 +452,58 @@ export default function MinistryDetails(): JSX.Element {
         throw ministryError;
       }
       
-      // Fetch ministry members
+      // Verify membership status directly from the database
+      const { data: membershipData, error: membershipError } = await supabase
+        .from("ministry_members")
+        .select("id, member_status")
+        .eq("ministry_id", ministryId)
+        .eq("user_id", user.id)
+        .neq("member_status", "removed")
+        .maybeSingle();
+        
+      // Set membership status based on direct query
+      const isUserMember = !membershipError && membershipData !== null;
+      
+      // Update membership cache
+      await AsyncStorage.setItem(
+        MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+        JSON.stringify({ 
+          isMember: isUserMember,
+          lastChecked: new Date().toISOString(),
+          memberStatus: membershipData?.member_status || null
+        })
+      );
+      
+      setIsMember(isUserMember);
+      
+      // Fetch ministry members for member count
       const { data: membersData, error: membersError } = await supabase
         .from("ministry_members")
         .select("*")
-        .eq("ministry_id", ministryId);
+        .eq("ministry_id", ministryId)
+        .neq("member_status", "removed");
         
       if (membersError) {
         console.error("Error fetching ministry members:", membersError);
-        // Continue anyway as we can still show the ministry
+        // Continue anyway as we can still show the ministry with estimated count
       } else {
         setMembers(membersData || []);
       }
       
-      // Check if current user is a member
-      const isUserMember = membersData?.some(member => member.user_id === user.id) || false;
-      setIsMember(isUserMember);
-      
       // Update ministry with member count and membership status
-      setMinistry({
+      const updatedMinistry = {
         ...ministryData,
         member_count: membersData?.length || 0,
         is_member: isUserMember
-      });
+      };
+      
+      setMinistry(updatedMinistry);
+      
+      // Update ministry cache
+      await AsyncStorage.setItem(
+        MINISTRY_CACHE_KEY(ministryId),
+        JSON.stringify(updatedMinistry)
+      );
       
       // Fetch messages
       await fetchMessages();
@@ -407,7 +517,7 @@ export default function MinistryDetails(): JSX.Element {
     }
   }
   
-  // Fetch messages separately with pagination
+  // Fetch messages with pagination and cache
   async function fetchMessages(limit: number = 50, offset: number = 0): Promise<void> {
     try {
       setMessageLoading(true);
@@ -458,18 +568,36 @@ export default function MinistryDetails(): JSX.Element {
           
           // If this is the first load or a refresh, replace messages
           // Otherwise append the new messages to the existing ones
+          let updatedMessages: Message[];
           if (offset === 0) {
+            updatedMessages = messagesWithUsers;
             setMessages(messagesWithUsers);
           } else {
+            updatedMessages = [...messagesWithUsers, ...messages];
             setMessages(prevMessages => [...messagesWithUsers, ...prevMessages]);
           }
+          
+          // Cache the messages
+          await AsyncStorage.setItem(
+            MESSAGES_CACHE_KEY(ministryId),
+            JSON.stringify(updatedMessages)
+          );
         }
       } else {
+        let updatedMessages: Message[];
         if (offset === 0) {
+          updatedMessages = messagesData || [];
           setMessages(messagesData || []);
         } else {
+          updatedMessages = [...(messagesData || []), ...messages];
           setMessages(prevMessages => [...(messagesData || []), ...prevMessages]);
         }
+        
+        // Cache the messages
+        await AsyncStorage.setItem(
+          MESSAGES_CACHE_KEY(ministryId),
+          JSON.stringify(updatedMessages)
+        );
       }
       
     } catch (error) {
@@ -489,7 +617,14 @@ export default function MinistryDetails(): JSX.Element {
           user: users[message.user_id]
         };
         
-        setMessages(prevMessages => [...prevMessages, newMessage]);
+        const updatedMessages = [...messages, newMessage];
+        setMessages(updatedMessages);
+        
+        // Update message cache
+        await AsyncStorage.setItem(
+          MESSAGES_CACHE_KEY(ministryId),
+          JSON.stringify(updatedMessages)
+        );
         
         // Scroll to bottom after message is added
         setTimeout(() => {
@@ -509,13 +644,22 @@ export default function MinistryDetails(): JSX.Element {
       if (userError) {
         console.error("Error fetching user:", userError);
         // Add message without user data
-        setMessages(prevMessages => [...prevMessages, message]);
+        const updatedMessages = [...messages, message];
+        setMessages(updatedMessages);
+        
+        // Update message cache
+        await AsyncStorage.setItem(
+          MESSAGES_CACHE_KEY(ministryId),
+          JSON.stringify(updatedMessages)
+        );
       } else {
         // Add user to users map
-        setUsers(prevUsers => ({
-          ...prevUsers,
+        const updatedUsers = {
+          ...users,
           [userData.id]: userData
-        }));
+        };
+        
+        setUsers(updatedUsers);
         
         // Add message with user data
         const newMessage = {
@@ -523,7 +667,14 @@ export default function MinistryDetails(): JSX.Element {
           user: userData
         };
         
-        setMessages(prevMessages => [...prevMessages, newMessage]);
+        const updatedMessages = [...messages, newMessage];
+        setMessages(updatedMessages);
+        
+        // Update message cache
+        await AsyncStorage.setItem(
+          MESSAGES_CACHE_KEY(ministryId),
+          JSON.stringify(updatedMessages)
+        );
       }
       
       // Scroll to bottom after message is added
@@ -583,27 +734,48 @@ export default function MinistryDetails(): JSX.Element {
       };
       
       // Add message to state for immediate display
-      setMessages(prevMessages => [...prevMessages, tempMessage]);
+      const updatedMessages = [...messages, tempMessage];
+      setMessages(updatedMessages);
       
       // Scroll to bottom after adding message
       setTimeout(() => {
         messageListRef.current?.scrollToEnd({ animated: true });
       }, 100);
       
-      // Verify ministry membership directly from the database before sending
+      // Double-check membership directly from the database
       const { data: membershipCheck, error: membershipError } = await supabase
         .from("ministry_members")
-        .select("id")
+        .select("id, member_status")
         .eq("ministry_id", ministryId)
         .eq("user_id", user.id)
-        .single();
+        .neq("member_status", "removed")
+        .maybeSingle();
         
-      if (membershipError) {
-        console.error("Error verifying ministry membership:", membershipError);
+      if (!membershipCheck) {
+        console.error("Error verifying ministry membership: User is not a member");
+        
+        // Update the temporary message to show error
+        const messagesWithError = messages.map(msg => 
+          msg.id === tempMessage.id 
+            ? { ...msg, _status: 'error' as const } 
+            : msg
+        );
+        
+        setMessages(messagesWithError);
+        
+        // Update message cache with error state
+        await AsyncStorage.setItem(
+          MESSAGES_CACHE_KEY(ministryId),
+          JSON.stringify(messagesWithError)
+        );
+        
+        // Refresh membership status
+        refreshMembershipStatus();
+        
         throw new Error("You must be a member of this ministry to send messages");
       }
       
-      // Use RLS-compliant insert operation with the correct authentication
+      // Use RLS-compliant insert operation
       const { data, error } = await supabase
         .from("ministry_messages")
         .insert({
@@ -635,15 +807,24 @@ export default function MinistryDetails(): JSX.Element {
               }
             ]
           );
+          
+          // Refresh membership status
+          refreshMembershipStatus();
         }
         
         // Update the temporary message to show error
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.id === tempMessage.id 
-              ? { ...msg, _status: 'error' } 
-              : msg
-          )
+        const messagesWithError = messages.map(msg => 
+          msg.id === tempMessage.id 
+            ? { ...msg, _status: 'error' as const } 
+            : msg
+        );
+        
+        setMessages(messagesWithError);
+        
+        // Update message cache with error state
+        await AsyncStorage.setItem(
+          MESSAGES_CACHE_KEY(ministryId),
+          JSON.stringify(messagesWithError)
         );
         
         // Show error alert
@@ -655,9 +836,15 @@ export default function MinistryDetails(): JSX.Element {
               text: "Retry",
               onPress: () => {
                 // Remove the failed message and retry
-                setMessages(prevMessages => 
-                  prevMessages.filter(msg => msg.id !== tempMessage.id)
+                const filteredMessages = messages.filter(msg => msg.id !== tempMessage.id);
+                setMessages(filteredMessages);
+                
+                // Update message cache without the failed message
+                AsyncStorage.setItem(
+                  MESSAGES_CACHE_KEY(ministryId),
+                  JSON.stringify(filteredMessages)
                 );
+                
                 setNewMessage(messageText);
               }
             },
@@ -666,8 +853,13 @@ export default function MinistryDetails(): JSX.Element {
               style: "cancel",
               onPress: () => {
                 // Just remove the failed message
-                setMessages(prevMessages => 
-                  prevMessages.filter(msg => msg.id !== tempMessage.id)
+                const filteredMessages = messages.filter(msg => msg.id !== tempMessage.id);
+                setMessages(filteredMessages);
+                
+                // Update message cache without the failed message
+                AsyncStorage.setItem(
+                  MESSAGES_CACHE_KEY(ministryId),
+                  JSON.stringify(filteredMessages)
                 );
               }
             }
@@ -707,22 +899,76 @@ export default function MinistryDetails(): JSX.Element {
         return;
       }
       
-      // Check if already a member
-      if (isMember) {
+      // Double check if already a member with a fresh query
+      const { data: existingMembership, error: membershipCheckError } = await supabase
+        .from("ministry_members")
+        .select("id, member_status")
+        .eq("ministry_id", ministryId)
+        .eq("user_id", user.id)
+        .neq("member_status", "removed")
+        .maybeSingle();
+        
+      if (!membershipCheckError && existingMembership) {
         Alert.alert("Already a Member", "You are already a member of this ministry.");
+        
+        // Update local state to match server state
+        setIsMember(true);
+        
+        // Update cache
+        await AsyncStorage.setItem(
+          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+          JSON.stringify({ 
+            isMember: true,
+            lastChecked: new Date().toISOString(),
+            memberStatus: existingMembership.member_status
+          })
+        );
+        
+        if (ministry) {
+          const updatedMinistry = {
+            ...ministry,
+            is_member: true
+          };
+          
+          setMinistry(updatedMinistry);
+          
+          // Update ministry cache
+          await AsyncStorage.setItem(
+            MINISTRY_CACHE_KEY(ministryId),
+            JSON.stringify(updatedMinistry)
+          );
+        }
         return;
       }
       
       // Update UI state immediately for better responsiveness
       setIsMember(true);
       
+      // Update cache immediately
+      await AsyncStorage.setItem(
+        MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+        JSON.stringify({ 
+          isMember: true,
+          lastChecked: new Date().toISOString(),
+          memberStatus: "member"
+        })
+      );
+      
       // If we have ministry data, update the member count
       if (ministry) {
-        setMinistry({
+        const updatedMinistry = {
           ...ministry,
           member_count: (ministry.member_count || 0) + 1,
           is_member: true
-        });
+        };
+        
+        setMinistry(updatedMinistry);
+        
+        // Update ministry cache
+        await AsyncStorage.setItem(
+          MINISTRY_CACHE_KEY(ministryId),
+          JSON.stringify(updatedMinistry)
+        );
       }
       
       // Join the ministry
@@ -738,36 +984,80 @@ export default function MinistryDetails(): JSX.Element {
         
       if (error) {
         console.error("Error joining ministry:", error);
+        
         // Revert UI state if the operation failed
         setIsMember(false);
+        
+        // Update cache to match
+        await AsyncStorage.setItem(
+          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+          JSON.stringify({ 
+            isMember: false,
+            lastChecked: new Date().toISOString(),
+            memberStatus: null
+          })
+        );
+        
         if (ministry) {
-          setMinistry({
+          const updatedMinistry = {
             ...ministry,
             member_count: Math.max((ministry.member_count || 1) - 1, 0),
             is_member: false
-          });
+          };
+          
+          setMinistry(updatedMinistry);
+          
+          // Update ministry cache
+          await AsyncStorage.setItem(
+            MINISTRY_CACHE_KEY(ministryId),
+            JSON.stringify(updatedMinistry)
+          );
         }
+        
         Alert.alert("Error", "Could not join the ministry. Please try again.");
         return;
       }
       
       Alert.alert("Success", "You have joined the ministry!");
       
-      // We don't need to call fetchData() here since we've already updated the state
-      // Instead, just fetch messages in case any were added while joining
+      // Fetch messages to make sure we have the latest
       fetchMessages();
       
     } catch (error) {
       console.error("Error joining ministry:", error);
+      
       // Ensure UI state is reverted on error
       setIsMember(false);
+      
+      // Update cache to match
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await AsyncStorage.setItem(
+          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+          JSON.stringify({ 
+            isMember: false,
+            lastChecked: new Date().toISOString(),
+            memberStatus: null
+          })
+        );
+      }
+      
       if (ministry) {
-        setMinistry({
+        const updatedMinistry = {
           ...ministry,
           member_count: Math.max((ministry.member_count || 1) - 1, 0),
           is_member: false
-        });
+        };
+        
+        setMinistry(updatedMinistry);
+        
+        // Update ministry cache
+        await AsyncStorage.setItem(
+          MINISTRY_CACHE_KEY(ministryId),
+          JSON.stringify(updatedMinistry)
+        );
       }
+      
       Alert.alert("Error", "Could not join the ministry. Please try again.");
     }
   }
@@ -783,9 +1073,45 @@ export default function MinistryDetails(): JSX.Element {
         return;
       }
       
-      // Check if not a member
-      if (!isMember) {
+      // Double check if actually a member with a fresh query
+      const { data: existingMembership, error: membershipCheckError } = await supabase
+        .from("ministry_members")
+        .select("id, member_status")
+        .eq("ministry_id", ministryId)
+        .eq("user_id", user.id)
+        .neq("member_status", "removed")
+        .maybeSingle();
+        
+      if (membershipCheckError || !existingMembership) {
         Alert.alert("Not a Member", "You are not a member of this ministry.");
+        
+        // Update local state to match server state
+        setIsMember(false);
+        
+        // Update cache
+        await AsyncStorage.setItem(
+          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+          JSON.stringify({ 
+            isMember: false,
+            lastChecked: new Date().toISOString(),
+            memberStatus: null
+          })
+        );
+        
+        if (ministry) {
+          const updatedMinistry = {
+            ...ministry,
+            is_member: false
+          };
+          
+          setMinistry(updatedMinistry);
+          
+          // Update ministry cache
+          await AsyncStorage.setItem(
+            MINISTRY_CACHE_KEY(ministryId),
+            JSON.stringify(updatedMinistry)
+          );
+        }
         return;
       }
       
@@ -802,16 +1128,34 @@ export default function MinistryDetails(): JSX.Element {
               // Update UI state immediately for better responsiveness
               setIsMember(false);
               
+              // Update cache immediately
+              await AsyncStorage.setItem(
+                MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+                JSON.stringify({ 
+                  isMember: false,
+                  lastChecked: new Date().toISOString(),
+                  memberStatus: null
+                })
+              );
+              
               // If we have ministry data, update the member count
               if (ministry) {
-                setMinistry({
+                const updatedMinistry = {
                   ...ministry,
                   member_count: Math.max((ministry.member_count || 1) - 1, 0),
                   is_member: false
-                });
+                };
+                
+                setMinistry(updatedMinistry);
+                
+                // Update ministry cache
+                await AsyncStorage.setItem(
+                  MINISTRY_CACHE_KEY(ministryId),
+                  JSON.stringify(updatedMinistry)
+                );
               }
               
-              // Leave the ministry
+              // Leave the ministry - delete the record
               const { error } = await supabase
                 .from("ministry_members")
                 .delete()
@@ -820,23 +1164,43 @@ export default function MinistryDetails(): JSX.Element {
                 
               if (error) {
                 console.error("Error leaving ministry:", error);
+                
                 // Revert UI state if the operation failed
                 setIsMember(true);
+                
+                // Update cache to match
+                await AsyncStorage.setItem(
+                  MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+                  JSON.stringify({ 
+                    isMember: true,
+                    lastChecked: new Date().toISOString(),
+                    memberStatus: existingMembership.member_status
+                  })
+                );
+                
                 if (ministry) {
-                  setMinistry({
+                  const updatedMinistry = {
                     ...ministry,
                     member_count: (ministry.member_count || 0) + 1,
                     is_member: true
-                  });
+                  };
+                  
+                  setMinistry(updatedMinistry);
+                  
+                  // Update ministry cache
+                  await AsyncStorage.setItem(
+                    MINISTRY_CACHE_KEY(ministryId),
+                    JSON.stringify(updatedMinistry)
+                  );
                 }
+                
                 Alert.alert("Error", "Could not leave the ministry. Please try again.");
                 return;
               }
               
               Alert.alert("Success", "You have left the ministry.");
               
-              // We don't need to call fetchData() here since we've already updated the state
-              // Instead, just fetch messages in case any were added while leaving
+              // Fetch messages to make sure we have the latest
               fetchMessages();
             }
           }
@@ -1012,11 +1376,80 @@ export default function MinistryDetails(): JSX.Element {
   
   // Render message group
   const renderMessageGroup = ({ item }: { item: {date: string, messages: Message[]} }) => (
-    <View>
+    <View key={item.date}>
       {renderDateDivider(item.date)}
-      {item.messages.map(message => renderMessageItem({ item: message }))}
+      {item.messages.map(message => (
+        <View key={message.id}>
+          {renderMessageItem({ item: message })}
+        </View>
+      ))}
     </View>
   );
+  
+  // Input Area Component props type
+  interface MessageInputAreaProps {
+    value: string;
+    onChangeText: (text: string) => void;
+    onSend: () => void;
+  }
+
+  // Input Area Component
+  const MessageInputArea = ({ value, onChangeText, onSend }: MessageInputAreaProps) => {
+    const [isComposing, setIsComposing] = useState(false);
+    const [inputHeight, setInputHeight] = useState(40);
+    
+    // Handle content size change for auto-expanding input
+    const handleContentSizeChange = (event: any) => {
+      const { height } = event.nativeEvent.contentSize;
+      const newHeight = Math.min(Math.max(40, height), 120); // min 40, max 120
+      setInputHeight(newHeight);
+    };
+    
+    return (
+      <View style={styles.inputContainer}>
+        {/* Attachment button */}
+        <TouchableOpacity style={styles.attachButton}>
+          <Ionicons name="add-circle-outline" size={24} color="#64748B" />
+        </TouchableOpacity>
+        
+        {/* Message input */}
+        <TextInput
+          style={[styles.messageInput, { height: inputHeight }]}
+          placeholder="Type a message..."
+          placeholderTextColor="#94A3B8"
+          value={value}
+          onChangeText={onChangeText}
+          multiline
+          maxLength={1000}
+          onFocus={() => setIsComposing(true)}
+          onBlur={() => setIsComposing(false)}
+          onContentSizeChange={handleContentSizeChange}
+        />
+        
+        {/* Send button */}
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            !value.trim() && styles.sendButtonDisabled
+          ]}
+          onPress={() => {
+            Keyboard.dismiss();
+            if (Platform.OS === 'ios' || Platform.OS === 'android') {
+              Vibration.vibrate(10); // Light haptic feedback
+            }
+            onSend();
+          }}
+          disabled={!value.trim()}
+        >
+          <Ionicons 
+            name="send" 
+            size={20} 
+            color={value.trim() ? "#FFFFFF" : "#94A3B8"} 
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
   
   if (loading && !refreshing) {
     return (
@@ -1047,7 +1480,6 @@ export default function MinistryDetails(): JSX.Element {
     );
   }
   
-  // Use the MessageInputArea component in the main render
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -1091,7 +1523,10 @@ export default function MinistryDetails(): JSX.Element {
         </View>
         
         <TouchableOpacity 
-          style={styles.joinButton}
+          style={[
+            styles.joinButton,
+            isMember ? styles.leaveButton : styles.joinButton
+          ]}
           onPress={isMember ? handleLeaveMinistry : handleJoinMinistry}
         >
           <Text style={styles.joinButtonText}>
@@ -1114,7 +1549,7 @@ export default function MinistryDetails(): JSX.Element {
         keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 20}
       >
         <Animated.View style={[styles.messagesContainer, { opacity: fadeAnim }]}>
-          {messageLoading ? (
+          {messageLoading && messages.length === 0 ? (
             <View style={styles.messageLoadingContainer}>
               <ActivityIndicator size="small" color="#2196F3" />
               <Text style={styles.messageLoadingText}>Loading messages...</Text>
@@ -1158,7 +1593,7 @@ export default function MinistryDetails(): JSX.Element {
                 }
               }}
               onEndReachedThreshold={0.2}
-              ListFooterComponent={messages.length >= 50 ? (
+              ListFooterComponent={messages.length >= 50 && messageLoading ? (
                 <View style={styles.loadMoreContainer}>
                   <ActivityIndicator size="small" color="#2196F3" />
                   <Text style={styles.loadMoreText}>Loading more messages...</Text>
@@ -1240,6 +1675,12 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     backgroundColor: "#2196F3",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  leaveButton: {
+    backgroundColor: "#EF4444", // Red color for leave button
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
