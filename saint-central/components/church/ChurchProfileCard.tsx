@@ -11,6 +11,13 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  church_events: undefined;
+  // Add other screen names as needed
+};
 
 type Props = {
   church: Church;
@@ -18,6 +25,7 @@ type Props = {
 };
 
 export default function ChurchProfileCard({ church, member }: Props) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   // Animation for button press
   const [actionScale1] = useState(new Animated.Value(1));
   const [actionScale2] = useState(new Animated.Value(1));
@@ -220,10 +228,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
             activeOpacity={0.95}
             onPressIn={() => handlePressIn(1)}
             onPressOut={() => handlePressOut(1)}
-            onPress={() => {
-              /* Navigate to events */
-              return;
-            }}
+            onPress={() => navigation.navigate("church_events")}
           >
             <Animated.View style={[styles.actionButton, { transform: [{ scale: actionScale1 }] }]}>
               <LinearGradient
