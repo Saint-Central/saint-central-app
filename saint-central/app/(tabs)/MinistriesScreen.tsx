@@ -16,7 +16,7 @@ import {
   Animated,
   Platform,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import {
   Ionicons,
@@ -28,7 +28,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 
-// Simplified Ministry interface based on single table schema
+// Interface definitions based on Supabase schema
 interface Ministry {
   id: number;
   church_id: number;
@@ -40,7 +40,6 @@ interface Ministry {
   is_member?: boolean;
 }
 
-// Ministry member interface
 interface MinistryMember {
   id: number;
   ministry_id: number;
@@ -50,15 +49,25 @@ interface MinistryMember {
   member_status: string;
 }
 
+interface ChurchMember {
+  id: number;
+  church_id: number;
+  user_id: string;
+  role: string;
+  joined_at: string;
+}
+
 // Type definition for navigation
 type RootStackParamList = {
-  home: undefined;
+  home: { refresh?: boolean };
   ministryDetail: { ministryId: number };
-  createMinistry: undefined;
+  createMinistry: { selectedPresetId?: string };
+  CreateMinistryScreen: { selectedPresetId?: string }; // Previously added for backward compatibility
+  CreateMinistryGroupScreen: { selectedPresetId?: string }; // Added new correct screen route
 };
 
-// Define admin roles
-const ADMIN_ROLES = ['admin', 'leader', 'pastor'];
+// Define admin roles - UPDATED to only include admin and owner
+const ADMIN_ROLES = ['admin', 'owner'];
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -127,16 +136,15 @@ const getInitials = (name: string): string => {
 
 export default function SimplifiedMinistriesScreen(): JSX.Element {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'home'>>();
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [filteredMinistries, setFilteredMinistries] = useState<Ministry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
-  const [newMinistryName, setNewMinistryName] = useState<string>("");
-  const [newMinistryDescription, setNewMinistryDescription] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [userChurchId, setUserChurchId] = useState<number | null>(null);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -144,6 +152,14 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   
   // Ref for search input
   const searchInputRef = useRef<TextInput>(null);
+
+  // Check for refresh param
+  useEffect(() => {
+    // If this screen was navigated to with a refresh parameter, refresh the data
+    if (route.params?.refresh) {
+      fetchData();
+    }
+  }, [route.params]);
 
   // Filter ministries when search text changes
   useEffect(() => {
@@ -203,26 +219,30 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         throw new Error("No user logged in");
       }
 
-      // Check if user is an admin by fetching their role from church_members
+      // Check if user is a church member and get their church_id
       const { data: churchMember, error: churchMemberError } = await supabase
         .from("church_members")
-        .select("role")
+        .select("church_id, role")
         .eq("user_id", user.id)
         .single();
         
       if (churchMemberError) {
-        console.error("Error fetching church member role:", churchMemberError);
+        console.error("Error fetching church member data:", churchMemberError);
         // Don't throw here, as we can still show ministries even if role check fails
         setIsAdmin(false);
       } else {
+        // Set user's church ID for later use
+        setUserChurchId(churchMember?.church_id);
+        
         // Check if user's role is in the admin roles list
         setIsAdmin(churchMember?.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
       }
 
-      // Fetch ministries from the single table
+      // Fetch ministries that belong to the user's church
       const { data: ministriesData, error: ministriesError } = await supabase
         .from("ministries")
         .select("*")
+        .eq("church_id", churchMember?.church_id || 0)
         .order('created_at', { ascending: false });
 
       if (ministriesError) {
@@ -284,7 +304,23 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   
   // Navigate to home
   const navigateToHome = () => {
-    navigation.navigate('home');
+    navigation.navigate({ name: 'home', params: { refresh: false } });
+  };
+  
+  // Navigate to create ministry screen
+  const navigateToCreateMinistry = () => {
+    try {
+      // Update primary navigation target to CreateMinistryGroupScreen
+      navigation.navigate('CreateMinistryGroupScreen', {});
+    } catch (error) {
+      // If that route doesn't exist, try the older routes as fallbacks
+      console.log("Falling back to alternate route names");
+      try {
+        navigation.navigate('CreateMinistryScreen', {});
+      } catch (secondError) {
+        navigation.navigate('createMinistry', { selectedPresetId: undefined });
+      }
+    }
   };
   
   // Join a ministry
@@ -303,12 +339,17 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         return;
       }
 
+      if (!userChurchId) {
+        Alert.alert("Error", "You must be a member of a church to join a ministry");
+        return;
+      }
+
       const { error } = await supabase
         .from("ministry_members")
         .insert({
           ministry_id: ministryId,
           user_id: user.id,
-          church_id: 1, // Using default church ID
+          church_id: userChurchId,
           joined_at: new Date().toISOString(),
           member_status: "member"
         });
@@ -365,93 +406,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     }
   };
 
-  // Add a new ministry and add creator as a member
-  const handleAddMinistry = async () => {
-    if (newMinistryName.trim() === "") {
-      Alert.alert("Error", "Ministry name is required");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("Error getting user:", userError);
-        throw userError;
-      }
-
-      if (!user) {
-        console.error("No user logged in");
-        throw new Error("No user logged in");
-      }
-      
-      // Create new ministry
-      const newMinistry = {
-        name: newMinistryName,
-        description: newMinistryDescription,
-        church_id: 1, // Using a default church_id since we're working with a single table
-        created_at: new Date().toISOString()
-      };
-
-      const { data: ministryData, error } = await supabase
-        .from("ministries")
-        .insert(newMinistry)
-        .select();
-
-      if (error) {
-        console.error("Error adding ministry:", error);
-        throw error;
-      }
-
-      if (!ministryData || ministryData.length === 0) {
-        throw new Error("Ministry was created but no data was returned");
-      }
-
-      // Add creator as a member with "leader" status
-      const newMember = {
-        ministry_id: ministryData[0].id,
-        user_id: user.id,
-        church_id: 1, // Using the same default church_id
-        joined_at: new Date().toISOString(),
-        member_status: "leader" // Set the creator as the leader
-      };
-
-      const { error: memberError } = await supabase
-        .from("ministry_members")
-        .insert(newMember);
-
-      if (memberError) {
-        console.error("Error adding creator as member:", memberError);
-        // Don't throw here, as the ministry was already created
-        Alert.alert(
-          "Partial Success", 
-          "Ministry was created but there was an error adding you as a member."
-        );
-      }
-
-      // Reset form and close modal
-      setNewMinistryName("");
-      setNewMinistryDescription("");
-      setIsModalVisible(false);
-
-      // Refresh ministries list
-      fetchData();
-      
-      if (!memberError) {
-        Alert.alert("Success", "Ministry created and you were added as the leader!");
-      }
-
-    } catch (error) {
-      console.error("Error adding ministry:", error);
-      Alert.alert("Error", "Failed to add ministry. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Delete a ministry
   const handleDeleteMinistry = async (ministryId: number) => {
     Alert.alert(
@@ -466,6 +420,29 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             try {
               setLoading(true);
               
+              // First, delete all ministry members
+              const { error: membersError } = await supabase
+                .from("ministry_members")
+                .delete()
+                .eq("ministry_id", ministryId);
+                
+              if (membersError) {
+                console.error("Error deleting ministry members:", membersError);
+                throw membersError;
+              }
+              
+              // Then, delete any ministry messages
+              const { error: messagesError } = await supabase
+                .from("ministry_messages")
+                .delete()
+                .eq("ministry_id", ministryId);
+                
+              if (messagesError) {
+                console.error("Error deleting ministry messages:", messagesError);
+                throw messagesError;
+              }
+              
+              // Finally, delete the ministry itself
               const { error } = await supabase
                 .from("ministries")
                 .delete()
@@ -609,7 +586,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#075E54" />
+        <ActivityIndicator size="large" color="#2196F3" />
         <Text style={styles.loadingText}>Loading ministries...</Text>
       </View>
     );
@@ -661,10 +638,21 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity style={styles.backButton} onPress={navigateToHome}>
-            <Ionicons name="arrow-back" size={24} color="#075E54" />
+            <Ionicons name="arrow-back" size={24} color="#2196F3" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Ministries</Text>
         </View>
+        
+        {/* Create Ministry Button - now only visible to admins */}
+        {isAdmin && (
+          <TouchableOpacity 
+            style={styles.createMinistryButton}
+            onPress={navigateToCreateMinistry}
+          >
+            <MaterialIcons name="add-circle" size={24} color="#2196F3" />
+            <Text style={styles.createButtonText}>New</Text>
+          </TouchableOpacity>
+        )}
       </View>
       
       {/* Search Box */}
@@ -703,7 +691,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           {!searchText && isAdmin && (
             <TouchableOpacity 
               style={styles.emptyStateButton}
-              onPress={() => setIsModalVisible(true)}
+              onPress={navigateToCreateMinistry}
             >
               <Text style={styles.emptyStateButtonText}>Add New Ministry</Text>
             </TouchableOpacity>
@@ -736,74 +724,12 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       {isAdmin && (
         <TouchableOpacity 
           style={styles.addMinistryButton}
-          onPress={() => setIsModalVisible(true)}
+          onPress={navigateToCreateMinistry}
           activeOpacity={0.9}
         >
           <MaterialCommunityIcons name="plus" size={24} color="#fff" />
         </TouchableOpacity>
       )}
-
-      {/* Modal for adding ministry */}
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Ministry</Text>
-              <TouchableOpacity
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalInputContainer}>
-              <Text style={styles.modalInputLabel}>Ministry Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Enter ministry name"
-                placeholderTextColor="#94A3B8"
-                value={newMinistryName}
-                onChangeText={setNewMinistryName}
-                autoFocus
-              />
-            </View>
-
-            <View style={styles.modalInputContainer}>
-              <Text style={styles.modalInputLabel}>Description</Text>
-              <TextInput
-                style={[styles.modalInput, styles.textArea]}
-                placeholder="Enter ministry description"
-                placeholderTextColor="#94A3B8"
-                value={newMinistryDescription}
-                onChangeText={setNewMinistryDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSaveButton}
-                onPress={handleAddMinistry}
-              >
-                <Text style={styles.modalSaveButtonText}>Add</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -897,7 +823,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   emptyStateButton: {
-    backgroundColor: '#075E54',
+    backgroundColor: '#2196F3',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 24,
@@ -1012,12 +938,29 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "500",
   },
+  // Create button in header
+  createMinistryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2196F3",
+  },
+  createButtonText: {
+    color: "#2196F3",
+    fontWeight: "600",
+    fontSize: 14,
+    marginLeft: 4,
+  },
   // Add button
   addMinistryButton: {
     position: "absolute",
     bottom: 24,
     right: 24,
-    backgroundColor: "#25D366", // WhatsApp light green
+    backgroundColor: "#2196F3", // Material Blue
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -1032,81 +975,6 @@ const styles = StyleSheet.create({
   },
   listFooter: {
     height: 80, // Space for FAB
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    width: "85%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  modalInputContainer: {
-    marginBottom: 20,
-  },
-  modalInputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-    marginBottom: 8,
-  },
-  modalInput: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 12,
-    fontSize: 16,
-    color: "#1E293B",
-  },
-  textArea: {
-    height: 100,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  modalCancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 12,
-  },
-  modalCancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  modalSaveButton: {
-    backgroundColor: "#075E54", // WhatsApp green
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  modalSaveButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
   },
   // Loading state
   loadingContainer: {
@@ -1141,7 +1009,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorButton: {
-    backgroundColor: "#075E54",
+    backgroundColor: "#2196F3",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,

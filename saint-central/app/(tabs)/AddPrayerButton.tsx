@@ -1,4 +1,4 @@
-// AddPrayerButton.tsx - A completely new design from the ground up
+// AddPrayerintetions to bible  - A completely new design from the ground up
 import React, { useEffect, useRef } from 'react';
 import {
   View,

@@ -24,7 +24,6 @@ import {
 } from "@expo/vector-icons";
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
-
 // Interface for route params
 interface RouteParams {
   selectedPresetId?: string;
@@ -46,6 +45,17 @@ type RootStackParamList = {
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
+
+// Preset ministry types
+const MINISTRY_PRESETS = [
+  { id: '1', name: 'Liturgical', description: 'Focus on worship service planning and execution' },
+  { id: '2', name: 'Music', description: 'Choir, instruments, and worship teams' },
+  { id: '3', name: 'Youth', description: 'Programs and activities for young people' },
+  { id: '4', name: 'Outreach', description: 'Community service and evangelism' },
+  { id: '5', name: 'Education', description: 'Bible studies and spiritual formation' },
+  { id: '6', name: 'Service', description: 'Volunteer opportunities within the church' },
+  { id: '7', name: 'Prayer', description: 'Prayer groups and intercession teams' },
+];
 
 const CreateMinistryScreen = (): JSX.Element => {
   const navigation = useNavigation<NavigationProp>();
@@ -99,36 +109,35 @@ const CreateMinistryScreen = (): JSX.Element => {
 
         if (memberError) {
           console.error("Error fetching membership:", memberError);
-          throw memberError;
+          Alert.alert(
+            "Church Membership Required", 
+            "You need to be a member of a church to create a ministry."
+          );
+          navigation.navigate('MinistriesScreen', { refresh: false });
+          return;
         }
         
         setChurchId(memberData.church_id);
         setMinistryData(prev => ({ ...prev, church_id: memberData.church_id }));
         
-        // Get preset name if applicable
+        // Get preset details if applicable
         if (selectedPresetId) {
-          // Define default presets if we're not fetching from database
-          const defaultPresets = [
-            { id: '1', name: 'Liturgical' },
-            { id: '2', name: 'Music' },
-            { id: '3', name: 'Youth' },
-            { id: '4', name: 'Outreach' },
-            { id: '5', name: 'Education' },
-            { id: '6', name: 'Service' },
-            { id: '7', name: 'Prayer' },
-          ];
-          
-          const preset = defaultPresets.find(p => p.id === selectedPresetId);
+          const preset = MINISTRY_PRESETS.find(p => p.id === selectedPresetId);
           if (preset) {
             setSelectedPresetName(preset.name);
             // Pre-fill name with preset name
-            setMinistryData(prev => ({ ...prev, name: `${preset.name} Ministry` }));
+            setMinistryData(prev => ({ 
+              ...prev, 
+              name: `${preset.name} Ministry`,
+              description: preset.description || '' 
+            }));
           }
         }
         
       } catch (error) {
         console.error("Error setting up screen:", error);
         Alert.alert("Error", "Could not set up ministry creation. Please try again.");
+        navigation.navigate('MinistriesScreen', { refresh: false });
       }
     };
     
@@ -143,20 +152,36 @@ const CreateMinistryScreen = (): JSX.Element => {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: false,
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setImageUploading(true);
-        const imageUri = result.assets[0].uri;
+        const asset = result.assets[0];
         
-        // In a real app, you would upload to Supabase storage here
-        // and then set the URL returned from storage
-        setMinistryData(prev => ({ ...prev, image_url: imageUri }));
+        // Set local URI for now, and indicate it's a local file
+        // In a production app, you'd implement a proper image upload mechanism
+        // using either fetch to upload the file or Supabase's native fetch-based APIs
+        
+        // Store the local URI temporarily
+        const localUri = asset.uri;
+        
+        // For a real implementation, you would:
+        // 1. Convert the image to a format suitable for upload (Blob, FormData, etc.)
+        // 2. Upload using fetch or the Supabase client's fetch-based methods
+        // 3. Get the URL after successful upload
+        
+        // For this simplified version, we'll just use the local URI
+        setMinistryData(prev => ({ ...prev, image_url: localUri }));
+        
+        // Add a note in console for developers
+        console.log("Using local image URI. In production, implement proper image upload to Supabase storage.");
+        
         setImageUploading(false);
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert("Error", "Could not select image. Please try again.");
+      Alert.alert("Error", "Could not select or upload image. Please try again.");
       setImageUploading(false);
     }
   };
@@ -195,30 +220,32 @@ const CreateMinistryScreen = (): JSX.Element => {
         throw ministryError;
       }
       
-      // Add creator as member if ministry_members table exists
-      try {
-        const { error: memberError } = await supabase
-          .from("ministry_members")
-          .insert({
-            ministry_id: newMinistry.id,
-            user_id: userId,
-            church_id: churchId,
-            joined_at: new Date().toISOString(),
-            member_status: 'leader'
-          });
-          
-        if (memberError) {
-          console.error("Error adding creator as member:", memberError);
-          // Continue anyway - we'll at least have the ministry
-        }
-      } catch (membershipError) {
-        console.error("Error with member table:", membershipError);
-        // Continue anyway as the ministry was created successfully
+      // Add creator as member 
+      const { error: memberError } = await supabase
+        .from("ministry_members")
+        .insert({
+          ministry_id: newMinistry.id,
+          user_id: userId,
+          church_id: churchId,
+          joined_at: new Date().toISOString(),
+          member_status: 'leader'
+        });
+        
+      if (memberError) {
+        console.error("Error adding creator as member:", memberError);
+        // Continue anyway - we'll at least have the ministry
+        
+        Alert.alert(
+          "Ministry Created", 
+          "Ministry was created successfully, but there was an issue adding you as a leader. You may need to join the ministry separately."
+        );
+      } else {
+        // Success message
+        Alert.alert("Success", "Ministry created successfully!");
       }
       
       // Navigate to the ministries screen
       navigation.navigate('MinistriesScreen', { refresh: true });
-      Alert.alert("Success", "Ministry created successfully!");
       
     } catch (error) {
       console.error("Error creating ministry:", error);
@@ -262,7 +289,7 @@ const CreateMinistryScreen = (): JSX.Element => {
   
   // Navigate back to ministries screen
   const navigateBack = () => {
-    navigation.navigate('MinistriesScreen', { refresh: true });
+    navigation.navigate('MinistriesScreen', { refresh: false });
   };
   
   return (
@@ -343,6 +370,16 @@ const CreateMinistryScreen = (): JSX.Element => {
                 <View style={styles.presetBadge}>
                   <Text style={styles.presetText}>{selectedPresetName}</Text>
                 </View>
+              </View>
+            )}
+
+            {/* Church Info */}
+            {churchId && (
+              <View style={styles.infoContainer}>
+                <MaterialIcons name="info-outline" size={16} color="#64748B" />
+                <Text style={styles.infoText}>
+                  This ministry will be created for your church
+                </Text>
               </View>
             )}
           </View>
@@ -485,6 +522,19 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "500",
+  },
+  infoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  infoText: {
+    fontSize: 14,
+    color: "#64748B",
+    marginLeft: 8,
   },
   createButton: {
     flexDirection: "row",
