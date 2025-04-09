@@ -212,6 +212,22 @@ export default function MinistryDetails(): JSX.Element {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
   
+  // Get current user on component mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setCurrentUser(userData);
+      }
+    };
+    getCurrentUser();
+  }, []);
+  
   // Check cached membership status on initial load
   useEffect(() => {
     const checkCachedMembership = async () => {
@@ -771,7 +787,7 @@ export default function MinistryDetails(): JSX.Element {
               if (error) throw error;
 
               Alert.alert("Success", "You have left the ministry");
-              router.back();
+              router.push("/(tabs)/MinistriesScreen");
             } catch (error) {
               console.error("Error leaving ministry:", error);
               Alert.alert("Error", "Could not leave the ministry");
@@ -784,7 +800,7 @@ export default function MinistryDetails(): JSX.Element {
   
   // Navigate back
   const navigateBack = () => {
-    navigation.goBack();
+    router.push("/(tabs)/MinistriesScreen");
   };
   
   // Refresh data
@@ -875,8 +891,7 @@ export default function MinistryDetails(): JSX.Element {
   
   // Render message item
   const renderMessageItem = ({ item }: { item: Message }) => {
-    const { data: { user } } = supabase.auth.getUser() as unknown as { data: { user: { id: string } } };
-    const isCurrentUser = item.user_id === user?.id;
+    const isCurrentUser = item.user_id === currentUser?.id;
     const isSending = item._status === 'sending';
     const isError = item._status === 'error';
     
