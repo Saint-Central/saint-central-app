@@ -97,7 +97,6 @@ export default function ChurchSearchScreen(): JSX.Element {
       setLoading(true);
 
       // Log to debug
-      console.log("Fetching churches...");
 
       const { data, error: fetchError } = await supabase.from("churches").select("*").order("name");
 

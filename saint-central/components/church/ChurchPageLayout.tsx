@@ -40,13 +40,11 @@ export default function ChurchPageLayout({ userData }: Props) {
       if (!member) return;
       // Get church ID - either from route params or from membership
       const churchId = (route?.params as RouteParams)?.churchId ?? member.church_id;
-      console.log(`Attempting to fetch church with ID ${churchId} from 'churches' table`);
       try {
         const { data: churchData, error: churchError } = await supabase
           .from("churches")
           .select("*")
           .eq("id", churchId);
-        console.log("Church query result:", churchData);
         if (churchError) {
           console.error("Error fetching church data:", churchError);
           throw churchError;
@@ -60,13 +58,11 @@ export default function ChurchPageLayout({ userData }: Props) {
           if (allChurchesError) {
             console.error("Error checking churches table:", allChurchesError);
           } else {
-            console.log("Available churches in database:", allChurches);
           }
           throw new Error(`Church with ID ${churchId} not found. Please check your database.`);
         }
         // Use the first result if multiple are returned
         const church = churchData[0];
-        console.log("Successfully fetched church data:", church.name);
         setChurch(church);
       } catch (error) {
         console.error("Error in fetching church data:", error);

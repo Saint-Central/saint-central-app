@@ -3,7 +3,6 @@ import { supabase } from "../../supabaseClient";
 import ChurchPageLayout from "@/components/church/ChurchPageLayout";
 import ChurchPageFallback from "@/components/church/ChuchPageFallback";
 import { ChurchContext, ChurchContextData } from "@/contexts/church";
-import { ChurchMember } from "@/types/church";
 import Spinner from "@/components/ui/Spinner";
 
 export default function HomeScreen() {
@@ -54,16 +53,12 @@ export default function HomeScreen() {
         }
 
         // get church member data
-        const userId = user.id;
-        console.log("Getting member data for user_id:", userId);
         const { data: memberData, error: memberError } = await supabase
           .from("church_members")
           .select("*")
           .eq("user_id", user.id)
           .single();
-        console.log(memberData, memberError);
         if (memberData && !memberError) {
-          console.log((memberData as ChurchMember).user_id, "is member");
           updateChurchData({ member: memberData });
         }
       } catch (error) {
