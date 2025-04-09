@@ -94,7 +94,7 @@ function EventsComponent() {
   // Recurring event states
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly" | "yearly">(
-    "weekly"
+    "weekly",
   );
   const [recurrenceInterval, setRecurrenceInterval] = useState("1");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
@@ -191,7 +191,7 @@ function EventsComponent() {
 
       return days;
     },
-    [dayAnimations, getEventsForDay]
+    [dayAnimations, getEventsForDay],
   );
 
   // Check if two dates are the same day
@@ -294,7 +294,7 @@ function EventsComponent() {
         toValue: 1,
         duration: 500,
         useNativeDriver: true,
-      })
+      }),
     );
 
     Animated.stagger(20, animations).start();
@@ -469,7 +469,7 @@ function EventsComponent() {
           Alert.alert(
             "Permission Error",
             "You do not have permission to add events. Please contact an administrator.",
-            [{ text: "OK" }]
+            [{ text: "OK" }],
           );
           return;
         }
@@ -535,7 +535,7 @@ function EventsComponent() {
           Alert.alert(
             "Permission Error",
             "You do not have permission to edit this event. You may only edit events you created.",
-            [{ text: "OK" }]
+            [{ text: "OK" }],
           );
           return;
         }
@@ -565,7 +565,7 @@ function EventsComponent() {
                 Alert.alert(
                   "Permission Error",
                   "You do not have permission to delete this event. You may only delete events you created.",
-                  [{ text: "OK" }]
+                  [{ text: "OK" }],
                 );
                 return;
               }
@@ -632,7 +632,7 @@ function EventsComponent() {
   // Render functions (calendar, event cards, etc.)
   // ----------------------------
   const getEventIconAndColor = (
-    event: Event
+    event: Event,
   ): { icon: "book" | "home" | "message-circle" | "coffee" | "calendar"; color: string } => {
     const title = event.title.toLowerCase();
     if (title.includes("bible") || title.includes("study")) {
@@ -791,7 +791,7 @@ function EventsComponent() {
       weeks.push(
         <View key={i} style={styles.calendarWeek}>
           {weekDays.map((day, index) => renderCalendarDay(day, i + index))}
-        </View>
+        </View>,
       );
     }
     return weeks;
@@ -1116,10 +1116,10 @@ function EventsComponent() {
                           {recurrenceType === "daily"
                             ? "day(s)"
                             : recurrenceType === "weekly"
-                            ? "week(s)"
-                            : recurrenceType === "monthly"
-                            ? "month(s)"
-                            : "year(s)"}
+                              ? "week(s)"
+                              : recurrenceType === "monthly"
+                                ? "month(s)"
+                                : "year(s)"}
                         </Text>
                       </View>
                     </View>
@@ -1385,10 +1385,10 @@ function EventsComponent() {
                           {recurrenceType === "daily"
                             ? "day(s)"
                             : recurrenceType === "weekly"
-                            ? "week(s)"
-                            : recurrenceType === "monthly"
-                            ? "month(s)"
-                            : "year(s)"}
+                              ? "week(s)"
+                              : recurrenceType === "monthly"
+                                ? "month(s)"
+                                : "year(s)"}
                         </Text>
                       </View>
                     </View>

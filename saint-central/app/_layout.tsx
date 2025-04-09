@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
 import "react-native-reanimated";
 import { StripeProvider } from "@stripe/stripe-react-native";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { supabase } from "../supabaseClient";
@@ -46,20 +47,22 @@ export default function RootLayout() {
   }, [fontsLoaded, router]);
 
   return (
-    <StripeProvider
-      publishableKey="pk_live_51QxbTHLRn9raMPQqDLHJzIvyWgG7UwJU0WVuw9XrigLtSDDGeXctdUA4kaWlObeOB53Bk2dqxotHXdc1xBcvrSWv00Lt2A5aFX"
-      merchantIdentifier="merchant.com.saintcentral"
-    >
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        {/* Always render Slot so that a navigator is mounted */}
-        <Slot />
-        {loading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#FAC898" />
-          </View>
-        )}
-      </ThemeProvider>
-    </StripeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StripeProvider
+        publishableKey="pk_live_51QxbTHLRn9raMPQqDLHJzIvyWgG7UwJU0WVuw9XrigLtSDDGeXctdUA4kaWlObeOB53Bk2dqxotHXdc1xBcvrSWv00Lt2A5aFX"
+        merchantIdentifier="merchant.com.saintcentral"
+      >
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          {/* Always render Slot so that a navigator is mounted */}
+          <Slot />
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#FAC898" />
+            </View>
+          )}
+        </ThemeProvider>
+      </StripeProvider>
+    </GestureHandlerRootView>
   );
 }
 

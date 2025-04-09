@@ -20,7 +20,7 @@ interface TabBarProps {
 }
 
 interface AnimatedTabIconProps {
-  name: "home" | "discover" | "bible" | "profile";
+  name: "home" | "discover" | "Bible" | "profile";
   focused: boolean;
   index: number;
   activeIndex: number;
@@ -102,7 +102,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
       icon: <Feather name="compass" size={ICON_SIZE} color="#FFFFFF" />,
       label: "Explore",
     },
-    bible: {
+    Bible: {
       icon: <Feather name="book" size={ICON_SIZE} color="#FFFFFF" />,
       label: "Bible",
     },
@@ -124,7 +124,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
 
 const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
   // TODO: fix this by not polluting the app router with components in the root routes
-  const visibleTabs = ["home", "discover", "bible", "profile"];
+  const visibleTabs = ["home", "discover", "Bible", "profile"];
 
   // Track if Comments screen is active to keep Home tab selected
   const isCommentsScreen = state.routes.some(
@@ -215,7 +215,7 @@ export default function TabLayout() {
       {/* Main visible tabs - FeedScreen is directly specified, no need for duplicate home */}
       <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
-      <Tabs.Screen name="bible" options={{ title: "Bible" }} />
+      <Tabs.Screen name="Bible" options={{ title: "Bible" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
 
       {/* Hidden screens */}
@@ -229,7 +229,7 @@ export default function TabLayout() {
       <Tabs.Screen name="statistics" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="community" options={{ tabBarButton: () => null }} />
-      <Tabs.Screen name="Bible" options={{ tabBarButton: () => null }} />
+      {/* Removed the bible-detail screen since we're using Bible as a main tab */}
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/[id]" options={{ tabBarButton: () => null }} />

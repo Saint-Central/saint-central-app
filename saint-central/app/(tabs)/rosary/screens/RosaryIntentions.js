@@ -2247,8 +2247,8 @@ export default function RosaryIntentions() {
                         selectedFriends:
                           selectedOption.label === "Certain Friends"
                             ? newIntention.selectedFriends
-                            : [],
-                      });
+                                : [],
+                          });
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
                   />
