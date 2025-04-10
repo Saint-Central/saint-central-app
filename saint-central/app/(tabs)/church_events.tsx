@@ -606,16 +606,16 @@ export default function ChurchEvents() {
       return;
     }
 
-    // Check if user is admin/owner or the creator of the event
-    const canEdit = hasPermissionToCreate || event.created_by === currentUser.id;
-    if (!canEdit) {
+    // Only allow church admins/owners to edit events
+    if (!hasPermissionToCreate) {
       Alert.alert(
         "Permission Denied", 
-        "Only church admins, owners, or the event creator can edit events."
+        "Only church admins and owners can edit events."
       );
       return;
     }
 
+    setSelectedEvent(event);  // Set the selected event first
     setFormData({
       title: event.title,
       time: event.time,
@@ -625,10 +625,10 @@ export default function ChurchEvents() {
       author_name: event.author_name || '',
       event_location: event.event_location || '',
       is_recurring: event.is_recurring || false,
-      recurrence_type: event.recurrence_type,
-      recurrence_interval: event.recurrence_interval,
-      recurrence_end_date: event.recurrence_end_date,
-      recurrence_days_of_week: event.recurrence_days_of_week,
+      recurrence_type: event.recurrence_type || 'weekly',
+      recurrence_interval: event.recurrence_interval || 1,
+      recurrence_end_date: event.recurrence_end_date || null,
+      recurrence_days_of_week: event.recurrence_days_of_week || [1],
       church_id: event.church_id,
     });
     setShowEditModal(true);
@@ -815,6 +815,16 @@ export default function ChurchEvents() {
   // Update existing event
   const handleEditEvent = async () => {
     if (!currentUser || !selectedEvent) {
+      Alert.alert('Error', 'You must be logged in and an event must be selected');
+      return;
+    }
+    
+    // Check if user is the creator of the event
+    if (selectedEvent.created_by !== currentUser.id && !hasPermissionToCreate) {
+      Alert.alert(
+        "Permission Denied",
+        "You can only edit events that you created or if you are a church admin/owner."
+      );
       return;
     }
     
@@ -888,12 +898,11 @@ export default function ChurchEvents() {
       return;
     }
 
-    // Check if user is admin/owner or the creator of the event
-    const canDelete = hasPermissionToCreate || event.created_by === currentUser.id;
-    if (!canDelete) {
+    // Only allow church admins/owners to delete events
+    if (!hasPermissionToCreate) {
       Alert.alert(
         "Permission Denied", 
-        "Only church admins, owners, or the event creator can delete events."
+        "Only church admins and owners can delete events."
       );
       return;
     }
@@ -1021,15 +1030,6 @@ export default function ChurchEvents() {
             <View style={styles.recurringBadge}>
               <MaterialIcons name="repeat" size={16} color={THEME.buttonPrimary} />
             </View>
-          )}
-          
-          {canEdit && (
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => openEditModal(item)}
-            >
-              <Feather name="edit-2" size={16} color={THEME.secondary} />
-            </TouchableOpacity>
           )}
         </View>
         
@@ -1343,12 +1343,7 @@ export default function ChurchEvents() {
         </View>
 
         {/* Main Content */}
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
-          }
-        >
+        <View style={styles.mainContainer}>
           {/* Month Navigation (for calendar view) */}
           {calendarView === "month" && (
             <View style={styles.monthNavigation}>
@@ -1370,25 +1365,32 @@ export default function ChurchEvents() {
           
           {/* Calendar or List View */}
           {calendarView === "month" ? (
-            <View style={styles.calendarContainer}>
-              <View style={styles.dayLabelsRow}>
-                {[0, 1, 2, 3, 4, 5, 6].map(day => (
-                  <View key={day} style={styles.dayLabelContainer}>
-                    <Text style={styles.dayLabel}>{getDayName(day, true)}</Text>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
+              }
+            >
+              <View style={styles.calendarContainer}>
+                <View style={styles.dayLabelsRow}>
+                  {[0, 1, 2, 3, 4, 5, 6].map(day => (
+                    <View key={day} style={styles.dayLabelContainer}>
+                      <Text style={styles.dayLabel}>{getDayName(day, true)}</Text>
+                    </View>
+                  ))}
+                </View>
+                {loading ? (
+                  <View style={styles.calendarLoading}>
+                    <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                    <Text style={styles.loadingText}>Loading calendar...</Text>
                   </View>
-                ))}
+                ) : (
+                  <View style={styles.calendarGrid}>
+                    {renderCalendarWeeks()}
+                  </View>
+                )}
               </View>
-              {loading ? (
-                <View style={styles.calendarLoading}>
-                  <ActivityIndicator size="large" color={THEME.buttonPrimary} />
-                  <Text style={styles.loadingText}>Loading calendar...</Text>
-                </View>
-              ) : (
-                <View style={styles.calendarGrid}>
-                  {renderCalendarWeeks()}
-                </View>
-              )}
-            </View>
+            </ScrollView>
           ) : (
             <View style={styles.listContainer}>
               {loading ? (
@@ -1414,6 +1416,9 @@ export default function ChurchEvents() {
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.eventsList}
                   scrollEventThrottle={16}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
+                  }
                   onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
                     { useNativeDriver: true }
@@ -1422,7 +1427,7 @@ export default function ChurchEvents() {
               )}
             </View>
           )}
-        </ScrollView>
+        </View>
         
         {/* Date Detail Modal */}
         {showDateDetail && (
@@ -2027,7 +2032,7 @@ export default function ChurchEvents() {
                   {isSubmitting ? (
                     <ActivityIndicator size="small" color={THEME.buttonText} />
                   ) : (
-                    <Text style={styles.submitButtonText}>UPDATE EVENT</Text>
+                    <Text style={styles.submitButtonText}>Confirm Edit</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -2077,6 +2082,10 @@ export default function ChurchEvents() {
 // Styles definition
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: THEME.background,
+  },
+  mainContainer: {
     flex: 1,
     backgroundColor: THEME.background,
   },
