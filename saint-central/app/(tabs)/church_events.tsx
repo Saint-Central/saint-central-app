@@ -56,6 +56,7 @@ interface ChurchEvent {
   excerpt: string;
   video_link: string | null;
   author_name: string;
+  event_location: string;
   is_recurring: boolean;
   recurrence_type: "daily" | "weekly" | "monthly" | "yearly" | null;
   recurrence_interval: number | null;
@@ -75,6 +76,7 @@ interface EventFormData {
   excerpt: string;
   video_link: string | null;
   author_name: string;
+  event_location: string;
   is_recurring: boolean;
   recurrence_type: "daily" | "weekly" | "monthly" | "yearly" | null;
   recurrence_interval: number | null;
@@ -166,6 +168,7 @@ export default function ChurchEvents() {
     excerpt: '',
     video_link: null,
     author_name: '',
+    event_location: '',
     is_recurring: false,
     recurrence_type: null,
     recurrence_interval: null,
@@ -560,18 +563,19 @@ export default function ChurchEvents() {
   // Form Functions
   const resetForm = () => {
     setFormData({
-      title: '',
+      title: "",
       time: new Date().toISOString(),
       image_url: null,
-      excerpt: '',
+      excerpt: "",
       video_link: null,
-      author_name: '',
+      author_name: "",
+      event_location: "",
       is_recurring: false,
       recurrence_type: null,
       recurrence_interval: null,
       recurrence_end_date: null,
       recurrence_days_of_week: null,
-      church_id: selectedChurchId || 0
+      church_id: selectedChurchId || 0,
     });
   };
 
@@ -597,32 +601,36 @@ export default function ChurchEvents() {
   };
 
   const openEditModal = (event: ChurchEvent) => {
-    if (!hasPermissionToCreate) {
+    if (!currentUser || !selectedChurchId) {
+      Alert.alert("Error", "You must be logged in and select a church");
+      return;
+    }
+
+    // Check if user is admin/owner or the creator of the event
+    const canEdit = hasPermissionToCreate || event.created_by === currentUser.id;
+    if (!canEdit) {
       Alert.alert(
         "Permission Denied", 
-        "You need to be an admin or owner of this church to edit events."
+        "Only church admins, owners, or the event creator can edit events."
       );
       return;
     }
-    
-    setSelectedEvent(event);
-    
-    // Convert event data to form format
+
     setFormData({
       title: event.title,
       time: event.time,
       image_url: event.image_url,
-      excerpt: event.excerpt,
+      excerpt: event.excerpt || '',
       video_link: event.video_link,
       author_name: event.author_name || '',
+      event_location: event.event_location || '',
       is_recurring: event.is_recurring || false,
       recurrence_type: event.recurrence_type,
       recurrence_interval: event.recurrence_interval,
       recurrence_end_date: event.recurrence_end_date,
       recurrence_days_of_week: event.recurrence_days_of_week,
-      church_id: event.church_id
+      church_id: event.church_id,
     });
-    
     setShowEditModal(true);
   };
 
@@ -780,6 +788,7 @@ export default function ChurchEvents() {
           excerpt: formData.excerpt,
           video_link: formData.video_link,
           author_name: formData.author_name,
+          event_location: formData.event_location,
           is_recurring: formData.is_recurring,
           recurrence_type: formData.is_recurring ? formData.recurrence_type : null,
           recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
@@ -842,6 +851,7 @@ export default function ChurchEvents() {
           excerpt: formData.excerpt,
           video_link: formData.video_link,
           author_name: formData.author_name,
+          event_location: formData.event_location,
           is_recurring: formData.is_recurring,
           recurrence_type: formData.is_recurring ? formData.recurrence_type : null,
           recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
@@ -879,7 +889,8 @@ export default function ChurchEvents() {
     }
 
     // Check if user is admin/owner or the creator of the event
-    if (!hasPermissionToCreate && event.created_by !== currentUser.id) {
+    const canDelete = hasPermissionToCreate || event.created_by === currentUser.id;
+    if (!canDelete) {
       Alert.alert(
         "Permission Denied", 
         "Only church admins, owners, or the event creator can delete events."
@@ -2987,5 +2998,13 @@ const styles = StyleSheet.create({
   churchOptionTextActive: {
     color: THEME.buttonText,
     fontWeight: "600",
+  },
+  hostRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventHost: {
+    fontSize: 14,
+    color: THEME.secondary,
   },
 });
