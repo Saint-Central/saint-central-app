@@ -11,10 +11,12 @@ import {
   Alert,
   Animated,
   Platform,
+  useWindowDimensions,
+  Modal,
+  Dimensions,
 } from "react-native";
 import { Church, ChurchMember } from "@/types/church";
 import { ChurchActionButton } from "./ChurchActionButton";
-import ChurchProfileCard from "./ChurchProfileCard";
 import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,44 +32,81 @@ type Props = {
 
 export default function ChurchPageContent({ church, member, userData }: Props) {
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
+  const [memberCount, setMemberCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { reset: resetChurchData } = useChurchContext();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const { width } = useWindowDimensions();
+  const isTablet = width > 768;
+  const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
-  // Animation references
-  const imageAnim = useRef(new Animated.Value(0)).current;
-  const actionAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim = useRef(new Animated.Value(0)).current;
-  const buttonAnim = useRef(new Animated.Value(0)).current;
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim1 = useRef(new Animated.Value(0)).current;
+  const cardAnim2 = useRef(new Animated.Value(0)).current;
+  const cardAnim3 = useRef(new Animated.Value(0)).current;
 
+  // Add a modal animation ref
+  const modalAnimation = useRef(new Animated.Value(0)).current;
+
+  // Fetch member count
   useEffect(() => {
-    // Staggered animations for elements
-    Animated.stagger(150, [
-      Animated.spring(imageAnim, {
+    const fetchMemberCount = async () => {
+      try {
+        setIsLoading(true);
+        const { count, error } = await supabase
+          .from("church_members")
+          .select("id", { count: "exact", head: true })
+          .eq("church_id", church.id);
+
+        if (error) {
+          console.error("Error fetching member count:", error);
+        } else {
+          setMemberCount(count || 0);
+        }
+      } catch (error) {
+        console.error("Error in fetching member count:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMemberCount();
+  }, [church.id]);
+
+  // Run animations when component mounts
+  useEffect(() => {
+    const animations = [
+      Animated.timing(fadeAnim, {
         toValue: 1,
-        friction: 8,
-        tension: 40,
+        duration: 300,
         useNativeDriver: true,
       }),
-      Animated.spring(actionAnim, {
+      Animated.spring(cardAnim1, {
         toValue: 1,
-        friction: 8,
-        tension: 40,
+        tension: 300,
+        friction: 20,
         useNativeDriver: true,
       }),
-      Animated.spring(cardAnim, {
+      Animated.spring(cardAnim2, {
         toValue: 1,
-        friction: 7,
-        tension: 40,
+        tension: 300,
+        friction: 20,
+        delay: 50,
         useNativeDriver: true,
       }),
-      Animated.spring(buttonAnim, {
+      Animated.spring(cardAnim3, {
         toValue: 1,
-        friction: 8,
-        tension: 40,
+        tension: 300,
+        friction: 20,
+        delay: 100,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [imageAnim, actionAnim, cardAnim, buttonAnim]);
+    ];
+
+    // Start all animations
+    Animated.parallel(animations).start();
+  }, [fadeAnim, cardAnim1, cardAnim2, cardAnim3]);
 
   const handleLeaveChurch = async (): Promise<void> => {
     if (!member) return;
@@ -97,61 +136,43 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
     }
   };
 
+  // Update confirmLeaveChurch to include animation
   const confirmLeaveChurch = () => {
-    Alert.alert(
-      "Leave Church",
-      "Are you sure you want to leave this church? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Yes, Leave",
-          onPress: handleLeaveChurch,
-          style: "destructive",
-        },
-      ],
-      { cancelable: true },
-    );
-  };
-
-  // Button press animation
-  const [buttonScale] = useState(new Animated.Value(1));
-
-  const handlePressIn = () => {
-    Animated.spring(buttonScale, {
-      toValue: 0.97,
-      friction: 5,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(buttonScale, {
+    setShowLeaveModal(true);
+    Animated.spring(modalAnimation, {
       toValue: 1,
-      friction: 5,
-      tension: 40,
+      tension: 300,
+      friction: 20,
       useNativeDriver: true,
     }).start();
+  };
+
+  // Add closeModal function to handle animations
+  const closeModal = () => {
+    Animated.timing(modalAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowLeaveModal(false);
+    });
   };
 
   return (
-    <>
-      {/* Hero Image Section */}
+    <Animated.View style={{ opacity: fadeAnim }}>
+      {/* Featured Image */}
       {church.image && (
         <Animated.View
           style={[
             styles.imageContainer,
+            isTablet && styles.tabletImageContainer,
             {
-              opacity: imageAnim,
               transform: [
-                { scale: imageAnim },
+                { scale: cardAnim1 },
                 {
-                  translateY: imageAnim.interpolate({
+                  translateY: cardAnim1.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [20, 0],
+                    outputRange: [50, 0],
                   }),
                 },
               ],
@@ -159,406 +180,703 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
           ]}
         >
           <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
-          <LinearGradient colors={["transparent", "rgba(0,0,0,0.5)"]} style={styles.imageOverlay}>
-            <View style={styles.imageTextContainer}>
-              <Text style={styles.churchType}>{church.category || "Christian Church"}</Text>
-              <Text style={styles.churchLocation}>
-                <Ionicons name="location" size={14} color="#FFFFFF" />{" "}
-                {church.address.split(",")[0]}
-              </Text>
+          <LinearGradient colors={["transparent", "rgba(0,0,0,0.7)"]} style={styles.imageOverlay}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{church.category || "Christian Church"}</Text>
             </View>
           </LinearGradient>
         </Animated.View>
       )}
 
-      {/* Profile Card with Church Info */}
+      {/* About Section */}
       <Animated.View
         style={[
+          styles.sectionContainer,
+          isTablet && styles.tabletSectionContainer,
           {
-            opacity: cardAnim,
             transform: [
-              { scale: cardAnim },
+              { scale: cardAnim1 },
               {
-                translateY: cardAnim.interpolate({
+                translateY: cardAnim1.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [20, 0],
+                  outputRange: [30, 0],
                 }),
               },
             ],
           },
         ]}
       >
-        <ChurchProfileCard church={church} member={member} />
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, isTablet && styles.tabletSectionTitle]}>About</Text>
+          <View style={styles.sectionDivider} />
+        </View>
+
+        <View style={styles.aboutCard}>
+          <Text style={[styles.aboutText, isTablet && styles.tabletAboutText]}>
+            {church.description}
+          </Text>
+
+          <View style={styles.detailsRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="time-outline" size={isTablet ? 18 : 16} color={theme.primary} />
+              <Text style={[styles.detailLabel, isTablet && styles.tabletDetailLabel]}>
+                Founded
+              </Text>
+              <Text style={[styles.detailValue, isTablet && styles.tabletDetailValue]}>
+                {church.founded || "N/A"}
+              </Text>
+            </View>
+
+            <View style={styles.detailItem}>
+              <Ionicons name="calendar-outline" size={isTablet ? 18 : 16} color={theme.tertiary} />
+              <Text style={[styles.detailLabel, isTablet && styles.tabletDetailLabel]}>
+                Services
+              </Text>
+              <Text style={[styles.detailValue, isTablet && styles.tabletDetailValue]}>
+                Sun, Wed
+              </Text>
+            </View>
+
+            <View style={styles.detailItem}>
+              <Ionicons name="people-outline" size={isTablet ? 18 : 16} color={theme.secondary} />
+              <Text style={[styles.detailLabel, isTablet && styles.tabletDetailLabel]}>
+                Members
+              </Text>
+              <Text style={[styles.detailValue, isTablet && styles.tabletDetailValue]}>
+                {isLoading ? "..." : memberCount}
+              </Text>
+            </View>
+          </View>
+        </View>
       </Animated.View>
 
-      {/* Quick Action Buttons Section */}
+      {/* Quick Services */}
       <Animated.View
         style={[
-          styles.actionSectionContainer,
+          styles.sectionContainer,
+          isTablet && styles.tabletSectionContainer,
           {
-            opacity: actionAnim,
             transform: [
-              { scale: actionAnim },
+              { scale: cardAnim2 },
               {
-                translateY: actionAnim.interpolate({
+                translateY: cardAnim2.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [20, 0],
+                  outputRange: [30, 0],
                 }),
               },
             ],
           },
         ]}
       >
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.sectionLine} />
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, isTablet && styles.tabletSectionTitle]}>
+            Quick Services
+          </Text>
+          <View style={styles.sectionDivider} />
         </View>
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickActionsScrollContainer}
+          contentContainerStyle={[
+            styles.servicesScrollContainer,
+            isTablet && styles.tabletServicesScrollContainer,
+          ]}
         >
-          <QuickActionCard
-            icon={<FontAwesome5 name="church" size={26} color="#FFFFFF" />}
-            title="Ministries"
-            description="Faith in action"
-            gradientColors={["#3A86FF", "#4361EE"]}
-            onPress={() => navigation.navigate("MinistriesScreen", { churchId: church.id })}
+          <ServiceCard
+            title="Sunday Mass"
+            time="9:00 AM"
+            icon={<FontAwesome5 name="pray" size={isTablet ? 24 : 20} color="#FFFFFF" />}
+            color1={theme.gradientPrimary[0]}
+            color2={theme.gradientPrimary[1]}
+            isTablet={isTablet}
+            onPress={() => {}}
           />
-          <QuickActionCard
-            icon={<Ionicons name="book-outline" size={26} color="#FFFFFF" />}
-            title="Courses"
-            description="Grow in knowledge"
-            gradientColors={["#FF006E", "#FB5607"]}
+
+          <ServiceCard
+            title="Bible Study"
+            time="Wed, 7 PM"
+            icon={<FontAwesome5 name="bible" size={isTablet ? 24 : 20} color="#FFFFFF" />}
+            color1={theme.gradientSecondary[0]}
+            color2={theme.gradientSecondary[1]}
+            isTablet={isTablet}
+            onPress={() => {}}
           />
-          <QuickActionCard
-            icon={<MaterialCommunityIcons name="calendar-clock" size={26} color="#FFFFFF" />}
-            title="Schedule"
-            description="Plan your worship"
-            gradientColors={["#8338EC", "#6A0DAD"]}
+
+          <ServiceCard
+            title="Youth Group"
+            time="Fri, 6 PM"
+            icon={<Ionicons name="people" size={isTablet ? 24 : 20} color="#FFFFFF" />}
+            color1={theme.gradientInfo[0]}
+            color2={theme.gradientInfo[1]}
+            isTablet={isTablet}
+            onPress={() => {}}
           />
-          <QuickActionCard
-            icon={<Ionicons name="people" size={26} color="#FFFFFF" />}
-            title="Community"
-            description="Connect with others"
-            gradientColors={["#06D6A0", "#1A936F"]}
+
+          <ServiceCard
+            title="Prayer"
+            time="Daily, 6 AM"
+            icon={<FontAwesome5 name="hands" size={isTablet ? 24 : 20} color="#FFFFFF" />}
+            color1={theme.gradientSuccess[0]}
+            color2={theme.gradientSuccess[1]}
+            isTablet={isTablet}
+            onPress={() => {}}
           />
         </ScrollView>
       </Animated.View>
 
-      {/* Feature Actions Section */}
+      {/* Actions Section */}
       <Animated.View
         style={[
-          styles.actionSectionContainer,
+          styles.sectionContainer,
+          isTablet && styles.tabletSectionContainer,
           {
-            opacity: actionAnim,
             transform: [
-              { scale: actionAnim },
+              { scale: cardAnim3 },
               {
-                translateY: actionAnim.interpolate({
+                translateY: cardAnim3.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [20, 0],
+                  outputRange: [30, 0],
                 }),
               },
             ],
           },
         ]}
       >
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Church Services</Text>
-          <View style={styles.sectionLine} />
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, isTablet && styles.tabletSectionTitle]}>Actions</Text>
+          <View style={styles.sectionDivider} />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.quickActionsScrollContainer}
-          showsVerticalScrollIndicator={false}
+        <ChurchActionButton
+          icon={
+            <LinearGradient
+              colors={[theme.gradientPrimary[0], theme.gradientPrimary[1]]}
+              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="calendar" size={isTablet ? 22 : 18} color="#FFFFFF" />
+            </LinearGradient>
+          }
+          onPress={() => navigation.navigate("EventsScreen", { churchId: church.id })}
         >
-          <ChurchActionButton
-            icon={
-              <LinearGradient
-                colors={["#3A86FF", "#4361EE"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconGradient}
-              >
-                <FontAwesome5 name="bible" size={24} color="#FFFFFF" />
-              </LinearGradient>
-            }
-            onPress={() => {}}
+          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
+            Events Calendar
+          </Text>
+          <Text
+            style={[
+              styles.actionButtonDescription,
+              isTablet && styles.tabletActionButtonDescription,
+            ]}
           >
-            <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonText}>Sunday Services</Text>
-              <Text style={styles.buttonDescription}>Weekly worship schedule</Text>
-            </View>
-          </ChurchActionButton>
-          <ChurchActionButton
-            icon={
-              <LinearGradient
-                colors={["#06D6A0", "#1A936F"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconGradient}
-              >
-                <FontAwesome5 name="hands-helping" size={22} color="#FFFFFF" />
-              </LinearGradient>
-            }
-            onPress={() => {}}
+            View upcoming church events
+          </Text>
+        </ChurchActionButton>
+
+        <ChurchActionButton
+          icon={
+            <LinearGradient
+              colors={[theme.gradientCool[0], theme.gradientCool[1]]}
+              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <FontAwesome5 name="donate" size={isTablet ? 22 : 18} color="#FFFFFF" />
+            </LinearGradient>
+          }
+          onPress={() => navigation.navigate("DonateScreen", { churchId: church.id })}
+        >
+          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
+            Donate
+          </Text>
+          <Text
+            style={[
+              styles.actionButtonDescription,
+              isTablet && styles.tabletActionButtonDescription,
+            ]}
           >
-            <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonText}>Volunteer</Text>
-              <Text style={styles.buttonDescription}>Serve the community</Text>
-            </View>
-          </ChurchActionButton>
-        </ScrollView>
+            Support our ministries
+          </Text>
+        </ChurchActionButton>
+
+        <ChurchActionButton
+          icon={
+            <LinearGradient
+              colors={[theme.gradientSecondary[0], theme.gradientSecondary[1]]}
+              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <FontAwesome5 name="church" size={isTablet ? 22 : 18} color="#FFFFFF" />
+            </LinearGradient>
+          }
+          onPress={() => navigation.navigate("MinistriesScreen", { churchId: church.id })}
+        >
+          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
+            Ministries
+          </Text>
+          <Text
+            style={[
+              styles.actionButtonDescription,
+              isTablet && styles.tabletActionButtonDescription,
+            ]}
+          >
+            Browse our church ministries
+          </Text>
+        </ChurchActionButton>
       </Animated.View>
 
       {/* Leave Church Button */}
       <Animated.View
         style={[
+          styles.leaveButtonContainer,
+          isTablet && styles.tabletLeaveButtonContainer,
           {
-            opacity: buttonAnim,
-            transform: [
-              { scale: buttonAnim },
-              {
-                translateY: buttonAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
+            opacity: cardAnim3,
+            transform: [{ scale: cardAnim3 }],
           },
         ]}
       >
         <TouchableOpacity
-          activeOpacity={0.9}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          style={[styles.leaveButton, isTablet && styles.tabletLeaveButton]}
           onPress={confirmLeaveChurch}
           disabled={leavingChurch}
+          activeOpacity={0.7}
         >
-          <Animated.View
-            style={[styles.leaveChurchButton, { transform: [{ scale: buttonScale }] }]}
-          >
-            <LinearGradient
-              colors={["#EF476F", "#DE3B4E"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.leaveChurchGradient}
-            >
-              {leavingChurch ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons
-                    name="exit-outline"
-                    size={18}
-                    color="#FFFFFF"
-                    style={styles.leaveChurchIcon}
-                  />
-                  <Text style={styles.leaveChurchText}>Leave Church</Text>
-                </>
-              )}
-            </LinearGradient>
-          </Animated.View>
+          {leavingChurch ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons
+                name="exit-outline"
+                size={isTablet ? 20 : 18}
+                color="#FFFFFF"
+                style={styles.leaveButtonIcon}
+              />
+              <Text style={[styles.leaveButtonText, isTablet && styles.tabletLeaveButtonText]}>
+                Leave Church
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </Animated.View>
-    </>
+
+      {/* Leave Church Confirmation Modal */}
+      <Modal
+        visible={showLeaveModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                opacity: modalAnimation,
+                transform: [
+                  {
+                    scale: modalAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <LinearGradient
+                colors={[theme.error, "#FF5252"]}
+                style={styles.modalIconContainer}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <FontAwesome5 name="church" size={20} color="#FFFFFF" />
+              </LinearGradient>
+              <Text style={styles.modalTitle}>Leave Church</Text>
+            </View>
+
+            <Text style={styles.modalMessage}>
+              Are you sure you want to leave {church.name}? This action cannot be undone and you
+              will need to rejoin if you change your mind.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={closeModal}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  closeModal();
+                  setTimeout(handleLeaveChurch, 300);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="exit-outline"
+                  size={16}
+                  color="#FFFFFF"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.modalConfirmButtonText}>Yes, Leave</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+    </Animated.View>
   );
 }
 
-interface QuickActionCardProps {
-  icon: React.ReactNode;
+interface ServiceCardProps {
   title: string;
-  description: string;
-  gradientColors: [string, string];
-  onPress?: () => void;
+  time: string;
+  icon: React.ReactNode;
+  color1: string;
+  color2: string;
+  isTablet?: boolean;
+  onPress: () => void;
 }
 
-const QuickActionCard = ({
-  icon,
+const ServiceCard = ({
   title,
-  description,
-  gradientColors,
+  time,
+  icon,
+  color1,
+  color2,
+  isTablet,
   onPress,
-}: QuickActionCardProps) => {
+}: ServiceCardProps) => {
   return (
     <TouchableOpacity
-      style={styles.quickActionCard}
+      style={[styles.serviceCard, isTablet && styles.tabletServiceCard]}
+      onPress={onPress}
       activeOpacity={0.9}
-      onPress={onPress || (() => {})}
     >
       <LinearGradient
-        colors={gradientColors}
+        colors={[color1, color2]}
+        style={styles.serviceCardGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.quickActionGradient}
       >
-        <View style={styles.quickActionIcon}>{icon}</View>
-        <View style={styles.quickActionTextContainer}>
-          <Text style={styles.quickActionTitle}>{title}</Text>
-          <Text style={styles.quickActionDescription}>{description}</Text>
+        <View style={[styles.serviceIconContainer, isTablet && styles.tabletServiceIconContainer]}>
+          {icon}
         </View>
+        <Text style={[styles.serviceTitle, isTablet && styles.tabletServiceTitle]}>{title}</Text>
+        <Text style={[styles.serviceTime, isTablet && styles.tabletServiceTime]}>{time}</Text>
       </LinearGradient>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  leaveChurchButton: {
-    marginTop: 20,
-    marginBottom: 70,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#DE3B4E",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  leaveChurchGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 15,
-  },
-  leaveChurchIcon: {
-    marginRight: 10,
-  },
-  leaveChurchText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonTextContainer: {
-    flex: 1,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 4,
-  },
-  buttonDescription: {
-    fontSize: 13,
-    color: "#64748B",
-    fontWeight: "500",
-  },
   imageContainer: {
-    marginBottom: 24,
-    borderRadius: 24,
+    height: 180,
+    borderRadius: theme.radiusLarge,
     overflow: "hidden",
-    height: 220,
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    marginBottom: theme.spacingXL,
+    ...theme.shadowLight,
   },
-  imageTextContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  churchType: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  churchLocation: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  imageOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 120,
-    justifyContent: "flex-end",
+  tabletImageContainer: {
+    height: 240,
+    marginBottom: theme.spacing2XL,
   },
   churchImage: {
     width: "100%",
     height: "100%",
   },
-  sectionHeader: {
+  imageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    justifyContent: "flex-end",
+    padding: theme.spacingL,
+  },
+  categoryBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingXS,
+    borderRadius: theme.radiusFull,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  categoryText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: theme.fontSemiBold,
+  },
+  sectionContainer: {
+    marginBottom: theme.spacingXL,
+  },
+  tabletSectionContainer: {
+    marginBottom: theme.spacing2XL,
+  },
+  sectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    marginHorizontal: 4,
+    marginBottom: theme.spacingM,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginRight: 12,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+    marginRight: theme.spacingM,
   },
-  sectionLine: {
+  tabletSectionTitle: {
+    fontSize: 22,
+  },
+  sectionDivider: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(203, 213, 225, 0.7)",
+    backgroundColor: theme.neutral200,
   },
-  actionSectionContainer: {
-    marginTop: 10,
-    marginBottom: 24,
+  aboutCard: {
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingL,
+    ...theme.shadowLight,
+    borderWidth: 1,
+    borderColor: theme.neutral100,
   },
-  quickActionsScrollContainer: {
-    paddingBottom: 8,
-    paddingRight: 16,
+  aboutText: {
+    fontSize: 15,
+    color: theme.textMedium,
+    lineHeight: 22,
+    marginBottom: theme.spacingL,
   },
-  quickActionCard: {
-    width: 160,
-    height: 150,
-    borderRadius: 20,
-    marginRight: 12,
-    overflow: "hidden",
-    shadowColor: "#1E293B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+  tabletAboutText: {
+    fontSize: 17,
+    lineHeight: 26,
+    marginBottom: theme.spacingXL,
   },
-  quickActionGradient: {
-    flex: 1,
-    padding: 20,
+  detailsRow: {
+    flexDirection: "row",
     justifyContent: "space-between",
   },
-  quickActionIcon: {
-    marginBottom: 14,
+  detailItem: {
+    alignItems: "center",
   },
-  quickActionTextContainer: {
-    marginTop: "auto",
-  },
-  quickActionTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  quickActionDescription: {
-    color: "rgba(255, 255, 255, 0.9)",
+  detailLabel: {
     fontSize: 12,
-    fontWeight: "500",
+    color: theme.textMedium,
+    marginTop: 4,
+    marginBottom: 2,
   },
-  iconGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
+  tabletDetailLabel: {
+    fontSize: 14,
+    marginTop: 6,
+    marginBottom: 3,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+  },
+  tabletDetailValue: {
+    fontSize: 16,
+  },
+  servicesScrollContainer: {
+    paddingVertical: theme.spacingXS,
+    paddingRight: theme.spacingL,
+  },
+  tabletServicesScrollContainer: {
+    paddingVertical: theme.spacingS,
+  },
+  serviceCard: {
+    width: 120,
+    height: 140,
+    borderRadius: theme.radiusMedium,
+    marginRight: theme.spacingM,
+    ...theme.shadowLight,
+  },
+  tabletServiceCard: {
+    width: 160,
+    height: 180,
+    marginRight: theme.spacingL,
+  },
+  serviceCardGradient: {
+    flex: 1,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
+    justifyContent: "space-between",
+  },
+  serviceIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radiusMedium,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    marginBottom: theme.spacingM,
+  },
+  tabletServiceIconContainer: {
+    width: 48,
+    height: 48,
+    marginBottom: theme.spacingL,
+  },
+  serviceTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: theme.fontSemiBold,
+  },
+  tabletServiceTitle: {
+    fontSize: 18,
+  },
+  serviceTime: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 13,
+    marginTop: 4,
+  },
+  tabletServiceTime: {
+    fontSize: 15,
+    marginTop: 6,
+  },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radiusMedium,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabletActionIcon: {
+    width: 44,
+    height: 44,
+  },
+  actionButtonTitle: {
+    fontSize: 15,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+  },
+  tabletActionButtonTitle: {
+    fontSize: 18,
+  },
+  actionButtonDescription: {
+    fontSize: 13,
+    color: theme.textMedium,
+    marginTop: 2,
+  },
+  tabletActionButtonDescription: {
+    fontSize: 15,
+    marginTop: 4,
+  },
+  leaveButtonContainer: {
+    marginVertical: theme.spacingXL,
+    alignItems: "center",
+  },
+  tabletLeaveButtonContainer: {
+    marginVertical: theme.spacing2XL,
+  },
+  leaveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL,
+    borderRadius: theme.radiusFull,
+    backgroundColor: theme.error,
+    ...theme.shadowLight,
+  },
+  tabletLeaveButton: {
+    paddingVertical: theme.spacingL,
+    paddingHorizontal: theme.spacing2XL,
+  },
+  leaveButtonIcon: {
+    marginRight: theme.spacingS,
+  },
+  leaveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: theme.fontSemiBold,
+  },
+  tabletLeaveButtonText: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: theme.spacingL,
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    padding: theme.spacingXL,
+    borderRadius: theme.radiusLarge,
+    width: "100%",
+    maxWidth: 400,
+    ...theme.shadowHeavy,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacingL,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginLeft: theme.spacingM,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: theme.textMedium,
+    marginBottom: theme.spacingXL,
+    lineHeight: 24,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: theme.spacingM,
+    backgroundColor: theme.neutral100,
+    borderRadius: theme.radiusMedium,
+    marginRight: theme.spacingM,
+    alignItems: "center",
+    justifyContent: "center",
+    ...theme.shadowLight,
+  },
+  modalCancelButtonText: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+    textAlign: "center",
+  },
+  modalConfirmButton: {
+    flex: 1,
+    padding: theme.spacingM,
+    backgroundColor: theme.error,
+    borderRadius: theme.radiusMedium,
+    marginLeft: theme.spacingM,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    ...theme.shadowLight,
+  },
+  modalConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  modalIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: theme.radiusMedium,
+    justifyContent: "center",
+    alignItems: "center",
+    ...theme.shadowLight,
   },
 });

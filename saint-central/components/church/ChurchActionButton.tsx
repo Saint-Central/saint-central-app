@@ -1,4 +1,4 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { ReactNode, useState } from "react";
 import {
   TouchableOpacity,
@@ -9,22 +9,30 @@ import {
   Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import theme from "@/theme";
 
 type Props = {
   icon?: ReactNode;
   children: ReactNode;
   onPress?: (event: GestureResponderEvent) => void;
   withArrow?: boolean;
+  variant?: "primary" | "secondary" | "outline";
 };
 
-export function ChurchActionButton({ icon, children, onPress, withArrow = true }: Props) {
+export function ChurchActionButton({
+  icon,
+  children,
+  onPress,
+  withArrow = true,
+  variant = "primary",
+}: Props) {
   const [pressAnim] = useState(new Animated.Value(1));
 
   const handlePressIn = () => {
     Animated.spring(pressAnim, {
       toValue: 0.97,
-      friction: 5,
-      tension: 40,
+      tension: 400,
+      friction: 15,
       useNativeDriver: true,
     }).start();
   };
@@ -32,34 +40,53 @@ export function ChurchActionButton({ icon, children, onPress, withArrow = true }
   const handlePressOut = () => {
     Animated.spring(pressAnim, {
       toValue: 1,
-      friction: 5,
-      tension: 40,
+      tension: 400,
+      friction: 15,
       useNativeDriver: true,
     }).start();
+  };
+
+  const getButtonStyle = () => {
+    switch (variant) {
+      case "secondary":
+        return styles.secondaryButton;
+      case "outline":
+        return styles.outlineButton;
+      default:
+        return styles.primaryButton;
+    }
   };
 
   return (
     <TouchableOpacity
       style={styles.container}
-      activeOpacity={0.95}
+      activeOpacity={0.8}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >
-      <Animated.View style={[styles.quickActionButton, { transform: [{ scale: pressAnim }] }]}>
-        <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.buttonGradient}>
-          <View style={styles.buttonContent}>
-            {icon && <View style={styles.buttonIconWrapper}>{icon}</View>}
-            {children}
-            {withArrow && (
-              <View style={styles.arrowContainer}>
-                <LinearGradient colors={["#F1F5F9", "#E2E8F0"]} style={styles.arrowGradient}>
-                  <MaterialIcons name="arrow-forward-ios" size={14} color="#94A3B8" />
-                </LinearGradient>
-              </View>
-            )}
-          </View>
-        </LinearGradient>
+      <Animated.View
+        style={[
+          styles.button,
+          getButtonStyle(),
+          {
+            transform: [{ scale: pressAnim }],
+          },
+        ]}
+      >
+        <View style={styles.contentContainer}>
+          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          <View style={styles.textContainer}>{children}</View>
+          {withArrow && (
+            <View style={styles.arrowContainer}>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={variant === "outline" ? theme.neutral600 : theme.neutral300}
+              />
+            </View>
+          )}
+        </View>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -67,38 +94,46 @@ export function ChurchActionButton({ icon, children, onPress, withArrow = true }
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 6,
+    marginVertical: theme.spacingS,
   },
-  buttonContent: {
+  button: {
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    ...theme.shadowLight,
+  },
+  primaryButton: {
+    backgroundColor: theme.cardBg,
+    borderWidth: 1,
+    borderColor: theme.neutral100,
+  },
+  secondaryButton: {
+    backgroundColor: theme.neutral50,
+    borderWidth: 1,
+    borderColor: theme.neutral100,
+  },
+  outlineButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: theme.neutral200,
+  },
+  contentContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: theme.spacingL,
   },
-  buttonIconWrapper: {
-    marginRight: 16,
+  iconContainer: {
+    marginRight: theme.spacingM,
+  },
+  textContainer: {
+    flex: 1,
   },
   arrowContainer: {
-    marginLeft: "auto",
-  },
-  arrowGradient: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    marginLeft: theme.spacingS,
+    width: 24,
+    height: 24,
+    borderRadius: theme.radiusFull,
+    backgroundColor: theme.neutral100,
     justifyContent: "center",
     alignItems: "center",
-  },
-  quickActionButton: {
-    borderRadius: 16,
-    shadowColor: "#94A3B8",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  buttonGradient: {
-    borderRadius: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(241, 245, 249, 0.8)",
   },
 });
