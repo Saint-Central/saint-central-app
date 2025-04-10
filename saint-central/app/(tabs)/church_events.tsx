@@ -301,6 +301,9 @@ export default function ChurchEvents() {
         if (!selectedChurchId && churches.length > 0) {
           setSelectedChurchId(churches[0].id);
         }
+
+        // Check permissions after setting churches
+        checkPermissions();
       }
     } catch (error) {
       console.error('Error fetching user churches:', error);
@@ -318,13 +321,15 @@ export default function ChurchEvents() {
     }
     
     const church = userChurches.find(c => c.id === selectedChurchId);
+    const role = church?.role?.toLowerCase() || '';
     
-    if (church && (church.role === 'admin' || church.role === 'owner')) {
-      setHasPermissionToCreate(true);
-    } else {
-      setHasPermissionToCreate(false);
-    }
+    setHasPermissionToCreate(role === 'admin' || role === 'owner');
   };
+
+  // Effect to check permissions when selected church changes
+  useEffect(() => {
+    checkPermissions();
+  }, [selectedChurchId, userChurches]);
 
   // Fetch events for selected church
   const fetchEvents = async () => {
@@ -571,10 +576,18 @@ export default function ChurchEvents() {
   };
 
   const openAddModal = () => {
+    if (!currentUser || !selectedChurchId) {
+      Alert.alert(
+        "Sign In Required", 
+        "Please sign in and select a church to create events."
+      );
+      return;
+    }
+
     if (!hasPermissionToCreate) {
       Alert.alert(
         "Permission Denied", 
-        "You need to be an admin or owner of this church to create events."
+        "Only church admins and owners can create events. Contact your church administrator for access."
       );
       return;
     }
@@ -854,6 +867,26 @@ export default function ChurchEvents() {
 
   // Delete event
   const handleDeleteEvent = async (eventId: number) => {
+    if (!currentUser || !selectedChurchId) {
+      Alert.alert("Error", "You must be logged in and select a church");
+      return;
+    }
+
+    const event = events.find(e => e.id === eventId);
+    if (!event) {
+      Alert.alert("Error", "Event not found");
+      return;
+    }
+
+    // Check if user is admin/owner or the creator of the event
+    if (!hasPermissionToCreate && event.created_by !== currentUser.id) {
+      Alert.alert(
+        "Permission Denied", 
+        "Only church admins, owners, or the event creator can delete events."
+      );
+      return;
+    }
+
     try {
       Alert.alert(
         "Confirm Delete",
@@ -1223,16 +1256,15 @@ export default function ChurchEvents() {
             <Text style={styles.heroSubtitle}>
               Join us for worship services, prayer gatherings, Bible studies, and more
             </Text>
-            {hasPermissionToCreate && (
-              <TouchableOpacity
-                style={styles.addEventButton}
-                onPress={openAddModal}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addEventButtonText}>CREATE EVENT</Text>
-                <AntDesign name="plus" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
+            {/* Always show the create button */}
+            <TouchableOpacity
+              style={styles.addEventButton}
+              onPress={openAddModal}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.addEventButtonText}>CREATE EVENT</Text>
+              <AntDesign name="plus" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
           </LinearGradient>
         </Animated.View>
 
