@@ -3016,4 +3016,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: THEME.secondary,
   },
+  mainContent: {
+    flex: 1,
+    backgroundColor: THEME.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  // ... existing styles ...
 });
