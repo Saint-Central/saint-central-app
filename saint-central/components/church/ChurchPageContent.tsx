@@ -19,6 +19,8 @@ import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
 import { useChurchContext } from "@/contexts/church";
+import { useNavigation, ParamListBase } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type Props = {
   church: Church;
@@ -29,6 +31,7 @@ type Props = {
 export default function ChurchPageContent({ church, member, userData }: Props) {
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const { reset: resetChurchData } = useChurchContext();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
 
   // Animation references
   const imageAnim = useRef(new Animated.Value(0)).current;
@@ -221,6 +224,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             title="Ministries"
             description="Faith in action"
             gradientColors={["#3A86FF", "#4361EE"]}
+            onPress={() => navigation.navigate("MinistriesScreen", { churchId: church.id })}
           />
           <QuickActionCard
             icon={<Ionicons name="book-outline" size={26} color="#FFFFFF" />}
