@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type RootStackParamList = {
   church_events: undefined;
+  church_members: { church_id: string; church_name?: string };
   // Add other screen names as needed
 };
 
@@ -254,8 +255,10 @@ export default function ChurchProfileCard({ church, member }: Props) {
             onPressIn={() => handlePressIn(2)}
             onPressOut={() => handlePressOut(2)}
             onPress={() => {
-              /* Navigate to members */
-              return;
+              navigation.navigate("church_members", {
+                church_id: church.id.toString(),
+                church_name: church.name,
+              });
             }}
           >
             <Animated.View style={[styles.actionButton, { transform: [{ scale: actionScale2 }] }]}>
