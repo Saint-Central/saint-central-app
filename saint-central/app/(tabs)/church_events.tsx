@@ -141,25 +141,25 @@ export default function ChurchEvents() {
 
   // Animated values for collapsible sections
   const heroHeight = scrollY.interpolate({
-    inputRange: [0, heroMaxHeight],
+    inputRange: [0, 100],
     outputRange: [heroMaxHeight, 0],
     extrapolate: 'clamp',
   });
 
   const heroOpacity = scrollY.interpolate({
-    inputRange: [0, heroMaxHeight / 2, heroMaxHeight],
-    outputRange: [1, 0.5, 0],
+    inputRange: [0, 80],
+    outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
   const churchSelectorOpacity = scrollY.interpolate({
-    inputRange: [heroMaxHeight, heroMaxHeight + churchSelectorHeight],
+    inputRange: [0, 60],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
   const churchSelectorHeight2 = scrollY.interpolate({
-    inputRange: [heroMaxHeight, heroMaxHeight + churchSelectorHeight],
+    inputRange: [0, 80],
     outputRange: [churchSelectorHeight, 0],
     extrapolate: 'clamp',
   });
@@ -1280,23 +1280,32 @@ export default function ChurchEvents() {
       
       {/* Main Scrollable Content */}
       <Animated.ScrollView
-        contentContainerStyle={styles.scrollContent}
-        scrollEventThrottle={16}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: true }
         )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
-        }
+        scrollEventThrottle={16}
+        decelerationRate="normal"
+        showsVerticalScrollIndicator={false}
       >
         {/* Collapsible Hero Section */}
         <Animated.View
           style={[
             styles.heroSection,
             { 
-              height: heroHeight, 
-              opacity: heroOpacity,
+              transform: [{ scaleY: scrollY.interpolate({
+                inputRange: [0, 100],
+                outputRange: [1, 0],
+                extrapolate: 'clamp'
+              })}],
+              opacity: scrollY.interpolate({
+                inputRange: [0, 80],
+                outputRange: [1, 0],
+                extrapolate: 'clamp'
+              }),
+              height: heroMaxHeight,
               overflow: 'hidden'
             },
           ]}
@@ -1330,8 +1339,17 @@ export default function ChurchEvents() {
           <Animated.View style={[
             styles.churchSelectorContainer,
             { 
-              opacity: churchSelectorOpacity,
-              height: churchSelectorHeight2,
+              opacity: scrollY.interpolate({
+                inputRange: [0, 60],
+                outputRange: [1, 0],
+                extrapolate: 'clamp'
+              }),
+              transform: [{ scaleY: scrollY.interpolate({
+                inputRange: [0, 80],
+                outputRange: [1, 0],
+                extrapolate: 'clamp'
+              })}],
+              height: churchSelectorHeight,
               overflow: 'hidden'
             }
           ]}>
