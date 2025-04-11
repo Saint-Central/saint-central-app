@@ -136,7 +136,7 @@ export default function ChurchEvents() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = 60;
   const heroMaxHeight = 280; // Increased from 220 to make faith community events box larger
-  const churchSelectorHeight = 80; // Decreased from 140 to make my churches box smaller
+  const churchSelectorHeight = 70; // Decreased from 80 to make my churches box smaller
   const viewSelectorHeight = 60;
 
   // Animated values for collapsible sections
@@ -998,6 +998,21 @@ export default function ChurchEvents() {
   const openImageViewer = (imageUrl: string) => {
     setSelectedImage(imageUrl);
     setShowImageModal(true);
+  };
+
+  // Helper function to get YouTube video thumbnail
+  const getVideoThumbnail = (url: string | null): string | null => {
+    if (!url) return null;
+    
+    // Extract video ID from various YouTube URL formats
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    
+    if (match && match[2].length === 11) {
+      return `https://img.youtube.com/vi/${match[2]}/mqdefault.jpg`;
+    }
+    
+    return null;
   };
 
   // Render event card
@@ -2522,6 +2537,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: THEME.primary,
     fontWeight: "600",
+  },
+  videoThumbnail: {
+    width: 120,
+    height: 90,
+    borderRadius: 8,
   },
   // Recurring event badge
   recurringBadge: {
