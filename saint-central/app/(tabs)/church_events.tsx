@@ -134,6 +134,35 @@ const AnimatedFlatList = Animated.createAnimatedComponent<any>(
 export default function ChurchEvents() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = 60;
+  const heroMaxHeight = 280; // Increased from 220 to make faith community events box larger
+  const churchSelectorHeight = 80; // Decreased from 140 to make my churches box smaller
+  const viewSelectorHeight = 60;
+
+  // Animated values for collapsible sections
+  const heroHeight = scrollY.interpolate({
+    inputRange: [0, heroMaxHeight],
+    outputRange: [heroMaxHeight, 0],
+    extrapolate: 'clamp',
+  });
+
+  const heroOpacity = scrollY.interpolate({
+    inputRange: [0, heroMaxHeight / 2, heroMaxHeight],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
+
+  const churchSelectorOpacity = scrollY.interpolate({
+    inputRange: [heroMaxHeight, heroMaxHeight + churchSelectorHeight],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const churchSelectorHeight2 = scrollY.interpolate({
+    inputRange: [heroMaxHeight, heroMaxHeight + churchSelectorHeight],
+    outputRange: [churchSelectorHeight, 0],
+    extrapolate: 'clamp',
+  });
 
   // User state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1224,8 +1253,9 @@ export default function ChurchEvents() {
   return (
     <View style={styles.container}>
       <ExpoStatusBar style="dark" />
+      
+      {/* Fixed Header */}
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Church Events</Text>
           <View style={styles.headerButtons}>
@@ -1244,14 +1274,31 @@ export default function ChurchEvents() {
           </View>
         </View>
         
-        {/* Search Bar */}
+        {/* Search Bar (conditionally shown) */}
         {showSearch && renderSearchBar()}
+      </SafeAreaView>
       
-        {/* Animated Hero Section with "CREATE EVENT" button */}
+      {/* Main Scrollable Content */}
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
+        }
+      >
+        {/* Collapsible Hero Section */}
         <Animated.View
           style={[
             styles.heroSection,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            { 
+              height: heroHeight, 
+              opacity: heroOpacity,
+              overflow: 'hidden'
+            },
           ]}
         >
           <LinearGradient
@@ -1267,7 +1314,6 @@ export default function ChurchEvents() {
             <Text style={styles.heroSubtitle}>
               Join us for worship services, prayer gatherings, Bible studies, and more
             </Text>
-            {/* Always show the create button */}
             <TouchableOpacity
               style={styles.addEventButton}
               onPress={openAddModal}
@@ -1279,9 +1325,16 @@ export default function ChurchEvents() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Church Selector */}
+        {/* Collapsible Church Selector */}
         {userChurches.length > 0 && (
-          <View style={styles.churchSelectorContainer}>
+          <Animated.View style={[
+            styles.churchSelectorContainer,
+            { 
+              opacity: churchSelectorOpacity,
+              height: churchSelectorHeight2,
+              overflow: 'hidden'
+            }
+          ]}>
             <Text style={styles.selectorLabel}>My Churches:</Text>
             <ScrollView 
               horizontal
@@ -1308,10 +1361,10 @@ export default function ChurchEvents() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </Animated.View>
         )}
 
-        {/* View Selector */}
+        {/* View Selector (always visible) */}
         <View style={styles.viewSelector}>
           <TouchableOpacity 
             style={[
@@ -1342,7 +1395,7 @@ export default function ChurchEvents() {
           </TouchableOpacity>
         </View>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <View style={styles.mainContainer}>
           {/* Month Navigation (for calendar view) */}
           {calendarView === "month" && (
@@ -1363,35 +1416,29 @@ export default function ChurchEvents() {
             </View>
           )}
           
-          {/* Calendar or List View */}
+          {/* Calendar View */}
           {calendarView === "month" ? (
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
-              }
-            >
-              <View style={styles.calendarContainer}>
-                <View style={styles.dayLabelsRow}>
-                  {[0, 1, 2, 3, 4, 5, 6].map(day => (
-                    <View key={day} style={styles.dayLabelContainer}>
-                      <Text style={styles.dayLabel}>{getDayName(day, true)}</Text>
-                    </View>
-                  ))}
-                </View>
-                {loading ? (
-                  <View style={styles.calendarLoading}>
-                    <ActivityIndicator size="large" color={THEME.buttonPrimary} />
-                    <Text style={styles.loadingText}>Loading calendar...</Text>
+            <View style={styles.calendarContainer}>
+              <View style={styles.dayLabelsRow}>
+                {[0, 1, 2, 3, 4, 5, 6].map(day => (
+                  <View key={day} style={styles.dayLabelContainer}>
+                    <Text style={styles.dayLabel}>{getDayName(day, true)}</Text>
                   </View>
-                ) : (
-                  <View style={styles.calendarGrid}>
-                    {renderCalendarWeeks()}
-                  </View>
-                )}
+                ))}
               </View>
-            </ScrollView>
+              {loading ? (
+                <View style={styles.calendarLoading}>
+                  <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                  <Text style={styles.loadingText}>Loading calendar...</Text>
+                </View>
+              ) : (
+                <View style={styles.calendarGrid}>
+                  {renderCalendarWeeks()}
+                </View>
+              )}
+            </View>
           ) : (
+            // List View
             <View style={styles.listContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
@@ -1409,672 +1456,664 @@ export default function ChurchEvents() {
                   </Text>
                 </View>
               ) : (
-                <AnimatedFlatList
-                  data={filteredEvents}
-                  renderItem={renderEventCard}
-                  keyExtractor={(item: ChurchEvent) => item.id.toString()}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.eventsList}
-                  scrollEventThrottle={16}
-                  refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.buttonPrimary]} />
-                  }
-                  onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                    { useNativeDriver: true }
-                  )}
-                />
+                // Render events list directly here instead of using AnimatedFlatlist
+                <View>
+                  {filteredEvents.map(item => renderEventCard({ item }))}
+                </View>
               )}
             </View>
           )}
+          
+          {/* Add some bottom padding for better scrolling experience */}
+          <View style={{ height: 100 }} />
         </View>
-        
-        {/* Date Detail Modal */}
-        {showDateDetail && (
-          <Animated.View 
-            style={[
-              styles.dateDetailContainer,
-              { transform: [{ translateY: detailSlideAnim }] }
-            ]}
-          >
-            <View style={styles.dateDetailHandle} />
-            <View style={styles.dateDetailHeader}>
-              <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
+      </Animated.ScrollView>
+      
+      {/* Date Detail Modal */}
+      {showDateDetail && (
+        <Animated.View 
+          style={[
+            styles.dateDetailContainer,
+            { transform: [{ translateY: detailSlideAnim }] }
+          ]}
+        >
+          <View style={styles.dateDetailHandle} />
+          <View style={styles.dateDetailHeader}>
+            <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
+            <TouchableOpacity 
+              style={styles.dateDetailCloseButton}
+              onPress={closeDateDetail}
+            >
+              <AntDesign name="close" size={24} color={THEME.primary} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dateDetailContent}>
+            {selectedDayEvents.length === 0 ? (
+              <View style={styles.noEventsForDay}>
+                <Feather name="calendar" size={50} color={THEME.light} />
+                <Text style={styles.noEventsForDayText}>No church events for this day</Text>
+                {hasPermissionToCreate && (
+                  <TouchableOpacity
+                    style={styles.addEventForDayButton}
+                    onPress={() => {
+                      // Set form date to the selected date
+                      const newDate = new Date(selectedDate);
+                      handleFormChange('time', newDate.toISOString());
+                      closeDateDetail();
+                      setTimeout(() => openAddModal(), 300);
+                    }}
+                  >
+                    <Text style={styles.addEventForDayText}>Add Event</Text>
+                    <Feather name="plus" size={16} color={THEME.buttonPrimary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <FlatList
+                data={selectedDayEvents}
+                renderItem={renderEventCard}
+                keyExtractor={(item) => item.id.toString()}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.eventsList}
+              />
+            )}
+          </View>
+        </Animated.View>
+      )}
+      
+      {/* Add Event Modal */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <Pressable 
+            style={styles.modalBackdrop}
+            onPress={() => setShowAddModal(false)}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create Church Event</Text>
               <TouchableOpacity 
-                style={styles.dateDetailCloseButton}
-                onPress={closeDateDetail}
+                style={styles.modalCloseButton}
+                onPress={() => setShowAddModal(false)}
               >
-                <AntDesign name="close" size={24} color={THEME.primary} />
+                <AntDesign name="close" size={22} color={THEME.primary} />
               </TouchableOpacity>
             </View>
-            <View style={styles.dateDetailContent}>
-              {selectedDayEvents.length === 0 ? (
-                <View style={styles.noEventsForDay}>
-                  <Feather name="calendar" size={50} color={THEME.light} />
-                  <Text style={styles.noEventsForDayText}>No church events for this day</Text>
-                  {hasPermissionToCreate && (
-                    <TouchableOpacity
-                      style={styles.addEventForDayButton}
-                      onPress={() => {
-                        // Set form date to the selected date
-                        const newDate = new Date(selectedDate);
-                        handleFormChange('time', newDate.toISOString());
-                        closeDateDetail();
-                        setTimeout(() => openAddModal(), 300);
-                      }}
-                    >
-                      <Text style={styles.addEventForDayText}>Add Event</Text>
-                      <Feather name="plus" size={16} color={THEME.buttonPrimary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ) : (
-                <FlatList
-                  data={selectedDayEvents}
-                  renderItem={renderEventCard}
-                  keyExtractor={(item) => item.id.toString()}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.eventsList}
+            <ScrollView style={styles.modalForm}>
+              {/* Form fields */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Event Title*</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.title}
+                  onChangeText={(value) => handleFormChange('title', value)}
+                  placeholder="Enter event title"
+                  placeholderTextColor={THEME.light}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description*</Text>
+                <TextInput
+                  style={[styles.formInput, styles.textAreaInput]}
+                  value={formData.excerpt}
+                  onChangeText={(value) => handleFormChange('excerpt', value)}
+                  placeholder="Event description"
+                  placeholderTextColor={THEME.light}
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Date & Time*</Text>
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
+                  <Text style={styles.dateTimeText}>
+                    {new Date(formData.time).toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {showTimePicker && (
+                <DateTimePicker
+                  value={new Date(formData.time)}
+                  mode="datetime"
+                  display="default"
+                  onChange={handleDateTimeChange}
                 />
               )}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Add Event Modal */}
-        <Modal
-          visible={showAddModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowAddModal(false)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.modalContainer}
-          >
-            <Pressable 
-              style={styles.modalBackdrop}
-              onPress={() => setShowAddModal(false)}
-            />
-            <View style={styles.modalContent}>
-              <View style={styles.modalHandle} />
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Create Church Event</Text>
-                <TouchableOpacity 
-                  style={styles.modalCloseButton}
-                  onPress={() => setShowAddModal(false)}
-                >
-                  <AntDesign name="close" size={22} color={THEME.primary} />
-                </TouchableOpacity>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Location</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.author_name || ''}
+                  onChangeText={(value) => handleFormChange('author_name', value)}
+                  placeholder="Event location"
+                  placeholderTextColor={THEME.light}
+                />
               </View>
-              <ScrollView style={styles.modalForm}>
-                {/* Form fields */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Event Title*</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={formData.title}
-                    onChangeText={(value) => handleFormChange('title', value)}
-                    placeholder="Enter event title"
-                    placeholderTextColor={THEME.light}
+              <View style={styles.formGroup}>
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleLabel}>Recurring event</Text>
+                  <Switch
+                    value={formData.is_recurring}
+                    onValueChange={(value) => {
+                      handleFormChange('is_recurring', value);
+                      if (value && !formData.recurrence_type) {
+                        handleFormChange('recurrence_type', 'weekly');
+                      }
+                      if (value && !formData.recurrence_interval) {
+                        handleFormChange('recurrence_interval', 1);
+                      }
+                      if (value && !formData.recurrence_days_of_week) {
+                        // Default to the day of the week from the selected date
+                        const dayOfWeek = new Date(formData.time).getDay();
+                        handleFormChange('recurrence_days_of_week', [dayOfWeek]);
+                      }
+                    }}
+                    trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
+                    thumbColor={formData.is_recurring ? THEME.buttonPrimary : "#FFFFFF"}
+                    ios_backgroundColor="#E4E4E7"
                   />
                 </View>
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Description*</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.textAreaInput]}
-                    value={formData.excerpt}
-                    onChangeText={(value) => handleFormChange('excerpt', value)}
-                    placeholder="Event description"
-                    placeholderTextColor={THEME.light}
-                    multiline
-                    numberOfLines={4}
-                  />
-                </View>
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Date & Time*</Text>
-                  <TouchableOpacity
-                    style={styles.dateTimeButton}
-                    onPress={() => setShowTimePicker(true)}
-                  >
-                    <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
-                    <Text style={styles.dateTimeText}>
-                      {new Date(formData.time).toLocaleString()}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={new Date(formData.time)}
-                    mode="datetime"
-                    display="default"
-                    onChange={handleDateTimeChange}
-                  />
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Location</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={formData.author_name || ''}
-                    onChangeText={(value) => handleFormChange('author_name', value)}
-                    placeholder="Event location"
-                    placeholderTextColor={THEME.light}
-                  />
-                </View>
-                <View style={styles.formGroup}>
-                  <View style={styles.toggleRow}>
-                    <Text style={styles.toggleLabel}>Recurring event</Text>
-                    <Switch
-                      value={formData.is_recurring}
-                      onValueChange={(value) => {
-                        handleFormChange('is_recurring', value);
-                        if (value && !formData.recurrence_type) {
-                          handleFormChange('recurrence_type', 'weekly');
-                        }
-                        if (value && !formData.recurrence_interval) {
-                          handleFormChange('recurrence_interval', 1);
-                        }
-                        if (value && !formData.recurrence_days_of_week) {
-                          // Default to the day of the week from the selected date
-                          const dayOfWeek = new Date(formData.time).getDay();
-                          handleFormChange('recurrence_days_of_week', [dayOfWeek]);
-                        }
-                      }}
-                      trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-                      thumbColor={formData.is_recurring ? THEME.buttonPrimary : "#FFFFFF"}
-                      ios_backgroundColor="#E4E4E7"
-                    />
-                  </View>
-                </View>
-                {formData.is_recurring && (
-                  <View style={styles.recurringContainer}>
-                    <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>Repeat</Text>
-                      <View style={styles.recurrenceTypeContainer}>
-                        {["daily", "weekly", "monthly", "yearly"].map((type) => (
-                          <TouchableOpacity
-                            key={type}
+              </View>
+              {formData.is_recurring && (
+                <View style={styles.recurringContainer}>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Repeat</Text>
+                    <View style={styles.recurrenceTypeContainer}>
+                      {["daily", "weekly", "monthly", "yearly"].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.recurrenceTypeButton,
+                            formData.recurrence_type === type && styles.recurrenceTypeButtonSelected
+                          ]}
+                          onPress={() => handleFormChange('recurrence_type', type)}
+                        >
+                          <Text 
                             style={[
-                              styles.recurrenceTypeButton,
-                              formData.recurrence_type === type && styles.recurrenceTypeButtonSelected
+                              styles.recurrenceTypeText,
+                              formData.recurrence_type === type && styles.recurrenceTypeTextSelected
+                            ]}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Frequency</Text>
+                    <View style={styles.intervalRow}>
+                      <Text style={styles.intervalLabel}>Every</Text>
+                      <TextInput
+                        style={styles.intervalInput}
+                        value={formData.recurrence_interval?.toString() || '1'}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '');
+                          const value = filtered ? parseInt(filtered, 10) : 1;
+                          handleFormChange('recurrence_interval', value);
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+                      <Text style={styles.intervalText}>
+                        {formData.recurrence_type === "daily" ? "day(s)" :
+                         formData.recurrence_type === "weekly" ? "week(s)" :
+                         formData.recurrence_type === "monthly" ? "month(s)" : "year(s)"}
+                      </Text>
+                    </View>
+                  </View>
+                  {formData.recurrence_type === "weekly" && (
+                    <View style={styles.formGroup}>
+                      <Text style={styles.formLabel}>On these days</Text>
+                      <View style={styles.daysRow}>
+                        {[
+                          { day: 0, label: "S" },
+                          { day: 1, label: "M" },
+                          { day: 2, label: "T" },
+                          { day: 3, label: "W" },
+                          { day: 4, label: "T" },
+                          { day: 5, label: "F" },
+                          { day: 6, label: "S" }
+                        ].map(item => (
+                          <TouchableOpacity
+                            key={item.day}
+                            style={[
+                              styles.dayButton,
+                              formData.recurrence_days_of_week?.includes(item.day) && styles.dayButtonSelected
                             ]}
-                            onPress={() => handleFormChange('recurrence_type', type)}
+                            onPress={() => toggleRecurrenceDay(item.day)}
                           >
                             <Text 
                               style={[
-                                styles.recurrenceTypeText,
-                                formData.recurrence_type === type && styles.recurrenceTypeTextSelected
+                                styles.dayText,
+                                formData.recurrence_days_of_week?.includes(item.day) && styles.dayTextSelected
                               ]}>
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                              {item.label}
                             </Text>
                           </TouchableOpacity>
                         ))}
                       </View>
                     </View>
-                    <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>Frequency</Text>
-                      <View style={styles.intervalRow}>
-                        <Text style={styles.intervalLabel}>Every</Text>
-                        <TextInput
-                          style={styles.intervalInput}
-                          value={formData.recurrence_interval?.toString() || '1'}
-                          onChangeText={(text) => {
-                            const filtered = text.replace(/[^0-9]/g, '');
-                            const value = filtered ? parseInt(filtered, 10) : 1;
-                            handleFormChange('recurrence_interval', value);
-                          }}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.intervalText}>
-                          {formData.recurrence_type === "daily" ? "day(s)" :
-                           formData.recurrence_type === "weekly" ? "week(s)" :
-                           formData.recurrence_type === "monthly" ? "month(s)" : "year(s)"}
-                        </Text>
-                      </View>
-                    </View>
-                    {formData.recurrence_type === "weekly" && (
-                      <View style={styles.formGroup}>
-                        <Text style={styles.formLabel}>On these days</Text>
-                        <View style={styles.daysRow}>
-                          {[
-                            { day: 0, label: "S" },
-                            { day: 1, label: "M" },
-                            { day: 2, label: "T" },
-                            { day: 3, label: "W" },
-                            { day: 4, label: "T" },
-                            { day: 5, label: "F" },
-                            { day: 6, label: "S" }
-                          ].map(item => (
-                            <TouchableOpacity
-                              key={item.day}
-                              style={[
-                                styles.dayButton,
-                                formData.recurrence_days_of_week?.includes(item.day) && styles.dayButtonSelected
-                              ]}
-                              onPress={() => toggleRecurrenceDay(item.day)}
-                            >
-                              <Text 
-                                style={[
-                                  styles.dayText,
-                                  formData.recurrence_days_of_week?.includes(item.day) && styles.dayTextSelected
-                                ]}>
-                                {item.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>End Date (Optional)</Text>
-                      <TouchableOpacity
-                        style={styles.dateTimeButton}
-                        onPress={() => setShowEndDatePicker(true)}
-                      >
-                        <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
-                        <Text style={styles.dateTimeText}>
-                          {formData.recurrence_end_date ? 
-                            new Date(formData.recurrence_end_date).toLocaleDateString() : 
-                            "No end date"}
-                        </Text>
-                      </TouchableOpacity>
-                      {formData.recurrence_end_date && (
-                        <TouchableOpacity
-                          style={styles.clearButton}
-                          onPress={() => handleFormChange('recurrence_end_date', null)}
-                        >
-                          <Text style={styles.clearButtonText}>Clear</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    {showEndDatePicker && (
-                      <DateTimePicker
-                        value={formData.recurrence_end_date ? 
-                          new Date(formData.recurrence_end_date) : new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={handleEndDateChange}
-                      />
-                    )}
-                  </View>
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Event Image</Text>
-                  <TouchableOpacity
-                    style={styles.imagePickerButton}
-                    onPress={pickImage}
-                    disabled={formImageLoading}
-                  >
-                    {formImageLoading ? (
-                      <ActivityIndicator size="small" color={THEME.buttonPrimary} />
-                    ) : (
-                      <>
-                        <Feather name="image" size={22} color={THEME.buttonPrimary} />
-                        <Text style={styles.imagePickerText}>
-                          {formData.image_url ? "Change Image" : "Select Image"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {formData.image_url && (
-                  <View style={styles.previewImageContainer}>
-                    <Image
-                      source={{ uri: formData.image_url }}
-                      style={styles.previewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity 
-                      style={styles.removeImageButton}
-                      onPress={() => handleFormChange('image_url', null)}
-                    >
-                      <AntDesign name="closecircle" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Video Link (Optional)</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={formData.video_link || ''}
-                    onChangeText={(value) => handleFormChange('video_link', value)}
-                    placeholder="Add YouTube or video URL"
-                    placeholderTextColor={THEME.light}
-                    keyboardType="url"
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.submitButton}
-                  onPress={handleAddEvent}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color={THEME.buttonText} />
-                  ) : (
-                    <Text style={styles.submitButtonText}>CREATE EVENT</Text>
                   )}
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Edit Event Modal */}
-        <Modal
-          visible={showEditModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowEditModal(false)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.modalContainer}
-          >
-            <Pressable 
-              style={styles.modalBackdrop}
-              onPress={() => setShowEditModal(false)}
-            />
-            <View style={styles.modalContent}>
-              <View style={styles.modalHandle} />
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Edit Church Event</Text>
-                <TouchableOpacity 
-                  style={styles.modalCloseButton}
-                  onPress={() => setShowEditModal(false)}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>End Date (Optional)</Text>
+                    <TouchableOpacity
+                      style={styles.dateTimeButton}
+                      onPress={() => setShowEndDatePicker(true)}
+                    >
+                      <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+                      <Text style={styles.dateTimeText}>
+                        {formData.recurrence_end_date ? 
+                          new Date(formData.recurrence_end_date).toLocaleDateString() : 
+                          "No end date"}
+                      </Text>
+                    </TouchableOpacity>
+                    {formData.recurrence_end_date && (
+                      <TouchableOpacity
+                        style={styles.clearButton}
+                        onPress={() => handleFormChange('recurrence_end_date', null)}
+                      >
+                        <Text style={styles.clearButtonText}>Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {showEndDatePicker && (
+                    <DateTimePicker
+                      value={formData.recurrence_end_date ? 
+                        new Date(formData.recurrence_end_date) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={handleEndDateChange}
+                    />
+                  )}
+                </View>
+              )}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Event Image</Text>
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={pickImage}
+                  disabled={formImageLoading}
                 >
-                  <AntDesign name="close" size={22} color={THEME.primary} />
+                  {formImageLoading ? (
+                    <ActivityIndicator size="small" color={THEME.buttonPrimary} />
+                  ) : (
+                    <>
+                      <Feather name="image" size={22} color={THEME.buttonPrimary} />
+                      <Text style={styles.imagePickerText}>
+                        {formData.image_url ? "Change Image" : "Select Image"}
+                      </Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
-              <ScrollView style={styles.modalForm}>
-                {/* Form fields - same as Add Event form but with submit button for edit */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Event Title*</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={formData.title}
-                    onChangeText={(value) => handleFormChange('title', value)}
-                    placeholder="Enter event title"
-                    placeholderTextColor={THEME.light}
+              {formData.image_url && (
+                <View style={styles.previewImageContainer}>
+                  <Image
+                    source={{ uri: formData.image_url }}
+                    style={styles.previewImage}
+                    resizeMode="cover"
                   />
-                </View>
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Description*</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.textAreaInput]}
-                    value={formData.excerpt}
-                    onChangeText={(value) => handleFormChange('excerpt', value)}
-                    placeholder="Event description"
-                    placeholderTextColor={THEME.light}
-                    multiline
-                    numberOfLines={4}
-                  />
-                </View>
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Date & Time*</Text>
-                  <TouchableOpacity
-                    style={styles.dateTimeButton}
-                    onPress={() => setShowTimePicker(true)}
+                  <TouchableOpacity 
+                    style={styles.removeImageButton}
+                    onPress={() => handleFormChange('image_url', null)}
                   >
-                    <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
-                    <Text style={styles.dateTimeText}>
-                      {new Date(formData.time).toLocaleString()}
-                    </Text>
+                    <AntDesign name="closecircle" size={20} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={new Date(formData.time)}
-                    mode="datetime"
-                    display="default"
-                    onChange={handleDateTimeChange}
-                  />
+              )}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Video Link (Optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.video_link || ''}
+                  onChangeText={(value) => handleFormChange('video_link', value)}
+                  placeholder="Add YouTube or video URL"
+                  placeholderTextColor={THEME.light}
+                  keyboardType="url"
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleAddEvent}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={THEME.buttonText} />
+                ) : (
+                  <Text style={styles.submitButtonText}>CREATE EVENT</Text>
                 )}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Location</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={formData.author_name || ''}
-                    onChangeText={(value) => handleFormChange('author_name', value)}
-                    placeholder="Event location"
-                    placeholderTextColor={THEME.light}
-                  />
-                </View>
-                <View style={styles.formGroup}>
-                  <View style={styles.toggleRow}>
-                    <Text style={styles.toggleLabel}>Recurring event</Text>
-                    <Switch
-                      value={formData.is_recurring}
-                      onValueChange={(value) => {
-                        handleFormChange('is_recurring', value);
-                        if (value && !formData.recurrence_type) {
-                          handleFormChange('recurrence_type', 'weekly');
-                        }
-                        if (value && !formData.recurrence_interval) {
-                          handleFormChange('recurrence_interval', 1);
-                        }
-                        if (value && !formData.recurrence_days_of_week) {
-                          // Default to the day of the week from the selected date
-                          const dayOfWeek = new Date(formData.time).getDay();
-                          handleFormChange('recurrence_days_of_week', [dayOfWeek]);
-                        }
-                      }}
-                      trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-                      thumbColor={formData.is_recurring ? THEME.buttonPrimary : "#FFFFFF"}
-                      ios_backgroundColor="#E4E4E7"
-                    />
-                  </View>
-                </View>
-                {formData.is_recurring && (
-                  <View style={styles.recurringContainer}>
-                    {/* Same recurring options as in Add Event */}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>Repeat</Text>
-                      <View style={styles.recurrenceTypeContainer}>
-                        {["daily", "weekly", "monthly", "yearly"].map((type) => (
-                          <TouchableOpacity
-                            key={type}
-                            style={[
-                              styles.recurrenceTypeButton,
-                              formData.recurrence_type === type && styles.recurrenceTypeButtonSelected
-                            ]}
-                            onPress={() => handleFormChange('recurrence_type', type)}
-                          >
-                            <Text 
-                              style={[
-                                styles.recurrenceTypeText,
-                                formData.recurrence_type === type && styles.recurrenceTypeTextSelected
-                              ]}>
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                    <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>Frequency</Text>
-                      <View style={styles.intervalRow}>
-                        <Text style={styles.intervalLabel}>Every</Text>
-                        <TextInput
-                          style={styles.intervalInput}
-                          value={formData.recurrence_interval?.toString() || '1'}
-                          onChangeText={(text) => {
-                            const filtered = text.replace(/[^0-9]/g, '');
-                            const value = filtered ? parseInt(filtered, 10) : 1;
-                            handleFormChange('recurrence_interval', value);
-                          }}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.intervalText}>
-                          {formData.recurrence_type === "daily" ? "day(s)" :
-                           formData.recurrence_type === "weekly" ? "week(s)" :
-                           formData.recurrence_type === "monthly" ? "month(s)" : "year(s)"}
-                        </Text>
-                      </View>
-                    </View>
-                    {formData.recurrence_type === "weekly" && (
-                      <View style={styles.formGroup}>
-                        <Text style={styles.formLabel}>On these days</Text>
-                        <View style={styles.daysRow}>
-                          {[
-                            { day: 0, label: "S" },
-                            { day: 1, label: "M" },
-                            { day: 2, label: "T" },
-                            { day: 3, label: "W" },
-                            { day: 4, label: "T" },
-                            { day: 5, label: "F" },
-                            { day: 6, label: "S" }
-                          ].map(item => (
-                            <TouchableOpacity
-                              key={item.day}
-                              style={[
-                                styles.dayButton,
-                                formData.recurrence_days_of_week?.includes(item.day) && styles.dayButtonSelected
-                              ]}
-                              onPress={() => toggleRecurrenceDay(item.day)}
-                            >
-                              <Text 
-                                style={[
-                                  styles.dayText,
-                                  formData.recurrence_days_of_week?.includes(item.day) && styles.dayTextSelected
-                                ]}>
-                                {item.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>End Date (Optional)</Text>
-                      <TouchableOpacity
-                        style={styles.dateTimeButton}
-                        onPress={() => setShowEndDatePicker(true)}
-                      >
-                        <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
-                        <Text style={styles.dateTimeText}>
-                          {formData.recurrence_end_date ? 
-                            new Date(formData.recurrence_end_date).toLocaleDateString() : 
-                            "No end date"}
-                        </Text>
-                      </TouchableOpacity>
-                      {formData.recurrence_end_date && (
-                        <TouchableOpacity
-                          style={styles.clearButton}
-                          onPress={() => handleFormChange('recurrence_end_date', null)}
-                        >
-                          <Text style={styles.clearButtonText}>Clear</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    {showEndDatePicker && (
-                      <DateTimePicker
-                        value={formData.recurrence_end_date ? 
-                          new Date(formData.recurrence_end_date) : new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={handleEndDateChange}
-                      />
-                    )}
-                  </View>
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Event Image</Text>
-                  <TouchableOpacity
-                    style={styles.imagePickerButton}
-                    onPress={pickImage}
-                    disabled={formImageLoading}
-                  >
-                    {formImageLoading ? (
-                      <ActivityIndicator size="small" color={THEME.buttonPrimary} />
-                    ) : (
-                      <>
-                        <Feather name="image" size={22} color={THEME.buttonPrimary} />
-                        <Text style={styles.imagePickerText}>
-                          {formData.image_url ? "Change Image" : "Select Image"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {formData.image_url && (
-                  <View style={styles.previewImageContainer}>
-                    <Image
-                      source={{ uri: formData.image_url }}
-                      style={styles.previewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity 
-                      style={styles.removeImageButton}
-                      onPress={() => handleFormChange('image_url', null)}
-                    >
-                      <AntDesign name="closecircle" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Video Link (Optional)</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={formData.video_link || ''}
-                    onChangeText={(value) => handleFormChange('video_link', value)}
-                    placeholder="Add YouTube or video URL"
-                    placeholderTextColor={THEME.light}
-                    keyboardType="url"
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.submitButton}
-                  onPress={handleEditEvent}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color={THEME.buttonText} />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Confirm Edit</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => {
-                    if (selectedEvent) {
-                      setShowEditModal(false);
-                      setTimeout(() => handleDeleteEvent(selectedEvent.id), 300);
-                    }
-                  }}
-                  disabled={isSubmitting}
-                >
-                  <Text style={styles.deleteButtonText}>DELETE EVENT</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
-        {/* Full Image Viewer Modal */}
-        <Modal
-          visible={showImageModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowImageModal(false)}
-        >
-          <View style={styles.imageViewerContainer}>
-            <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
-            <TouchableOpacity 
-              style={styles.imageViewerCloseButton}
-              onPress={() => setShowImageModal(false)}
-            >
-              <AntDesign name="close" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Image 
-              source={{ uri: selectedImage }} 
-              style={styles.fullImage} 
-              resizeMode="contain" 
-            />
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </Modal>
-      </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit Event Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <Pressable 
+            style={styles.modalBackdrop}
+            onPress={() => setShowEditModal(false)}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Church Event</Text>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setShowEditModal(false)}
+              >
+                <AntDesign name="close" size={22} color={THEME.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalForm}>
+              {/* Form fields - same as Add Event form but with submit button for edit */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Event Title*</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.title}
+                  onChangeText={(value) => handleFormChange('title', value)}
+                  placeholder="Enter event title"
+                  placeholderTextColor={THEME.light}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description*</Text>
+                <TextInput
+                  style={[styles.formInput, styles.textAreaInput]}
+                  value={formData.excerpt}
+                  onChangeText={(value) => handleFormChange('excerpt', value)}
+                  placeholder="Event description"
+                  placeholderTextColor={THEME.light}
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Date & Time*</Text>
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
+                  <Text style={styles.dateTimeText}>
+                    {new Date(formData.time).toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {showTimePicker && (
+                <DateTimePicker
+                  value={new Date(formData.time)}
+                  mode="datetime"
+                  display="default"
+                  onChange={handleDateTimeChange}
+                />
+              )}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Location</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.author_name || ''}
+                  onChangeText={(value) => handleFormChange('author_name', value)}
+                  placeholder="Event location"
+                  placeholderTextColor={THEME.light}
+                />
+              </View>
+              <View style={styles.formGroup}>
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleLabel}>Recurring event</Text>
+                  <Switch
+                    value={formData.is_recurring}
+                    onValueChange={(value) => {
+                      handleFormChange('is_recurring', value);
+                      if (value && !formData.recurrence_type) {
+                        handleFormChange('recurrence_type', 'weekly');
+                      }
+                      if (value && !formData.recurrence_interval) {
+                        handleFormChange('recurrence_interval', 1);
+                      }
+                      if (value && !formData.recurrence_days_of_week) {
+                        // Default to the day of the week from the selected date
+                        const dayOfWeek = new Date(formData.time).getDay();
+                        handleFormChange('recurrence_days_of_week', [dayOfWeek]);
+                      }
+                    }}
+                    trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
+                    thumbColor={formData.is_recurring ? THEME.buttonPrimary : "#FFFFFF"}
+                    ios_backgroundColor="#E4E4E7"
+                  />
+                </View>
+              </View>
+              {formData.is_recurring && (
+                <View style={styles.recurringContainer}>
+                  {/* Same recurring options as in Add Event */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Repeat</Text>
+                    <View style={styles.recurrenceTypeContainer}>
+                      {["daily", "weekly", "monthly", "yearly"].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.recurrenceTypeButton,
+                            formData.recurrence_type === type && styles.recurrenceTypeButtonSelected
+                          ]}
+                          onPress={() => handleFormChange('recurrence_type', type)}
+                        >
+                          <Text 
+                            style={[
+                              styles.recurrenceTypeText,
+                              formData.recurrence_type === type && styles.recurrenceTypeTextSelected
+                            ]}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Frequency</Text>
+                    <View style={styles.intervalRow}>
+                      <Text style={styles.intervalLabel}>Every</Text>
+                      <TextInput
+                        style={styles.intervalInput}
+                        value={formData.recurrence_interval?.toString() || '1'}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '');
+                          const value = filtered ? parseInt(filtered, 10) : 1;
+                          handleFormChange('recurrence_interval', value);
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+                      <Text style={styles.intervalText}>
+                        {formData.recurrence_type === "daily" ? "day(s)" :
+                         formData.recurrence_type === "weekly" ? "week(s)" :
+                         formData.recurrence_type === "monthly" ? "month(s)" : "year(s)"}
+                      </Text>
+                    </View>
+                  </View>
+                  {formData.recurrence_type === "weekly" && (
+                    <View style={styles.formGroup}>
+                      <Text style={styles.formLabel}>On these days</Text>
+                      <View style={styles.daysRow}>
+                        {[
+                          { day: 0, label: "S" },
+                          { day: 1, label: "M" },
+                          { day: 2, label: "T" },
+                          { day: 3, label: "W" },
+                          { day: 4, label: "T" },
+                          { day: 5, label: "F" },
+                          { day: 6, label: "S" }
+                        ].map(item => (
+                          <TouchableOpacity
+                            key={item.day}
+                            style={[
+                              styles.dayButton,
+                              formData.recurrence_days_of_week?.includes(item.day) && styles.dayButtonSelected
+                            ]}
+                            onPress={() => toggleRecurrenceDay(item.day)}
+                          >
+                            <Text 
+                              style={[
+                                styles.dayText,
+                                formData.recurrence_days_of_week?.includes(item.day) && styles.dayTextSelected
+                              ]}>
+                              {item.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>End Date (Optional)</Text>
+                    <TouchableOpacity
+                      style={styles.dateTimeButton}
+                      onPress={() => setShowEndDatePicker(true)}
+                    >
+                      <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+                      <Text style={styles.dateTimeText}>
+                        {formData.recurrence_end_date ? 
+                          new Date(formData.recurrence_end_date).toLocaleDateString() : 
+                          "No end date"}
+                      </Text>
+                    </TouchableOpacity>
+                    {formData.recurrence_end_date && (
+                      <TouchableOpacity
+                        style={styles.clearButton}
+                        onPress={() => handleFormChange('recurrence_end_date', null)}
+                      >
+                        <Text style={styles.clearButtonText}>Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {showEndDatePicker && (
+                    <DateTimePicker
+                      value={formData.recurrence_end_date ? 
+                        new Date(formData.recurrence_end_date) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={handleEndDateChange}
+                    />
+                  )}
+                </View>
+              )}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Event Image</Text>
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={pickImage}
+                  disabled={formImageLoading}
+                >
+                  {formImageLoading ? (
+                    <ActivityIndicator size="small" color={THEME.buttonPrimary} />
+                  ) : (
+                    <>
+                      <Feather name="image" size={22} color={THEME.buttonPrimary} />
+                      <Text style={styles.imagePickerText}>
+                        {formData.image_url ? "Change Image" : "Select Image"}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {formData.image_url && (
+                <View style={styles.previewImageContainer}>
+                  <Image
+                    source={{ uri: formData.image_url }}
+                    style={styles.previewImage}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity 
+                    style={styles.removeImageButton}
+                    onPress={() => handleFormChange('image_url', null)}
+                  >
+                    <AntDesign name="closecircle" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Video Link (Optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.video_link || ''}
+                  onChangeText={(value) => handleFormChange('video_link', value)}
+                  placeholder="Add YouTube or video URL"
+                  placeholderTextColor={THEME.light}
+                  keyboardType="url"
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleEditEvent}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={THEME.buttonText} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Confirm Edit</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => {
+                  if (selectedEvent) {
+                    setShowEditModal(false);
+                    setTimeout(() => handleDeleteEvent(selectedEvent.id), 300);
+                  }
+                }}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.deleteButtonText}>DELETE EVENT</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Full Image Viewer Modal */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View style={styles.imageViewerContainer}>
+          <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
+          <TouchableOpacity 
+            style={styles.imageViewerCloseButton}
+            onPress={() => setShowImageModal(false)}
+          >
+            <AntDesign name="close" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Image 
+            source={{ uri: selectedImage }} 
+            style={styles.fullImage} 
+            resizeMode="contain" 
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2085,17 +2124,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.background,
   },
-  mainContainer: {
-    flex: 1,
-    backgroundColor: THEME.background,
-  },
   safeArea: {
-    flex: 1,
+    backgroundColor: THEME.background,
+    zIndex: 1,
   },
-  scrollContent: {
-    paddingBottom: 80,
-  },
-  // Header
   header: {
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -2106,6 +2138,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: THEME.border,
   },
+  scrollContent: {
+    paddingTop: 0,
+    paddingBottom: 80,
+  },
+  heroSection: {
+    marginHorizontal: 20,
+    marginVertical: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  mainContainer: {
+    backgroundColor: THEME.background,
+  },
+  // Header
   headerTitle: {
     fontSize: 26,
     fontWeight: "700",
@@ -2532,17 +2583,6 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.background,
   },
   // Hero Section
-  heroSection: {
-    marginHorizontal: 20,
-    marginVertical: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
   heroBackground: {
     justifyContent: "center",
     alignItems: "center",
