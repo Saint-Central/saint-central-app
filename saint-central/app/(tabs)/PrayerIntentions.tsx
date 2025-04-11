@@ -279,6 +279,8 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: "light" | "dark" 
 interface Friend {
   id: string;
   username: string;
+  status: string;
+  created_at: string;
 }
 
 interface FriendshipWithUser {
@@ -510,8 +512,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
       const { data, error: friendsError } = await supabase
         .from("friends")
-        .select(
-          `
+        .select(`
           id,
           friend:users!friends_user_id_2_fkey(
             id,
@@ -520,19 +521,22 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             profile_image,
             created_at
           )
-        `,
-        )
+        `)
         .eq("user_id_1", user.id)
         .eq("status", "accepted");
 
       if (friendsError) throw friendsError;
 
-      const friends: Friend[] = data.map((f: any) => ({
-        id: f.friend.id,
-        username: `${f.friend.first_name} ${f.friend.last_name}`,
-      }));
+      if (data) {
+        const formattedFriends: Friend[] = data.map((friend: any) => ({
+          id: friend.friend.id,
+          username: `${friend.friend.first_name} ${friend.friend.last_name}`,
+          status: "accepted",
+          created_at: friend.friend.created_at,
+        }));
 
-      setUserFriends(friends);
+        setUserFriends(formattedFriends);
+      }
     } catch (error) {
       console.error("Error fetching friends:", error);
       showFeedback("Failed to load friends");
@@ -559,57 +563,20 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Handle a new intention being inserted
   const handleNewIntention = async (newIntention: any) => {
-    // Convert the created_at string to a Date object
-    const formattedIntention: PrayerIntention = {
-      ...newIntention,
-      created_at: new Date(newIntention.created_at),
-    };
-
-    // Check if this intention is already in our state
-    const exists = intentions.some((i) => i.id === formattedIntention.id);
-    if (!exists) {
-      setIntentions((prev) => [formattedIntention, ...prev]);
-
-      // Provide subtle feedback if the intention was created by someone else
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (formattedIntention.user_id !== sessionData?.session?.user?.id) {
-        showFeedback("New intention added");
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-
-      // Update AsyncStorage
-      saveIntentionsToStorage([formattedIntention, ...intentions]);
-    }
+    // Removed realtime subscription handling
+    return;
   };
 
   // Handle an intention being updated
   const handleUpdatedIntention = (updatedIntention: any) => {
-    // Convert the created_at string to a Date object
-    const formattedIntention: PrayerIntention = {
-      ...updatedIntention,
-      created_at: new Date(updatedIntention.created_at),
-    };
-
-    // Update the intention in our state
-    setIntentions((prev) =>
-      prev.map((i) => (i.id === formattedIntention.id ? formattedIntention : i)),
-    );
-
-    // Update AsyncStorage
-    const updatedIntentions = intentions.map((i) =>
-      i.id === formattedIntention.id ? formattedIntention : i,
-    );
-    saveIntentionsToStorage(updatedIntentions);
+    // Removed realtime subscription handling
+    return;
   };
 
   // Handle an intention being deleted
   const handleDeletedIntention = (deletedIntention: any) => {
-    // Remove the intention from our state
-    setIntentions((prev) => prev.filter((i) => i.id !== deletedIntention.id));
-
-    // Update AsyncStorage
-    const updatedIntentions = intentions.filter((i) => i.id !== deletedIntention.id);
-    saveIntentionsToStorage(updatedIntentions);
+    // Removed realtime subscription handling
+    return;
   };
 
   // Get color for intention type
@@ -675,29 +642,94 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         return;
       }
 
-      // Get intentions where user is the owner or shared with them
+      // Get user's friends
+      const { data: sentFriends, error: sentError } = await supabase
+        .from("friends")
+        .select("user_id_2")
+        .eq("user_id_1", user.id)
+        .eq("status", "accepted");
+      if (sentError) throw sentError;
+
+      const { data: receivedFriends, error: receivedError } = await supabase
+        .from("friends")
+        .select("user_id_1")
+        .eq("user_id_2", user.id)
+        .eq("status", "accepted");
+      if (receivedError) throw receivedError;
+
+      // Create a set of friend IDs
+      const friendIds = new Set();
+      if (sentFriends) {
+        sentFriends.forEach((friend) => friendIds.add(friend.user_id_2));
+      }
+      if (receivedFriends) {
+        receivedFriends.forEach((friend) => friendIds.add(friend.user_id_1));
+      }
+
+      // Get user's groups
+      const { data: userGroups, error: groupsError } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id);
+      if (groupsError) throw groupsError;
+
+      const userGroupIds = userGroups ? userGroups.map((g) => g.group_id) : [];
+
+      // Fetch all intentions
       const { data, error } = await supabase
         .from("intentions")
         .select("*")
-        .or(`user_id.eq.${user.id},visibility.neq.Just Me`)
         .order("created_at", { ascending: false });
-
+      
       if (error) throw error;
 
-      // Process data from Supabase
-      const formattedIntentions: PrayerIntention[] = data.map((item) => ({
-        id: item.id,
-        user_id: item.user_id,
-        title: item.title,
-        description: item.description || "",
-        type: item.type as IntentionType,
-        created_at: new Date(item.created_at),
-        visibility: item.visibility as IntentionVisibility,
-        selected_groups: item.selected_groups || [],
-        selected_friends: item.selected_friends || [],
-        completed: item.completed || false,
-        favorite: item.favorite || false,
-      }));
+      // Filter intentions based on visibility
+      const filteredData = await Promise.all(
+        data.map(async (item) => {
+          // Always show user's own intentions
+          if (item.user_id === user.id) return item;
+
+          // Check visibility settings
+          switch (item.visibility) {
+            case "Just Me":
+              return null;
+            case "Friends":
+              return friendIds.has(item.user_id) ? item : null;
+            case "Certain Friends":
+              return item.selected_friends?.includes(user.id) ? item : null;
+            case "Certain Groups":
+              // Check if user is in any of the selected groups
+              const creatorGroups = await supabase
+                .from("group_members")
+                .select("group_id")
+                .eq("user_id", item.user_id);
+              
+              if (creatorGroups.error) return null;
+              
+              const creatorGroupIds = creatorGroups.data.map(g => g.group_id);
+              return creatorGroupIds.some(groupId => userGroupIds.includes(groupId)) ? item : null;
+            default:
+              return null;
+          }
+        })
+      );
+
+      // Remove null values and format the data
+      const formattedIntentions = filteredData
+        .filter((item) => item !== null)
+        .map((item) => ({
+          id: item.id,
+          user_id: item.user_id,
+          title: item.title,
+          description: item.description || "",
+          type: item.type as IntentionType,
+          created_at: new Date(item.created_at),
+          visibility: item.visibility as IntentionVisibility,
+          selected_groups: item.selected_groups || [],
+          selected_friends: item.selected_friends || [],
+          completed: item.completed || false,
+          favorite: item.favorite || false,
+        }));
 
       setIntentions(formattedIntentions);
 
