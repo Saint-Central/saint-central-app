@@ -27,6 +27,7 @@ type RootStackParamList = {
   coursehomepage: undefined;
   church_events: undefined;
   church_members: { church_id: string; church_name?: string };
+  volunteerhomepage: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -41,7 +42,6 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const { reset: resetChurchData } = useChurchContext();
-  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
 
   // Animation references
   const imageAnim = useRef(new Animated.Value(0)).current;
@@ -254,6 +254,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             title="Community"
             description="Connect with others"
             gradientColors={["#06D6A0", "#1A936F"]}
+            onPress={() => navigation.navigate("volunteerhomepage")}
           />
         </ScrollView>
       </Animated.View>
@@ -314,7 +315,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
                 <FontAwesome5 name="hands-helping" size={22} color="#FFFFFF" />
               </LinearGradient>
             }
-            onPress={() => {}}
+            onPress={() => navigation.navigate("volunteerhomepage")}
           >
             <View style={styles.buttonTextContainer}>
               <Text style={styles.buttonText}>Volunteer</Text>
