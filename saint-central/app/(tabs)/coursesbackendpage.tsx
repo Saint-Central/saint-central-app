@@ -102,7 +102,7 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
   onSaveComplete 
 }) => {
   // Initialize privacy settings
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<PrivacySettings>({
     hide_email: true,
     hide_name: false,
     hide_phone: true
@@ -114,11 +114,19 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
   useEffect(() => {
     if (enrollment) {
       console.log("Loading enrollment settings:", enrollment);
+      
+      // Check if the values are explicitly defined as booleans
+      const hide_email = enrollment.hide_email === false ? false : true;
+      const hide_name = enrollment.hide_name === true ? true : false;
+      const hide_phone = enrollment.hide_phone === false ? false : true;
+      
       setSettings({
-        hide_email: enrollment.hide_email,
-        hide_name: enrollment.hide_name,
-        hide_phone: enrollment.hide_phone
+        hide_email: hide_email,
+        hide_name: hide_name,
+        hide_phone: hide_phone
       });
+      
+      console.log("Set settings to:", { hide_email, hide_name, hide_phone });
     }
   }, [enrollment]);
 
@@ -159,13 +167,14 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
 
   // Toggle switch helper that directly updates state
   const toggleSwitch = (field: keyof typeof settings) => {
-    // For UI purposes: when switch is ON (blue), we want hide_* to be FALSE
-    // When switch is OFF (gray), we want hide_* to be TRUE
-    setSettings(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-    console.log(`Toggled ${field} to:`, !settings[field]);
+    // When switch is ON (blue/true), we want to set hide_* to FALSE
+    // When switch is OFF (gray/false), we want to set hide_* to TRUE
+    setSettings(prev => {
+      const newSettings = { ...prev };
+      newSettings[field] = !prev[field];
+      console.log(`Toggled ${field} from ${prev[field]} to ${newSettings[field]}`);
+      return newSettings;
+    });
   };
 
   return (
@@ -307,12 +316,18 @@ export default function CourseDetailsPage() {
           if (enrollmentData) {
             setCurrentUserEnrolled(true);
             
-            // Load user's privacy settings - using ?? to handle null/undefined values
+            // Load user's privacy settings with explicit checks for boolean values
+            const hide_email = enrollmentData.hide_email === false ? false : true;
+            const hide_name = enrollmentData.hide_name === true ? true : false;
+            const hide_phone = enrollmentData.hide_phone === false ? false : true;
+            
             setPrivacySettings({
-              hide_email: enrollmentData.hide_email ?? true,
-              hide_name: enrollmentData.hide_name ?? false,
-              hide_phone: enrollmentData.hide_phone ?? true,
+              hide_email,
+              hide_name,
+              hide_phone
             });
+            
+            console.log("Loaded user privacy settings:", { hide_email, hide_name, hide_phone });
           }
           
           // Fetch the course to get church_id
@@ -408,14 +423,20 @@ export default function CourseDetailsPage() {
         // Transform the data to match CourseEnrollment type
         const normalizedData = data.map(item => {
           const userData = Array.isArray(item.users) ? item.users[0] : item.users;
+          
+          // Make sure boolean values are properly set
+          const hide_email = item.hide_email === false ? false : true;
+          const hide_name = item.hide_name === true ? true : false;
+          const hide_phone = item.hide_phone === false ? false : true;
+          
           return {
             id: item.id,
             user_id: item.user_id,
             course_id: item.course_id,
             enrollment_date: item.enrollment_date,
-            hide_email: item.hide_email || true,  // Default to hidden for privacy
-            hide_name: item.hide_name || false,
-            hide_phone: item.hide_phone || true,  // Default to hidden for privacy
+            hide_email,
+            hide_name,
+            hide_phone,
             user: userData ? {
               id: userData.id,
               email: userData.email,
@@ -508,12 +529,21 @@ export default function CourseDetailsPage() {
   const handlePrivacySettings = (enrollment: CourseEnrollment) => {
     if (enrollment.user_id === currentUserId) {
       setEditingEnrollment(enrollment);
+      
       // Initialize privacy settings from the enrollment's current settings
+      // with explicit checks for boolean values
+      const hide_email = enrollment.hide_email === false ? false : true;
+      const hide_name = enrollment.hide_name === true ? true : false;
+      const hide_phone = enrollment.hide_phone === false ? false : true;
+      
       setPrivacySettings({
-        hide_email: enrollment.hide_email || true,
-        hide_name: enrollment.hide_name || false,
-        hide_phone: enrollment.hide_phone || true,
+        hide_email,
+        hide_name,
+        hide_phone
       });
+      
+      console.log("Set privacy settings for modal:", { hide_email, hide_name, hide_phone });
+      
       setPrivacyModalVisible(true);
     } else {
       Alert.alert("Permission Denied", "You can only edit your own privacy settings.");
@@ -526,6 +556,8 @@ export default function CourseDetailsPage() {
 
     try {
       setUpdateLoading(true);
+      
+      console.log("Saving privacy settings to database:", privacySettings);
 
       const { error } = await supabase
         .from("course_enrollment")
@@ -578,7 +610,6 @@ export default function CourseDetailsPage() {
       setLoading(true);
       
       // Add new enrollment - we keep the same default values
-      // but note the switches will display inverted (true = off, false = on)
       const { error } = await supabase
         .from("course_enrollment")
         .insert([{
@@ -586,7 +617,7 @@ export default function CourseDetailsPage() {
           course_id: courseId,
           enrollment_date: new Date().toISOString(),
           hide_email: true,  // Default to hiding email for privacy
-          hide_name: false,
+          hide_name: false,  // Default to showing name
           hide_phone: true,  // Default to hiding phone for privacy
         }]);
         
@@ -735,10 +766,15 @@ export default function CourseDetailsPage() {
                   </Text>
                 </View>
                 <Switch
+                  // Switch is ON when hide_email is FALSE (showing email)
                   value={!privacySettings.hide_email}
-                  onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_email: !value }))
-                  }
+                  onValueChange={() => {
+                    setPrivacySettings(prev => {
+                      const newSettings = { ...prev, hide_email: !prev.hide_email };
+                      console.log(`Toggle hide_email from ${prev.hide_email} to ${newSettings.hide_email}`);
+                      return newSettings;
+                    });
+                  }}
                   trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
                   thumbColor="#FFFFFF"
                 />
@@ -752,10 +788,15 @@ export default function CourseDetailsPage() {
                   </Text>
                 </View>
                 <Switch
+                  // Switch is ON when hide_phone is FALSE (showing phone)
                   value={!privacySettings.hide_phone}
-                  onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_phone: !value }))
-                  }
+                  onValueChange={() => {
+                    setPrivacySettings(prev => {
+                      const newSettings = { ...prev, hide_phone: !prev.hide_phone };
+                      console.log(`Toggle hide_phone from ${prev.hide_phone} to ${newSettings.hide_phone}`);
+                      return newSettings;
+                    });
+                  }}
                   trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
                   thumbColor="#FFFFFF"
                 />
@@ -769,10 +810,15 @@ export default function CourseDetailsPage() {
                   </Text>
                 </View>
                 <Switch
+                  // Switch is ON when hide_name is FALSE (showing name)
                   value={!privacySettings.hide_name}
-                  onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_name: !value }))
-                  }
+                  onValueChange={() => {
+                    setPrivacySettings(prev => {
+                      const newSettings = { ...prev, hide_name: !prev.hide_name };
+                      console.log(`Toggle hide_name from ${prev.hide_name} to ${newSettings.hide_name}`);
+                      return newSettings;
+                    });
+                  }}
                   trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
                   thumbColor="#FFFFFF"
                 />
