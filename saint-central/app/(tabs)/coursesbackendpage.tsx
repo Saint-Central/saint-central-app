@@ -87,6 +87,166 @@ const THEME = {
   shadow: "rgba(0, 0, 0, 0.1)" // Shadow color
 };
 
+interface PrivacySettingsModalProps {
+  visible: boolean;
+  onClose: () => void;
+  enrollment: CourseEnrollment;
+  onSaveComplete?: () => void;
+}
+
+// Privacy settings modal component
+export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({ 
+  visible, 
+  onClose, 
+  enrollment, 
+  onSaveComplete 
+}) => {
+  // Initialize privacy settings
+  const [settings, setSettings] = useState({
+    hide_email: true,
+    hide_name: false,
+    hide_phone: true
+  });
+  
+  const [loading, setLoading] = useState(false);
+
+  // Load actual values from enrollment when component mounts
+  useEffect(() => {
+    if (enrollment) {
+      console.log("Loading enrollment settings:", enrollment);
+      setSettings({
+        hide_email: enrollment.hide_email,
+        hide_name: enrollment.hide_name,
+        hide_phone: enrollment.hide_phone
+      });
+    }
+  }, [enrollment]);
+
+  // Save privacy settings to database
+  const saveSettings = async () => {
+    if (!enrollment) return;
+    
+    try {
+      setLoading(true);
+      console.log("Saving settings to database:", settings);
+
+      const { error } = await supabase
+        .from("course_enrollment")
+        .update({
+          hide_email: settings.hide_email,
+          hide_name: settings.hide_name,
+          hide_phone: settings.hide_phone
+        })
+        .eq("id", enrollment.id);
+
+      if (error) {
+        console.error("Error updating privacy settings:", error);
+        Alert.alert("Error", "Failed to update privacy settings: " + error.message);
+        return;
+      }
+
+      // Success
+      Alert.alert("Success", "Privacy settings updated successfully");
+      if (onSaveComplete) onSaveComplete();
+      if (onClose) onClose();
+    } catch (error) {
+      console.error("Exception saving privacy settings:", error);
+      Alert.alert("Error", "An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle switch helper that directly updates state
+  const toggleSwitch = (field: keyof typeof settings) => {
+    // For UI purposes: when switch is ON (blue), we want hide_* to be FALSE
+    // When switch is OFF (gray), we want hide_* to be TRUE
+    setSettings(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+    console.log(`Toggled ${field} to:`, !settings[field]);
+  };
+
+  return (
+    <View style={styles.modalContainer}>
+      <Text style={styles.modalTitle}>Privacy Settings</Text>
+      
+      {/* Email Privacy */}
+      <View style={styles.settingRow}>
+        <View style={styles.settingInfo}>
+          <Text style={styles.settingLabel}>Show Email Address</Text>
+          <Text style={styles.settingDescription}>
+            ON: Your email is visible | OFF: Your email is hidden
+          </Text>
+        </View>
+        <Switch
+          // Switch is ON when hide_email is FALSE (showing email)
+          value={!settings.hide_email}
+          onValueChange={() => toggleSwitch('hide_email')}
+          trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+      
+      {/* Phone Privacy */}
+      <View style={styles.settingRow}>
+        <View style={styles.settingInfo}>
+          <Text style={styles.settingLabel}>Show Phone Number</Text>
+          <Text style={styles.settingDescription}>
+            ON: Your phone is visible | OFF: Your phone is hidden
+          </Text>
+        </View>
+        <Switch
+          // Switch is ON when hide_phone is FALSE (showing phone)
+          value={!settings.hide_phone}
+          onValueChange={() => toggleSwitch('hide_phone')}
+          trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+      
+      {/* Name Privacy */}
+      <View style={styles.settingRow}>
+        <View style={styles.settingInfo}>
+          <Text style={styles.settingLabel}>Show Name</Text>
+          <Text style={styles.settingDescription}>
+            ON: Your name is visible | OFF: You appear as "Anonymous"
+          </Text>
+        </View>
+        <Switch
+          // Switch is ON when hide_name is FALSE (showing name)
+          value={!settings.hide_name}
+          onValueChange={() => toggleSwitch('hide_name')}
+          trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+
+      <View style={styles.modalButtonContainer}>
+        {loading ? (
+          <ActivityIndicator size="small" color="#4361EE" />
+        ) : (
+          <>
+            <Text 
+              style={styles.cancelButton}
+              onPress={onClose}
+            >
+              Cancel
+            </Text>
+            <Text 
+              style={styles.saveButton}
+              onPress={saveSettings}
+            >
+              Save Settings
+            </Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
+};
+
 export default function CourseDetailsPage() {
   const route = useRoute<CourseDetailsScreenRouteProp>();
   const navigation = useNavigation();
@@ -147,11 +307,11 @@ export default function CourseDetailsPage() {
           if (enrollmentData) {
             setCurrentUserEnrolled(true);
             
-            // Load user's privacy settings
+            // Load user's privacy settings - using ?? to handle null/undefined values
             setPrivacySettings({
-              hide_email: enrollmentData.hide_email || true,
-              hide_name: enrollmentData.hide_name || false,
-              hide_phone: enrollmentData.hide_phone || true,
+              hide_email: enrollmentData.hide_email ?? true,
+              hide_name: enrollmentData.hide_name ?? false,
+              hide_phone: enrollmentData.hide_phone ?? true,
             });
           }
           
@@ -295,10 +455,9 @@ export default function CourseDetailsPage() {
     const filtered = enrollments.filter(enrollment => {
       if (
         enrollment.hide_name && 
-        enrollment.user_id !== currentUserId && 
-        !isUserAdmin()
+        enrollment.user_id !== currentUserId
       ) {
-        return false; // Skip hidden names unless it's the current user or admin
+        return false; // Skip hidden names unless it's the current user
       }
       
       const firstName = enrollment.user?.first_name?.toLowerCase() || "";
@@ -418,7 +577,8 @@ export default function CourseDetailsPage() {
     try {
       setLoading(true);
       
-      // Add new enrollment
+      // Add new enrollment - we keep the same default values
+      // but note the switches will display inverted (true = off, false = on)
       const { error } = await supabase
         .from("course_enrollment")
         .insert([{
@@ -446,12 +606,11 @@ export default function CourseDetailsPage() {
   // Render each enrolled member item
   const renderEnrolledMemberItem = ({ item }: { item: CourseEnrollment }) => {
     const isCurrentUser = item.user_id === currentUserId;
-    const isAdmin = isUserAdmin();
     
-    // Determine what information to show based on privacy settings and user role
-    const showEmail = isCurrentUser || isAdmin || !item.hide_email;
-    const showName = isCurrentUser || isAdmin || !item.hide_name;
-    const showPhone = isCurrentUser || isAdmin || !item.hide_phone;
+    // MODIFIED: Removed isAdmin from these conditions so admins can't bypass privacy settings
+    const showEmail = isCurrentUser || !item.hide_email;
+    const showName = isCurrentUser || !item.hide_name;
+    const showPhone = isCurrentUser || !item.hide_phone;
 
     // Get initials for the avatar placeholder
     const getInitials = () => {
@@ -570,15 +729,15 @@ export default function CourseDetailsPage() {
 
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
-                  <Text style={styles.settingLabel}>Hide Email Address</Text>
+                  <Text style={styles.settingLabel}>Show Email Address</Text>
                   <Text style={styles.settingDescription}>
-                    Your email will be visible only to you and course admins
+                    ON: Your email is visible to others | OFF: Your email is hidden
                   </Text>
                 </View>
                 <Switch
-                  value={privacySettings.hide_email}
+                  value={!privacySettings.hide_email}
                   onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_email: value }))
+                    setPrivacySettings(prev => ({ ...prev, hide_email: !value }))
                   }
                   trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
                   thumbColor="#FFFFFF"
@@ -587,15 +746,15 @@ export default function CourseDetailsPage() {
 
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
-                  <Text style={styles.settingLabel}>Hide Phone Number</Text>
+                  <Text style={styles.settingLabel}>Show Phone Number</Text>
                   <Text style={styles.settingDescription}>
-                    Your phone number will be visible only to you and course admins
+                    ON: Your phone number is visible to others | OFF: Your phone number is hidden
                   </Text>
                 </View>
                 <Switch
-                  value={privacySettings.hide_phone}
+                  value={!privacySettings.hide_phone}
                   onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_phone: value }))
+                    setPrivacySettings(prev => ({ ...prev, hide_phone: !value }))
                   }
                   trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
                   thumbColor="#FFFFFF"
@@ -604,15 +763,15 @@ export default function CourseDetailsPage() {
 
               <View style={styles.settingRow}>
                 <View style={styles.settingInfo}>
-                  <Text style={styles.settingLabel}>Hide Name</Text>
+                  <Text style={styles.settingLabel}>Show Name</Text>
                   <Text style={styles.settingDescription}>
-                    You'll appear as "Anonymous Member" to other participants
+                    ON: Your name is visible to others | OFF: You appear as "Anonymous Member"
                   </Text>
                 </View>
                 <Switch
-                  value={privacySettings.hide_name}
+                  value={!privacySettings.hide_name}
                   onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_name: value }))
+                    setPrivacySettings(prev => ({ ...prev, hide_name: !value }))
                   }
                   trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
                   thumbColor="#FFFFFF"
@@ -622,7 +781,7 @@ export default function CourseDetailsPage() {
               <View style={styles.privacyNote}>
                 <FontAwesome5 name="info-circle" size={14} color="#64748B" style={styles.icon} />
                 <Text style={styles.noteText}>
-                  These settings only apply to this course. Course admins and instructors will always be able to see your information.
+                  These settings apply to everyone viewing this course, including admins. Only you will be able to see your own hidden information. When the switch is blue (ON), information is shown to others. When OFF, information is hidden.
                 </Text>
               </View>
 
@@ -795,7 +954,7 @@ export default function CourseDetailsPage() {
       </View>
     );
   }
-
+  
   return (
     <SafeAreaView style={styles.outerContainer}>
       {/* Header */}
@@ -1271,5 +1430,10 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
   },
 });
