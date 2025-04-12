@@ -12,6 +12,7 @@ import {
   Animated,
   Platform,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Church, ChurchMember } from "@/types/church";
 import { ChurchActionButton } from "./ChurchActionButton";
 import ChurchProfileCard from "./ChurchProfileCard";
@@ -19,6 +20,16 @@ import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
 import { useChurchContext } from "@/contexts/church";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  MinistriesScreen: undefined;
+  coursehomepage: undefined;
+  church_events: undefined;
+  church_members: { church_id: string; church_name?: string };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type Props = {
   church: Church;
@@ -27,6 +38,7 @@ type Props = {
 };
 
 export default function ChurchPageContent({ church, member, userData }: Props) {
+  const navigation = useNavigation<NavigationProp>();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const { reset: resetChurchData } = useChurchContext();
 
@@ -221,12 +233,14 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             title="Ministries"
             description="Faith in action"
             gradientColors={["#3A86FF", "#4361EE"]}
+            onPress={() => navigation.navigate("MinistriesScreen")}
           />
           <QuickActionCard
             icon={<Ionicons name="book-outline" size={26} color="#FFFFFF" />}
             title="Courses"
             description="Grow in knowledge"
             gradientColors={["#FF006E", "#FB5607"]}
+            onPress={() => navigation.navigate("coursehomepage")}
           />
           <QuickActionCard
             icon={<MaterialCommunityIcons name="calendar-clock" size={26} color="#FFFFFF" />}
