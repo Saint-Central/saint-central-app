@@ -41,6 +41,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const { reset: resetChurchData } = useChurchContext();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
 
   // Animation references
   const imageAnim = useRef(new Animated.Value(0)).current;

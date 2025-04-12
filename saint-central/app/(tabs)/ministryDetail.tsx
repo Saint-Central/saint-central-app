@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -32,12 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { supabase } from "../../supabaseClient";
-import {
-  Ionicons,
-  MaterialIcons,
-  FontAwesome5,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -87,10 +76,8 @@ interface Message {
 // AsyncStorage keys for caching
 const MEMBERSHIP_CACHE_KEY = (ministryId: number, userId: string) =>
   `ministry_membership_${ministryId}_${userId}`;
-const MINISTRY_CACHE_KEY = (ministryId: number) =>
-  `ministry_details_${ministryId}`;
-const MESSAGES_CACHE_KEY = (ministryId: number) =>
-  `ministry_messages_${ministryId}`;
+const MINISTRY_CACHE_KEY = (ministryId: number) => `ministry_details_${ministryId}`;
+const MESSAGES_CACHE_KEY = (ministryId: number) => `ministry_messages_${ministryId}`;
 
 // Time formatting functions
 const formatTime = (timestamp: string): string => {
@@ -185,107 +172,93 @@ const getInitials = (name: string): string => {
 };
 
 // Create a memoized message component to improve performance
-const MemoizedMessageItem = React.memo(
-  ({
-    message,
-    isCurrentUser,
-    renderUserAvatar,
-  }: {
-    message: Message;
-    isCurrentUser: boolean;
-    renderUserAvatar: (user?: User) => JSX.Element;
-  }) => {
-    const isSending = message._status === "sending";
-    const isError = message._status === "error";
+const MessageItem = ({
+  message,
+  isCurrentUser,
+  renderUserAvatar,
+}: {
+  message: Message;
+  isCurrentUser: boolean;
+  renderUserAvatar: (user?: User) => JSX.Element;
+}) => {
+  const isSending = message._status === "sending";
+  const isError = message._status === "error";
 
-    return (
+  return (
+    <View
+      style={[
+        styles.messageContainer,
+        isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
+      ]}
+    >
+      {!isCurrentUser && <View style={styles.messageAvatar}>{renderUserAvatar(message.user)}</View>}
+
       <View
         style={[
-          styles.messageContainer,
-          isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
+          styles.messageBubble,
+          isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
+          isSending && styles.sendingMessage,
+          isError && styles.errorMessage,
         ]}
       >
         {!isCurrentUser && (
-          <View style={styles.messageAvatar}>
-            {renderUserAvatar(message.user)}
-          </View>
+          <Text style={styles.messageUsername}>
+            {message.user ? `${message.user.first_name} ${message.user.last_name}` : "Unknown User"}
+          </Text>
         )}
 
-        <View
+        <Text
           style={[
-            styles.messageBubble,
-            isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
-            isSending && styles.sendingMessage,
-            isError && styles.errorMessage,
+            styles.messageText,
+            isCurrentUser ? styles.currentUserMessageText : styles.otherUserMessageText,
           ]}
         >
-          {!isCurrentUser && (
-            <Text style={styles.messageUsername}>
-              {message.user
-                ? `${message.user.first_name} ${message.user.last_name}`
-                : "Unknown User"}
-            </Text>
-          )}
+          {message.message_text}
+        </Text>
 
-          <Text
-            style={[
-              styles.messageText,
-              isCurrentUser
-                ? styles.currentUserMessageText
-                : styles.otherUserMessageText,
-            ]}
-          >
-            {message.message_text}
+        <View style={styles.messageFooter}>
+          <Text style={[styles.messageTime, isCurrentUser && styles.currentUserMessageTime]}>
+            {formatMessageTime(message.sent_at)}
           </Text>
 
-          <View style={styles.messageFooter}>
-            <Text
-              style={[
-                styles.messageTime,
-                isCurrentUser && styles.currentUserMessageTime,
-              ]}
-            >
-              {formatMessageTime(message.sent_at)}
-            </Text>
-
-            {isCurrentUser && (
-              <View style={styles.messageStatus}>
-                {isSending ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={isCurrentUser ? "#E0E0FF" : "#A3A3A3"}
-                    style={styles.statusIcon}
-                  />
-                ) : isError ? (
-                  <TouchableOpacity
-                    onPress={() => Alert.alert("Message failed to send")}
-                  >
-                    <Ionicons
-                      name="alert-circle"
-                      size={14}
-                      color="#EF4444"
-                      style={styles.statusIcon}
-                    />
-                  </TouchableOpacity>
-                ) : (
+          {isCurrentUser && (
+            <View style={styles.messageStatus}>
+              {isSending ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isCurrentUser ? "#E0E0FF" : "#A3A3A3"}
+                  style={styles.statusIcon}
+                />
+              ) : isError ? (
+                <TouchableOpacity onPress={() => Alert.alert("Message failed to send")}>
                   <Ionicons
-                    name="checkmark-done"
+                    name="alert-circle"
                     size={14}
-                    color={isCurrentUser ? "#E0E0FF" : "#5B6EF5"}
+                    color="#EF4444"
                     style={styles.statusIcon}
                   />
-                )}
-              </View>
-            )}
-          </View>
+                </TouchableOpacity>
+              ) : (
+                <Ionicons
+                  name="checkmark-done"
+                  size={14}
+                  color={isCurrentUser ? "#E0E0FF" : "#5B6EF5"}
+                  style={styles.statusIcon}
+                />
+              )}
+            </View>
+          )}
         </View>
       </View>
-    );
-  }
-);
+    </View>
+  );
+};
+
+const MemoizedMessageItem = React.memo(MessageItem);
+MessageItem.displayName = "MessageItem";
 
 // Create a memoized date divider component
-const MemoizedDateDivider = React.memo(({ date }: { date: string }) => (
+const DateDivider = ({ date }: { date: string }) => (
   <View style={styles.dateDividerContainer}>
     <View style={styles.dateDividerLine} />
     <View style={styles.dateDividerTextContainer}>
@@ -293,119 +266,139 @@ const MemoizedDateDivider = React.memo(({ date }: { date: string }) => (
     </View>
     <View style={styles.dateDividerLine} />
   </View>
+);
+
+const MemoizedDateDivider = React.memo(DateDivider);
+DateDivider.displayName = "DateDivider";
+
+// Create load more header component
+const LoadingHeader = React.memo(() => (
+  <View style={styles.loadMoreHeader}>
+    <ActivityIndicator size="small" color="#5B6EF5" />
+    <Text style={styles.loadMoreText}>Loading older messages...</Text>
+  </View>
 ));
+LoadingHeader.displayName = "LoadingHeader";
 
 // Optimized Message Input Area Component
-const MessageInputArea = React.memo(
-  ({
-    value,
-    onChangeText,
-    onSend,
-    onFocus,
-    onBlur,
-  }: {
-    value: string;
-    onChangeText: (text: string) => void;
-    onSend: () => void;
-    onFocus: () => void;
-    onBlur: () => void;
-  }) => {
-    const [localValue, setLocalValue] = useState(value);
-    const [inputHeight, setInputHeight] = useState(40);
-    const inputLocalRef = useRef<TextInput>(null);
+const InputArea = ({
+  value,
+  onChangeText,
+  onSend,
+  onFocus,
+  onBlur,
+  messageListRef,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  onSend: () => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  messageListRef: React.RefObject<FlatList<any>>;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const [inputHeight, setInputHeight] = useState(40);
+  const inputLocalRef = useRef<TextInput>(null);
 
-    // Synchronize with parent state only when necessary
-    useEffect(() => {
-      if (value !== localValue) {
-        setLocalValue(value);
-      }
-    }, [value]);
+  // Synchronize with parent state only when necessary
+  useEffect(() => {
+    if (value !== localValue) {
+      setLocalValue(value);
+    }
+  }, [value]);
 
-    const handleContentSizeChange = (event: any) => {
-      const { height } = event.nativeEvent.contentSize;
-      const newHeight = Math.min(Math.max(40, height), 120);
-      setInputHeight(newHeight);
-    };
+  const handleContentSizeChange = (event: any) => {
+    const { height } = event.nativeEvent.contentSize;
+    const newHeight = Math.min(Math.max(40, height), 120);
+    setInputHeight(newHeight);
+  };
 
-    const handleLocalChange = (text: string) => {
-      setLocalValue(text);
+  const handleLocalChange = (text: string) => {
+    setLocalValue(text);
 
-      // Use requestAnimationFrame to avoid UI jank
-      if (Platform.OS !== "web") {
-        requestAnimationFrame(() => {
-          onChangeText(text);
-        });
-      } else {
+    // Use requestAnimationFrame to avoid UI jank
+    if (Platform.OS !== "web") {
+      requestAnimationFrame(() => {
         onChangeText(text);
+      });
+    } else {
+      onChangeText(text);
+    }
+  };
+
+  const handleSend = () => {
+    if (!localValue.trim()) return;
+
+    if (Platform.OS === "ios" || Platform.OS === "android") {
+      Vibration.vibrate(10);
+    }
+
+    onSend();
+    setLocalValue("");
+
+    // Better focus management
+    inputLocalRef.current?.focus();
+
+    // Ensure we scroll to the bottom after sending
+    setTimeout(() => {
+      if (messageListRef.current) {
+        messageListRef.current.scrollToEnd({ animated: true });
       }
-    };
+    }, 150);
+  };
 
-    const handleSend = () => {
-      if (!localValue.trim()) return;
+  return (
+    <View style={styles.inputContainer}>
+      <TouchableOpacity
+        style={styles.attachButton}
+        activeOpacity={0.7}
+        onPress={() => inputLocalRef.current?.focus()}
+      >
+        <Ionicons name="add-circle-outline" size={24} color="#5B6EF5" />
+      </TouchableOpacity>
 
-      if (Platform.OS === "ios" || Platform.OS === "android") {
-        Vibration.vibrate(10);
-      }
+      <TextInput
+        ref={inputLocalRef}
+        style={[styles.messageInput, { height: inputHeight }]}
+        placeholder="Type a message..."
+        placeholderTextColor="#A3A3A3"
+        value={localValue}
+        onChangeText={handleLocalChange}
+        onContentSizeChange={handleContentSizeChange}
+        multiline
+        maxLength={1000}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        blurOnSubmit={false}
+        contextMenuHidden={false}
+        keyboardType="default"
+        textAlignVertical="center"
+        autoCapitalize="sentences"
+        returnKeyType="default"
+        enablesReturnKeyAutomatically={false}
+        selectionColor="#5B6EF5"
+      />
 
-      onSend();
-      setLocalValue("");
+      <Pressable
+        style={({ pressed }) => [
+          styles.sendButton,
+          !localValue.trim() && styles.sendButtonDisabled,
+          pressed && localValue.trim() && styles.sendButtonPressed,
+        ]}
+        onPress={handleSend}
+        disabled={!localValue.trim()}
+      >
+        <Ionicons name="paper-plane" size={20} color={localValue.trim() ? "#FFFFFF" : "#A3A3A3"} />
+      </Pressable>
+    </View>
+  );
+};
 
-      // Better focus management
-      inputLocalRef.current?.focus();
-    };
-
-    return (
-      <View style={styles.inputContainer}>
-        <TouchableOpacity
-          style={styles.attachButton}
-          activeOpacity={0.7}
-          onPress={() => inputLocalRef.current?.focus()}
-        >
-          <Ionicons name="add-circle-outline" size={24} color="#5B6EF5" />
-        </TouchableOpacity>
-
-        <TextInput
-          ref={inputLocalRef}
-          style={[styles.messageInput, { height: inputHeight }]}
-          placeholder="Type a message..."
-          placeholderTextColor="#A3A3A3"
-          value={localValue}
-          onChangeText={handleLocalChange}
-          onContentSizeChange={handleContentSizeChange}
-          multiline
-          maxLength={1000}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          blurOnSubmit={false}
-          contextMenuHidden={false}
-          keyboardType="default"
-          textAlignVertical="center"
-          autoCapitalize="sentences"
-          returnKeyType="default"
-          enablesReturnKeyAutomatically={false}
-          selectionColor="#5B6EF5"
-        />
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.sendButton,
-            !localValue.trim() && styles.sendButtonDisabled,
-            pressed && localValue.trim() && styles.sendButtonPressed,
-          ]}
-          onPress={handleSend}
-          disabled={!localValue.trim()}
-        >
-          <Ionicons
-            name="paper-plane"
-            size={20}
-            color={localValue.trim() ? "#FFFFFF" : "#A3A3A3"}
-          />
-        </Pressable>
-      </View>
-    );
-  },
-  (prevProps, nextProps) => prevProps.value === nextProps.value
+const MessageInputArea = React.memo(
+  InputArea,
+  (prevProps, nextProps) => prevProps.value === nextProps.value,
 );
+InputArea.displayName = "InputArea";
 
 // Main component
 export default function MinistryDetails(): JSX.Element {
@@ -415,8 +408,7 @@ export default function MinistryDetails(): JSX.Element {
   const ministryId = typeof params.id === "string" ? parseInt(params.id) : 0;
 
   // Window dimensions for responsive design
-  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
-    Dimensions.get("window");
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
   // State variables
   const [ministry, setMinistry] = useState<Ministry | null>(null);
@@ -428,16 +420,18 @@ export default function MinistryDetails(): JSX.Element {
   const [error, setError] = useState<Error | null>(null);
   const [newMessage, setNewMessage] = useState<string>("");
   const [isMember, setIsMember] = useState<boolean>(false);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
+  // State to track pagination
+  const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [allMessagesLoaded, setAllMessagesLoaded] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [cachedMembershipChecked, setCachedMembershipChecked] =
-    useState<boolean>(false);
+  const [cachedMembershipChecked, setCachedMembershipChecked] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [showMinistryInfo, setShowMinistryInfo] = useState<boolean>(false);
-  const [recentlySentMessageIds, setRecentlySentMessageIds] = useState<
-    Set<string | number>
-  >(new Set());
+  const [recentlySentMessageIds, setRecentlySentMessageIds] = useState<Set<string | number>>(
+    new Set(),
+  );
 
   // Refs
   const messageListRef = useRef<FlatList<any>>(null);
@@ -471,6 +465,15 @@ export default function MinistryDetails(): JSX.Element {
         duration: 250,
         useNativeDriver: true,
       }).start();
+
+      // Ensure we scroll to bottom when keyboard appears
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (messageListRef.current && messages.length > 0) {
+            messageListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      });
     } else {
       // When keyboard is closed
       Animated.timing(inputBottomAnim, {
@@ -479,7 +482,7 @@ export default function MinistryDetails(): JSX.Element {
         useNativeDriver: true,
       }).start();
     }
-  }, [keyboardHeight, inputBottomAnim]);
+  }, [keyboardHeight, inputBottomAnim, messages.length]);
 
   // Get current user on component mount
   useEffect(() => {
@@ -536,7 +539,7 @@ export default function MinistryDetails(): JSX.Element {
 
         // Check cached membership status first
         const cachedMembership = await AsyncStorage.getItem(
-          MEMBERSHIP_CACHE_KEY(ministryId, user.id)
+          MEMBERSHIP_CACHE_KEY(ministryId, user.id),
         );
 
         if (cachedMembership) {
@@ -549,9 +552,7 @@ export default function MinistryDetails(): JSX.Element {
             console.log("Using cached membership status:", isUserMember);
 
             // If we have cached ministry data, use that too
-            const cachedMinistry = await AsyncStorage.getItem(
-              MINISTRY_CACHE_KEY(ministryId)
-            );
+            const cachedMinistry = await AsyncStorage.getItem(MINISTRY_CACHE_KEY(ministryId));
 
             if (cachedMinistry) {
               try {
@@ -566,9 +567,7 @@ export default function MinistryDetails(): JSX.Element {
             }
 
             // If we have cached messages, use those too
-            const cachedMessages = await AsyncStorage.getItem(
-              MESSAGES_CACHE_KEY(ministryId)
-            );
+            const cachedMessages = await AsyncStorage.getItem(MESSAGES_CACHE_KEY(ministryId));
 
             if (cachedMessages) {
               try {
@@ -626,7 +625,7 @@ export default function MinistryDetails(): JSX.Element {
             // Only update if component is still mounted
             fetchUserForMessage(payload.new as Message);
           }
-        }
+        },
       )
       .subscribe((status) => {
         if (status !== "SUBSCRIBED") {
@@ -636,10 +635,7 @@ export default function MinistryDetails(): JSX.Element {
 
     // Handle app going to background/foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appStateRef.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === "active") {
         console.log("App has come to the foreground!");
         // App came to foreground, refresh messages and membership
         if (isComponentMounted) {
@@ -655,10 +651,7 @@ export default function MinistryDetails(): JSX.Element {
     let appStateSubscription: any = null;
     if (Platform.OS !== "web" && AppState) {
       try {
-        appStateSubscription = AppState.addEventListener(
-          "change",
-          handleAppStateChange
-        );
+        appStateSubscription = AppState.addEventListener("change", handleAppStateChange);
       } catch (error) {
         console.log("AppState not available", error);
       }
@@ -683,9 +676,9 @@ export default function MinistryDetails(): JSX.Element {
                 messageListRef.current.scrollToEnd({ animated: true });
               }
             },
-            Platform.OS === "ios" ? 150 : 100
+            Platform.OS === "ios" ? 150 : 100,
           );
-        }
+        },
       );
 
       keyboardHideSubscription = Keyboard.addListener(
@@ -700,7 +693,7 @@ export default function MinistryDetails(): JSX.Element {
               messageListRef.current.scrollToEnd({ animated: false });
             }
           }, 100);
-        }
+        },
       );
     }
 
@@ -731,10 +724,13 @@ export default function MinistryDetails(): JSX.Element {
     };
   }, []);
 
-  // Use effect for screen focus - refresh data
+  // Use effect for screen focus - load data
   useEffect(() => {
-    console.log("Screen focused, refreshing all data");
-    // Fetch fresh data without clearing states first to prevent flashing
+    console.log("Screen focused, loading fresh data");
+    // Reset pagination state
+    setOldestMessageTimestamp(null);
+    setAllMessagesLoaded(false);
+    // Fetch fresh data
     fetchData();
   }, [ministryId]);
 
@@ -782,7 +778,7 @@ export default function MinistryDetails(): JSX.Element {
           isMember: isUserMember,
           lastChecked: new Date().toISOString(),
           role: membershipData?.role || null,
-        })
+        }),
       );
 
       // Only update if there's a change to avoid unnecessary re-renders
@@ -801,7 +797,7 @@ export default function MinistryDetails(): JSX.Element {
           // Update ministry cache
           await AsyncStorage.setItem(
             MINISTRY_CACHE_KEY(ministryId),
-            JSON.stringify(updatedMinistry)
+            JSON.stringify(updatedMinistry),
           );
         }
       }
@@ -881,7 +877,7 @@ export default function MinistryDetails(): JSX.Element {
           isMember: isUserMember,
           lastChecked: new Date().toISOString(),
           role: membershipData?.role || null,
-        })
+        }),
       );
 
       setIsMember(isUserMember);
@@ -910,10 +906,7 @@ export default function MinistryDetails(): JSX.Element {
       setMinistry(updatedMinistry);
 
       // Update ministry cache
-      await AsyncStorage.setItem(
-        MINISTRY_CACHE_KEY(ministryId),
-        JSON.stringify(updatedMinistry)
-      );
+      await AsyncStorage.setItem(MINISTRY_CACHE_KEY(ministryId), JSON.stringify(updatedMinistry));
 
       // Fetch messages
       await fetchMessages();
@@ -922,41 +915,68 @@ export default function MinistryDetails(): JSX.Element {
       setError(error instanceof Error ? error : new Error("Unknown error"));
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }
 
   // Optimized message fetching with pagination and cache
-  async function fetchMessages(
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<void> {
+  async function fetchMessages(loadOlder: boolean = false): Promise<void> {
     try {
-      setMessageLoading(true);
+      if (loadOlder && allMessagesLoaded) {
+        console.log("All messages already loaded");
+        return;
+      }
 
-      // If we're loading more (not the initial load), ensure we keep existing messages
-      const existingMessages = offset > 0 ? [...messages] : [];
+      if (loadOlder) {
+        setIsLoadingMore(true);
+      } else {
+        setMessageLoading(true);
+      }
 
-      // Fetch messages for this ministry with pagination
-      const { data: messagesData, error: messagesError } = await supabase
+      // Keep track of current messages if loading older messages
+      const currentMessages = loadOlder ? [...messages] : [];
+
+      // Determine the query parameters
+      let query = supabase
         .from("ministry_messages")
         .select("*")
         .eq("ministry_id", ministryId)
-        .order("sent_at", { ascending: true })
-        .range(offset, offset + limit - 1);
+        .order("sent_at", { ascending: false }) // Newest first for efficient pagination
+        .limit(20); // Load 20 messages at a time
+
+      // If loading older messages, use the oldest message timestamp as a cursor
+      if (loadOlder && oldestMessageTimestamp) {
+        query = query.lt("sent_at", oldestMessageTimestamp);
+      }
+
+      // Execute the query
+      const { data: messagesData, error: messagesError } = await query;
 
       if (messagesError) {
         console.error("Error fetching messages:", messagesError);
         throw messagesError;
       }
 
+      // Check if we've loaded all messages
       if (!messagesData || messagesData.length === 0) {
-        // No messages found, but keep existing ones if applicable
-        if (offset === 0) {
+        if (loadOlder) {
+          setAllMessagesLoaded(true);
+          setIsLoadingMore(false);
+        } else {
           setMessages([]);
         }
         setMessageLoading(false);
         return;
+      }
+
+      // Sort messages newest to oldest for processing
+      const sortedMessages = [...messagesData].sort(
+        (a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime(),
+      );
+
+      // Update the oldest message timestamp for next pagination
+      if (sortedMessages.length > 0) {
+        const oldestMessage = sortedMessages[sortedMessages.length - 1];
+        setOldestMessageTimestamp(oldestMessage.sent_at);
       }
 
       // Get unique user IDs from messages
@@ -974,10 +994,13 @@ export default function MinistryDetails(): JSX.Element {
         } else {
           // Create a map of user IDs to user objects
           const userMap =
-            usersData?.reduce((acc, user) => {
-              acc[user.id] = user;
-              return acc;
-            }, {} as { [key: string]: User }) || {};
+            usersData?.reduce(
+              (acc, user) => {
+                acc[user.id] = user;
+                return acc;
+              },
+              {} as { [key: string]: User },
+            ) || {};
 
           // Update the users state with new users
           setUsers((prevUsers) => ({
@@ -985,88 +1008,81 @@ export default function MinistryDetails(): JSX.Element {
             ...userMap,
           }));
 
-          // Attach user data to messages
-          const messagesWithUsers = messagesData.map((message) => ({
-            ...message,
-            user: userMap[message.user_id] || users[message.user_id],
-            _status: "sent" as "sending" | "sent" | "error",
-          }));
+          // Attach user data to messages and reverse to chronological order for display
+          const messagesWithUsers = sortedMessages
+            .map((message) => ({
+              ...message,
+              user: userMap[message.user_id] || users[message.user_id],
+              _status: "sent" as "sending" | "sent" | "error",
+            }))
+            .reverse(); // Reverse back to chronological order for display
 
-          // Handle different message update scenarios
-          if (offset === 0) {
+          // If loading older messages, append to the beginning
+          if (loadOlder) {
+            // Check for duplicate messages
+            const existingIds = new Set(currentMessages.map((msg) => msg.id));
+            const uniqueNewMessages = messagesWithUsers.filter((msg) => !existingIds.has(msg.id));
+
+            // Combine with existing messages, placing older messages at the beginning
+            const combinedMessages = [...uniqueNewMessages, ...currentMessages];
+
+            // Update state
+            setMessages(combinedMessages);
+
+            // Update cache
+            AsyncStorage.setItem(
+              MESSAGES_CACHE_KEY(ministryId),
+              JSON.stringify(combinedMessages),
+            ).catch((err) => console.error("Cache update error:", err));
+          } else {
             // Initial load - replace messages
             setMessages(messagesWithUsers);
 
             // Cache the messages
-            await AsyncStorage.setItem(
+            AsyncStorage.setItem(
               MESSAGES_CACHE_KEY(ministryId),
-              JSON.stringify(messagesWithUsers)
-            );
-          } else {
-            // Loading more - append without duplicates
-            // Create a set of existing message IDs for quick lookup
-            const existingIds = new Set(existingMessages.map((msg) => msg.id));
+              JSON.stringify(messagesWithUsers),
+            ).catch((err) => console.error("Cache update error:", err));
 
-            // Only add messages that aren't already in the list
-            const uniqueNewMessages = messagesWithUsers.filter(
-              (msg) => !existingIds.has(msg.id)
-            );
-
-            // Combine existing and new messages
-            const combinedMessages = [
-              ...existingMessages,
-              ...uniqueNewMessages,
-            ];
-
-            // Update state with the combined message list
-            setMessages(combinedMessages);
-
-            // Cache the combined message list
-            await AsyncStorage.setItem(
-              MESSAGES_CACHE_KEY(ministryId),
-              JSON.stringify(combinedMessages)
-            );
+            // Scroll to bottom after initial messages are loaded
+            setTimeout(() => {
+              messageListRef.current?.scrollToEnd({ animated: false });
+            }, 300);
           }
         }
       } else {
-        // Handle the case where we have messages but no user IDs
-        if (offset === 0) {
-          // Initial load
-          setMessages(messagesData);
+        // Handle the case where we have messages but no user IDs (unlikely but possible)
+        const messagesReversed = [...sortedMessages].reverse();
 
-          // Cache messages
-          await AsyncStorage.setItem(
-            MESSAGES_CACHE_KEY(ministryId),
-            JSON.stringify(messagesData)
-          );
-        } else {
-          // Loading more - append without duplicates
-          const existingIds = new Set(existingMessages.map((msg) => msg.id));
-          const uniqueNewMessages = messagesData.filter(
-            (msg) => !existingIds.has(msg.id)
-          );
-          const combinedMessages = [...existingMessages, ...uniqueNewMessages];
+        if (loadOlder) {
+          const existingIds = new Set(currentMessages.map((msg) => msg.id));
+          const uniqueNewMessages = messagesReversed.filter((msg) => !existingIds.has(msg.id));
+          const combinedMessages = [...uniqueNewMessages, ...currentMessages];
 
           setMessages(combinedMessages);
 
-          // Cache combined messages
-          await AsyncStorage.setItem(
+          AsyncStorage.setItem(
             MESSAGES_CACHE_KEY(ministryId),
-            JSON.stringify(combinedMessages)
-          );
-        }
-      }
+            JSON.stringify(combinedMessages),
+          ).catch((err) => console.error("Cache update error:", err));
+        } else {
+          setMessages(messagesReversed);
 
-      // Scroll to bottom after messages are loaded (initial load only)
-      if (offset === 0 && messagesData.length > 0) {
-        setTimeout(() => {
-          messageListRef.current?.scrollToEnd({ animated: false });
-        }, 300);
+          AsyncStorage.setItem(
+            MESSAGES_CACHE_KEY(ministryId),
+            JSON.stringify(messagesReversed),
+          ).catch((err) => console.error("Cache update error:", err));
+
+          setTimeout(() => {
+            messageListRef.current?.scrollToEnd({ animated: false });
+          }, 300);
+        }
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
     } finally {
       setMessageLoading(false);
+      setIsLoadingMore(false);
     }
   }
 
@@ -1082,15 +1098,11 @@ export default function MinistryDetails(): JSX.Element {
         (m) =>
           m.message_text === message.message_text &&
           m.user_id === message.user_id &&
-          Math.abs(
-            new Date(m.sent_at).getTime() - new Date(message.sent_at).getTime()
-          ) < 5000
+          Math.abs(new Date(m.sent_at).getTime() - new Date(message.sent_at).getTime()) < 5000,
       );
 
       const isDuplicate =
-        recentlySentMessageIds.has(message.id) ||
-        isExactDuplicate ||
-        isContentDuplicate;
+        recentlySentMessageIds.has(message.id) || isExactDuplicate || isContentDuplicate;
 
       if (isDuplicate) {
         console.log("Skipping duplicate message:", message.id);
@@ -1146,17 +1158,22 @@ export default function MinistryDetails(): JSX.Element {
         setTimeout(() => {
           AsyncStorage.setItem(
             MESSAGES_CACHE_KEY(ministryId),
-            JSON.stringify(updatedMessages)
+            JSON.stringify(updatedMessages),
           ).catch((err) => console.error("Cache update error:", err));
         }, 0);
 
         return updatedMessages;
       });
 
-      // Scroll to bottom after a brief delay
-      setTimeout(() => {
-        messageListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      // Improved scroll to bottom with new messages
+      // Wait for state update to complete, then scroll
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (messageListRef.current) {
+            messageListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      });
     } catch (error) {
       console.error("Error in fetchUserForMessage:", error);
     }
@@ -1220,20 +1237,17 @@ export default function MinistryDetails(): JSX.Element {
 
         // Update message status to error
         setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === tempId ? { ...msg, _status: "error" } : msg
-          )
+          prev.map((msg) => (msg.id === tempId ? { ...msg, _status: "error" } : msg)),
         );
 
         // Update cache with the error status
         const updatedMessages = messages.map((msg) =>
-          msg.id === tempId ? { ...msg, _status: "error" } : msg
+          msg.id === tempId ? { ...msg, _status: "error" } : msg,
         );
 
-        AsyncStorage.setItem(
-          MESSAGES_CACHE_KEY(ministryId),
-          JSON.stringify(updatedMessages)
-        ).catch((err) => console.error("Cache update error:", err));
+        AsyncStorage.setItem(MESSAGES_CACHE_KEY(ministryId), JSON.stringify(updatedMessages)).catch(
+          (err) => console.error("Cache update error:", err),
+        );
       } else if (data && data[0]) {
         // Add the server-generated ID to our recently sent list to prevent duplicates
         setRecentlySentMessageIds((prev) => {
@@ -1253,23 +1267,18 @@ export default function MinistryDetails(): JSX.Element {
         // Replace temporary message with actual message from server
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === tempId
-              ? { ...data[0], user: currentUser, _status: "sent" }
-              : msg
-          )
+            msg.id === tempId ? { ...data[0], user: currentUser, _status: "sent" } : msg,
+          ),
         );
 
         // Update cache with the sent message
         const updatedMessages = messages.map((msg) =>
-          msg.id === tempId
-            ? { ...data[0], user: currentUser, _status: "sent" }
-            : msg
+          msg.id === tempId ? { ...data[0], user: currentUser, _status: "sent" } : msg,
         );
 
-        AsyncStorage.setItem(
-          MESSAGES_CACHE_KEY(ministryId),
-          JSON.stringify(updatedMessages)
-        ).catch((err) => console.error("Cache update error:", err));
+        AsyncStorage.setItem(MESSAGES_CACHE_KEY(ministryId), JSON.stringify(updatedMessages)).catch(
+          (err) => console.error("Cache update error:", err),
+        );
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -1279,88 +1288,78 @@ export default function MinistryDetails(): JSX.Element {
 
   // Leave a ministry with improved error handling
   async function handleLeaveMinistry(): Promise<void> {
-    Alert.alert(
-      "Leave Ministry",
-      "Are you sure you want to leave this ministry?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Leave",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setLoading(true);
+    Alert.alert("Leave Ministry", "Are you sure you want to leave this ministry?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
 
-              const {
-                data: { user },
-                error: authError,
-              } = await supabase.auth.getUser();
+            const {
+              data: { user },
+              error: authError,
+            } = await supabase.auth.getUser();
 
-              if (authError || !user) {
-                console.error("Auth error when leaving ministry:", authError);
-                Alert.alert("Error", "Authentication error. Please try again.");
-                return;
-              }
-
-              const { error } = await supabase
-                .from("ministry_members")
-                .delete()
-                .eq("ministry_id", ministryId)
-                .eq("user_id", user.id);
-
-              if (error) {
-                console.error("Error leaving ministry:", error);
-                Alert.alert(
-                  "Error",
-                  "Could not leave the ministry. Please try again."
-                );
-                return;
-              }
-
-              // Update local state and cache
-              setIsMember(false);
-
-              if (ministry) {
-                const updatedMinistry = {
-                  ...ministry,
-                  is_member: false,
-                  member_count: (ministry.member_count || 1) - 1,
-                };
-
-                setMinistry(updatedMinistry);
-
-                // Update ministry cache
-                await AsyncStorage.setItem(
-                  MINISTRY_CACHE_KEY(ministryId),
-                  JSON.stringify(updatedMinistry)
-                );
-              }
-
-              // Update membership cache
-              await AsyncStorage.setItem(
-                MEMBERSHIP_CACHE_KEY(ministryId, user.id),
-                JSON.stringify({
-                  isMember: false,
-                  lastChecked: new Date().toISOString(),
-                  role: null,
-                })
-              );
-
-              Alert.alert("Success", "You have left the ministry");
-              router.push("/(tabs)/MinistriesScreen");
-            } catch (error) {
-              console.error("Error in handleLeaveMinistry:", error);
-              Alert.alert(
-                "Error",
-                "Could not leave the ministry. Please try again."
-              );
-            } finally {
-              setLoading(false);
+            if (authError || !user) {
+              console.error("Auth error when leaving ministry:", authError);
+              Alert.alert("Error", "Authentication error. Please try again.");
+              return;
             }
-          },
+
+            const { error } = await supabase
+              .from("ministry_members")
+              .delete()
+              .eq("ministry_id", ministryId)
+              .eq("user_id", user.id);
+
+            if (error) {
+              console.error("Error leaving ministry:", error);
+              Alert.alert("Error", "Could not leave the ministry. Please try again.");
+              return;
+            }
+
+            // Update local state and cache
+            setIsMember(false);
+
+            if (ministry) {
+              const updatedMinistry = {
+                ...ministry,
+                is_member: false,
+                member_count: (ministry.member_count || 1) - 1,
+              };
+
+              setMinistry(updatedMinistry);
+
+              // Update ministry cache
+              await AsyncStorage.setItem(
+                MINISTRY_CACHE_KEY(ministryId),
+                JSON.stringify(updatedMinistry),
+              );
+            }
+
+            // Update membership cache
+            await AsyncStorage.setItem(
+              MEMBERSHIP_CACHE_KEY(ministryId, user.id),
+              JSON.stringify({
+                isMember: false,
+                lastChecked: new Date().toISOString(),
+                role: null,
+              }),
+            );
+
+            Alert.alert("Success", "You have left the ministry");
+            router.push("/(tabs)/MinistriesScreen");
+          } catch (error) {
+            console.error("Error in handleLeaveMinistry:", error);
+            Alert.alert("Error", "Could not leave the ministry. Please try again.");
+          } finally {
+            setLoading(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   }
 
   // Navigate back
@@ -1368,21 +1367,26 @@ export default function MinistryDetails(): JSX.Element {
     router.push("/(tabs)/MinistriesScreen");
   }, [router]);
 
-  // Refresh data
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData();
-  }, []);
+  // Combine scroll handlers for header opacity and loading more messages
+  const handleScroll = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+      // Track scroll position for header opacity
+      const offsetY = event.nativeEvent.contentOffset.y;
+      scrollY.setValue(offsetY);
+
+      // Check if we're at the top of the list (with some threshold)
+      if (offsetY < 50 && !isLoadingMore && !allMessagesLoaded && messages.length >= 20) {
+        console.log("Reached top, loading older messages");
+        fetchMessages(true);
+      }
+    },
+    [scrollY, isLoadingMore, allMessagesLoaded, messages.length],
+  );
 
   // Render ministry avatar
   const renderMinistryAvatar = useCallback(() => {
     if (ministry?.image_url) {
-      return (
-        <Image
-          source={{ uri: ministry.image_url }}
-          style={styles.ministryAvatarImage}
-        />
-      );
+      return <Image source={{ uri: ministry.image_url }} style={styles.ministryAvatarImage} />;
     }
 
     // Placeholder with initials
@@ -1390,12 +1394,7 @@ export default function MinistryDetails(): JSX.Element {
     const initials = getInitials(ministry?.name || "");
 
     return (
-      <View
-        style={[
-          styles.ministryAvatarPlaceholder,
-          { backgroundColor: avatarColor },
-        ]}
-      >
+      <View style={[styles.ministryAvatarPlaceholder, { backgroundColor: avatarColor }]}>
         <Text style={styles.ministryAvatarInitials}>{initials}</Text>
       </View>
     );
@@ -1404,12 +1403,7 @@ export default function MinistryDetails(): JSX.Element {
   // Render user avatar for messages
   const renderUserAvatar = useCallback((user?: User) => {
     if (user?.profile_image) {
-      return (
-        <Image
-          source={{ uri: user.profile_image }}
-          style={styles.userAvatarImage}
-        />
-      );
+      return <Image source={{ uri: user.profile_image }} style={styles.userAvatarImage} />;
     }
 
     // Placeholder with initials
@@ -1418,9 +1412,7 @@ export default function MinistryDetails(): JSX.Element {
     const initials = getInitials(name);
 
     return (
-      <View
-        style={[styles.userAvatarPlaceholder, { backgroundColor: avatarColor }]}
-      >
+      <View style={[styles.userAvatarPlaceholder, { backgroundColor: avatarColor }]}>
         <Text style={styles.userAvatarInitials}>{initials}</Text>
       </View>
     );
@@ -1446,7 +1438,7 @@ export default function MinistryDetails(): JSX.Element {
 
       // Find existing group or create new one
       const existingGroup = groups.find(
-        (group) => new Date(group.date).toDateString() === messageDate
+        (group) => new Date(group.date).toDateString() === messageDate,
       );
 
       if (existingGroup) {
@@ -1478,7 +1470,7 @@ export default function MinistryDetails(): JSX.Element {
         ))}
       </View>
     ),
-    [currentUser?.id, renderUserAvatar]
+    [currentUser?.id, renderUserAvatar],
   );
 
   // Ministry Info Panel Component
@@ -1498,23 +1490,17 @@ export default function MinistryDetails(): JSX.Element {
         ]}
       >
         <View style={styles.ministryInfoHeader}>
-          <TouchableOpacity
-            style={styles.closeInfoButton}
-            onPress={toggleMinistryInfo}
-          >
+          <TouchableOpacity style={styles.closeInfoButton} onPress={toggleMinistryInfo}>
             <Ionicons name="close" size={24} color="#4A55A2" />
           </TouchableOpacity>
           <Text style={styles.ministryInfoTitle}>Ministry Details</Text>
         </View>
 
         <View style={styles.ministryInfoContent}>
-          <View style={styles.ministryInfoAvatar}>
-            {renderMinistryAvatar()}
-          </View>
+          <View style={styles.ministryInfoAvatar}>{renderMinistryAvatar()}</View>
           <Text style={styles.ministryInfoName}>{ministry?.name}</Text>
           <Text style={styles.ministryInfoMembers}>
-            {ministry?.member_count || 0}{" "}
-            {ministry?.member_count === 1 ? "member" : "members"}
+            {ministry?.member_count || 0} {ministry?.member_count === 1 ? "member" : "members"}
           </Text>
 
           <View style={styles.ministryInfoDescriptionContainer}>
@@ -1525,10 +1511,7 @@ export default function MinistryDetails(): JSX.Element {
           </View>
 
           {isMember && (
-            <TouchableOpacity
-              style={styles.leaveMinistryButton}
-              onPress={handleLeaveMinistry}
-            >
+            <TouchableOpacity style={styles.leaveMinistryButton} onPress={handleLeaveMinistry}>
               <Text style={styles.leaveMinistryButtonText}>Leave Ministry</Text>
             </TouchableOpacity>
           )}
@@ -1554,17 +1537,15 @@ export default function MinistryDetails(): JSX.Element {
         onSend={sendMessage}
         onFocus={() => {
           setIsInputFocused(true);
-          setTimeout(
-            () => messageListRef.current?.scrollToEnd({ animated: true }),
-            200
-          );
+          setTimeout(() => messageListRef.current?.scrollToEnd({ animated: true }), 200);
         }}
         onBlur={() => setIsInputFocused(false)}
+        messageListRef={messageListRef}
       />
     );
-  }, [newMessage, sendMessage]);
+  }, [newMessage, sendMessage, messageListRef]);
 
-  if (loading && !refreshing) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4A55A2" />
@@ -1591,15 +1572,8 @@ export default function MinistryDetails(): JSX.Element {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { paddingBottom: 0 }]}
-      edges={["top", "left", "right"]}
-    >
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent
-      />
+    <SafeAreaView style={[styles.container, { paddingBottom: 0 }]} edges={["top", "left", "right"]}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Floating header effect */}
       <Animated.View
@@ -1632,8 +1606,7 @@ export default function MinistryDetails(): JSX.Element {
               {ministry?.name || "Ministry"}
             </Text>
             <Text style={styles.memberCount}>
-              {ministry?.member_count || 0}{" "}
-              {ministry?.member_count === 1 ? "member" : "members"}
+              {ministry?.member_count || 0} {ministry?.member_count === 1 ? "member" : "members"}
             </Text>
           </View>
         </TouchableOpacity>
@@ -1643,11 +1616,7 @@ export default function MinistryDetails(): JSX.Element {
           onPress={toggleMinistryInfo}
           activeOpacity={0.7}
         >
-          <Ionicons
-            name="information-circle-outline"
-            size={24}
-            color="#5B6EF5"
-          />
+          <Ionicons name="information-circle-outline" size={24} color="#5B6EF5" />
         </TouchableOpacity>
       </View>
 
@@ -1668,16 +1637,11 @@ export default function MinistryDetails(): JSX.Element {
             {messageLoading && messages.length === 0 ? (
               <View style={styles.messageLoadingContainer}>
                 <ActivityIndicator size="large" color="#5B6EF5" />
-                <Text style={styles.messageLoadingText}>
-                  Loading messages...
-                </Text>
+                <Text style={styles.messageLoadingText}>Loading messages...</Text>
               </View>
             ) : messages.length === 0 ? (
               <View style={styles.emptyMessagesContainer}>
-                <LinearGradient
-                  colors={["#5B6EF5", "#8B9DFF"]}
-                  style={styles.emptyMessagesIcon}
-                >
+                <LinearGradient colors={["#5B6EF5", "#8B9DFF"]} style={styles.emptyMessagesIcon}>
                   <FontAwesome5 name="comment-dots" size={40} color="#FFFFFF" />
                 </LinearGradient>
                 <Text style={styles.emptyMessagesTitle}>No Messages Yet</Text>
@@ -1694,21 +1658,16 @@ export default function MinistryDetails(): JSX.Element {
                 contentContainerStyle={[
                   styles.messagesList,
                   {
-                    // Dynamic padding to account for input area and nav bar
-                    paddingBottom: isInputFocused ? 140 : 140 + insets.bottom,
+                    // Ensure adequate padding so last message is above input box
+                    paddingBottom: 200,
                   },
                 ]}
-                onScroll={(event) => {
-                  // Manually set the scroll position
-                  const offsetY = event.nativeEvent.contentOffset.y;
-                  scrollY.setValue(offsetY);
-                }}
-                scrollEventThrottle={16}
-                onRefresh={handleRefresh}
-                refreshing={refreshing}
-                initialNumToRender={15}
+                onScroll={handleScroll}
+                scrollEventThrottle={400} // Reduced for better performance
+                refreshing={false}
+                initialNumToRender={20}
                 maxToRenderPerBatch={10}
-                windowSize={10}
+                windowSize={21}
                 maintainVisibleContentPosition={{
                   minIndexForVisible: 0,
                   autoscrollToTopThreshold: 10,
@@ -1716,29 +1675,16 @@ export default function MinistryDetails(): JSX.Element {
                 keyboardShouldPersistTaps="handled"
                 removeClippedSubviews={Platform.OS === "android"}
                 onContentSizeChange={() => {
-                  if (!isInputFocused) {
+                  if (messages.length > 0 && !isLoadingMore) {
                     messageListRef.current?.scrollToEnd({ animated: false });
                   }
                 }}
                 onLayout={() => {
-                  messageListRef.current?.scrollToEnd({ animated: false });
-                }}
-                onEndReached={() => {
-                  if (messages.length >= 50 && !messageLoading) {
-                    fetchMessages(50, messages.length);
+                  if (messages.length > 0 && !isLoadingMore) {
+                    messageListRef.current?.scrollToEnd({ animated: false });
                   }
                 }}
-                onEndReachedThreshold={0.2}
-                ListFooterComponent={
-                  messages.length >= 50 && messageLoading ? (
-                    <View style={styles.loadMoreContainer}>
-                      <ActivityIndicator size="small" color="#5B6EF5" />
-                      <Text style={styles.loadMoreText}>
-                        Loading more messages...
-                      </Text>
-                    </View>
-                  ) : null
-                }
+                ListHeaderComponent={isLoadingMore ? <LoadingHeader /> : null}
               />
             )}
           </Animated.View>
@@ -1869,6 +1815,7 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingVertical: 10,
+    paddingBottom: 100, // Larger padding to keep last message above input
   },
   messageLoadingContainer: {
     flex: 1,
@@ -2180,11 +2127,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  loadMoreContainer: {
+  // Style for the loading more indicator at the top
+  loadMoreHeader: {
     padding: 16,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
+    backgroundColor: "rgba(91, 110, 245, 0.1)",
+    borderRadius: 8,
+    margin: 8,
   },
   loadMoreText: {
     marginLeft: 8,
