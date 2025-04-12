@@ -73,20 +73,20 @@ type Enrollment = {
   user_id: string;
 };
 
-// Modern color theme with spiritual tones (same as events page)
+// Modern color theme with spiritual tones - UPDATED WITH RED THEME
 const THEME = {
   primary: "#2D3748",        // Dark slate for text
   secondary: "#4A5568",      // Medium slate for secondary text
   light: "#A0AEC0",          // Light slate for tertiary text
   background: "#F7FAFC",     // Light background
   card: "#FFFFFF",           // White cards
-  accent1: "#EBF4FF",        // Light blue accent
+  accent1: "#FEF2F2",        // Light red accent (updated)
   accent2: "#E6FFFA",        // Light teal accent
   accent3: "#FEFCBF",        // Light yellow accent
   accent4: "#FEE2E2",        // Light red accent
   border: "#E2E8F0",         // Light borders
-  buttonPrimary: "#6B46C1",  // Purple for primary buttons
-  buttonSecondary: "#4C51BF", // Indigo for secondary actions
+  buttonPrimary: "#E53E3E",  // Red for primary buttons (was purple)
+  buttonSecondary: "#C53030", // Darker red for secondary actions (was indigo)
   buttonText: "#FFFFFF",     // White text on buttons
   error: "#E53E3E",          // Error red
   success: "#38A169",        // Success green
@@ -750,7 +750,7 @@ const CourseHomePage: React.FC = () => {
           ]}
         >
           <LinearGradient
-            colors={['#6B46C1', '#4C51BF']}
+            colors={['#E53E3E', '#C53030']} // Red gradient instead of purple
             style={styles.heroBackground}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
     borderColor: THEME.border,
   },
   churchOptionActive: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: THEME.buttonPrimary, // Red instead of purple
     borderColor: THEME.buttonPrimary,
   },
   churchOptionText: {
@@ -1138,18 +1138,18 @@ const styles = StyleSheet.create({
   },
   // Updated description styles
   descriptionContainer: {
-    backgroundColor: THEME.accent1,
+    backgroundColor: THEME.accent1, // Updated to light red background
     borderRadius: 12,
     padding: 12,
     marginTop: 16,
     marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: THEME.buttonPrimary,
+    borderLeftColor: THEME.buttonPrimary, // Red instead of purple
   },
   descriptionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: THEME.buttonPrimary,
+    color: THEME.buttonPrimary, // Red instead of purple
     marginBottom: 6,
   },
   courseDescription: {
@@ -1195,10 +1195,10 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   editActionButton: {
-    backgroundColor: THEME.accent1,
+    backgroundColor: THEME.accent1, // Updated to light red
   },
   editActionText: {
-    color: THEME.buttonPrimary,
+    color: THEME.buttonPrimary, // Red instead of purple
   },
   enrollActionButton: {
     backgroundColor: THEME.success,
