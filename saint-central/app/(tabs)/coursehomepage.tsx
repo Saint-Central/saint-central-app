@@ -66,6 +66,13 @@ type UserChurch = {
   role: string;
 };
 
+// Enrollment type to track user enrollments
+type Enrollment = {
+  id: string;
+  course_id: string;
+  user_id: string;
+};
+
 // Modern color theme with spiritual tones (same as events page)
 const THEME = {
   primary: "#2D3748",        // Dark slate for text
@@ -137,11 +144,13 @@ const CourseHomePage: React.FC = () => {
   const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
   const [hasPermissionToCreate, setHasPermissionToCreate] = useState(false);
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [userEnrollments, setUserEnrollments] = useState<Enrollment[]>([]);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   // Fetch current user on mount
@@ -232,6 +241,28 @@ const CourseHomePage: React.FC = () => {
     }
   };
 
+  // Fetch user's enrollments
+  const fetchUserEnrollments = async () => {
+    if (!user) return;
+    
+    try {
+      // Get all enrollments for the current user
+      const { data, error } = await supabase
+        .from('course_enrollment')
+        .select('id, course_id, user_id')
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      if (data) {
+        setUserEnrollments(data);
+        console.log(`Fetched ${data.length} enrollments for user ${user.id}`);
+      }
+    } catch (error) {
+      console.error("Error fetching user enrollments:", error);
+    }
+  };
+
   // Check if user has permission to create/edit courses
   const checkPermissions = () => {
     if (!user || !selectedChurchId) {
@@ -278,6 +309,9 @@ const CourseHomePage: React.FC = () => {
         setCourses(data);
         setFilteredCourses(data);
         console.log(`Fetched ${data.length} courses for church ${selectedChurchId}`);
+        
+        // After fetching courses, fetch user enrollments
+        await fetchUserEnrollments();
       }
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -292,6 +326,11 @@ const CourseHomePage: React.FC = () => {
     setRefreshing(true);
     await fetchCourses();
     setRefreshing(false);
+  };
+
+  // Check if user is enrolled in a course
+  const isUserEnrolled = (courseId: string): boolean => {
+    return userEnrollments.some(enrollment => enrollment.course_id === courseId);
   };
 
   // Handle enrolling in a course
@@ -325,8 +364,8 @@ const CourseHomePage: React.FC = () => {
           user_id: user.id,
           course_id: courseId,
           enrollment_date: new Date().toISOString(),
-          hide_email: false,
-          hide_phone: false,
+          hide_email: true,
+          hide_phone: true,
           hide_name: false,
         },
       ]);
@@ -335,12 +374,55 @@ const CourseHomePage: React.FC = () => {
         throw error;
       }
 
+      // Refresh enrollments to update UI
+      await fetchUserEnrollments();
       Alert.alert('Success', 'Successfully enrolled in the course!');
     } catch (error) {
       console.error('Error enrolling in course:', error);
       setErrorMessage('Failed to enroll in course. Please try again.');
     } finally {
       setEnrollingId(null);
+    }
+  };
+
+  // Handle leaving a course
+  const handleLeave = async (courseId: string) => {
+    if (!user) {
+      setErrorMessage('Please sign in to leave courses');
+      return;
+    }
+
+    setLeavingId(courseId);
+    setErrorMessage(null);
+
+    try {
+      // Find the enrollment to delete
+      const enrollment = userEnrollments.find(e => e.course_id === courseId);
+      
+      if (!enrollment) {
+        setErrorMessage('You are not enrolled in this course');
+        setLeavingId(null);
+        return;
+      }
+
+      // Delete the enrollment
+      const { error } = await supabase
+        .from('course_enrollment')
+        .delete()
+        .eq('id', enrollment.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh enrollments to update UI
+      await fetchUserEnrollments();
+      Alert.alert('Success', 'Successfully left the course.');
+    } catch (error) {
+      console.error('Error leaving course:', error);
+      setErrorMessage('Failed to leave course. Please try again.');
+    } finally {
+      setLeavingId(null);
     }
   };
 
@@ -477,6 +559,7 @@ const CourseHomePage: React.FC = () => {
     const isPastCourse = courseTime < new Date();
     const isCreator = user && item.created_at === user.id;
     const canEdit = hasPermissionToCreate || isCreator;
+    const isEnrolled = isUserEnrolled(item.id);
     
     return (
       <View
@@ -556,24 +639,47 @@ const CourseHomePage: React.FC = () => {
               </>
             )}
             
-            <TouchableOpacity
-              onPress={() => handleEnroll(item.id)}
-              disabled={enrollingId === item.id}
-              style={[
-                styles.actionButton,
-                styles.enrollActionButton,
-                enrollingId === item.id && styles.enrollActionButtonDisabled,
-              ]}
-            >
-              {enrollingId === item.id ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Feather name="user-plus" size={16} color={THEME.buttonText} />
-                  <Text style={[styles.actionButtonText, styles.enrollActionText]}>Enroll</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {isEnrolled ? (
+              // Show Leave button if enrolled
+              <TouchableOpacity
+                onPress={() => handleLeave(item.id)}
+                disabled={leavingId === item.id}
+                style={[
+                  styles.actionButton,
+                  styles.leaveActionButton,
+                  leavingId === item.id && styles.leaveActionButtonDisabled,
+                ]}
+              >
+                {leavingId === item.id ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="user-minus" size={16} color={THEME.buttonText} />
+                    <Text style={[styles.actionButtonText, styles.leaveActionText]}>Leave</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              // Show Enroll button if not enrolled
+              <TouchableOpacity
+                onPress={() => handleEnroll(item.id)}
+                disabled={enrollingId === item.id}
+                style={[
+                  styles.actionButton,
+                  styles.enrollActionButton,
+                  enrollingId === item.id && styles.enrollActionButtonDisabled,
+                ]}
+              >
+                {enrollingId === item.id ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="user-plus" size={16} color={THEME.buttonText} />
+                    <Text style={[styles.actionButtonText, styles.enrollActionText]}>Enroll</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -1101,6 +1207,15 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   enrollActionText: {
+    color: THEME.buttonText,
+  },
+  leaveActionButton: {
+    backgroundColor: THEME.error,
+  },
+  leaveActionButtonDisabled: {
+    opacity: 0.7,
+  },
+  leaveActionText: {
     color: THEME.buttonText,
   },
 });
