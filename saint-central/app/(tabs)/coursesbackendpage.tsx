@@ -23,6 +23,7 @@ import { FontAwesome5, Feather } from "@expo/vector-icons";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 
 // Type definitions based on the schema
 type CourseEnrollment = {
@@ -285,6 +286,8 @@ export default function CourseDetailsPage() {
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredEnrollments, setFilteredEnrollments] = useState<CourseEnrollment[]>([]);
+
+  const router = useRouter();
 
   // Configure status bar on component mount
   useEffect(() => {
@@ -1005,26 +1008,14 @@ export default function CourseDetailsPage() {
     <SafeAreaView style={styles.outerContainer}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerMainContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Feather name="arrow-left" size={22} color="#4361EE" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Course Details</Text>
-        </View>
-        
-        {/* Search Button - only show if there are enrollments */}
-        {enrollments.length > 0 && (
-          <TouchableOpacity style={styles.searchButton} onPress={toggleSearch}>
-            <FontAwesome5 
-              name={searchVisible ? "times" : "search"} 
-              size={18} 
-              color="#4361EE" 
-            />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.push('/coursehomepage')}
+        >
+          <FontAwesome5 name="arrow-left" size={18} color="#4361EE" />
+        </TouchableOpacity>
+        <Text style={styles.headerText}>Course Details</Text>
+        <View style={styles.headerSpacer} />
       </View>
       
       {/* Search Bar */}
@@ -1481,5 +1472,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 16,
+  },
+  headerText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  headerSpacer: {
+    flex: 1,
   },
 });
