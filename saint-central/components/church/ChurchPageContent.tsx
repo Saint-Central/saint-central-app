@@ -28,6 +28,7 @@ type RootStackParamList = {
   church_events: undefined;
   church_members: { church_id: string; church_name?: string };
   volunteerhomepage: undefined;
+  community: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -254,7 +255,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             title="Community"
             description="Connect with others"
             gradientColors={["#06D6A0", "#1A936F"]}
-            onPress={() => navigation.navigate("volunteerhomepage")}
+            onPress={() => navigation.navigate("community")}
           />
         </ScrollView>
       </Animated.View>
