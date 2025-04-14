@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,16 +14,21 @@ import {
   Vibration,
   Animated,
   ImageBackground,
-  StatusBar,
-  RefreshControl,
-  ScrollView,
   LayoutAnimation,
   UIManager,
-  useColorScheme,
+  InputAccessoryView,
+  Keyboard,
+  Easing,
+  RefreshControl,
+  ScrollView,
+  Alert,
 } from "react-native";
-import { Feather, FontAwesome, MaterialIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { Feather, FontAwesome, FontAwesome5 } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
-import { router } from "expo-router";
+import { Link, router } from "expo-router";
+import { Session } from '@supabase/supabase-js';
+// Auth is handled directly through supabase.auth
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android") {
@@ -68,9 +73,10 @@ interface Intention {
   comments_count?: number | null;
   is_liked?: boolean;
   group_info?: Group | null;
-  visibility?: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups" | "Certain Friends";
+  visibility?: VisibilityType;
   selectedGroups?: (number | string)[];
   selectedFriends?: (number | string)[];
+  selectedChurch?: string;
 }
 
 type IntentionType =
@@ -84,11 +90,55 @@ type IntentionType =
   | "friends"
   | "world"
   | "personal"
+  | "other"
+  | "all";
+type TabType =
+  | "all"
+  | "resolutions"
+  | "prayers"
+  | "goals"
+  | "spiritual"
+  | "family"
+  | "health"
+  | "work"
+  | "friends"
+  | "world"
+  | "personal"
   | "other";
-
+type VisibilityType = "Public" | "Friends" | "Certain Friends" | "Certain Groups" | "Friends & Groups" | "Church" | "Just Me";
 interface Notification {
   message: string;
   type: "error" | "success";
+}
+
+interface FriendRequestSent {
+  id: string;
+  user_id_2: string;
+  status: string;
+  created_at: string;
+  user_2: UserData;
+}
+
+interface FriendRequestIncoming {
+  id: string;
+  user_id_1: string;
+  status: string;
+  created_at: string;
+  user_1: UserData;
+}
+
+interface Friend {
+  id: string;
+  friend: UserData;
+  created_at?: string; // Make created_at optional
+}
+
+interface Like {
+  id: string;
+  user_id: string;
+  likeable_id: string;
+  likeable_type: string;
+  created_at: string;
 }
 
 interface Comment {
@@ -102,123 +152,69 @@ interface Comment {
   user: UserData;
 }
 
-const INTENTION_TYPES = [
-  { 
-    key: "resolution",
-    icon: "flag" as const,
-    iconProvider: "FontAwesome" as const,
-    gradient: ["#FF6B6B", "#FF8E8E"],
-    description: "A commitment or promise to change or improve"
+interface Church {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  created_at: string;
+}
+
+interface ChurchMember {
+  id: string;
+  church_id: string;
+  user_id: string;
+  role: string;
+  church: Church;
+}
+
+interface IntentionCardProps {
+  item: Intention;
+  currentUserId: string | null;
+  onLike: (id: string, isLiked: boolean) => void;
+  onComment: (intentionId: string) => void;
+  onEdit: (intention: Intention) => void;
+  onDelete: (id: string) => void;
+  likeScaleAnim: Animated.Value;
+  likeOpacityAnim: Animated.Value;
+  isCommentsExpanded: boolean;
+  comments: Comment[];
+  newComment: string;
+  setNewComment: (text: string) => void;
+  handleAddComment: (intentionId: string) => void;
+  commentsLoading: boolean;
+}
+
+// Import background image
+const backgroundImageRequire = require("../../assets/images/community-image.jpg");
+
+// Define visibility options with icons and in desired order
+const visibilityOptions = [
+  {
+    label: "Friends",
+    icon: <Feather name="users" size={16} color="#FFFFFF" />,
   },
-  { 
-    key: "prayer",
-    icon: "star" as const,
-    iconProvider: "FontAwesome" as const,
-    gradient: ["#4ECDC4", "#45B7AF"],
-    description: "A request for divine intervention or guidance"
+  {
+    label: "Certain Friends",
+    icon: <Feather name="user-check" size={16} color="#FFFFFF" />,
   },
-  { 
-    key: "goal",
-    icon: "target" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#FFD166", "#FFB700"],
-    description: "An objective to achieve in your spiritual journey"
+  {
+    label: "Certain Groups",
+    icon: <Feather name="grid" size={16} color="#FFFFFF" />,
   },
-  { 
-    key: "spiritual",
-    icon: "book-open" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#06D6A0", "#05C191"],
-    description: "Related to faith, worship, or spiritual growth"
+  {
+    label: "Friends & Groups",
+    icon: <FontAwesome5 name="globe" size={16} color="#FFFFFF" />,
   },
-  { 
-    key: "family",
-    icon: "users" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#118AB2", "#0F7A9D"],
-    description: "Prayers or concerns for family members"
+  {
+    label: "Church",
+    icon: <FontAwesome5 name="church" size={16} color="#FFFFFF" />,
   },
-  { 
-    key: "health",
-    icon: "heart" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#EF476F", "#D63E63"],
-    description: "Physical or mental well-being concerns"
-  },
-  { 
-    key: "work",
-    icon: "briefcase" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#073B4C", "#052E3A"],
-    description: "Career, job, or professional matters"
-  },
-  { 
-    key: "friends",
-    icon: "user-plus" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#7209B7", "#5F0A9E"],
-    description: "Prayers for friends or social relationships"
-  },
-  { 
-    key: "world",
-    icon: "globe" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#3A0CA3", "#2F0A82"],
-    description: "Global concerns or world events"
-  },
-  { 
-    key: "personal",
-    icon: "user" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#F72585", "#D61F73"],
-    description: "Personal growth or individual matters"
-  },
-  { 
-    key: "other",
-    icon: "more-horizontal" as const,
-    iconProvider: "Feather" as const,
-    gradient: ["#6C757D", "#5A6268"],
-    description: "Other types of intentions"
-  }
+  { label: "Just Me", icon: <Feather name="user" size={16} color="#FFFFFF" /> },
 ];
 
-const VISIBILITY_OPTIONS = [
-  {
-    key: "Friends",
-    icon: "users",
-    iconProvider: "Feather",
-    description: "Visible to all your friends"
-  },
-  {
-    key: "Certain Friends",
-    icon: "user-check",
-    iconProvider: "Feather",
-    description: "Only visible to selected friends"
-  },
-  {
-    key: "Certain Groups",
-    icon: "grid",
-    iconProvider: "Feather",
-    description: "Only visible to selected groups"
-  },
-  {
-    key: "Friends & Groups",
-    icon: "globe",
-    iconProvider: "FontAwesome",
-    description: "Visible to all friends and groups"
-  },
-  { 
-    key: "Just Me", 
-    icon: "user",
-    iconProvider: "Feather",
-    description: "Only visible to you" 
-  },
-];
-
-// Flag to use sample data or real data
-const USE_SAMPLE_DATA = false;
-
-// Parse selected groups helper function
+// Helper: Convert the returned selected_groups field to a proper array.
+// If it's already an array, return it; if it's a string, try to parse it.
 const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
   if (Array.isArray(selected_groups)) {
     return selected_groups;
@@ -238,7 +234,7 @@ const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
   return [];
 };
 
-// Parse selected friends helper function
+// Helper: Convert the returned selected_friends field to a proper array.
 const parseSelectedFriends = (selected_friends: any): (number | string)[] => {
   if (Array.isArray(selected_friends)) {
     return selected_friends;
@@ -258,666 +254,1726 @@ const parseSelectedFriends = (selected_friends: any): (number | string)[] => {
   return [];
 };
 
-// Main Component
-const FaithCommunityApp = () => {
-  // State
+// Separate IntentionCard component
+const IntentionCard: React.FC<IntentionCardProps> = ({
+  item,
+  currentUserId,
+  onLike,
+  onComment,
+  onEdit,
+  onDelete,
+  likeScaleAnim,
+  likeOpacityAnim,
+  isCommentsExpanded,
+  comments,
+  newComment,
+  setNewComment,
+  handleAddComment,
+  commentsLoading,
+}) => {
+  const renderCommentItem = ({ item: comment }: { item: Comment }) => (
+    <View style={styles.commentItem}>
+      <View style={styles.commentHeader}>
+        <View style={styles.commentAvatar}>
+          <Feather name="user" size={18} color="#FAC898" />
+        </View>
+        <Text style={styles.commentAuthor}>{comment.user.first_name} {comment.user.last_name}</Text>
+        <Text style={styles.commentTime}>{new Date(comment.created_at).toLocaleDateString()}</Text>
+      </View>
+      <Text style={styles.commentContent}>{comment.content}</Text>
+    </View>
+  );
+
+  return (
+    <View style={styles.intentionCard}>
+      <View style={styles.intentionHeader}>
+        <View style={styles.intentionAvatar}>
+          <Feather name="user" size={18} color="#FAC898" />
+        </View>
+        <View style={styles.intentionHeaderText}>
+          <Text style={styles.intentionAuthor}>
+            {item.user.first_name} {item.user.last_name}
+            {item.user_id === currentUserId && <Text style={styles.authorTag}> • You</Text>}
+          </Text>
+          <View style={styles.intentionMeta}>
+            <View style={styles.intentionTypeTag}>
+              {item.type === "prayer" ? (
+                <FontAwesome name="hand-peace-o" size={12} color="#FAC898" />
+              ) : item.type === "resolution" ? (
+                <Feather name="book-open" size={12} color="#FAC898" />
+              ) : item.type === "goal" ? (
+                <Feather name="target" size={12} color="#FAC898" />
+              ) : item.type === "spiritual" ? (
+                <FontAwesome name="star" size={12} color="#FAC898" />
+              ) : item.type === "family" ? (
+                <Feather name="users" size={12} color="#FAC898" />
+              ) : item.type === "health" ? (
+                <Feather name="heart" size={12} color="#FAC898" />
+              ) : item.type === "work" ? (
+                <Feather name="briefcase" size={12} color="#FAC898" />
+              ) : item.type === "friends" ? (
+                <Feather name="user-plus" size={12} color="#FAC898" />
+              ) : item.type === "world" ? (
+                <Feather name="globe" size={12} color="#FAC898" />
+              ) : item.type === "personal" ? (
+                <Feather name="user" size={12} color="#FAC898" />
+              ) : (
+                <Feather name="more-horizontal" size={12} color="#FAC898" />
+              )}
+              <Text style={styles.intentionTypeText}>
+                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+              </Text>
+            </View>
+            <Text style={styles.intentionTime}>
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}{" "}
+              • {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+          </View>
+          {item.group_info && (
+            <View style={styles.groupTag}>
+              <Feather name="users" size={12} color="#FAC898" />
+              <Text style={styles.groupTagText}>Shared group(s): {item.group_info.name}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      <View style={styles.intentionContent}>
+        <Text style={styles.intentionTitle}>{item.title}</Text>
+        <Text style={styles.intentionDescription}>{item.description}</Text>
+      </View>
+      <View style={styles.intentionActions}>
+        <TouchableOpacity
+          style={[styles.intentionAction, item.is_liked && styles.intentionActionActive]}
+          onPress={() => onLike(item.id, !!item.is_liked)}
+        >
+          <View style={styles.likeButtonContainer}>
+            <Animated.View
+              style={[
+                styles.likeRipple,
+                {
+                  opacity: likeOpacityAnim,
+                  transform: [{ scale: Animated.multiply(likeScaleAnim, 2) }],
+                },
+              ]}
+            />
+            <Animated.View style={{ transform: [{ scale: likeScaleAnim }] }}>
+              <FontAwesome
+                name={item.is_liked ? "heart" : "heart-o"}
+                size={18}
+                color={item.is_liked ? "#E9967A" : "#FAC898"}
+              />
+            </Animated.View>
+          </View>
+          <Text style={[styles.actionText, item.is_liked && styles.actionTextActive]}>
+            {item.is_liked ? "Liked" : "Support"} {item.likes_count ? `(${item.likes_count})` : ""}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.intentionAction} onPress={() => onComment(item.id)}>
+          <Feather name="message-circle" size={18} color="#FAC898" />
+          <Text style={styles.actionText}>
+            {isCommentsExpanded ? "Hide Comments" : "Comment"}{" "}
+            {item.comments_count ? `(${item.comments_count})` : ""}
+          </Text>
+        </TouchableOpacity>
+        {item.user_id === currentUserId && (
+          <TouchableOpacity style={styles.intentionAction} onPress={() => onEdit(item)}>
+            <Feather name="edit" size={18} color="#FAC898" />
+            <Text style={styles.actionText}>Edit</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {isCommentsExpanded && (
+        <View style={styles.commentsSection}>
+          <View style={styles.commentsDivider} />
+          <View style={styles.addCommentContainer}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a comment..."
+              placeholderTextColor="rgba(250, 200, 152, 0.5)"
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline={true}
+              inputAccessoryViewID="accessoryViewID"
+            />
+            <TouchableOpacity style={styles.sendButton} onPress={() => handleAddComment(item.id)}>
+              <Feather name="send" size={22} color="#FAC898" />
+            </TouchableOpacity>
+          </View>
+          {commentsLoading ? (
+            <ActivityIndicator size="small" color="#FAC898" style={styles.commentsLoading} />
+          ) : (
+            <>
+              {comments.length > 0 ? (
+                <FlatList
+                  data={comments}
+                  renderItem={renderCommentItem}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                  contentContainerStyle={styles.commentsList}
+                />
+              ) : (
+                <View style={styles.emptyComments}>
+                  <Text style={styles.emptyCommentsText}>No comments yet.</Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  backgroundImage: { flex: 1, width: "100%", height: "100%" },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 1)",
+  },
+  container: { flex: 1, paddingTop: Platform.OS === "android" ? 20 : 0 },
+  notification: {
+    position: "absolute",
+    top: 50,
+    left: 15,
+    right: 15,
+    padding: 12,
+    borderRadius: 15,
+    zIndex: 100,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    borderWidth: 1,
+  },
+  errorNotification: {
+    backgroundColor: "rgba(220, 38, 38, 0.2)",
+    borderColor: "rgba(220, 38, 38, 0.4)",
+  },
+  successNotification: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    borderColor: "rgba(16, 185, 129, 0.4)",
+  },
+  notificationText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  header: {
+    paddingHorizontal: 15,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(250, 200, 152, 0.1)",
+    zIndex: 10,
+  },
+  headerTitleContainer: { flexDirection: "row", alignItems: "center" },
+  headerTitle: {
+    fontSize: 36,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    letterSpacing: 1,
+    marginRight: 10,
+  },
+  headerFilterIndicator: { alignItems: "center", justifyContent: "center" },
+  filterDropdown: {
+    position: "absolute",
+    left: 15,
+    right: 15,
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    borderRadius: 10,
+    padding: 5,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  filterOption: { paddingVertical: 12, paddingHorizontal: 15, borderRadius: 8 },
+  activeFilterOption: { backgroundColor: "rgba(250, 200, 152, 0.2)" },
+  filterOptionText: { color: "#FFFFFF", fontSize: 16, fontWeight: "500" },
+  activeFilterOptionText: { color: "#FAC898", fontWeight: "600" },
+  intentionList: { padding: 15, paddingBottom: 100 },
+  intentionCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  intentionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  intentionAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  intentionHeaderText: { flex: 1 },
+  intentionTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "500" },
+  intentionSubtitle: {
+    color: "rgba(250, 200, 152, 0.9)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  intentionDescription: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  intentionActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 5,
+  },
+  intentionAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 5,
+  },
+  intentionActionActive: { opacity: 1 },
+  likeButtonContainer: {
+    position: "relative",
+    width: 26,
+    height: 26,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  likeRipple: {
+    position: "absolute",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(233, 150, 122, 0.3)",
+  },
+  actionText: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  actionTextActive: { color: "#E9967A" },
+  groupTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginTop: 5,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.3)",
+  },
+  groupTagText: {
+    color: "#FAC898",
+    fontSize: 12,
+    marginLeft: 5,
+    fontWeight: "600",
+  },
+  commentsSection: { marginTop: 10 },
+  commentsDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginVertical: 10,
+  },
+  commentsList: { paddingVertical: 5 },
+  commentsLoading: { marginVertical: 10 },
+  commentItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  commentAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  commentAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginRight: 8,
+  },
+  commentTime: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  commentContent: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  emptyComments: { padding: 10, alignItems: "center" },
+  emptyCommentsText: { color: "rgba(255, 255, 255, 0.6)", fontSize: 14 },
+  addCommentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    color: "#FFFFFF",
+    marginRight: 10,
+    maxHeight: 80,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    marginTop: 20,
+  },
+  emptyStateText: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  emptyStateButton: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    borderRadius: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
+  },
+  emptyStateButtonText: { color: "#FFFFFF", fontWeight: "600" },
+  intentionContent: { paddingVertical: 10 },
+  intentionAuthor: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  authorTag: {
+    color: "rgba(250, 200, 152, 0.9)",
+    fontSize: 14,
+    fontWeight: "normal",
+  },
+  intentionMeta: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  intentionTypeTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(250, 200, 152, 0.1)",
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  intentionTypeText: { color: "#FAC898", fontSize: 12, marginLeft: 4 },
+  intentionTime: { color: "rgba(255, 255, 255, 0.6)", fontSize: 12 },
+  friendsSection: { flex: 1, paddingHorizontal: 15 },
+  friendsTabs: {
+    flexDirection: "row",
+    paddingVertical: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  friendTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 30,
+    marginHorizontal: 5,
+    position: "relative",
+  },
+  activeFriendTab: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  friendTabText: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  activeFriendTabText: { color: "#FFFFFF", fontWeight: "600" },
+  tabBadge: {
+    position: "absolute",
+    top: -5,
+    right: 20,
+    backgroundColor: "#E9967A",
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: "center",
+  },
+  tabBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "bold" },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
+    marginVertical: 15,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, height: 44, color: "#FFFFFF", fontSize: 16 },
+  userList: { paddingBottom: 100 },
+  userCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  userHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  userAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  userInfo: { flex: 1 },
+  userName: { color: "#FFFFFF", fontSize: 18, fontWeight: "600" },
+  userSubtitle: {
+    color: "rgba(250, 200, 152, 0.9)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  userActions: { flexDirection: "row", justifyContent: "space-between" },
+  userAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 5,
+  },
+  requestSubtitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginVertical: 10,
+  },
+  noResultsText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 14,
+    paddingVertical: 20,
+    textAlign: "center",
+  },
+  requestList: { paddingBottom: 100 },
+  friendCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  friendActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  statusText: { color: "rgba(255, 255, 255, 0.8)", fontSize: 12 },
+  requestCancelButton: {
+    backgroundColor: "rgba(220, 38, 38, 0.2)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(220, 38, 38, 0.4)",
+  },
+  requestCancelButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  friendRequestActions: { flexDirection: "row", gap: 10, marginTop: 10 },
+  acceptButton: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.4)",
+  },
+  acceptButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  declineButton: {
+    backgroundColor: "rgba(220, 38, 38, 0.2)",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(220, 38, 38, 0.4)",
+  },
+  declineButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  friendsList: { paddingBottom: 100 },
+  removeButton: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  removeButtonText: {
+    color: "#E9967A",
+    fontSize: 14,
+    marginLeft: 6,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.92)", // Almost completely opaque
+    justifyContent: "center",
+    paddingVertical: 20,
+    paddingBottom: 60,
+  },
+  modalContent: {
+    backgroundColor: "rgba(20, 18, 17, 0.99)", // Even darker content
+    borderRadius: 15,
+    padding: 20,
+    margin: 20,
+    maxHeight: "80%",
+    borderColor: "rgba(250, 200, 152, 0.1)", // Subtle border
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 15,
+  },
+  modalText: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  formGroup: { marginBottom: 15 },
+  formLabel: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  pickerContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  typeOption: {
+    flex: 1,
+    minWidth: "30%",
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    backgroundColor: "rgba(41, 37, 36, 0.5)",
+    marginBottom: 8,
+  },
+  selectedTypeOption: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    borderColor: "rgba(250, 200, 152, 0.5)",
+  },
+  typeOptionText: { color: "#FFFFFF", fontSize: 14, fontWeight: "500" },
+  formInput: {
+    backgroundColor: "rgba(41, 37, 36, 0.9)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    color: "#FFFFFF",
+    padding: 12,
+    fontSize: 16,
+  },
+  formTextarea: {
+    backgroundColor: "rgba(41, 37, 36, 0.9)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    color: "#FFFFFF",
+    padding: 12,
+    height: 120,
+    fontSize: 16,
+  },
+  formTextareaFocused: { height: 200 },
+  // Dropdown styles for visibility
+  dropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(41, 37, 36, 0.9)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginBottom: 10,
+  },
+  dropdownText: { color: "#FFFFFF", fontSize: 16 },
+  dropdownContent: { flexDirection: "row", alignItems: "center" },
+  dropdownOptions: {
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    borderRadius: 10,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  dropdownOption: { paddingVertical: 10, paddingHorizontal: 12 },
+  dropdownOptionContent: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dropdownOptionText: { color: "#FFFFFF", fontSize: 16 },
+  // Group selector styles
+  groupSelectorContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "rgba(41, 37, 36, 0.8)",
+    borderRadius: 10,
+  },
+  groupSelectorLabel: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 5,
+  },
+  groupSelectorList: { flexDirection: "row", flexWrap: "wrap" },
+  groupOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  groupOptionSelected: {
+    backgroundColor: "rgba(250, 200, 152, 0.4)",
+    borderColor: "rgba(250, 200, 152, 0.6)",
+  },
+  groupOptionText: { color: "#FFFFFF", fontSize: 14, fontWeight: "500" },
+  // Accessory view for iOS keyboard
+  accessory: { backgroundColor: "#222", padding: 10, alignItems: "flex-end" },
+  accessoryText: { color: "#FFF", fontSize: 16, fontWeight: "600" },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 20,
+    gap: 10,
+  },
+  cancelButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  cancelButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  createButton: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
+  },
+  createButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  deleteButton: {
+    backgroundColor: "rgba(220, 38, 38, 0.2)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(220, 38, 38, 0.4)",
+  },
+  deleteButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  loadingOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 100,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(233, 150, 122, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 1000,
+  },
+  textInputContainer: {
+    position: "relative",
+  },
+  closeButton: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
+  },
+  fabMenu: {
+    position: "absolute",
+    right: 20,
+    bottom: 170,
+    borderRadius: 15,
+    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    padding: 10,
+    paddingVertical: 15,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    zIndex: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    width: 180,
+  },
+  fabMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+  },
+  fabMenuItemText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    marginLeft: 10,
+    fontWeight: "500",
+  },
+  fabMenuBadge: { color: "#E9967A", fontWeight: "600" },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignSelf: "flex-start",
+  },
+  backButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+  friendSelectorContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 10,
+    backgroundColor: "rgba(41, 37, 36, 0.8)",
+    borderRadius: 10,
+    maxHeight: 120,
+  },
+  friendSelectorList: {
+    flexGrow: 0,
+  },
+  friendOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginRight: 8,
+    marginBottom: 8,
+    minWidth: 120,
+    alignItems: "center",
+  },
+  friendOptionSelected: {
+    backgroundColor: "rgba(250, 200, 152, 0.4)",
+    borderColor: "rgba(250, 200, 152, 0.6)",
+    transform: [{ scale: 1.02 }],
+  },
+  friendOptionText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  modalScrollView: {
+    maxHeight: "90%",
+  },
+  friendSelectorLabel: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+});
+
+export default function FaithCommunityApp() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [users, setUsers] = useState<UserData[]>([]);
   const [intentions, setIntentions] = useState<Intention[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [filter, setFilter] = useState<string>("all");
+  const [activeTab] = useState<TabType>("all");
+  const [intentionsFilter, setIntentionsFilter] = useState<"all" | "mine" | "friends" | "groups">(
+    "all",
+  );
   const [showIntentionModal, setShowIntentionModal] = useState<boolean>(false);
-  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
-  const [newComment, setNewComment] = useState<string>("");
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editingIntention, setEditingIntention] = useState<Intention | null>(null);
+  const [showFriendsSearch, setShowFriendsSearch] = useState<boolean>(false);
+  const [friendTab, setFriendTab] = useState<"search" | "requests" | "list">("search");
+  const [sentRequests, setSentRequests] = useState<FriendRequestSent[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequestIncoming[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [newIntention, setNewIntention] = useState<{
     title: string;
     description: string;
     type: IntentionType;
-    visibility: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups" | "Certain Friends";
+    visibility: VisibilityType;
     selectedGroups: (number | string)[];
     selectedFriends: (number | string)[];
+    selectedChurch?: string;
   }>({
     title: "",
     description: "",
     type: "prayer",
     visibility: "Friends",
     selectedGroups: [],
-    selectedFriends: []
+    selectedFriends: [],
   });
-  const [showTypeSelector, setShowTypeSelector] = useState<boolean>(false);
-  const [showVisibilitySelector, setShowVisibilitySelector] = useState<boolean>(false);
-  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [notificationCount, setNotificationCount] = useState<number>(0);
-  const [showNotifications, setShowNotifications] = useState<boolean>(false);
-  const [showFilterOptions, setShowFilterOptions] = useState<boolean>(false);
   const [notification, setNotification] = useState<Notification | null>(null);
-  const [userGroups, setUserGroups] = useState<Group[]>([]);
-  const [friends, setFriends] = useState<UserData[]>([]);
-  const [selectedGroups, setSelectedGroups] = useState<(number | string)[]>([]);
-  const [selectedFriends, setSelectedFriends] = useState<(number | string)[]>([]);
-  const [editingIntention, setEditingIntention] = useState<Intention | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
-  const [intentionToDelete, setIntentionToDelete] = useState<string | null>(null);
-  const [showGroupSelector, setShowGroupSelector] = useState<boolean>(false);
-  const [showFriendSelector, setShowFriendSelector] = useState<boolean>(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    intentionId: string | null;
+  }>({ isOpen: false, intentionId: null });
+  const [friendRequestCount, setFriendRequestCount] = useState<number>(0);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  
-  // Theme and appearance
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
-  const tabBarHeight = 80; // Estimated height
-  
-  // Animations
+  const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [groupsLoaded, setGroupsLoaded] = useState<boolean>(false);
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const [showFabMenu, setShowFabMenu] = useState<boolean>(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
+  // Visibility dropdown states in modals
+  const [showVisibilityDropdownNew, setShowVisibilityDropdownNew] = useState<boolean>(false);
+  const [showVisibilityDropdownEdit, setShowVisibilityDropdownEdit] = useState<boolean>(false);
+  // Use state to track focus of description so the accessory view appears
+  const [createDescriptionFocused, setCreateDescriptionFocused] = useState(false);
+  const [editDescriptionFocused, setEditDescriptionFocused] = useState(false);
+  const headerRef = useRef<View>(null);
+  const [headerHeight, setHeaderHeight] = useState<number>(0);
+  const filterDropdownAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const fabAnim = useRef(new Animated.Value(1)).current;
-  const searchBarAnim = useRef(new Animated.Value(0)).current;
-  const filterOptionsAnim = useRef(new Animated.Value(0)).current;
-  const likeAnimations = useRef(new Map()).current;
-  
-  // Header animation values
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp'
+  const likeScaleAnimations = useRef<Map<string, Animated.Value>>(new Map());
+  const likeOpacityAnimations = useRef<Map<string, Animated.Value>>(new Map());
+  const fabMenuAnimation = useRef(new Animated.Value(0)).current;
+  const fabRotation = fabMenuAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "45deg"],
   });
-  
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 60],
-    extrapolate: 'clamp'
-  });
+  // Add this near the top of the component where other state is defined
+  const [selectedAnim] = useState(() => new Animated.Value(0));
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [selectedFriends, setSelectedFriends] = useState<UserData[]>([]);
+  const [userChurches, setUserChurches] = useState<ChurchMember[]>([]);
+  const [selectedChurch, setSelectedChurch] = useState<Church | null>(null);
+  const [isLoadingChurches, setIsLoadingChurches] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('');
+  const [visibility, setVisibility] = useState<string>('public');
 
-  // Initialize - Fetch current user and data
+  // Set up auth listener
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          setCurrentUserId(data.user.id);
-        }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
 
-        await Promise.all([
-          fetchIntentions(),
-          fetchUserGroups(),
-          fetchFriends(),
-          fetchFriendRequestsCount(),
-        ]);
-      } catch (error) {
-        console.error("Error initializing app:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-    initializeApp();
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Effect to handle notification auto-dismiss
+  const toggleNewGroupSelection = (groupId: string) => {
+    const currentSelected = newIntention.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setNewIntention({
+        ...newIntention,
+        selectedGroups: currentSelected.filter((id) => id !== groupId),
+      });
+    } else {
+      setNewIntention({
+        ...newIntention,
+        selectedGroups: [...currentSelected, groupId],
+      });
+    }
+  };
+
+  const toggleEditGroupSelection = (groupId: string) => {
+    if (!editingIntention) return;
+    const currentSelected = editingIntention.selectedGroups || [];
+    if (currentSelected.includes(groupId)) {
+      setEditingIntention({
+        ...editingIntention,
+        selectedGroups: currentSelected.filter((id) => id !== groupId),
+      });
+    } else {
+      setEditingIntention({
+        ...editingIntention,
+        selectedGroups: [...currentSelected, groupId],
+      });
+    }
+  };
+
+  const toggleNewFriendSelection = (friendId: string) => {
+    const currentSelected = newIntention.selectedFriends || [];
+    const isSelected = currentSelected.includes(friendId);
+
+    // Animate the selection
+    Animated.spring(selectedAnim, {
+      toValue: isSelected ? 0 : 1,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 40,
+    }).start();
+
+    setNewIntention({
+      ...newIntention,
+      selectedFriends: isSelected
+        ? currentSelected.filter((id) => id !== friendId)
+        : [...currentSelected, friendId],
+    });
+  };
+
+  const toggleEditFriendSelection = (friendId: string) => {
+    if (!editingIntention) return;
+    const currentSelected = editingIntention.selectedFriends || [];
+    if (currentSelected.includes(friendId)) {
+      setEditingIntention({
+        ...editingIntention,
+        selectedFriends: currentSelected.filter((id) => id !== friendId),
+      });
+    } else {
+      setEditingIntention({
+        ...editingIntention,
+        selectedFriends: [...currentSelected, friendId],
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (intentionsFilter === "all" && !groupsLoaded) return;
+    fetchIntentions();
+  }, [intentionsFilter, activeTab, groupsLoaded]);
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) setCurrentUserId(data.user.id);
+      } catch (error) {
+        console.error("Error getting current user:", error);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    if (currentUserId) fetchUserGroups();
+  }, [currentUserId]);
+
+  useEffect(() => {
+    setNotification(null);
+    if (showFriendsSearch) {
+      if (friendTab === "requests") fetchFriendRequests();
+      else if (friendTab === "list") fetchFriends();
+    }
+  }, [showFriendsSearch, friendTab]);
+
+  useEffect(() => {
+    fetchIncomingRequestsCount();
+  }, []);
+
   useEffect(() => {
     if (notification) {
-      const timer = setTimeout(() => {
-        setNotification(null);
-      }, 3000);
+      const timer = setTimeout(() => setNotification(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [notification]);
 
-  // Effect to fetch user groups when currentUserId changes
   useEffect(() => {
-    if (currentUserId) {
-      fetchUserGroups();
-    }
-  }, [currentUserId]);
-
-  // Effect to fetch intentions when filter changes
-  useEffect(() => {
-    fetchIntentions();
-  }, [filter]);
-
-  // Effect to fetch comments when expandedCommentId changes
-  useEffect(() => {
-    if (expandedCommentId) {
-      fetchComments(expandedCommentId);
-    }
+    if (expandedCommentId) fetchComments(expandedCommentId);
   }, [expandedCommentId]);
 
-  // Get animation reference for like button
-  const getLikeAnimation = (intentionId: string): Animated.Value => {
-    try {
-      // Validate the intentionId
-      if (!intentionId || typeof intentionId !== 'string') {
-        console.error('Invalid intentionId provided to getLikeAnimation:', intentionId);
-        // Return a default animation value as fallback
-        return new Animated.Value(1);
-      }
+  // Always render the dropdown, but disable pointer events when hidden.
+  useEffect(() => {
+    Animated.timing(filterDropdownAnim, {
+      toValue: showFilterDropdown ? 1 : 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [showFilterDropdown]);
 
-      // Check if animation exists for this ID, create if not
-      if (!likeAnimations.has(intentionId)) {
-        likeAnimations.set(intentionId, new Animated.Value(1));
-      }
-
-      // Return the animation
-      return likeAnimations.get(intentionId);
-    } catch (error) {
-      console.error('Error in getLikeAnimation:', error);
-      // Return a default animation value as fallback
-      return new Animated.Value(1);
+  const getLikeScaleAnimation = (intentionId: string): Animated.Value => {
+    if (!likeScaleAnimations.current.has(intentionId)) {
+      likeScaleAnimations.current.set(intentionId, new Animated.Value(1));
     }
+    return likeScaleAnimations.current.get(intentionId) as Animated.Value;
   };
 
-  // Fetch friend requests count
-  const fetchFriendRequestsCount = async (): Promise<void> => {
+  const getLikeOpacityAnimation = (intentionId: string): Animated.Value => {
+    if (!likeOpacityAnimations.current.has(intentionId)) {
+      likeOpacityAnimations.current.set(intentionId, new Animated.Value(0));
+    }
+    return likeOpacityAnimations.current.get(intentionId) as Animated.Value;
+  };
+
+  const isUserFriend = async (currentUserId: string, userId: string): Promise<boolean> => {
     try {
-      if (!currentUserId) return;
-      
-      const { data, error } = await supabase
+      if (currentUserId === userId) return false;
+      const { data: sent, error: sentError } = await supabase
         .from("friends")
         .select("id")
+        .eq("user_id_1", currentUserId)
+        .eq("user_id_2", userId)
+        .eq("status", "accepted")
+        .maybeSingle();
+      if (sentError) throw sentError;
+      const { data: received, error: receivedError } = await supabase
+        .from("friends")
+        .select("id")
+        .eq("user_id_1", userId)
         .eq("user_id_2", currentUserId)
-        .eq("status", "pending");
-      
-      if (error) throw error;
-      setNotificationCount(data ? data.length : 0);
+        .eq("status", "accepted")
+        .maybeSingle();
+      if (receivedError) throw receivedError;
+      return !!(sent || received);
     } catch (error) {
-      console.error("Error fetching friend requests count:", error);
+      console.error("Error checking friendship:", error);
+      return false;
     }
   };
 
-  // Fetch user groups
+  const getHeaderTitle = (): string => {
+    switch (intentionsFilter) {
+      case "mine":
+        return "My Posts";
+      case "friends":
+        return "Friends";
+      case "groups":
+        return "Groups";
+      default:
+        return "Community";
+    }
+  };
+
   const fetchUserGroups = async (): Promise<void> => {
     try {
       if (!currentUserId) return;
-      
       const { data, error } = await supabase
         .from("group_members")
         .select("group:groups(*)")
         .eq("user_id", currentUserId);
-      
       if (error) throw error;
-      
       const groups = data.map((item: any) => item.group);
       setUserGroups(groups || []);
-    } catch (error) {
+      setGroupsLoaded(true);
+    } catch (error: any) {
       console.error("Error fetching user groups:", error);
     }
   };
 
-  // Fetch friends
-  const fetchFriends = async (): Promise<void> => {
-    try {
-      if (!currentUserId) return;
-      
-      // Fetch friends where current user is user_id_1
-      const { data: sentData, error: sentError } = await supabase
-        .from("friends")
-        .select(`
-          user_id_2,
-          user:users!friends_user_id_2_fkey(id, first_name, last_name, created_at)
-        `)
-        .eq("user_id_1", currentUserId)
-        .eq("status", "accepted");
-      
-      if (sentError) throw sentError;
-      
-      // Fetch friends where current user is user_id_2
-      const { data: receivedData, error: receivedError } = await supabase
-        .from("friends")
-        .select(`
-          user_id_1,
-          user:users!friends_user_id_1_fkey(id, first_name, last_name, created_at)
-        `)
-        .eq("user_id_2", currentUserId)
-        .eq("status", "accepted");
-      
-      if (receivedError) throw receivedError;
-      
-      // Combine the lists
-      const friendsList: UserData[] = [];
-      
-      sentData?.forEach((item: any) => {
-        if (item.user) {
-          friendsList.push(item.user);
-        }
-      });
-      
-      receivedData?.forEach((item: any) => {
-        if (item.user) {
-          friendsList.push(item.user);
-        }
-      });
-      
-      setFriends(friendsList);
-    } catch (error) {
-      console.error("Error fetching friends:", error);
-    }
-  };
-
-  // Fetch intentions with proper filtering
-  const fetchIntentions = async (): Promise<void> => {
+  const fetchIntentions = async (type?: IntentionType): Promise<void> => {
     try {
       setIsLoading(true);
-      
-      if (!currentUserId) {
-        setTimeout(() => {
-          setIsLoading(false);
-          setRefreshing(false);
-        }, 500);
-        return;
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // Start building the query
       let query = supabase
-        .from("intentions")
-        .select(`*, user:users (*), visibility, selected_groups, selected_friends`)
-        .order("created_at", { ascending: false });
+        .from('intentions')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            first_name,
+            last_name,
+            profile_image,
+            created_at
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-      // Apply filter
-      if (filter === "mine") {
-        query = query.eq("user_id", currentUserId);
+      if (type && type !== 'all') {
+        query = query.eq('type', type);
       }
-      
+
       const { data, error } = await query;
+
       if (error) throw error;
 
-      if (!data || data.length === 0) {
-        setIntentions([]);
-        setIsLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      // Get user's friends IDs
-      const { data: sentFriends, error: sentError } = await supabase
-        .from("friends")
-        .select("user_id_2")
-        .eq("user_id_1", currentUserId)
-        .eq("status", "accepted");
-      
-      if (sentError) throw sentError;
-
-      const { data: receivedFriends, error: receivedError } = await supabase
-        .from("friends")
-        .select("user_id_1")
-        .eq("user_id_2", currentUserId)
-        .eq("status", "accepted");
-      
-      if (receivedError) throw receivedError;
-
-      // Create a set of friend IDs
-      const friendIds = new Set<string>();
-      
-      if (sentFriends) {
-        sentFriends.forEach((row: { user_id_2: string }) => {
-          friendIds.add(row.user_id_2);
-        });
-      }
-      
-      if (receivedFriends) {
-        receivedFriends.forEach((row: { user_id_1: string }) => {
-          friendIds.add(row.user_id_1);
-        });
-      }
-
-      // Get user's group IDs
-      const userGroupIds = userGroups.map(group => group.id);
-
-      // Process and filter intentions
-      const processedIntentions = await Promise.all(
-        data.map(async (intention: any) => {
-          // Parse selected groups and friends
-          const selectedGroups = parseSelectedGroups(intention.selected_groups);
-          const selectedFriends = parseSelectedFriends(intention.selected_friends);
-
-          // Get like count
-          const { count: likesCount, error: likesError } = await supabase
-            .from("likes")
-            .select("*", { count: "exact", head: false })
-            .eq("likeable_id", intention.id)
-            .eq("likeable_type", "intentions");
-          
-          if (likesError) throw likesError;
-
-          // Get comment count
-          const { count: commentsCount, error: commentsError } = await supabase
-            .from("comments")
-            .select("*", { count: "exact", head: false })
-            .eq("commentable_id", intention.id)
-            .eq("commentable_type", "intentions");
-          
-          if (commentsError) throw commentsError;
-
-          // Check if user has liked this intention
-          const { data: userLike, error: userLikeError } = await supabase
-            .from("likes")
-            .select("id")
-            .eq("likeable_id", intention.id)
-            .eq("likeable_type", "intentions")
-            .eq("user_id", currentUserId)
-            .maybeSingle();
-          
-          if (userLikeError) throw userLikeError;
-
-          // Check if intention should be visible based on filter
-          let isVisible = true;
-          
-          if (filter === "friends") {
-            isVisible = friendIds.has(intention.user_id);
-          } else if (filter === "groups") {
-            isVisible = intention.visibility === "Certain Groups" || 
-              intention.visibility === "Friends & Groups";
-            
-            if (isVisible && intention.visibility === "Certain Groups") {
-              isVisible = selectedGroups.some(groupId => 
-                userGroupIds.includes(String(groupId))
-              );
-            }
-          } else if (filter === "all") {
-            // Check visibility permissions
-            if (intention.user_id !== currentUserId) {
-              switch(intention.visibility) {
-                case "Just Me":
-                  isVisible = false;
-                  break;
-                case "Friends":
-                  isVisible = friendIds.has(intention.user_id);
-                  break;
-                case "Certain Friends":
-                  isVisible = selectedFriends.includes(currentUserId);
-                  break;
-                case "Certain Groups":
-                  isVisible = selectedGroups.some(groupId => 
-                    userGroupIds.includes(String(groupId))
-                  );
-                  break;
-                case "Friends & Groups":
-                  isVisible = friendIds.has(intention.user_id) || 
-                    userGroupIds.some(groupId => 
-                      selectedGroups.includes(groupId)
-                    );
-                  break;
-              }
-            }
-          }
-
-          // Find shared group info if needed
-          let groupInfo = null;
-          
-          if (isVisible && intention.user_id !== currentUserId && intention.visibility === "Certain Groups") {
-            const sharedGroups = selectedGroups.filter(groupId => 
-              userGroupIds.includes(String(groupId))
-            );
-            
-            if (sharedGroups.length > 0) {
-              const sharedGroupId = sharedGroups[0];
-              const matchingGroup = userGroups.find(g => g.id === sharedGroupId);
+      if (data) {
+        // Filter intentions based on visibility
+        const filteredIntentions = await Promise.all(
+          data.map(async (intention) => {
+            switch (intention.visibility) {
+              case "Friends":
+                // Check if the current user is friends with the intention creator
+                const isFriend = await isUserFriend(user.id, intention.user_id);
+                return isFriend || intention.user_id === user.id;
               
-              if (matchingGroup) {
-                groupInfo = {
-                  id: matchingGroup.id,
-                  name: matchingGroup.name
-                };
-              }
+              case "Certain Friends":
+                // Check if the current user is in the selected friends list
+                return intention.selectedFriends?.includes(user.id) || intention.user_id === user.id;
+              
+              case "Certain Groups":
+                // Check if the current user is a member of any selected groups
+                const userGroups = await supabase
+                  .from('group_members')
+                  .select('group_id')
+                  .eq('user_id', user.id);
+                
+                if (userGroups.data) {
+                  return userGroups.data.some(membership => 
+                    intention.selectedGroups?.includes(membership.group_id)
+                  ) || intention.user_id === user.id;
+                }
+                return intention.user_id === user.id;
+              
+              case "Friends & Groups":
+                // Check if the current user is either a friend or in a group with the creator
+                const isFriendOrGroup = await Promise.all([
+                  isUserFriend(user.id, intention.user_id),
+                  supabase
+                    .from('group_members')
+                    .select('group_id')
+                    .eq('user_id', user.id)
+                    .then(({ data }) => 
+                      data?.some(membership => 
+                        intention.group_info?.id === membership.group_id
+                      )
+                    )
+                ]);
+                return isFriendOrGroup.some(Boolean) || intention.user_id === user.id;
+              
+              case "Church":
+                // Visible to creator and members of the same church
+                if (intention.user_id === user.id) return true;
+                
+                // Get the user's church memberships
+                const userChurches = await supabase
+                  .from("church_members")
+                  .select("church_id")
+                  .eq("user_id", user.id);
+                
+                // Get the intention creator's church memberships
+                const creatorChurches = await supabase
+                  .from("church_members")
+                  .select("church_id")
+                  .eq("user_id", intention.user_id);
+                
+                // Check if the user and creator share any church memberships
+                if (userChurches.data && creatorChurches.data) {
+                  const userChurchIds = new Set(userChurches.data.map(m => m.church_id));
+                  return creatorChurches.data.some(membership => 
+                    userChurchIds.has(membership.church_id)
+                  );
+                }
+                
+                return false;
+              
+              case "Just Me":
+                return intention.user_id === user.id;
+              
+              default:
+                return true;
             }
-          }
+          })
+        );
 
-          return {
-            ...intention,
-            likes_count: likesCount || 0,
-            comments_count: commentsCount || 0,
-            is_liked: !!userLike,
-            selectedGroups,
-            selectedFriends,
-            group_info: groupInfo,
-            _isVisible: isVisible // Used for filtering
-          };
-        })
-      );
-
-      // Filter out invisible intentions
-      const filteredIntentions = processedIntentions.filter(
-        intention => intention._isVisible
-      );
-
-      setIntentions(filteredIntentions);
+        const visibleIntentions = data.filter((_, index) => filteredIntentions[index]);
+        setIntentions(visibleIntentions);
+      }
     } catch (error) {
-      console.error("Error fetching intentions:", error);
+      console.error('Error fetching intentions:', error);
       setNotification({
-        message: "Error loading intentions. Please try again.",
-        type: "error"
+        message: 'Failed to fetch intentions',
+        type: 'error'
       });
     } finally {
       setIsLoading(false);
-      setRefreshing(false);
     }
   };
 
-  // Fetch comments for an intention
   const fetchComments = async (intentionId: string): Promise<void> => {
     try {
-      if (!intentionId) {
-        throw new Error("Invalid intention ID");
-      }
-      
       setCommentsLoading(true);
-      
       const { data, error } = await supabase
         .from("comments")
         .select(`*, user:users(*)`)
         .eq("commentable_id", intentionId)
         .eq("commentable_type", "intentions")
         .order("created_at", { ascending: false });
-        
       if (error) throw error;
       setComments(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching comments:", error);
       setComments([]);
       setNotification({
-        message: "Error loading comments. Please try again.",
-        type: "error"
+        message:
+          "Error fetching comments: " + (error instanceof Error ? error.message : String(error)),
+        type: "error",
       });
     } finally {
       setCommentsLoading(false);
     }
   };
 
-  // Toggle comment section
-  const toggleComments = (intentionId: string): void => {
+  const fetchFriendRequests = async (): Promise<void> => {
     try {
-      // Validate intentionId
-      if (!intentionId || typeof intentionId !== 'string') {
-        console.error('Invalid intentionId:', intentionId);
-        return;
+      setIsLoading(true);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
+      const { data: sent, error: sentError } = await supabase
+        .from("friends")
+        .select("id, user_id_2, status, created_at, user_2:users!friends_user_id_2_fkey(*)")
+        .eq("user_id_1", user.id)
+        .eq("status", "pending");
+      if (sentError) throw sentError;
+      interface SentRow {
+        id: string;
+        user_id_2: string;
+        status: string;
+        created_at: string;
+        user_2: UserData | UserData[];
       }
-
-      // Configure animation for smooth transition
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      
-      // Toggle comment section
-      if (expandedCommentId === intentionId) {
-        setExpandedCommentId(null);
-      } else {
-        setExpandedCommentId(intentionId);
-        fetchComments(intentionId);
+      const formattedSent: FriendRequestSent[] = ((sent as SentRow[]) || []).map((row) => ({
+        ...row,
+        user_2: Array.isArray(row.user_2) ? row.user_2[0] : row.user_2,
+      }));
+      const { data: incoming, error: incomingError } = await supabase
+        .from("friends")
+        .select("id, user_id_1, status, created_at, user_1:users!friends_user_id_1_fkey(*)")
+        .eq("user_id_2", user.id)
+        .eq("status", "pending");
+      if (incomingError) throw incomingError;
+      interface IncomingRow {
+        id: string;
+        user_id_1: string;
+        status: string;
+        created_at: string;
+        user_1: UserData | UserData[];
       }
-    } catch (error) {
-      console.error('Error toggling comments:', error);
+      const formattedIncoming: FriendRequestIncoming[] = ((incoming as IncomingRow[]) || []).map(
+        (row) => ({
+          ...row,
+          user_1: Array.isArray(row.user_1) ? row.user_1[0] : row.user_1,
+        }),
+      );
+      setSentRequests(formattedSent);
+      setIncomingRequests(formattedIncoming);
+      setFriendRequestCount(formattedIncoming.length);
+    } catch (error: any) {
+      console.error("Error fetching friend requests:", error);
+      setNotification({
+        message:
+          "Error fetching friend requests: " +
+          (error instanceof Error ? error.message : JSON.stringify(error)),
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Handle like intention
-  const handleLikeIntention = async (intentionId: string): Promise<void> => {
+  const fetchIncomingRequestsCount = async (): Promise<void> => {
     try {
-      if (!currentUserId || !intentionId) return;
-      
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("friends")
+        .select("id")
+        .eq("user_id_2", user.id)
+        .eq("status", "pending");
+      if (error) throw error;
+      setFriendRequestCount(data ? data.length : 0);
+    } catch (error: any) {
+      console.error("Error fetching incoming friend requests count:", error);
+    }
+  };
+
+  const fetchFriends = async (): Promise<void> => {
+    try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (!currentUser) return;
+
+      type FriendRow = {
+        id: string;
+        friend: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          profile_image: string | null;
+          created_at: string;
+        };
+      };
+
+      // Fetch friends where the current user is user_id_1
+      const { data: sentFriends, error: sentError } = await supabase
+        .from("friends")
+        .select(
+          `
+          id,
+          friend:user_id_2 (
+            id,
+            first_name,
+            last_name,
+            profile_image,
+            created_at
+          )
+        `,
+        )
+        .eq("user_id_1", currentUser.id)
+        .eq("status", "accepted")
+        .returns<FriendRow[]>();
+
+      // Fetch friends where the current user is user_id_2
+      const { data: receivedFriends, error: receivedError } = await supabase
+        .from("friends")
+        .select(
+          `
+          id,
+          friend:user_id_1 (
+            id,
+            first_name,
+            last_name,
+            profile_image,
+            created_at
+          )
+        `,
+        )
+        .eq("user_id_2", currentUser.id)
+        .eq("status", "accepted")
+        .returns<FriendRow[]>();
+
+      if (sentError || receivedError) {
+        console.error("Error fetching friends:", sentError || receivedError);
+        return;
+      }
+
+      // Format the friends data to match the Friend interface
+      const formattedFriends: Friend[] = [
+        ...(sentFriends?.map((row) => ({
+          id: row.id,
+          friend: {
+            id: row.friend.id,
+            first_name: row.friend.first_name,
+            last_name: row.friend.last_name,
+            created_at: row.friend.created_at,
+          },
+        })) || []),
+        ...(receivedFriends?.map((row) => ({
+          id: row.id,
+          friend: {
+            id: row.friend.id,
+            first_name: row.friend.first_name,
+            last_name: row.friend.last_name,
+            created_at: row.friend.created_at,
+          },
+        })) || []),
+      ];
+
+      setFriends(formattedFriends);
+    } catch (error) {
+      console.error("Error in fetchFriends:", error);
+    }
+  };
+
+  // Update the useEffect to handle async properly
+  useEffect(() => {
+    const initializeFriends = async () => {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (currentUser) {
+        fetchFriends();
+      }
+    };
+
+    initializeFriends();
+  }, []);
+
+  const handleLikeIntention = async (intentionId: string, isLiked: boolean): Promise<void> => {
+    try {
       Vibration.vibrate(50);
-      
-      // Find the intention
-      const intention = intentions.find(i => i.id === intentionId);
-      if (!intention) return;
-      
-      // Animate the like button
-      const likeAnim = getLikeAnimation(intentionId);
-      Animated.sequence([
-        Animated.timing(likeAnim, {
-          toValue: 0.8,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.spring(likeAnim, {
-          toValue: 1.2,
-          friction: 4,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.spring(likeAnim, {
-          toValue: 1,
-          friction: 4,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-      // Update UI immediately for responsiveness
-      setIntentions(intentions.map(item => {
-        if (item.id === intentionId) {
-          const newIsLiked = !item.is_liked;
-          return {
-            ...item,
-            is_liked: newIsLiked,
-            likes_count: newIsLiked 
-              ? (item.likes_count || 0) + 1 
-              : Math.max(0, (item.likes_count || 1) - 1)
-          };
-        }
-        return item;
-      }));
-      
-      // Update the database
-      if (intention.is_liked) {
-        // Unlike
+      const scaleAnim = getLikeScaleAnimation(intentionId);
+      const opacityAnim = getLikeOpacityAnimation(intentionId);
+      if (!isLiked) {
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(scaleAnim, {
+              toValue: 0.8,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+              toValue: 1.5,
+              friction: 3,
+              tension: 40,
+              useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+              toValue: 1,
+              friction: 3,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(opacityAnim, {
+              toValue: 0.6,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
+      } else {
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 0.8,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
+      if (isLiked) {
         const { error } = await supabase
           .from("likes")
           .delete()
           .eq("likeable_id", intentionId)
           .eq("likeable_type", "intentions")
-          .eq("user_id", currentUserId);
-          
+          .eq("user_id", user.id);
         if (error) throw error;
       } else {
-        // Like
-        const { error } = await supabase
-          .from("likes")
-          .insert({
-            user_id: currentUserId,
-            likeable_id: intentionId,
-            likeable_type: "intentions",
-          });
-          
+        const { data: intentionData, error: intentionError } = await supabase
+          .from("intentions")
+          .select("id")
+          .eq("id", intentionId)
+          .single();
+        if (intentionError) throw intentionError;
+        if (!intentionData) throw new Error("Intention not found");
+        const { error } = await supabase.from("likes").insert({
+          user_id: user.id,
+          likeable_id: intentionId,
+          likeable_type: "intentions",
+        });
         if (error) throw error;
       }
-    } catch (error) {
-      console.error("Error liking intention:", error);
+      setIntentions(
+        intentions.map((intention) =>
+          intention.id === intentionId
+            ? {
+                ...intention,
+                is_liked: !isLiked,
+                likes_count: isLiked
+                  ? (intention.likes_count || 1) - 1
+                  : (intention.likes_count || 0) + 1,
+              }
+            : intention,
+        ),
+      );
+    } catch (error: any) {
+      console.error("Error toggling like:", error);
       setNotification({
-        message: "Error updating like. Please try again.",
-        type: "error"
+        message: `Error ${isLiked ? "unliking" : "liking"} intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
       });
-      
-      // Revert UI change on error
-      fetchIntentions();
     }
   };
 
-  // Handle add comment
   const handleAddComment = async (intentionId: string): Promise<void> => {
     if (!newComment.trim()) {
-      setNotification({ 
-        message: "Please enter a comment", 
-        type: "error" 
-      });
+      setNotification({ message: "Please enter a comment", type: "error" });
       return;
     }
-    
     try {
-      if (!currentUserId) return;
-      
-      // Create a new comment
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("comments")
         .insert({
-          user_id: currentUserId,
+          user_id: user.id,
           commentable_id: intentionId,
           commentable_type: "intentions",
           content: newComment,
         })
         .select(`*, user:users(*)`);
-      
       if (error) throw error;
-      
-      // Update UI with new comment
-      if (data && data.length > 0) {
-        setComments([data[0], ...comments]);
-      }
-      
-      // Update comment count in intentions list
-      setIntentions(intentions.map(intention => {
-        if (intention.id === intentionId) {
-          return {
-            ...intention,
-            comments_count: (intention.comments_count || 0) + 1
-          };
-        }
-        return intention;
-      }));
-      
-      // Clear input
+      if (data && data.length > 0) setComments([...comments, data[0]]);
+      setIntentions(
+        intentions.map((intention) =>
+          intention.id === intentionId
+            ? {
+                ...intention,
+                comments_count: (intention.comments_count || 0) + 1,
+              }
+            : intention,
+        ),
+      );
       setNewComment("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding comment:", error);
       setNotification({
-        message: "Error posting comment. Please try again.",
-        type: "error"
+        message: `Error adding comment: ${error instanceof Error ? error.message : String(error)}`,
+        type: "error",
       });
     }
   };
 
-  // Handle create intention
+  const handleToggleComments = (intentionId: string): void => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (expandedCommentId === intentionId) setExpandedCommentId(null);
+    else setExpandedCommentId(intentionId);
+  };
+
   const handleCreateIntention = async (): Promise<void> => {
     if (!newIntention.title.trim() || !newIntention.description.trim()) {
       setNotification({
-        message: "Please fill in both title and description",
-        type: "error"
+        message: "Please fill in both the title and description.",
+        type: "error",
       });
       return;
     }
-    
     try {
-      if (!currentUserId) return;
-      
-      // Prepare groups and friends based on visibility
-      const finalSelectedGroups = 
-        newIntention.visibility === "Certain Groups" ? selectedGroups : [];
-      const finalSelectedFriends = 
-        newIntention.visibility === "Certain Friends" ? selectedFriends : [];
-      
-      // Create new intention
-      const { data, error } = await supabase
-        .from("intentions")
-        .insert({
-          user_id: currentUserId,
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase.from("intentions").insert([
+        {
+          user_id: user.id,
           title: newIntention.title,
           description: newIntention.description,
           type: newIntention.type,
           visibility: newIntention.visibility,
-          selected_groups: finalSelectedGroups.length > 0 ? JSON.stringify(finalSelectedGroups) : null,
-          selected_friends: finalSelectedFriends.length > 0 ? JSON.stringify(finalSelectedFriends) : null,
-        })
-        .select();
-      
+          selected_groups:
+            newIntention.visibility === "Certain Groups" ? newIntention.selectedGroups : [],
+          selected_friends:
+            newIntention.visibility === "Certain Friends" ? newIntention.selectedFriends : [],
+          selected_church: newIntention.selectedChurch,
+        },
+      ]);
       if (error) throw error;
-      
-      // Reset form and close modal
       setShowIntentionModal(false);
       setNewIntention({
         title: "",
@@ -925,56 +1981,43 @@ const FaithCommunityApp = () => {
         type: "prayer",
         visibility: "Friends",
         selectedGroups: [],
-        selectedFriends: []
+        selectedFriends: [],
+        selectedChurch: newIntention.selectedChurch,
       });
-      setSelectedGroups([]);
-      setSelectedFriends([]);
-      
-      // Show success notification
       setNotification({
         message: "Intention created successfully!",
-        type: "success"
+        type: "success",
       });
-      
-      // Refresh intentions list
       fetchIntentions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating intention:", error);
       setNotification({
-        message: "Error creating intention. Please try again.",
-        type: "error"
+        message: `Error creating intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
       });
     }
   };
 
-  // Handle edit intention
   const handleEditIntention = (intention: Intention): void => {
     setEditingIntention(intention);
-    setSelectedGroups(intention.selectedGroups || []);
-    setSelectedFriends(intention.selectedFriends || []);
-    setShowIntentionModal(true);
+    setShowEditModal(true);
   };
 
-  // Handle update intention
   const handleUpdateIntention = async (): Promise<void> => {
-    if (!editingIntention) return;
-    
-    if (!editingIntention.title.trim() || !editingIntention.description.trim()) {
+    if (
+      !editingIntention ||
+      !editingIntention.title.trim() ||
+      !editingIntention.description.trim()
+    ) {
       setNotification({
-        message: "Please fill in both title and description",
-        type: "error"
+        message: "Please fill in both the title and description.",
+        type: "error",
       });
       return;
     }
-    
     try {
-      // Prepare groups and friends based on visibility
-      const finalSelectedGroups = 
-        editingIntention.visibility === "Certain Groups" ? selectedGroups : [];
-      const finalSelectedFriends = 
-        editingIntention.visibility === "Certain Friends" ? selectedFriends : [];
-      
-      // Update intention
       const { error } = await supabase
         .from("intentions")
         .update({
@@ -982,1776 +2025,1308 @@ const FaithCommunityApp = () => {
           description: editingIntention.description,
           type: editingIntention.type,
           visibility: editingIntention.visibility,
-          selected_groups: finalSelectedGroups.length > 0 ? JSON.stringify(finalSelectedGroups) : null,
-          selected_friends: finalSelectedFriends.length > 0 ? JSON.stringify(finalSelectedFriends) : null,
+          selected_groups:
+            editingIntention.visibility === "Certain Groups"
+              ? editingIntention.selectedGroups || []
+              : [],
+          selected_friends:
+            editingIntention.visibility === "Certain Friends"
+              ? editingIntention.selectedFriends || []
+              : [],
+          selected_church: editingIntention.selectedChurch,
         })
         .eq("id", editingIntention.id);
-      
       if (error) throw error;
-      
-      // Reset form and close modal
-      setShowIntentionModal(false);
+      setShowEditModal(false);
       setEditingIntention(null);
-      setSelectedGroups([]);
-      setSelectedFriends([]);
-      
-      // Show success notification
       setNotification({
         message: "Intention updated successfully!",
-        type: "success"
+        type: "success",
       });
-      
-      // Refresh intentions list
       fetchIntentions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating intention:", error);
       setNotification({
-        message: "Error updating intention. Please try again.",
-        type: "error"
+        message: `Error updating intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
       });
     }
   };
 
-  // Handle delete intention
+  const handleDeleteClick = (intentionId: string): void => {
+    setDeleteModal({ isOpen: true, intentionId });
+  };
+
   const handleDeleteIntention = async (): Promise<void> => {
-    if (!intentionToDelete) return;
-    
+    const { intentionId } = deleteModal;
+    if (!intentionId) {
+      setDeleteModal({ isOpen: false, intentionId: null });
+      return;
+    }
     try {
-      // Delete intention
-      const { error } = await supabase
-        .from("intentions")
-        .delete()
-        .eq("id", intentionToDelete);
-      
+      const { error } = await supabase.from("intentions").delete().eq("id", intentionId);
       if (error) throw error;
-      
-      // Reset state
-      setShowDeleteConfirm(false);
-      setIntentionToDelete(null);
-      
-      // Show success notification
       setNotification({
         message: "Intention deleted successfully!",
-        type: "success"
+        type: "success",
       });
-      
-      // Refresh intentions list
+      setDeleteModal({ isOpen: false, intentionId: null });
       fetchIntentions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting intention:", error);
       setNotification({
-        message: "Error deleting intention. Please try again.",
-        type: "error"
+        message: `Error deleting intention: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
       });
     }
   };
 
-  // Toggle group selection
-  const toggleGroupSelection = (groupId: string | number): void => {
-    setSelectedGroups(
-      selectedGroups.includes(groupId)
-        ? selectedGroups.filter(id => id !== groupId)
-        : [...selectedGroups, groupId]
-    );
-  };
-
-  // Toggle friend selection
-  const toggleFriendSelection = (friendId: string): void => {
-    setSelectedFriends(
-      selectedFriends.includes(friendId)
-        ? selectedFriends.filter(id => id !== friendId)
-        : [...selectedFriends, friendId]
-    );
-  };
-
-  // Handle refresh
-  const onRefresh = (): void => {
-    setRefreshing(true);
-    fetchIntentions();
-  };
-
-  // Toggle search bar
-  const toggleSearch = (): void => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsSearchVisible(!isSearchVisible);
-    Animated.timing(searchBarAnim, {
-      toValue: isSearchVisible ? 0 : 1,
-      duration: 300,
-      useNativeDriver: false
-    }).start();
-  };
-
-  // Toggle filter options
-  const toggleFilterOptions = (): void => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setShowFilterOptions(!showFilterOptions);
-    Animated.timing(filterOptionsAnim, {
-      toValue: showFilterOptions ? 0 : 1,
-      duration: 300,
-      useNativeDriver: false
-    }).start();
-  };
-
-  // Apply filter
-  const applyFilter = (filterType: string): void => {
-    setFilter(filterType);
-    setShowFilterOptions(false);
-    fetchIntentions();
-  };
-
-  // Get intention type icon
-  const getIntentionTypeIcon = (type: IntentionType): JSX.Element => {
-    const intentionType = INTENTION_TYPES.find(t => t.key === type) || INTENTION_TYPES[10];
-    if (intentionType.iconProvider === "FontAwesome") {
-      return <FontAwesome name={intentionType.icon} size={12} color="#FFFFFF" />;
+  const handleSearch = async (): Promise<void> => {
+    if (!searchQuery.trim()) return;
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("users")
+        .select("*, created_at")
+        .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+        .order("first_name", { ascending: true })
+        .limit(20);
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      setUsers([]);
+      setNotification({
+        message:
+          "Error fetching users: " + (error instanceof Error ? error.message : String(error)),
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    return <Feather name={intentionType.icon} size={12} color="#FFFFFF" />;
   };
 
-  // Get intention type color
-  const getIntentionTypeColor = (type: IntentionType): string => {
-    const intentionType = INTENTION_TYPES.find(t => t.key === type) || INTENTION_TYPES[10];
-    return intentionType.gradient[0];
+  const handleAddFriend = async (friendId: string): Promise<void> => {
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("friends")
+        .insert({ user_id_1: user.id, user_id_2: friendId, status: "pending" });
+      if (error) throw error;
+      setNotification({ message: "Friend request sent!", type: "success" });
+      fetchIncomingRequestsCount();
+    } catch (error: any) {
+      console.error("Error adding friend:", error);
+      setNotification({
+        message: `Error adding friend: ${error instanceof Error ? error.message : String(error)}`,
+        type: "error",
+      });
+    }
   };
 
-  // Format date to relative time
-  const formatRelativeTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffSec = Math.round(diffMs / 1000);
-    const diffMin = Math.round(diffSec / 60);
-    const diffHour = Math.round(diffMin / 60);
-    const diffDay = Math.round(diffHour / 24);
-    
-    if (diffSec < 60) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHour < 24) return `${diffHour}h ago`;
-    if (diffDay < 7) return `${diffDay}d ago`;
-    
-    return date.toLocaleDateString();
+  const handleAcceptRequest = async (requestId: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .update({ status: "accepted" })
+        .eq("id", requestId);
+      if (error) throw error;
+      setNotification({ message: "Friend request accepted!", type: "success" });
+      fetchFriendRequests();
+      fetchIncomingRequestsCount();
+    } catch (error: any) {
+      console.error("Error accepting friend request:", error);
+      setNotification({
+        message: `Error accepting request: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
+      });
+    }
   };
 
-  // Render intention card
+  const handleDeclineRequest = async (requestId: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .update({ status: "declined" })
+        .eq("id", requestId);
+      if (error) throw error;
+      setNotification({ message: "Friend request declined.", type: "success" });
+      fetchFriendRequests();
+      fetchIncomingRequestsCount();
+    } catch (error: any) {
+      console.error("Error declining friend request:", error);
+      setNotification({
+        message: `Error declining request: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
+      });
+    }
+  };
+
+  const handleCancelRequest = async (requestId: string): Promise<void> => {
+    try {
+      const { error } = await supabase.from("friends").delete().eq("id", requestId);
+      if (error) throw error;
+      setNotification({ message: "Friend request canceled.", type: "success" });
+      fetchFriendRequests();
+      fetchIncomingRequestsCount();
+    } catch (error: any) {
+      console.error("Error canceling friend request:", error);
+      setNotification({
+        message: `Error canceling request: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        type: "error",
+      });
+    }
+  };
+
+  const handleRemoveFriend = async (friendRelationshipId: string): Promise<void> => {
+    try {
+      const { error } = await supabase.from("friends").delete().eq("id", friendRelationshipId);
+      if (error) throw error;
+      setNotification({
+        message: "Friend removed successfully!",
+        type: "success",
+      });
+      fetchFriends();
+    } catch (error: any) {
+      console.error("Error removing friend:", error);
+      setNotification({
+        message: `Error removing friend: ${error instanceof Error ? error.message : String(error)}`,
+        type: "error",
+      });
+    }
+  };
+
+  const toggleFabMenu = (): void => {
+    Animated.spring(fabMenuAnimation, {
+      toValue: showFabMenu ? 0 : 1,
+      friction: 6,
+      tension: 80,
+      useNativeDriver: true,
+    }).start();
+    setShowFabMenu(!showFabMenu);
+  };
+
+  const handleFabOption = (option: string): void => {
+    Animated.timing(fabMenuAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowFabMenu(false);
+    });
+    switch (option) {
+      case "intention":
+        setShowIntentionModal(true);
+        break;
+      case "friends":
+        setShowFriendsSearch(true);
+        setSearchQuery("");
+        setUsers([]);
+        setFriendTab("search");
+        break;
+      case "groups":
+        router.push("/groups");
+        break;
+    }
+  };
+
+  const handleSelectFilter = (filter: "all" | "mine" | "friends" | "groups"): void => {
+    setIntentionsFilter(filter);
+    setShowFilterDropdown(false);
+  };
+
+  const onHeaderLayout = (event: any) => {
+    const { height } = event.nativeEvent.layout;
+    setHeaderHeight(height);
+  };
+
   const renderIntentionCard = ({ item }: { item: Intention }): JSX.Element => {
-    const isCurrentUser = item.user.id === currentUserId;
+    const scaleAnim = getLikeScaleAnimation(item.id);
+    const opacityAnim = getLikeOpacityAnimation(item.id);
     const isCommentsExpanded = expandedCommentId === item.id;
-    const typeColor = getIntentionTypeColor(item.type);
-    const likeAnim = getLikeAnimation(item.id);
-    
     return (
-      <View style={styles.cardContainer}>
-        <View style={styles.cardHeader}>
-          <View style={styles.userAvatar}>
-            <Feather name="user" size={18} color="#FFF" />
-          </View>
-          
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.userName}>
-              {`${item.user.first_name} ${item.user.last_name}`}
-              {isCurrentUser && <Text style={styles.youLabel}> • You</Text>}
-            </Text>
-            
-            <View style={styles.metaContainer}>
-              <View 
-                style={[
-                  styles.intentionTypeTag,
-                  { backgroundColor: typeColor }
-                ]}
-              >
-                {getIntentionTypeIcon(item.type)}
-                <Text style={styles.intentionTypeText}>
-                  {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                </Text>
-              </View>
-              
-              <Text style={styles.timeText}>{formatRelativeTime(item.created_at)}</Text>
-            </View>
-            
-            {item.group_info && (
-              <View style={styles.groupTag}>
-                <Feather name="users" size={12} color="#FFFFFF" />
-                <Text style={styles.groupText}>{item.group_info.name}</Text>
-              </View>
-            )}
-            
-            <View style={styles.visibilityTag}>
-              <Feather 
-                name={
-                  item.visibility === "Just Me" ? "lock" :
-                  item.visibility === "Certain Friends" ? "user-check" :
-                  item.visibility === "Certain Groups" ? "grid" :
-                  item.visibility === "Friends & Groups" ? "globe" : "users"
-                } 
-                size={10} 
-                color="#FFFFFF" 
-              />
-              <Text style={styles.visibilityText}>{item.visibility}</Text>
-            </View>
-          </View>
-          
-          {isCurrentUser && (
-            <TouchableOpacity 
-              style={styles.moreButton}
-              onPress={() => {
-                setIntentionToDelete(item.id);
-                setShowDeleteConfirm(true);
-              }}
-            >
-              <Feather name="more-vertical" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <View style={styles.cardContent}>
-          <Text style={styles.intentionTitle}>{item.title}</Text>
-          <Text style={styles.intentionDescription}>{item.description}</Text>
-        </View>
-        
-        <View style={styles.cardActions}>
-          <TouchableOpacity 
-            style={[styles.actionButton, item.is_liked && styles.actionButtonActive]}
-            onPress={() => handleLikeIntention(item.id)}
-          >
-            <Animated.View style={{ transform: [{ scale: likeAnim }] }}>
-              <FontAwesome
-                name={item.is_liked ? "heart" : "heart-o"}
-                size={20}
-                color={item.is_liked ? "#E9967A" : "#FFFFFF"}
-              />
-            </Animated.View>
-            <Text style={[styles.actionText, item.is_liked && styles.actionTextActive]}>
-              {item.likes_count ? `${item.likes_count}` : ''}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => toggleComments(item.id)}
-            accessible={true}
-            accessibilityLabel={`${isCommentsExpanded ? "Hide" : "Show"} comments`}
-            accessibilityRole="button"
-          >
-            <Feather 
-              name="message-circle" 
-              size={20} 
-              color="#FFFFFF" 
-            />
-            <Text style={styles.actionText}>
-              {item.comments_count ? `${item.comments_count}` : ''}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton}>
-            <Feather name="share" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-          
-          {isCurrentUser && (
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => handleEditIntention(item)}
-            >
-              <Feather name="edit-2" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {isCommentsExpanded && (
-          <View style={styles.commentsSection}>
-            <View style={styles.addCommentContainer}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Add a prayer or encouragement..."
-                placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                value={newComment}
-                onChangeText={setNewComment}
-                multiline
-              />
-              <TouchableOpacity 
-                style={styles.sendButton}
-                onPress={() => handleAddComment(item.id)}
-              >
-                <Feather name="send" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            
-            {commentsLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginVertical: 10 }} />
-            ) : comments.length > 0 ? (
-              <FlatList
-                data={comments}
-                keyExtractor={(comment) => comment.id}
-                renderItem={({ item: comment }) => (
-                  <View style={styles.commentItem}>
-                    <View style={styles.commentHeader}>
-                      <View style={styles.commentAvatar}>
-                        <Feather name="user" size={14} color="#FFFFFF" />
-                      </View>
-                      <View>
-                        <Text style={styles.commentAuthor}>
-                          {`${comment.user.first_name} ${comment.user.last_name}`}
-                        </Text>
-                        <Text style={styles.commentTime}>
-                          {formatRelativeTime(comment.created_at)}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.commentContent}>{comment.content}</Text>
-                  </View>
-                )}
-                scrollEnabled={false}
-              />
-            ) : (
-              <View style={styles.emptyComments}>
-                <Text style={styles.emptyCommentsText}>Be the first to comment</Text>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
+      <IntentionCard
+        item={item}
+        currentUserId={currentUserId}
+        onLike={handleLikeIntention}
+        onComment={handleToggleComments}
+        onEdit={handleEditIntention}
+        onDelete={handleDeleteClick}
+        likeScaleAnim={scaleAnim}
+        likeOpacityAnim={opacityAnim}
+        isCommentsExpanded={isCommentsExpanded}
+        comments={comments}
+        newComment={newComment}
+        setNewComment={setNewComment}
+        handleAddComment={handleAddComment}
+        commentsLoading={commentsLoading}
+      />
     );
   };
 
-  // Background image (could replace with your own)
-  const backgroundImage = { uri: "https://images.unsplash.com/photo-1501493870936-9c2e41625521?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80" };
+  const renderUserCard = ({ item }: { item: UserData }): JSX.Element => (
+    <View style={styles.userCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FAC898" />
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.first_name} {item.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Member since {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.userActions}>
+        <TouchableOpacity style={styles.userAction}>
+          <Feather name="message-circle" size={18} color="#FAC898" />
+          <Text style={styles.actionText}>Message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.userAction} onPress={() => handleAddFriend(item.id)}>
+          <Feather name="heart" size={18} color="#FAC898" />
+          <Text style={styles.actionText}>Add Friend</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderSentRequestCard = ({ item }: { item: FriendRequestSent }): JSX.Element => (
+    <View style={styles.friendCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FAC898" />
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.user_2.first_name} {item.user_2.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Requested on {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.friendActions}>
+        <Text style={styles.statusText}>Status: {item.status}</Text>
+        <TouchableOpacity
+          style={styles.requestCancelButton}
+          onPress={() => handleCancelRequest(item.id)}
+        >
+          <Text style={styles.requestCancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderIncomingRequestCard = ({ item }: { item: FriendRequestIncoming }): JSX.Element => (
+    <View style={styles.friendCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FAC898" />
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.user_1.first_name} {item.user_1.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            Requested on {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.friendRequestActions}>
+        <TouchableOpacity style={styles.acceptButton} onPress={() => handleAcceptRequest(item.id)}>
+          <Text style={styles.acceptButtonText}>Accept</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.declineButton}
+          onPress={() => handleDeclineRequest(item.id)}
+        >
+          <Text style={styles.declineButtonText}>Decline</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderFriendCard = ({ item }: { item: Friend }): JSX.Element => (
+    <View style={styles.friendCard}>
+      <View style={styles.userHeader}>
+        <View style={styles.userAvatar}>
+          <Feather name="user" size={28} color="#FAC898" />
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {item.friend.first_name} {item.friend.last_name}
+          </Text>
+          <Text style={styles.userSubtitle}>
+            {item.created_at
+              ? `Friends since ${new Date(item.created_at).toLocaleDateString()}`
+              : "Friends"}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveFriend(item.id)}>
+        <Feather name="trash-2" size={18} color="#E9967A" />
+        <Text style={styles.removeButtonText}>Remove</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const fetchUserChurches = async () => {
+    if (!session?.user?.id) return;
+    setIsLoadingChurches(true);
+    try {
+      const { data: churchMembers, error } = await supabase
+        .from('church_members')
+        .select('*, church:churches(*)')
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+      setUserChurches(churchMembers);
+    } catch (error) {
+      console.error('Error fetching churches:', error);
+      showNotification({ message: 'Failed to load churches', type: 'error' });
+    } finally {
+      setIsLoadingChurches(false);
+    }
+  };
+
+  const toggleChurchSelection = (church: Church) => {
+    setSelectedChurch(selectedChurch?.id === church.id ? null : church);
+  };
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchUserChurches();
+    }
+  }, [session?.user?.id]);
+
+  const createIntention = async () => {
+    try {
+      setIsLoading(true);
+
+      const intentionData = {
+        user_id: session?.user?.id,
+        title,
+        description,
+        type: selectedType,
+        visibility,
+        group_id: selectedGroup?.id,
+        church_id: selectedChurch?.id,
+        selected_friends: selectedFriends.map(friend => friend.id)
+      };
+
+      const { data, error } = await supabase
+        .from('intentions')
+        .insert([intentionData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // ... rest of the existing function ...
+    } catch (error) {
+      // ... existing error handling ...
+    }
+  };
+
+  const updateIntention = async () => {
+    try {
+      setIsLoading(true);
+
+      const intentionData = {
+        title,
+        description,
+        type: selectedType,
+        visibility,
+        group_id: selectedGroup?.id,
+        church_id: selectedChurch?.id,
+        selected_friends: selectedFriends.map(friend => friend.id)
+      };
+
+      const { error } = await supabase
+        .from('intentions')
+        .update(intentionData)
+        .eq('id', editingIntention?.id);
+
+      if (error) throw error;
+
+      // ... rest of the existing function ...
+    } catch (error) {
+      // ... existing error handling ...
+    }
+  };
+
+  const showNotification = ({ message, type }: { message: string; type: 'success' | 'error' }) => {
+    Alert.alert(
+      type === 'success' ? 'Success' : 'Error',
+      message,
+      [{ text: 'OK' }]
+    );
+  };
 
   return (
-    <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
-      <View style={styles.overlay} />
-      <StatusBar barStyle="light-content" />
-      
+    <ImageBackground source={backgroundImageRequire} style={styles.backgroundImage}>
+      <View style={[styles.backgroundOverlay, { opacity: 0.7 }]} />
       <SafeAreaView style={styles.container}>
-        {/* Notification */}
+        <StatusBar style="light" />
         {notification && (
-          <View style={[
-            styles.notificationContainer,
-            notification.type === "error" ? styles.errorNotification : styles.successNotification
-          ]}>
+          <View
+            style={[
+              styles.notification,
+              notification.type === "error" ? styles.errorNotification : styles.successNotification,
+            ]}
+          >
             <Text style={styles.notificationText}>{notification.message}</Text>
           </View>
         )}
-        
-        {/* Animated Header */}
-        <Animated.View 
+        <View style={styles.header} ref={headerRef} onLayout={onHeaderLayout}>
+          <TouchableOpacity
+            style={styles.headerTitleContainer}
+            onPress={() => setShowFilterDropdown(!showFilterDropdown)}
+          >
+            <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
+            <View style={styles.headerFilterIndicator}>
+              <Feather
+                name={showFilterDropdown ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#FAC898"
+              />
+            </View>
+          </TouchableOpacity>
+        </View>
+        {/* Always render dropdown with pointerEvents controlled */}
+        <Animated.View
+          pointerEvents={showFilterDropdown ? "auto" : "none"}
           style={[
-            styles.animatedHeader, 
-            { 
-              height: headerHeight,
-              opacity: headerOpacity,
-            }
+            styles.filterDropdown,
+            {
+              top: headerHeight + 45,
+              opacity: filterDropdownAnim,
+              transform: [
+                {
+                  translateY: filterDropdownAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0],
+                  }),
+                },
+              ],
+            },
           ]}
         >
-          <View style={styles.headerBlur}>
-            <Text style={styles.headerTitle}>
-              {filter === "all" ? "Community" : 
-               filter === "mine" ? "My Posts" :
-               filter === "friends" ? "Friends" : "Groups"}
+          <TouchableOpacity
+            style={[styles.filterOption, intentionsFilter === "all" && styles.activeFilterOption]}
+            onPress={() => handleSelectFilter("all")}
+          >
+            <Text
+              style={[
+                styles.filterOptionText,
+                intentionsFilter === "all" && styles.activeFilterOptionText,
+              ]}
+            >
+              All
             </Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              intentionsFilter === "friends" && styles.activeFilterOption,
+            ]}
+            onPress={() => handleSelectFilter("friends")}
+          >
+            <Text
+              style={[
+                styles.filterOptionText,
+                intentionsFilter === "friends" && styles.activeFilterOptionText,
+              ]}
+            >
+              Friends
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              intentionsFilter === "groups" && styles.activeFilterOption,
+            ]}
+            onPress={() => handleSelectFilter("groups")}
+          >
+            <Text
+              style={[
+                styles.filterOptionText,
+                intentionsFilter === "groups" && styles.activeFilterOptionText,
+              ]}
+            >
+              Groups
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterOption, intentionsFilter === "mine" && styles.activeFilterOption]}
+            onPress={() => handleSelectFilter("mine")}
+          >
+            <Text
+              style={[
+                styles.filterOptionText,
+                intentionsFilter === "mine" && styles.activeFilterOptionText,
+              ]}
+            >
+              My Posts
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
-        
-        {/* Main Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity 
-              style={styles.filterButton}
-              onPress={toggleFilterOptions}
-            >
-              <Feather name="filter" size={20} color="#FFFFFF" />
-              <Text style={styles.filterButtonText}>
-                {filter === "all" ? "All" : 
-                 filter === "mine" ? "Mine" :
-                 filter === "friends" ? "Friends" : "Groups"}
-              </Text>
-              <Feather 
-                name={showFilterOptions ? "chevron-up" : "chevron-down"} 
-                size={16} 
-                color="#FFFFFF" 
-              />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={toggleSearch}
-            >
-              <Feather name="search" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={() => setShowNotifications(!showNotifications)}
-            >
-              <Feather name="bell" size={22} color="#FFFFFF" />
-              {notificationCount > 0 && (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>{notificationCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Filter Options Dropdown */}
-        {showFilterOptions && (
-          <Animated.View 
-            style={[
-              styles.filterOptions,
-              {
-                opacity: filterOptionsAnim,
-                transform: [
-                  {
-                    translateY: filterOptionsAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-20, 0]
-                    })
-                  }
-                ]
-              }
-            ]}
-          >
-            <TouchableOpacity 
-              style={[styles.filterOption, filter === "all" && styles.activeFilterOption]}
-              onPress={() => applyFilter("all")}
-            >
-              <Feather name="globe" size={16} color="#FFFFFF" />
-              <Text style={styles.filterOptionText}>All</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.filterOption, filter === "mine" && styles.activeFilterOption]}
-              onPress={() => applyFilter("mine")}
-            >
-              <Feather name="user" size={16} color="#FFFFFF" />
-              <Text style={styles.filterOptionText}>My Posts</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.filterOption, filter === "friends" && styles.activeFilterOption]}
-              onPress={() => applyFilter("friends")}
-            >
-              <Feather name="users" size={16} color="#FFFFFF" />
-              <Text style={styles.filterOptionText}>Friends</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.filterOption, filter === "groups" && styles.activeFilterOption]}
-              onPress={() => applyFilter("groups")}
-            >
-              <Feather name="grid" size={16} color="#FFFFFF" />
-              <Text style={styles.filterOptionText}>Groups</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-        
-        {/* Search Bar */}
-        {isSearchVisible && (
-          <Animated.View 
-            style={[
-              styles.searchBarContainer,
-              {
-                opacity: searchBarAnim,
-                transform: [
-                  {
-                    translateY: searchBarAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-20, 0]
-                    })
-                  }
-                ]
-              }
-            ]}
-          >
-            <View style={styles.searchBar}>
-              <Feather name="search" size={20} color="#FFFFFF" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search intentions..."
-                placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity 
-                  style={styles.clearSearchButton}
-                  onPress={() => setSearchQuery("")}
+        {!showFriendsSearch && (
+          <Animated.FlatList
+            data={intentions}
+            renderItem={renderIntentionCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.intentionList}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+              useNativeDriver: true,
+            })}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchIntentions} />}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  {intentionsFilter === "mine"
+                    ? "No intentions yet."
+                    : intentionsFilter === "friends"
+                      ? "No friend intentions."
+                      : intentionsFilter === "groups"
+                        ? "No group intentions."
+                        : "No posts to show."}
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyStateButton}
+                  onPress={() => setShowIntentionModal(true)}
                 >
-                  <Feather name="x" size={18} color="#FFFFFF" />
+                  <Text style={styles.emptyStateButtonText}>Create New Intention</Text>
                 </TouchableOpacity>
-              )}
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.cancelSearchButton}
-              onPress={toggleSearch}
-            >
-              <Text style={styles.cancelSearchText}>Cancel</Text>
-            </TouchableOpacity>
-          </Animated.View>
+              </View>
+            }
+          />
         )}
-        
-        {/* Content */}
-        <Animated.FlatList
-          data={intentions}
-          keyExtractor={(item) => item.id}
-          renderItem={renderIntentionCard}
-          contentContainerStyle={[
-            styles.contentContainer, 
-            { paddingBottom: tabBarHeight + 20 }
-          ]}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FFFFFF"
-              colors={["#FFFFFF"]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Feather name="archive" size={60} color="rgba(255, 255, 255, 0.6)" />
-              <Text style={styles.emptyText}>No intentions found</Text>
-              <TouchableOpacity 
-                style={styles.createButton}
-                onPress={() => {
-                  setEditingIntention(null);
-                  setShowIntentionModal(true);
-                }}
+        {showFriendsSearch && (
+          <View style={styles.friendsSection}>
+            <TouchableOpacity style={styles.backButton} onPress={() => setShowFriendsSearch(false)}>
+              <Feather name="arrow-left" size={24} color="#FAC898" />
+              <Text style={styles.backButtonText}>Back to Feed</Text>
+            </TouchableOpacity>
+            <View style={styles.friendsTabs}>
+              <TouchableOpacity
+                style={[styles.friendTab, friendTab === "search" && styles.activeFriendTab]}
+                onPress={() => setFriendTab("search")}
               >
-                <Text style={styles.createButtonText}>Create New Intention</Text>
+                <Text
+                  style={[
+                    styles.friendTabText,
+                    friendTab === "search" && styles.activeFriendTabText,
+                  ]}
+                >
+                  Search
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.friendTab, friendTab === "requests" && styles.activeFriendTab]}
+                onPress={() => setFriendTab("requests")}
+              >
+                <Text
+                  style={[
+                    styles.friendTabText,
+                    friendTab === "requests" && styles.activeFriendTabText,
+                  ]}
+                >
+                  Requests
+                </Text>
+                {friendRequestCount > 0 && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>{friendRequestCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.friendTab, friendTab === "list" && styles.activeFriendTab]}
+                onPress={() => setFriendTab("list")}
+              >
+                <Text
+                  style={[styles.friendTabText, friendTab === "list" && styles.activeFriendTabText]}
+                >
+                  Friends
+                </Text>
               </TouchableOpacity>
             </View>
-          }
-        />
-        
-        {/* FAB */}
-        <TouchableOpacity 
-          style={[styles.fab, { bottom: tabBarHeight + 20 }]}
-          onPress={() => {
-            setEditingIntention(null);
-            setShowIntentionModal(true);
-          }}
-        >
-          <Animated.View 
-            style={{ 
-              transform: [
-                { scale: fabAnim },
-                { rotate: '0deg' }
-              ]
-            }}
-          >
-            <View
-              style={[styles.fabGradient, { backgroundColor: '#E9967A' }]}
-            >
-              <Feather name="plus" size={24} color="#FFFFFF" />
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-        
-        {/* Create/Edit Intention Modal */}
-        <Modal
-          visible={showIntentionModal}
-          animationType="slide"
-          transparent
-          onRequestClose={() => {
-            setShowIntentionModal(false);
-            setEditingIntention(null);
-            setShowTypeSelector(false);
-            setShowVisibilitySelector(false);
-            setShowGroupSelector(false);
-            setShowFriendSelector(false);
-          }}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalBlur}>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ flex: 1 }}
-              >
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
+            {friendTab === "search" && (
+              <>
+                <View style={styles.searchContainer}>
+                  <Feather name="search" size={22} color="#FAC898" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search friends..."
+                    placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onSubmitEditing={handleSearch}
+                  />
+                </View>
+                <FlatList
+                  data={users}
+                  renderItem={renderUserCard}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.userList}
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>Search for friends</Text>
+                    </View>
+                  }
+                />
+              </>
+            )}
+            {friendTab === "requests" && (
+              <>
+                {sentRequests.length === 0 && incomingRequests.length === 0 ? (
+                  <Text style={styles.noResultsText}>No friend requests.</Text>
+                ) : (
+                  <>
+                    {sentRequests.length > 0 && (
+                      <>
+                        <Text style={styles.requestSubtitle}>Sent Requests</Text>
+                        <FlatList
+                          data={sentRequests}
+                          renderItem={renderSentRequestCard}
+                          keyExtractor={(item) => item.id}
+                          contentContainerStyle={styles.requestList}
+                          showsVerticalScrollIndicator={false}
+                        />
+                      </>
+                    )}
+                    {incomingRequests.length > 0 && (
+                      <>
+                        <Text style={styles.requestSubtitle}>Incoming Requests</Text>
+                        <FlatList
+                          data={incomingRequests}
+                          renderItem={renderIncomingRequestCard}
+                          keyExtractor={(item) => item.id}
+                          contentContainerStyle={styles.requestList}
+                          showsVerticalScrollIndicator={false}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            {friendTab === "list" && (
+              <>
+                {friends.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No friends yet.</Text>
                     <TouchableOpacity
-                      style={styles.modalCloseButton}
-                      onPress={() => {
-                        setShowIntentionModal(false);
-                        setEditingIntention(null);
-                        setShowTypeSelector(false);
-                        setShowVisibilitySelector(false);
-                        setShowGroupSelector(false);
-                        setShowFriendSelector(false);
-                      }}
+                      style={styles.emptyStateButton}
+                      onPress={() => setFriendTab("search")}
                     >
-                      <Feather name="x" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>
-                      {editingIntention ? "Edit Intention" : "Create Intention"}
-                    </Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.modalActionButton,
-                        (!editingIntention ? 
-                          !newIntention.title.trim() || !newIntention.description.trim() :
-                          !editingIntention.title.trim() || !editingIntention.description.trim()
-                        ) && styles.modalActionButtonDisabled
-                      ]}
-                      onPress={
-                        editingIntention ? handleUpdateIntention : handleCreateIntention
-                      }
-                      disabled={
-                        editingIntention ? 
-                          !editingIntention.title.trim() || !editingIntention.description.trim() :
-                          !newIntention.title.trim() || !newIntention.description.trim()
-                      }
-                    >
-                      <Text style={styles.modalActionButtonText}>
-                        {editingIntention ? "Save" : "Share"}
-                      </Text>
+                      <Text style={styles.emptyStateButtonText}>Find Friends</Text>
                     </TouchableOpacity>
                   </View>
-                  
-                  <ScrollView style={styles.modalForm}>
-                    {/* Type Selector */}
-                    <TouchableOpacity
-                      style={styles.selectorButton}
-                      onPress={() => {
-                        setShowTypeSelector(true);
-                        setShowVisibilitySelector(false);
-                        setShowGroupSelector(false);
-                        setShowFriendSelector(false);
-                      }}
-                    >
-                      <View style={styles.selectorLeft}>
-                        <View
+                ) : (
+                  <FlatList
+                    data={friends}
+                    renderItem={renderFriendCard}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.friendsList}
+                    showsVerticalScrollIndicator={false}
+                  />
+                )}
+              </>
+            )}
+          </View>
+        )}
+        <TouchableOpacity style={styles.fab} onPress={toggleFabMenu}>
+          <Animated.View style={{ transform: [{ rotate: fabRotation }] }}>
+            <Feather name="plus" size={26} color="#FFFFFF" />
+          </Animated.View>
+        </TouchableOpacity>
+        {showFabMenu && (
+          <Animated.View
+            style={[
+              styles.fabMenu,
+              {
+                opacity: fabMenuAnimation,
+                transform: [
+                  {
+                    translateY: fabMenuAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => handleFabOption("intention")}
+            >
+              <Feather name="edit" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>Add Intention</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("friends")}>
+              <Feather name="users" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>
+                Friends{" "}
+                {friendRequestCount > 0 && (
+                  <Text style={styles.fabMenuBadge}> • {friendRequestCount}</Text>
+                )}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("groups")}>
+              <Feather name="users" size={22} color="#FAC898" />
+              <Text style={styles.fabMenuItemText}>Groups</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+        <Modal
+          visible={showIntentionModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowIntentionModal(false)}
+        >
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <View style={styles.modalOverlay}>
+              <ScrollView style={styles.modalScrollView}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>New Intention</Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Type</Text>
+                    <View style={styles.pickerContainer}>
+                      {[
+                        "prayer",
+                        "resolution",
+                        "goal",
+                        "spiritual",
+                        "family",
+                        "health",
+                        "work",
+                        "friends",
+                        "world",
+                        "personal",
+                        "other",
+                      ].map((type) => (
+                        <TouchableOpacity
+                          key={type}
                           style={[
-                            styles.typeIconContainer, 
-                            { backgroundColor: getIntentionTypeColor(
-                              editingIntention ? editingIntention.type : newIntention.type
-                            ) }
+                            styles.typeOption,
+                            newIntention.type === type && styles.selectedTypeOption,
                           ]}
+                          onPress={() =>
+                            setNewIntention({
+                              ...newIntention,
+                              type: type as IntentionType,
+                            })
+                          }
                         >
-                          {getIntentionTypeIcon(
-                            editingIntention ? editingIntention.type : newIntention.type
-                          )}
-                        </View>
-                        <Text style={styles.selectorLabel}>
-                          {(editingIntention ? editingIntention.type : newIntention.type)
-                            .charAt(0).toUpperCase() + 
-                            (editingIntention ? editingIntention.type : newIntention.type).slice(1)}
+                          <Text style={styles.typeOptionText}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Visibility</Text>
+                    <TouchableOpacity
+                      style={styles.dropdown}
+                      onPress={() => setShowVisibilityDropdownNew(!showVisibilityDropdownNew)}
+                    >
+                      <View style={styles.dropdownContent}>
+                        {
+                          visibilityOptions.find(
+                            (option) => option.label === newIntention.visibility,
+                          )?.icon
+                        }
+                        <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
+                          {newIntention.visibility}
                         </Text>
                       </View>
-                      <Feather name="chevron-right" size={20} color="#FFFFFF" />
+                      <Feather
+                        name={showVisibilityDropdownNew ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color="#FAC898"
+                      />
                     </TouchableOpacity>
-                    
-                    {/* Type Selector Panel */}
-                    {showTypeSelector && (
-                      <View style={styles.selectorPanel}>
-                        <Text style={styles.selectorPanelTitle}>Choose Intention Type</Text>
-                        <View style={styles.typeGrid}>
-                          {INTENTION_TYPES.map((type) => (
+                    {showVisibilityDropdownNew && (
+                      <View style={styles.dropdownOptions}>
+                        {visibilityOptions.map((option) => (
+                          <TouchableOpacity
+                            key={option.label}
+                            style={styles.dropdownOption}
+                            onPress={() => {
+                              setNewIntention({
+                                ...newIntention,
+                                visibility: option.label as
+                                  | "Friends"
+                                  | "Certain Groups"
+                                  | "Just Me"
+                                  | "Friends & Groups"
+                                  | "Certain Friends"
+                                  | "Church",
+                                selectedGroups:
+                                  option.label === "Certain Groups"
+                                    ? newIntention.selectedGroups
+                                    : [],
+                                selectedFriends:
+                                  option.label === "Certain Friends"
+                                    ? newIntention.selectedFriends
+                                    : [],
+                                selectedChurch: newIntention.selectedChurch,
+                              });
+                              setShowVisibilityDropdownNew(false);
+                            }}
+                          >
+                            <View style={styles.dropdownOptionContent}>
+                              {option.icon}
+                              <Text style={styles.dropdownOptionText}>{option.label}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                    {newIntention.visibility === "Certain Groups" && (
+                      <View style={styles.groupSelectorContainer}>
+                        <Text style={styles.groupSelectorLabel}>Select Groups:</Text>
+                        <View style={styles.groupSelectorList}>
+                          {userGroups.map((group) => (
                             <TouchableOpacity
-                              key={type.key}
+                              key={group.id}
                               style={[
-                                styles.typeGridItem,
-                                (editingIntention ? 
-                                  editingIntention.type === type.key : 
-                                  newIntention.type === type.key
-                                ) && styles.selectedTypeGridItem
+                                styles.groupOption,
+                                newIntention.selectedGroups &&
+                                newIntention.selectedGroups.includes(group.id)
+                                  ? styles.groupOptionSelected
+                                  : null,
                               ]}
-                              onPress={() => {
-                                if (editingIntention) {
-                                  setEditingIntention({
-                                    ...editingIntention,
-                                    type: type.key as IntentionType
-                                  });
-                                } else {
-                                  setNewIntention({
-                                    ...newIntention,
-                                    type: type.key as IntentionType
-                                  });
-                                }
-                                setShowTypeSelector(false);
-                              }}
+                              onPress={() => toggleNewGroupSelection(group.id)}
                             >
-                              <View
-                                style={[styles.typeGridIconContainer, { backgroundColor: type.gradient[0] }]}
-                              >
-                                {type.iconProvider === "FontAwesome" ? (
-                                  <FontAwesome name={type.icon} size={16} color="#FFFFFF" />
-                                ) : (
-                                  <Feather name={type.icon} size={16} color="#FFFFFF" />
-                                )}
-                              </View>
-                              <Text style={styles.typeGridLabel}>
-                                {type.key.charAt(0).toUpperCase() + type.key.slice(1)}
-                              </Text>
-                              <Text style={styles.typeGridDescription} numberOfLines={2}>
-                                {type.description}
-                              </Text>
+                              <Text style={styles.groupOptionText}>{group.name}</Text>
                             </TouchableOpacity>
                           ))}
                         </View>
                       </View>
                     )}
-                    
-                    {/* Visibility Selector */}
+                    {newIntention.visibility === "Certain Friends" && (
+                      <View style={styles.friendSelectorContainer}>
+                        <Text style={styles.friendSelectorLabel}>
+                          Select Friends ({friends.length})
+                        </Text>
+                        <ScrollView
+                          style={styles.friendSelectorList}
+                          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
+                          showsVerticalScrollIndicator={true}
+                        >
+                          {friends.length === 0 ? (
+                            <Text
+                              style={[
+                                styles.friendOptionText,
+                                { textAlign: "center", marginTop: 10 },
+                              ]}
+                            >
+                              No friends found. Add friends to share intentions with them.
+                            </Text>
+                          ) : (
+                            friends.map((friend) => (
+                              <TouchableOpacity
+                                key={friend.id}
+                                style={[
+                                  styles.friendOption,
+                                  newIntention.selectedFriends.includes(friend.friend.id)
+                                    ? styles.friendOptionSelected
+                                    : null,
+                                ]}
+                                onPress={() => toggleNewFriendSelection(friend.friend.id)}
+                              >
+                                <Text style={styles.friendOptionText}>
+                                  {friend.friend.first_name} {friend.friend.last_name}
+                                </Text>
+                              </TouchableOpacity>
+                            ))
+                          )}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Title</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={newIntention.title}
+                      onChangeText={(text) => setNewIntention({ ...newIntention, title: text })}
+                      placeholder="Enter title..."
+                      placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                      inputAccessoryViewID="accessoryViewID"
+                    />
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Description</Text>
+                    <View style={styles.textInputContainer}>
+                      <TextInput
+                        style={[
+                          styles.formTextarea,
+                          createDescriptionFocused && styles.formTextareaFocused,
+                        ]}
+                        value={newIntention.description}
+                        onChangeText={(text) =>
+                          setNewIntention({ ...newIntention, description: text })
+                        }
+                        placeholder="Enter description..."
+                        placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                        multiline={true}
+                        numberOfLines={4}
+                        textAlignVertical="top"
+                        inputAccessoryViewID="accessoryViewID"
+                        onFocus={() => setCreateDescriptionFocused(true)}
+                        onBlur={() => setCreateDescriptionFocused(false)}
+                      />
+                      {createDescriptionFocused && (
+                        <TouchableOpacity
+                          style={styles.closeButton}
+                          onPress={() => {
+                            Keyboard.dismiss();
+                            setCreateDescriptionFocused(false);
+                          }}
+                        >
+                          <Feather name="check" size={20} color="#FAC898" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+
+                  <InputAccessoryView nativeID="accessoryViewID">
+                    <View style={styles.accessory}>
+                      <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+                        <Text style={styles.accessoryText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </InputAccessoryView>
+                  <View style={styles.modalActions}>
                     <TouchableOpacity
-                      style={styles.selectorButton}
-                      onPress={() => {
-                        setShowVisibilitySelector(true);
-                        setShowTypeSelector(false);
-                        setShowGroupSelector(false);
-                        setShowFriendSelector(false);
-                      }}
+                      style={styles.cancelButton}
+                      onPress={() => setShowIntentionModal(false)}
                     >
-                      <View style={styles.selectorLeft}>
-                        <View style={styles.visibilityIconContainer}>
-                          <Feather
-                            name={
-                              (editingIntention ? editingIntention.visibility : newIntention.visibility) === "Just Me" ? "lock" :
-                              (editingIntention ? editingIntention.visibility : newIntention.visibility) === "Certain Friends" ? "user-check" :
-                              (editingIntention ? editingIntention.visibility : newIntention.visibility) === "Certain Groups" ? "grid" :
-                              (editingIntention ? editingIntention.visibility : newIntention.visibility) === "Friends & Groups" ? "globe" : "users"
-                            }
-                            size={16}
-                            color="#FFFFFF"
-                          />
-                        </View>
-                        <Text style={styles.selectorLabel}>
-                          {editingIntention ? editingIntention.visibility : newIntention.visibility}
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.createButton} onPress={handleCreateIntention}>
+                      <Text style={styles.createButtonText}>Create</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+        <Modal
+          visible={showEditModal && editingIntention !== null}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowEditModal(false);
+            setEditingIntention(null);
+          }}
+        >
+          {editingIntention && (
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Edit Intention</Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Type</Text>
+                    <View style={styles.pickerContainer}>
+                      {[
+                        "prayer",
+                        "resolution",
+                        "goal",
+                        "spiritual",
+                        "family",
+                        "health",
+                        "work",
+                        "friends",
+                        "world",
+                        "personal",
+                        "other",
+                      ].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.typeOption,
+                            editingIntention.type === type && styles.selectedTypeOption,
+                          ]}
+                          onPress={() =>
+                            setEditingIntention({
+                              ...editingIntention,
+                              type: type as IntentionType,
+                            })
+                          }
+                        >
+                          <Text style={styles.typeOptionText}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Visibility</Text>
+                    <TouchableOpacity
+                      style={styles.dropdown}
+                      onPress={() => setShowVisibilityDropdownEdit(!showVisibilityDropdownEdit)}
+                    >
+                      <View style={styles.dropdownContent}>
+                        {
+                          visibilityOptions.find(
+                            (option) => option.label === editingIntention.visibility,
+                          )?.icon
+                        }
+                        <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
+                          {editingIntention.visibility}
                         </Text>
                       </View>
-                      <Feather name="chevron-right" size={20} color="#FFFFFF" />
+                      <Feather
+                        name={showVisibilityDropdownEdit ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color="#FAC898"
+                      />
                     </TouchableOpacity>
-                    
-                    {/* Visibility Selector Panel */}
-                    {showVisibilitySelector && (
-                      <View style={styles.selectorPanel}>
-                        <Text style={styles.selectorPanelTitle}>Choose Who Can See</Text>
-                        {VISIBILITY_OPTIONS.map((option) => (
+                    {showVisibilityDropdownEdit && (
+                      <View style={styles.dropdownOptions}>
+                        {visibilityOptions.map((option) => (
                           <TouchableOpacity
-                            key={option.key}
-                            style={[
-                              styles.visibilityOption,
-                              (editingIntention ? 
-                                editingIntention.visibility === option.key : 
-                                newIntention.visibility === option.key
-                              ) && styles.selectedVisibilityOption
-                            ]}
+                            key={option.label}
+                            style={styles.dropdownOption}
                             onPress={() => {
-                              if (editingIntention) {
-                                setEditingIntention({
-                                  ...editingIntention,
-                                  visibility: option.key as "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups" | "Certain Friends"
-                                });
-                              } else {
-                                setNewIntention({
-                                  ...newIntention,
-                                  visibility: option.key as "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups" | "Certain Friends"
-                                });
-                              }
-                              setShowVisibilitySelector(false);
-                              
-                              // Show group or friend selectors if needed
-                              if (option.key === "Certain Groups") {
-                                setShowGroupSelector(true);
-                              } else if (option.key === "Certain Friends") {
-                                setShowFriendSelector(true);
-                              }
+                              setEditingIntention({
+                                ...editingIntention,
+                                visibility: option.label as
+                                  | "Friends"
+                                  | "Certain Groups"
+                                  | "Just Me"
+                                  | "Friends & Groups"
+                                  | "Certain Friends"
+                                  | "Church",
+                                selectedGroups:
+                                  option.label === "Certain Groups"
+                                    ? editingIntention.selectedGroups || []
+                                    : [],
+                                selectedFriends:
+                                  option.label === "Certain Friends"
+                                    ? editingIntention.selectedFriends || []
+                                    : [],
+                                selectedChurch: editingIntention.selectedChurch,
+                              });
+                              setShowVisibilityDropdownEdit(false);
                             }}
                           >
-                            <View style={styles.visibilityOptionLeft}>
-                              {option.iconProvider === "FontAwesome" ? (
-                                <FontAwesome name={option.icon as keyof typeof FontAwesome.glyphMap} size={16} color="#FFFFFF" style={styles.visibilityOptionIcon} />
-                              ) : (
-                                <Feather name={option.icon as "users" | "user-check" | "grid" | "globe" | "user"} size={16} color="#FFFFFF" style={styles.visibilityOptionIcon} />
-                              )}
-                              <View>
-                                <Text style={styles.visibilityOptionLabel}>{option.key}</Text>
-                                <Text style={styles.visibilityOptionDescription}>{option.description}</Text>
-                              </View>
+                            <View style={styles.dropdownOptionContent}>
+                              {option.icon}
+                              <Text style={styles.dropdownOptionText}>{option.label}</Text>
                             </View>
-                            {(editingIntention ? 
-                              editingIntention.visibility === option.key : 
-                              newIntention.visibility === option.key
-                            ) && (
-                              <Feather name="check" size={18} color="#4CAF50" />
-                            )}
                           </TouchableOpacity>
                         ))}
                       </View>
                     )}
-                    
-                    {/* Group Selector */}
-                    {((editingIntention ? 
-                      editingIntention.visibility : 
-                      newIntention.visibility) === "Certain Groups") && (
-                      <TouchableOpacity
-                        style={[styles.selectorButton, { marginTop: 10 }]}
-                        onPress={() => {
-                          setShowGroupSelector(true);
-                          setShowTypeSelector(false);
-                          setShowVisibilitySelector(false);
-                          setShowFriendSelector(false);
-                        }}
-                      >
-                        <View style={styles.selectorLeft}>
-                          <View style={styles.visibilityIconContainer}>
-                            <Feather name="grid" size={16} color="#FFFFFF" />
-                          </View>
-                          <Text style={styles.selectorLabel}>
-                            {selectedGroups.length > 0 
-                              ? `${selectedGroups.length} group${selectedGroups.length > 1 ? 's' : ''} selected` 
-                              : "Select groups"}
-                          </Text>
+                    {editingIntention.visibility === "Certain Groups" && (
+                      <View style={styles.groupSelectorContainer}>
+                        <Text style={styles.groupSelectorLabel}>Select Groups:</Text>
+                        <View style={styles.groupSelectorList}>
+                          {userGroups.map((group) => (
+                            <TouchableOpacity
+                              key={group.id}
+                              style={[
+                                styles.groupOption,
+                                editingIntention.selectedGroups &&
+                                editingIntention.selectedGroups.includes(group.id)
+                                  ? styles.groupOptionSelected
+                                  : null,
+                              ]}
+                              onPress={() => toggleEditGroupSelection(group.id)}
+                            >
+                              <Text style={styles.groupOptionText}>{group.name}</Text>
+                            </TouchableOpacity>
+                          ))}
                         </View>
-                        <Feather name="chevron-right" size={20} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    )}
-                    
-                    {/* Group Selector Panel */}
-                    {showGroupSelector && (
-                      <View style={styles.selectorPanel}>
-                        <Text style={styles.selectorPanelTitle}>Select Groups</Text>
-                        {userGroups.length > 0 ? (
-                          <View>
-                            {userGroups.map((group) => (
-                              <TouchableOpacity
-                                key={group.id}
-                                style={[
-                                  styles.visibilityOption,
-                                  selectedGroups.includes(group.id) && styles.selectedVisibilityOption
-                                ]}
-                                onPress={() => toggleGroupSelection(group.id)}
-                              >
-                                <View style={styles.visibilityOptionLeft}>
-                                  <Feather 
-                                    name="users" 
-                                    size={16} 
-                                    color="#FFFFFF" 
-                                    style={styles.visibilityOptionIcon} 
-                                  />
-                                  <Text style={styles.visibilityOptionLabel}>{group.name}</Text>
-                                </View>
-                                {selectedGroups.includes(group.id) && (
-                                  <Feather name="check" size={18} color="#4CAF50" />
-                                )}
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        ) : (
-                          <Text style={styles.emptyText}>You're not a member of any groups yet.</Text>
-                        )}
                       </View>
                     )}
-                    
-                    {/* Friend Selector */}
-                    {((editingIntention ? 
-                      editingIntention.visibility : 
-                      newIntention.visibility) === "Certain Friends") && (
-                      <TouchableOpacity
-                        style={[styles.selectorButton, { marginTop: 10 }]}
-                        onPress={() => {
-                          setShowFriendSelector(true);
-                          setShowTypeSelector(false);
-                          setShowVisibilitySelector(false);
-                          setShowGroupSelector(false);
-                        }}
-                      >
-                        <View style={styles.selectorLeft}>
-                          <View style={styles.visibilityIconContainer}>
-                            <Feather name="user-plus" size={16} color="#FFFFFF" />
-                          </View>
-                          <Text style={styles.selectorLabel}>
-                            {selectedFriends.length > 0 
-                              ? `${selectedFriends.length} friend${selectedFriends.length > 1 ? 's' : ''} selected` 
-                              : "Select friends"}
-                          </Text>
-                        </View>
-                        <Feather name="chevron-right" size={20} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    )}
-                    
-                    {/* Friend Selector Panel */}
-                    {showFriendSelector && (
-                      <View style={styles.selectorPanel}>
-                        <Text style={styles.selectorPanelTitle}>Select Friends</Text>
-                        {friends.length > 0 ? (
-                          <View>
-                            {friends.map((friend) => (
+                    {editingIntention.visibility === "Certain Friends" && (
+                      <View style={styles.friendSelectorContainer}>
+                        <Text style={styles.friendSelectorLabel}>
+                          Select Friends ({friends.length})
+                        </Text>
+                        <ScrollView
+                          style={styles.friendSelectorList}
+                          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
+                          showsVerticalScrollIndicator={true}
+                        >
+                          {friends.length === 0 ? (
+                            <Text
+                              style={[
+                                styles.friendOptionText,
+                                { textAlign: "center", marginTop: 10 },
+                              ]}
+                            >
+                              No friends found. Add friends to share intentions with them.
+                            </Text>
+                          ) : (
+                            friends.map((friend) => (
                               <TouchableOpacity
                                 key={friend.id}
                                 style={[
-                                  styles.visibilityOption,
-                                  selectedFriends.includes(friend.id) && styles.selectedVisibilityOption
+                                  styles.friendOption,
+                                  editingIntention.selectedFriends?.includes(friend.friend.id)
+                                    ? styles.friendOptionSelected
+                                    : null,
                                 ]}
-                                onPress={() => toggleFriendSelection(friend.id)}
+                                onPress={() => toggleEditFriendSelection(friend.friend.id)}
                               >
-                                <View style={styles.visibilityOptionLeft}>
-                                  <Feather 
-                                    name="user" 
-                                    size={16} 
-                                    color="#FFFFFF" 
-                                    style={styles.visibilityOptionIcon} 
-                                  />
-                                  <Text style={styles.visibilityOptionLabel}>
-                                    {friend.first_name} {friend.last_name}
-                                  </Text>
-                                </View>
-                                {selectedFriends.includes(friend.id) && (
-                                  <Feather name="check" size={18} color="#4CAF50" />
-                                )}
+                                <Text style={styles.friendOptionText}>
+                                  {friend.friend.first_name} {friend.friend.last_name}
+                                </Text>
                               </TouchableOpacity>
-                            ))}
-                          </View>
-                        ) : (
-                          <Text style={styles.emptyText}>You don't have any friends added yet.</Text>
-                        )}
+                            ))
+                          )}
+                        </ScrollView>
                       </View>
                     )}
-                    
-                    {/* Title and Description */}
-                    <View style={styles.formGroup}>
-                      <TextInput
-                        style={styles.titleInput}
-                        placeholder="What's your intention?"
-                        placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                        value={editingIntention ? editingIntention.title : newIntention.title}
-                        onChangeText={(text) => {
-                          if (editingIntention) {
-                            setEditingIntention({
-                              ...editingIntention,
-                              title: text
-                            });
-                          } else {
-                            setNewIntention({
-                              ...newIntention,
-                              title: text
-                            });
-                          }
-                        }}
-                      />
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Title</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={editingIntention.title}
+                      onChangeText={(text) =>
+                        setEditingIntention({
+                          ...editingIntention,
+                          title: text,
+                        })
+                      }
+                      placeholder="Enter title..."
+                      placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                      inputAccessoryViewID="accessoryViewID"
+                    />
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Description</Text>
+                    <TextInput
+                      style={[
+                        styles.formTextarea,
+                        editDescriptionFocused && styles.formTextareaFocused,
+                      ]}
+                      value={editingIntention.description}
+                      onChangeText={(text) =>
+                        setEditingIntention({
+                          ...editingIntention,
+                          description: text,
+                        })
+                      }
+                      placeholder="Enter description..."
+                      placeholderTextColor="rgba(250, 200, 152, 0.5)"
+                      multiline={true}
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      inputAccessoryViewID="accessoryViewID"
+                      onFocus={() => setEditDescriptionFocused(true)}
+                      onBlur={() => setEditDescriptionFocused(false)}
+                    />
+                  </View>
+                  <InputAccessoryView nativeID="accessoryViewID">
+                    <View style={styles.accessory}>
+                      <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+                        <Text style={styles.accessoryText}>Done</Text>
+                      </TouchableOpacity>
                     </View>
-                    
-                    <View style={styles.formGroup}>
-                      <TextInput
-                        style={styles.descriptionInput}
-                        placeholder="Share more details..."
-                        placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                        value={editingIntention ? editingIntention.description : newIntention.description}
-                        onChangeText={(text) => {
-                          if (editingIntention) {
-                            setEditingIntention({
-                              ...editingIntention,
-                              description: text
-                            });
-                          } else {
-                            setNewIntention({
-                              ...newIntention,
-                              description: text
-                            });
-                          }
-                        }}
-                        multiline
-                        numberOfLines={5}
-                        textAlignVertical="top"
-                      />
-                    </View>
-                    
-                    {/* Scripture Lookup (New Feature) */}
-                    <TouchableOpacity style={styles.scriptureButton}>
-                      <MaterialIcons name="menu-book" size={20} color="#FFFFFF" />
-                      <Text style={styles.scriptureButtonText}>Add Bible Reference</Text>
+                  </InputAccessoryView>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => {
+                        if (editingIntention) {
+                          setDeleteModal({
+                            isOpen: true,
+                            intentionId: editingIntention.id,
+                          });
+                          setShowEditModal(false);
+                        }
+                      }}
+                    >
+                      <Text style={styles.deleteButtonText}>Delete</Text>
                     </TouchableOpacity>
-                  </ScrollView>
+                    <View style={{ flex: 1 }} />
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={() => {
+                        setShowEditModal(false);
+                        setEditingIntention(null);
+                      }}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.createButton} onPress={handleUpdateIntention}>
+                      <Text style={styles.createButtonText}>Save</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </KeyboardAvoidingView>
-            </View>
-          </View>
+              </View>
+            </KeyboardAvoidingView>
+          )}
         </Modal>
-        
-        {/* Delete Confirmation Modal */}
         <Modal
-          visible={showDeleteConfirm}
-          transparent
+          visible={deleteModal.isOpen}
+          transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowDeleteConfirm(false)}
+          onRequestClose={() => setDeleteModal({ isOpen: false, intentionId: null })}
         >
-          <View style={styles.confirmModalContainer}>
-            <View style={styles.confirmModalContent}>
-              <Text style={styles.confirmModalTitle}>Delete Intention</Text>
-              <Text style={styles.confirmModalText}>
-                Are you sure you want to delete this intention? This action cannot be undone.
-              </Text>
-              <View style={styles.confirmModalActions}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Delete Intention</Text>
+              <Text style={styles.modalText}>Are you sure you want to delete this intention?</Text>
+              <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.cancelButton}
-                  onPress={() => {
-                    setShowDeleteConfirm(false);
-                    setIntentionToDelete(null);
-                  }}
+                  onPress={() => setDeleteModal({ isOpen: false, intentionId: null })}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={handleDeleteIntention}
-                >
+                <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteIntention}>
                   <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
-        
-        {/* Loading Indicator */}
         {isLoading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#FAC898" />
           </View>
         )}
       </SafeAreaView>
     </ImageBackground>
   );
-};
-
-const styles = StyleSheet.create({
-  // Main Container
-  backgroundImage: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(20, 20, 25, 0.93)",
-  },
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  
-  // Notification
-  notificationContainer: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    right: 20,
-    padding: 15,
-    borderRadius: 10,
-    zIndex: 1000,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  errorNotification: {
-    backgroundColor: "rgba(220, 38, 38, 0.9)",
-  },
-  successNotification: {
-    backgroundColor: "rgba(16, 185, 129, 0.9)",
-  },
-  notificationText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  
-  // Header
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
-    paddingBottom: 10,
-    zIndex: 10,
-  },
-  animatedHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    overflow: "hidden",
-    backgroundColor: "rgba(20, 20, 25, 0.95)",
-  },
-  headerBlur: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  filterButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "500",
-    marginHorizontal: 8,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 10,
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: "#E9967A",
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  notificationBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  
-  // Filter Options
-  filterOptions: {
-    position: "absolute",
-    top: Platform.OS === 'android' ? 100 : 70,
-    left: 16,
-    right: 16,
-    backgroundColor: "rgba(30, 30, 35, 0.95)",
-    borderRadius: 16,
-    padding: 8,
-    zIndex: 99,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  filterOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  activeFilterOption: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  filterOptionText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 12,
-  },
-  
-  // Search Bar
-  searchBarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    zIndex: 10,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    height: 40,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-  clearSearchButton: {
-    padding: 4,
-  },
-  cancelSearchButton: {
-    marginLeft: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  cancelSearchText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  
-  // Cards
-  cardContainer: {
-    backgroundColor: "rgba(30, 30, 35, 0.8)",
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    padding: 16,
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.05)",
-  },
-  userAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  userName: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  youLabel: {
-    color: "#E9967A",
-    fontWeight: "normal",
-  },
-  metaContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  intentionTypeTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 8,
-  },
-  intentionTypeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  timeText: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 12,
-  },
-  groupTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginTop: 4,
-    alignSelf: "flex-start",
-  },
-  groupText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  visibilityTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  visibilityText: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 11,
-    marginLeft: 4,
-  },
-  moreButton: {
-    width: 32,
-    height: 32,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cardContent: {
-    padding: 16,
-  },
-  intentionTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  intentionDescription: {
-    color: "rgba(255, 255, 255, 0.9)",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  cardActions: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.05)",
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-  },
-  actionButtonActive: {
-    backgroundColor: "rgba(233, 150, 122, 0.1)",
-  },
-  actionText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "500",
-    marginLeft: 6,
-  },
-  actionTextActive: {
-    color: "#E9967A",
-  },
-  
-  // Comments
-  commentsSection: {
-    padding: 16,
-    backgroundColor: "rgba(20, 20, 25, 0.5)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.05)",
-  },
-  addCommentContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  commentInput: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    color: "#FFFFFF",
-    maxHeight: 80,
-  },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-  },
-  commentItem: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  commentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  commentAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-  commentAuthor: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  commentTime: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 12,
-  },
-  commentContent: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyComments: {
-    padding: 12,
-    alignItems: "center",
-  },
-  emptyCommentsText: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 14,
-  },
-  
-  // FAB
-  fab: {
-    position: "absolute",
-    right: 20,
-    width: 56,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  fabGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  
-  // Modal
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalBlur: {
-    flex: 1,
-    backgroundColor: "rgba(20, 20, 25, 0.95)",
-  },
-  modalContent: {
-    flex: 1,
-    backgroundColor: "rgba(20, 20, 25, 0.95)",
-    margin: 10,
-    marginTop: 50,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  modalActionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#E9967A",
-    borderRadius: 20,
-  },
-  modalActionButtonDisabled: {
-    backgroundColor: "rgba(233, 150, 122, 0.5)",
-  },
-  modalActionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalForm: {
-    flex: 1,
-    padding: 16,
-  },
-  
-  // Type & Visibility Selectors
-  selectorButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  selectorLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  typeIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  visibilityIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  selectorLabel: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  selectorPanel: {
-    backgroundColor: "rgba(30, 30, 35, 0.98)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  selectorPanelTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  
-  // Type Grid
-  typeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  typeGridItem: {
-    width: "48%",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  selectedTypeGridItem: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.5)",
-  },
-  typeGridIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  typeGridLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  typeGridDescription: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 12,
-    textAlign: "center",
-  },
-  
-  // Visibility Options
-  visibilityOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  selectedVisibilityOption: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  visibilityOptionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  visibilityOptionIcon: {
-    marginRight: 12,
-  },
-  visibilityOptionLabel: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  visibilityOptionDescription: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 12,
-  },
-  
-  // Form
-  formGroup: {
-    marginBottom: 16,
-  },
-  titleInput: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-  descriptionInput: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: "#FFFFFF",
-    fontSize: 16,
-    minHeight: 120,
-  },
-  
-  // Scripture Button (New Feature)
-  scriptureButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(89, 127, 236, 0.2)",
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(89, 127, 236, 0.4)",
-  },
-  scriptureButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 8,
-  },
-  
-  // Empty State
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 16,
-    marginTop: 20,
-  },
-  emptyText: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 16,
-    textAlign: "center",
-    marginVertical: 16,
-  },
-  createButton: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.4)",
-  },
-  createButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  
-  // Delete Confirmation Modal
-  confirmModalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  confirmModalContent: {
-    backgroundColor: "rgba(30, 30, 35, 0.95)",
-    borderRadius: 20,
-    padding: 20,
-    width: "100%",
-    maxWidth: 400,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  confirmModalTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  confirmModalText: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  confirmModalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginRight: 10,
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: "rgba(220, 38, 38, 0.8)",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  deleteButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  
-  // Loading
-  loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
-
-export default FaithCommunityApp;
+}
