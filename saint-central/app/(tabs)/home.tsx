@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabaseClient";
 import ChurchPageLayout from "@/components/church/ChurchPageLayout";
-import ChurchPageFallback from "@/components/church/ChuchPageFallback";
+import ChurchPageFallback from "@/components/church/ChurchPageFallback";
 import { ChurchContext, ChurchContextData } from "@/contexts/church";
 import Spinner from "@/components/ui/Spinner";
 

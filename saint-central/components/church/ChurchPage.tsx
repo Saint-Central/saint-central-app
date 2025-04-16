@@ -6,15 +6,27 @@ import {
   SafeAreaView,
   Platform,
   TouchableOpacity,
-  Animated,
   StatusBar,
   Dimensions,
   FlatList,
   useWindowDimensions,
+  ScrollView,
 } from "react-native";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+  interpolate,
+  Extrapolate,
+  useDerivedValue,
+} from "react-native-reanimated";
 import { Church, ChurchMember } from "@/types/church";
 import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
@@ -30,6 +42,8 @@ type Props = {
 
 const TABS = ["Home", "Events", "Ministries", "Community"];
 
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
 export default function ChurchPage({ church, member, userData }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>(TABS[0]);
@@ -38,105 +52,115 @@ export default function ChurchPage({ church, member, userData }: Props) {
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const isTablet = SCREEN_WIDTH > 768;
 
-  // Refs for animations
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const sidebarAnim = useRef(new Animated.Value(0)).current;
-  const appearAnim = useRef(new Animated.Value(0)).current;
+  // Shared values for animations
+  const scrollY = useSharedValue(0);
+  const sidebarAnim = useSharedValue(0);
+  const appearAnim = useSharedValue(0);
 
   // Page tab animations
-  const tabAnimations = useRef(TABS.map(() => new Animated.Value(0))).current;
-  const tabScrollX = useRef(new Animated.Value(0)).current;
+  const tabAnimations = useRef(TABS.map(() => useSharedValue(0))).current;
+  const tabScrollX = useSharedValue(0);
 
   // Animate page elements on mount
   useEffect(() => {
-    Animated.stagger(50, [
-      Animated.spring(appearAnim, {
-        toValue: 1,
-        tension: 300,
-        friction: 20,
-        useNativeDriver: true,
-      }),
-      ...tabAnimations.map((anim) =>
-        Animated.spring(anim, {
-          toValue: 1,
-          tension: 250,
-          friction: 24,
-          useNativeDriver: true,
+    // Initial animation sequence using Reanimated 3
+    appearAnim.value = withSpring(1, {
+      damping: 20,
+      stiffness: 300,
+      mass: 1,
+    });
+
+    // Animate tabs with staggered delay
+    tabAnimations.forEach((anim, index) => {
+      anim.value = withDelay(
+        50 * index,
+        withSpring(1, {
+          damping: 24,
+          stiffness: 250,
+          mass: 1,
         }),
-      ),
-    ]).start();
+      );
+    });
   }, []);
 
   // Handle sidebar animation
   useEffect(() => {
-    Animated.timing(sidebarAnim, {
-      toValue: sidebarOpen ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    sidebarAnim.value = withTiming(sidebarOpen ? 1 : 0, { duration: 200 });
   }, [sidebarOpen]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Animated values for header
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
+  // Scroll event handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
   });
 
-  const headerScale = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0.96, 1],
-    extrapolate: "clamp",
+  // Animated styles for header
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 50], [0, 1], Extrapolate.CLAMP);
+
+    const scale = interpolate(scrollY.value, [0, 50], [0.96, 1], Extrapolate.CLAMP);
+
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
   });
 
   // Content animations when sidebar is open
-  const contentTranslate = sidebarAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, SCREEN_WIDTH * (isTablet ? 0.4 : 0.55)],
+  const contentAnimatedStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      sidebarAnim.value,
+      [0, 1],
+      [0, SCREEN_WIDTH * (isTablet ? 0.4 : 0.55)],
+    );
+
+    const scale = interpolate(sidebarAnim.value, [0, 1], [1, isTablet ? 0.95 : 0.88]);
+
+    const borderRadius = interpolate(sidebarAnim.value, [0, 1], [0, theme.radiusXL]);
+
+    return {
+      opacity: appearAnim.value,
+      transform: [{ translateX }, { scale }],
+      borderRadius,
+    };
   });
 
-  const contentScale = sidebarAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, isTablet ? 0.95 : 0.88],
-  });
-
-  const contentRadius = sidebarAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, theme.radiusXL],
+  // Overlay animation
+  const overlayAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(sidebarAnim.value, [0, 1], [0, 0.6]),
+    };
   });
 
   // Tab handling
   const handleTabPress = (tabIndex: number) => {
     setActiveTab(TABS[tabIndex]);
 
-    // Animate the pressed tab
-    Animated.sequence([
-      Animated.timing(tabAnimations[tabIndex], {
-        toValue: 0.95,
-        duration: 80,
-        useNativeDriver: true,
+    // Animate the pressed tab with sequence
+    tabAnimations[tabIndex].value = withSequence(
+      withTiming(0.95, { duration: 80 }),
+      withSpring(1, {
+        damping: 10,
+        stiffness: 300,
+        mass: 1,
       }),
-      Animated.spring(tabAnimations[tabIndex], {
-        toValue: 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    );
   };
 
   // Generate tab indicator position
-  const tabIndicatorTranslate = useRef(
-    tabScrollX.interpolate({
-      inputRange: TABS.map((_, i) => i * SCREEN_WIDTH),
-      outputRange: TABS.map((_, i) => i * (SCREEN_WIDTH / TABS.length)),
-      extrapolate: "clamp",
-    }),
-  ).current;
+  const tabIndicatorPosition = useDerivedValue(() => {
+    return interpolate(
+      tabScrollX.value,
+      TABS.map((_, i) => i * SCREEN_WIDTH),
+      TABS.map((_, i) => i * (SCREEN_WIDTH / TABS.length)),
+      Extrapolate.CLAMP,
+    );
+  });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -156,17 +180,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
           activeOpacity={1}
           onPress={() => setSidebarOpen(false)}
         >
-          <Animated.View
-            style={[
-              styles.overlay,
-              {
-                opacity: sidebarAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 0.6],
-                }),
-              },
-            ]}
-          />
+          <Animated.View style={[styles.overlay, overlayAnimatedStyle]} />
         </TouchableOpacity>
       )}
 
@@ -179,26 +193,9 @@ export default function ChurchPage({ church, member, userData }: Props) {
 
       {/* Main content with animations */}
       <View style={styles.overlayBackgroundFill} />
-      <Animated.View
-        style={[
-          styles.mainContainer,
-          {
-            opacity: appearAnim,
-            transform: [{ translateX: contentTranslate }, { scale: contentScale }],
-            borderRadius: contentRadius,
-          },
-        ]}
-      >
+      <Animated.View style={[styles.mainContainer, contentAnimatedStyle]}>
         {/* Floating header */}
-        <Animated.View
-          style={[
-            styles.headerContainer,
-            {
-              opacity: headerOpacity,
-              transform: [{ scale: headerScale }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.headerContainer, headerAnimatedStyle]}>
           <View style={styles.headerContent}>
             <View style={styles.headerSpacer} />
 
@@ -211,7 +208,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
         </Animated.View>
 
         {/* Page content */}
-        <Animated.ScrollView
+        <AnimatedScrollView
           style={{ flex: 1, backgroundColor: "#FFFFFF" }}
           contentContainerStyle={[
             styles.scrollViewContent,
@@ -219,9 +216,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
           ]}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: false,
-          })}
+          onScroll={scrollHandler}
         >
           {/* Church Page Header */}
           <ChurchPageHeader church={church} userData={userData} onPressMenu={toggleSidebar} />
@@ -236,9 +231,9 @@ export default function ChurchPage({ church, member, userData }: Props) {
                 activeOpacity={0.7}
               >
                 <Animated.View
-                  style={{
-                    transform: [{ scale: tabAnimations[index] }],
-                  }}
+                  style={useAnimatedStyle(() => ({
+                    transform: [{ scale: tabAnimations[index].value }],
+                  }))}
                 >
                   <Text
                     style={[
@@ -292,7 +287,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
               </View>
             )}
           </View>
-        </Animated.ScrollView>
+        </AnimatedScrollView>
       </Animated.View>
     </SafeAreaView>
   );

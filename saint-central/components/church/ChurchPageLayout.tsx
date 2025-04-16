@@ -1,18 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  SafeAreaView,
-  TouchableOpacity,
-  Animated,
-  Platform,
-} from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, Platform } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import { Ionicons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { useRouter } from "expo-router";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { Church } from "@/types/church";
 import ChurchPage from "@/components/church/ChurchPage";
 import { useChurchContext } from "@/contexts/church";
@@ -33,8 +31,8 @@ type Props = {
 export default function ChurchPageLayout({ userData }: Props) {
   const route = useRoute();
   const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const fadeAnim = useSharedValue(0);
+  const scaleAnim = useSharedValue(0.95);
 
   const [church, setChurch] = useState<Church | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -47,21 +45,22 @@ export default function ChurchPageLayout({ userData }: Props) {
   // Animation effect
   useEffect(() => {
     if (!loading && !error) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      fadeAnim.value = withTiming(1, { duration: 500 });
+      scaleAnim.value = withSpring(1, {
+        damping: 8,
+        stiffness: 40,
+        mass: 1,
+      });
     }
-  }, [loading, error, fadeAnim, scaleAnim]);
+  }, [loading, error]);
+
+  // Create animated style
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeAnim.value,
+      transform: [{ scale: scaleAnim.value }],
+    };
+  });
 
   // Fetch church data
   useEffect(() => {
@@ -162,15 +161,7 @@ export default function ChurchPageLayout({ userData }: Props) {
   }
 
   return (
-    <Animated.View
-      style={[
-        styles.animatedContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
+    <Animated.View style={[styles.animatedContainer, animatedStyle]}>
       <ChurchPage church={church} member={member} userData={userData} />
     </Animated.View>
   );

@@ -1,14 +1,13 @@
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
-import { ReactNode, useState } from "react";
-import {
-  TouchableOpacity,
-  View,
-  StyleSheet,
-  Text,
-  type GestureResponderEvent,
-  Animated,
-} from "react-native";
+import { ReactNode } from "react";
+import { TouchableOpacity, View, StyleSheet, Text, type GestureResponderEvent } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  WithSpringConfig,
+} from "react-native-reanimated";
 import theme from "@/theme";
 
 type Props = {
@@ -26,24 +25,22 @@ export function ChurchActionButton({
   withArrow = true,
   variant = "primary",
 }: Props) {
-  const [pressAnim] = useState(new Animated.Value(1));
+  const pressAnim = useSharedValue(1);
+
+  // Spring animation config
+  const springConfig: WithSpringConfig = {
+    damping: 15,
+    stiffness: 400,
+    mass: 1,
+    overshootClamping: false,
+  };
 
   const handlePressIn = () => {
-    Animated.spring(pressAnim, {
-      toValue: 0.97,
-      tension: 400,
-      friction: 15,
-      useNativeDriver: true,
-    }).start();
+    pressAnim.value = withSpring(0.97, springConfig);
   };
 
   const handlePressOut = () => {
-    Animated.spring(pressAnim, {
-      toValue: 1,
-      tension: 400,
-      friction: 15,
-      useNativeDriver: true,
-    }).start();
+    pressAnim.value = withSpring(1, springConfig);
   };
 
   const getButtonStyle = () => {
@@ -57,6 +54,12 @@ export function ChurchActionButton({
     }
   };
 
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pressAnim.value }],
+    };
+  });
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -65,15 +68,7 @@ export function ChurchActionButton({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >
-      <Animated.View
-        style={[
-          styles.button,
-          getButtonStyle(),
-          {
-            transform: [{ scale: pressAnim }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.button, getButtonStyle(), animatedStyle]}>
         <View style={styles.contentContainer}>
           {icon && <View style={styles.iconContainer}>{icon}</View>}
           <View style={styles.textContainer}>{children}</View>

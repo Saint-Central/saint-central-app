@@ -1,6 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Animated,
   TouchableOpacity,
   View,
   Text,
@@ -10,9 +9,15 @@ import {
   Platform,
   useWindowDimensions,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Church } from "@/types/church";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
@@ -32,8 +37,8 @@ export default function ChurchPageHeader({ church, userData, onPressMenu }: Prop
   const [eventsCount, setEventsCount] = useState<number>(12); // Default for now
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const fadeAnim = useSharedValue(0);
+  const scaleAnim = useSharedValue(0.95);
 
   // Fetch member count
   useEffect(() => {
@@ -63,33 +68,29 @@ export default function ChurchPageHeader({ church, userData, onPressMenu }: Prop
   // Animation for component mount
   useEffect(() => {
     // Fast animation on mount
-    Animated.parallel([
-      Animated.spring(fadeAnim, {
-        toValue: 1,
-        tension: 250,
-        friction: 18,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 250,
-        friction: 18,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, scaleAnim]);
+    fadeAnim.value = withSpring(1, {
+      damping: 18,
+      stiffness: 250,
+      mass: 1,
+    });
+
+    scaleAnim.value = withSpring(1, {
+      damping: 18,
+      stiffness: 250,
+      mass: 1,
+    });
+  }, []);
+
+  // Animated styles
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeAnim.value,
+      transform: [{ scale: scaleAnim.value }],
+    };
+  });
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        isTablet && styles.tabletContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
+    <Animated.View style={[styles.container, isTablet && styles.tabletContainer, animatedStyle]}>
       {/* Church name and location row */}
       <View style={[styles.titleRow, isTablet && styles.tabletTitleRow]}>
         <View style={styles.titleContainer}>

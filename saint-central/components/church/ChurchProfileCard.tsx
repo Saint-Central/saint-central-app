@@ -1,15 +1,8 @@
 import { Church, ChurchMember } from "@/types/church";
 import { FontAwesome5, Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
-import {
-  Animated,
-  View,
-  TouchableOpacity,
-  Linking,
-  StyleSheet,
-  Text,
-  Platform,
-} from "react-native";
+import React from "react";
+import { View, TouchableOpacity, Linking, StyleSheet, Text, Platform } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import theme from "@/theme";
 
@@ -20,26 +13,39 @@ type Props = {
 
 export default function ChurchProfileCard({ church, member }: Props) {
   // Animation for button press
-  const [actionScale1] = useState(new Animated.Value(1));
-  const [actionScale2] = useState(new Animated.Value(1));
+  const actionScale1 = useSharedValue(1);
+  const actionScale2 = useSharedValue(1);
 
   const handlePressIn = (buttonNumber: 1 | 2) => {
-    Animated.spring(buttonNumber === 1 ? actionScale1 : actionScale2, {
-      toValue: 0.97,
-      friction: 5,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    const targetScale = buttonNumber === 1 ? actionScale1 : actionScale2;
+    targetScale.value = withSpring(0.97, {
+      damping: 5,
+      stiffness: 40,
+      mass: 1,
+    });
   };
 
   const handlePressOut = (buttonNumber: 1 | 2) => {
-    Animated.spring(buttonNumber === 1 ? actionScale1 : actionScale2, {
-      toValue: 1,
-      friction: 5,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    const targetScale = buttonNumber === 1 ? actionScale1 : actionScale2;
+    targetScale.value = withSpring(1, {
+      damping: 5,
+      stiffness: 40,
+      mass: 1,
+    });
   };
+
+  // Create animated styles
+  const animatedStyle1 = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: actionScale1.value }],
+    };
+  });
+
+  const animatedStyle2 = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: actionScale2.value }],
+    };
+  });
 
   // Open phone call
   const callPhone = () => {
@@ -67,7 +73,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
   return (
     <Animated.View style={styles.card}>
       <LinearGradient
-        colors={[theme.cardInfoBackground, theme.cardInfoGradientEnd]}
+        colors={["#F5F7FF", "#EEF2FF"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.cardGradient}
@@ -76,7 +82,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <LinearGradient
-              colors={[theme.primary, theme.indigo]}
+              colors={[theme.primary, theme.primary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconBackgroundGradient}
@@ -96,7 +102,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <LinearGradient
-              colors={[theme.violet, theme.fuchsia]}
+              colors={[theme.tertiary, theme.tertiary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconBackgroundGradient}
@@ -109,7 +115,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
           <View style={styles.contactGrid}>
             <TouchableOpacity onPress={callPhone} style={styles.contactCard} activeOpacity={0.8}>
               <LinearGradient
-                colors={[theme.primary, theme.indigo]}
+                colors={[theme.primary, theme.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
@@ -121,7 +127,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
 
             <TouchableOpacity onPress={sendEmail} style={styles.contactCard} activeOpacity={0.8}>
               <LinearGradient
-                colors={[theme.pink, theme.rose]}
+                colors={[theme.tertiary, theme.tertiary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
@@ -133,7 +139,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
 
             <TouchableOpacity onPress={openWebsite} style={styles.contactCard} activeOpacity={0.8}>
               <LinearGradient
-                colors={[theme.emerald, theme.teal]}
+                colors={[theme.accent3, theme.accent3]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
@@ -151,7 +157,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
               }
             >
               <LinearGradient
-                colors={[theme.violet, theme.fuchsia]}
+                colors={[theme.secondary, theme.secondary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
@@ -167,7 +173,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <LinearGradient
-              colors={[theme.pink, theme.rose]}
+              colors={[theme.tertiary, theme.tertiary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconBackgroundGradient}
@@ -186,7 +192,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <LinearGradient
-                colors={[theme.pink, theme.rose]}
+                colors={[theme.tertiary, theme.tertiary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.iconBackgroundGradient}
@@ -226,9 +232,9 @@ export default function ChurchProfileCard({ church, member }: Props) {
               return;
             }}
           >
-            <Animated.View style={[styles.actionButton, { transform: [{ scale: actionScale1 }] }]}>
+            <Animated.View style={[styles.actionButton, animatedStyle1]}>
               <LinearGradient
-                colors={[theme.primary, theme.indigo]}
+                colors={[theme.primary, theme.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.actionGradient}
@@ -254,9 +260,9 @@ export default function ChurchProfileCard({ church, member }: Props) {
               return;
             }}
           >
-            <Animated.View style={[styles.actionButton, { transform: [{ scale: actionScale2 }] }]}>
+            <Animated.View style={[styles.actionButton, animatedStyle2]}>
               <LinearGradient
-                colors={[theme.sky, theme.cyan]}
+                colors={[theme.accent1, theme.accent1]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.actionGradient}
@@ -273,20 +279,20 @@ export default function ChurchProfileCard({ church, member }: Props) {
 }
 const styles = StyleSheet.create({
   card: {
-    borderRadius: theme.cardBorderRadius,
+    borderRadius: 16,
     overflow: "hidden",
     marginBottom: 20,
-    shadowColor: theme.indigo + "30",
+    shadowColor: "rgba(99, 102, 241, 0.3)",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 4,
   },
   cardGradient: {
-    borderRadius: theme.cardBorderRadius,
+    borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: theme.cardInfoBorderColor,
+    borderColor: "rgba(224, 231, 255, 0.7)",
   },
   sectionContainer: {
     marginBottom: 22,
@@ -312,12 +318,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: theme.textForeground,
+    color: theme.textDark || "#1E293B",
   },
   sectionText: {
     fontSize: 15,
     lineHeight: 22,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium || "#64748B",
     marginBottom: 10,
   },
   scheduleContainer: {
@@ -340,12 +346,12 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.textForegroundMuted,
+    color: theme.textMedium || "#64748B",
     width: 80,
   },
   detailText: {
     fontSize: 14,
-    color: theme.textForeground,
+    color: theme.textDark || "#1E293B",
     flex: 1,
   },
   contactGrid: {
@@ -380,7 +386,7 @@ const styles = StyleSheet.create({
   contactLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: theme.textForeground,
+    color: theme.textDark || "#1E293B",
     marginTop: 4,
   },
   contactItem: {
@@ -411,7 +417,7 @@ const styles = StyleSheet.create({
   },
   contactText: {
     fontSize: 15,
-    color: theme.textForeground,
+    color: theme.textDark || "#1E293B",
     flex: 1,
   },
   membershipContainer: {
@@ -429,12 +435,12 @@ const styles = StyleSheet.create({
   membershipLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.textForegroundMuted,
+    color: theme.textMedium || "#64748B",
     width: 110,
   },
   membershipText: {
     fontSize: 14,
-    color: theme.textForeground,
+    color: theme.textDark || "#1E293B",
   },
   roleBadge: {
     backgroundColor: theme.accent1,
@@ -447,7 +453,7 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 13,
     fontWeight: "600",
-    color: theme.indigo,
+    color: theme.primary,
   },
   actionsContainer: {
     flexDirection: "row",
@@ -461,7 +467,7 @@ const styles = StyleSheet.create({
   actionButton: {
     borderRadius: 14,
     overflow: "hidden",
-    shadowColor: theme.cardShadow,
+    shadowColor: "rgba(0, 0, 0, 0.1)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 5,
