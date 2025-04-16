@@ -158,7 +158,32 @@ const AuthScreen: React.FC = () => {
       async (event, currentSession) => {
         setSession(currentSession);
         if (currentSession && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
-          navigateToHome();
+          // Check if this is a brand new user - if they have no denomination yet, they need the selection screen
+          const { data: userData, error } = await supabase
+            .from("users")
+            .select("denomination")
+            .eq("id", currentSession.user.id)
+            .single();
+
+          // If we have user data, check if they need to select denomination
+          if (userData) {
+            if (userData.denomination) {
+              // User has already selected a denomination, go to home
+              navigateToHome();
+            } else {
+              // User exists but has no denomination, send to selection screen
+              navigateToDenominationSelection();
+            }
+          } else if (error) {
+            if (error.code === "PGRST116") {
+              // User not found in database yet, they need to select denomination
+              navigateToDenominationSelection();
+            } else {
+              // Some other error occurred, default to home
+              console.error("Error checking user denomination:", error);
+              navigateToHome();
+            }
+          }
         }
       },
     );
@@ -344,7 +369,6 @@ const AuthScreen: React.FC = () => {
           }
           throw new Error("Unable to sign in. Please check your connection and try again.");
         }
-        if (data?.session) navigateToHome();
       } else if (authMode === "signup") {
         if (!email || !password || !firstName || !lastName || !confirmPassword) {
           throw new Error("Please fill in all fields to sign up.");
@@ -403,15 +427,6 @@ const AuthScreen: React.FC = () => {
               ? "Welcome! You've signed up successfully."
               : "Check your email to confirm your account.",
           );
-          if (data.session) {
-            // For signup flow, go directly to denomination selection
-            if (authMode === "signup") {
-              router.replace("/selectDenomination");
-            } else {
-              // For login flow, go to home as before
-              navigateToHome();
-            }
-          }
         }
       } else {
         if (!email) {
