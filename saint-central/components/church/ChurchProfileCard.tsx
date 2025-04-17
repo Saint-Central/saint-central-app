@@ -4,6 +4,7 @@ import React from "react";
 import { View, TouchableOpacity, Linking, StyleSheet, Text, Platform } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+
 import theme from "@/theme";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export default function ChurchProfileCard({ church, member }: Props) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   // Animation for button press
   const actionScale1 = useSharedValue(1);
   const actionScale2 = useSharedValue(1);
@@ -227,10 +229,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
             activeOpacity={0.95}
             onPressIn={() => handlePressIn(1)}
             onPressOut={() => handlePressOut(1)}
-            onPress={() => {
-              /* Navigate to events */
-              return;
-            }}
+            onPress={() => navigation.navigate("church_events")}
           >
             <Animated.View style={[styles.actionButton, animatedStyle1]}>
               <LinearGradient
@@ -256,8 +255,10 @@ export default function ChurchProfileCard({ church, member }: Props) {
             onPressIn={() => handlePressIn(2)}
             onPressOut={() => handlePressOut(2)}
             onPress={() => {
-              /* Navigate to members */
-              return;
+              navigation.navigate("church_members", {
+                church_id: church.id.toString(),
+                church_name: church.name,
+              });
             }}
           >
             <Animated.View style={[styles.actionButton, animatedStyle2]}>

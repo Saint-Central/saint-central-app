@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Animated,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
@@ -22,22 +21,49 @@ import { supabase } from "../../supabaseClient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { Session } from "@supabase/supabase-js";
-import { Video, ResizeMode } from "expo-av";
-import Svg, { Rect } from "react-native-svg";
-
-// Import video background file
-const videoSource = require("../../assets/images/background.mp4");
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withDelay,
+  withSequence,
+  Easing,
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  BounceIn,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 const isIpad = width >= 768;
 
 // --- SVG Cross Component ---
-const CrossIcon = () => (
-  <Svg width={48} height={48} viewBox="0 0 64 64">
-    <Rect x="28" y="4" width="8" height="56" fill="#FAC898" />
-    <Rect x="4" y="28" width="56" height="8" fill="#FAC898" />
-  </Svg>
-);
+const CrossIcon = () => {
+  // Using Reanimated for the cross icon animation
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    rotation.value = withSequence(
+      withTiming(45, { duration: 600, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+      withTiming(0, { duration: 600, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.crossIconContainer, animatedStyle]}>
+      <View style={styles.crossVertical} />
+      <View style={styles.crossHorizontal} />
+    </Animated.View>
+  );
+};
 
 // --- Interfaces ---
 interface CustomInputProps {
@@ -48,6 +74,7 @@ interface CustomInputProps {
   icon: React.ReactNode;
   secureEntry?: boolean;
   toggleSecure?: () => void;
+  index: number;
 }
 
 // --- Password Validation Function ---
@@ -70,6 +97,9 @@ const validatePassword = (password: string): string | null => {
   return null;
 };
 
+// --- Animated Input Component ---
+const AnimatedInput = Animated.createAnimatedComponent(TextInput);
+
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
@@ -86,12 +116,162 @@ const AuthScreen: React.FC = () => {
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] = useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Animated values
+  const formOpacity = useSharedValue(0);
+  const titlePosition = useSharedValue(-50);
+  const buttonScale = useSharedValue(0.8);
+  const buttonOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    // Sequence of animations
+    titlePosition.value = withSpring(0, {
+      damping: 12,
+      stiffness: 90,
+    });
+
+    formOpacity.value = withDelay(
+      400,
+      withTiming(1, {
+        duration: 800,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
+    );
+
+    buttonOpacity.value = withDelay(
+      600,
+      withTiming(1, {
+        duration: 500,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
+    );
+
+    buttonScale.value = withDelay(
+      600,
+      withSpring(1, {
+        damping: 14,
+        stiffness: 100,
+      }),
+    );
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        if (currentSession && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+          // Check if this is a brand new user - if they have no denomination yet, they need the selection screen
+          const { data: userData, error } = await supabase
+            .from("users")
+            .select("denomination")
+            .eq("id", currentSession.user.id)
+            .single();
+
+          // If we have user data, check if they need to select denomination
+          if (userData) {
+            if (userData.denomination) {
+              // User has already selected a denomination, go to home
+              navigateToHome();
+            } else {
+              // User exists but has no denomination, send to selection screen
+              navigateToDenominationSelection();
+            }
+          } else if (error) {
+            if (error.code === "PGRST116") {
+              // User not found in database yet, they need to select denomination
+              navigateToDenominationSelection();
+            } else {
+              // Some other error occurred, default to home
+              console.error("Error checking user denomination:", error);
+              navigateToHome();
+            }
+          }
+        }
+      },
+    );
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      if (url.startsWith("myapp://auth/callback")) {
+        // Handle OAuth callback
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Animate when changing auth mode
+  useEffect(() => {
+    // Reset animations
+    formOpacity.value = 0;
+    buttonScale.value = 0.8;
+    buttonOpacity.value = 0;
+
+    // Restart animations with delays
+    formOpacity.value = withDelay(
+      100,
+      withTiming(1, {
+        duration: 500,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
+    );
+
+    buttonOpacity.value = withDelay(
+      300,
+      withTiming(1, {
+        duration: 400,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
+    );
+
+    buttonScale.value = withDelay(
+      300,
+      withSpring(1, {
+        damping: 14,
+        stiffness: 100,
+      }),
+    );
+  }, [authMode]);
+
+  // Animated styles
+  const titleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: titlePosition.value }],
+    };
+  });
+
+  const formStyle = useAnimatedStyle(() => {
+    return {
+      opacity: formOpacity.value,
+    };
+  });
+
+  const buttonStyle = useAnimatedStyle(() => {
+    return {
+      opacity: buttonOpacity.value,
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
+
+  // Automatically clear error after 15 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const navigateToHome = () => {
     if (!isLoggedIn) {
       setIsLoggedIn(true);
       router.replace("/(tabs)/home");
+    }
+  };
+
+  const navigateToDenominationSelection = () => {
+    if (!isLoggedIn) {
+      setIsLoggedIn(true);
+      router.replace("/selectDenomination");
     }
   };
 
@@ -168,42 +348,6 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-
-    const subscription = Linking.addEventListener("url", ({ url }) => {
-      if (url.startsWith("myapp://auth/callback")) {
-        // Handle OAuth callback
-      }
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        setSession(currentSession);
-        if (currentSession && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
-          navigateToHome();
-        }
-      },
-    );
-
-    return () => {
-      subscription.remove();
-      authListener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Automatically clear error after 15 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(""), 15000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
   const handleSubmit = async () => {
     Keyboard.dismiss();
     setError("");
@@ -225,7 +369,6 @@ const AuthScreen: React.FC = () => {
           }
           throw new Error("Unable to sign in. Please check your connection and try again.");
         }
-        if (data?.session) navigateToHome();
       } else if (authMode === "signup") {
         if (!email || !password || !firstName || !lastName || !confirmPassword) {
           throw new Error("Please fill in all fields to sign up.");
@@ -284,7 +427,6 @@ const AuthScreen: React.FC = () => {
               ? "Welcome! You've signed up successfully."
               : "Check your email to confirm your account.",
           );
-          if (data.session) navigateToHome();
         }
       } else {
         if (!email) {
@@ -316,18 +458,20 @@ const AuthScreen: React.FC = () => {
     icon,
     secureEntry,
     toggleSecure,
+    index,
   }: CustomInputProps) => (
-    <View
+    <Animated.View
+      entering={FadeIn.delay(index * 100).duration(400)}
       style={[
         styles.inputContainer,
         authMode === "signup" && placeholder.includes("Name") ? styles.nameInput : null,
       ]}
     >
       {icon}
-      <TextInput
+      <AnimatedInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor="rgba(255, 255, 255, 0.6)"
+        placeholderTextColor="rgba(100, 100, 100, 0.8)"
         value={value}
         onChangeText={setValue}
         keyboardType={keyboardType}
@@ -336,10 +480,10 @@ const AuthScreen: React.FC = () => {
       />
       {toggleSecure && (
         <TouchableOpacity onPress={toggleSecure} style={styles.eyeIcon}>
-          <Feather name={secureEntry ? "eye-off" : "eye"} size={20} color="#FAC898" />
+          <Feather name={secureEntry ? "eye-off" : "eye"} size={20} color="#6366F1" />
         </TouchableOpacity>
       )}
-    </View>
+    </Animated.View>
   );
 
   return (
@@ -348,108 +492,150 @@ const AuthScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        {/* Video background */}
-        <Video
-          source={videoSource}
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+        {/* Modern Gradient Background */}
+        <LinearGradient
+          colors={["#F9FAFB", "#EEF2FF"]}
           style={styles.background}
-          rate={1.0}
-          volume={0}
-          isMuted
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         />
-        <View style={styles.overlay}>
-          {/* Toast error message */}
-          {error !== "" && (
-            <View style={styles.toastContainer} pointerEvents="none">
-              <Text style={styles.toastText}>{error}</Text>
-            </View>
-          )}
-          <SafeAreaView
-            style={[
-              styles.safeArea,
-              { alignItems: "center" },
-              isIpad && {
-                maxWidth: 600,
-                alignSelf: "center",
-                justifyContent: "center",
-              },
-            ]}
+
+        {/* Decorative Elements */}
+        <Animated.View
+          style={styles.decorativeCircle1}
+          entering={FadeIn.duration(800).delay(200)}
+        />
+        <Animated.View
+          style={styles.decorativeCircle2}
+          entering={FadeIn.duration(800).delay(350)}
+        />
+        <Animated.View
+          style={styles.decorativeCircle3}
+          entering={FadeIn.duration(800).delay(500)}
+        />
+
+        {/* Toast error message */}
+        {error !== "" && (
+          <Animated.View
+            style={styles.toastContainer}
+            entering={SlideInDown.springify().damping(12)}
+            exiting={FadeOut}
+            pointerEvents="none"
           >
-            <Animated.View style={[styles.content, isIpad && { maxWidth: 600 }]}>
-              <View style={styles.crossContainer}>
-                <CrossIcon />
-              </View>
-              <Text style={styles.title}>Saint Central</Text>
-              <Text style={styles.subtitle}>
-                {authMode === "login"
-                  ? "Let's begin the journey to your spiritual life"
-                  : authMode === "signup"
-                    ? "Join today"
-                    : "Reset your password to continue your journey"}
-              </Text>
-              {!error && message !== "" && (
-                <View style={[styles.messageContainer, styles.successContainer]}>
-                  <Feather name="check-circle" size={18} color="#10b981" />
-                  <Text style={styles.message}>{message}</Text>
+            <Text style={styles.toastText}>{error}</Text>
+          </Animated.View>
+        )}
+
+        <SafeAreaView
+          style={[
+            styles.safeArea,
+            { alignItems: "center" },
+            isIpad && {
+              maxWidth: 600,
+              alignSelf: "center",
+              justifyContent: "center",
+            },
+          ]}
+        >
+          <View style={[styles.content, isIpad && { maxWidth: 600 }]}>
+            <Animated.View style={[styles.crossContainer, titleStyle]}>
+              <CrossIcon />
+            </Animated.View>
+
+            <Animated.Text style={[styles.title, titleStyle]} entering={BounceIn.duration(600)}>
+              Saint Central
+            </Animated.Text>
+
+            <Animated.Text
+              style={[styles.subtitle, titleStyle]}
+              entering={BounceIn.duration(600).delay(200)}
+            >
+              {authMode === "login"
+                ? "Let's begin the journey to your spiritual life"
+                : authMode === "signup"
+                  ? "Join today"
+                  : "Reset your password to continue your journey"}
+            </Animated.Text>
+
+            {!error && message !== "" && (
+              <Animated.View
+                style={[styles.messageContainer, styles.successContainer]}
+                entering={FadeIn.duration(400)}
+              >
+                <Feather name="check-circle" size={18} color="#10b981" />
+                <Text style={styles.message}>{message}</Text>
+              </Animated.View>
+            )}
+
+            <Animated.View style={[styles.form, formStyle]}>
+              {renderInput({
+                placeholder: "Email",
+                value: email,
+                setValue: setEmail,
+                keyboardType: "email-address",
+                icon: <Feather name="mail" size={20} color="#6366F1" />,
+                index: 0,
+              })}
+
+              {authMode === "signup" && (
+                <View style={styles.nameRow}>
+                  {renderInput({
+                    placeholder: "First Name",
+                    value: firstName,
+                    setValue: setFirstName,
+                    icon: <Feather name="user" size={20} color="#6366F1" />,
+                    index: 1,
+                  })}
+                  {renderInput({
+                    placeholder: "Last Name",
+                    value: lastName,
+                    setValue: setLastName,
+                    icon: <Ionicons name="person" size={20} color="#6366F1" />,
+                    index: 2,
+                  })}
                 </View>
               )}
-              <View style={styles.form}>
-                {renderInput({
-                  placeholder: "Email",
-                  value: email,
-                  setValue: setEmail,
-                  keyboardType: "email-address",
-                  icon: <Feather name="mail" size={20} color="#FAC898" />,
+
+              {(authMode === "login" || authMode === "signup") &&
+                renderInput({
+                  placeholder: "Password",
+                  value: password,
+                  setValue: setPassword,
+                  secureEntry: secureTextEntry,
+                  toggleSecure: () => setSecureTextEntry(!secureTextEntry),
+                  icon: <Feather name="lock" size={20} color="#6366F1" />,
+                  index: authMode === "login" ? 1 : 3,
                 })}
-                {authMode === "signup" && (
-                  <View style={styles.nameRow}>
-                    {renderInput({
-                      placeholder: "First Name",
-                      value: firstName,
-                      setValue: setFirstName,
-                      icon: <Feather name="user" size={20} color="#FAC898" />,
-                    })}
-                    {renderInput({
-                      placeholder: "Last Name",
-                      value: lastName,
-                      setValue: setLastName,
-                      icon: <Ionicons name="person" size={20} color="#FAC898" />,
-                    })}
-                  </View>
-                )}
-                {(authMode === "login" || authMode === "signup") &&
-                  renderInput({
-                    placeholder: "Password",
-                    value: password,
-                    setValue: setPassword,
-                    secureEntry: secureTextEntry,
-                    toggleSecure: () => setSecureTextEntry(!secureTextEntry),
-                    icon: <Feather name="lock" size={20} color="#FAC898" />,
-                  })}
-                {authMode === "signup" &&
-                  renderInput({
-                    placeholder: "Confirm Password",
-                    value: confirmPassword,
-                    setValue: setConfirmPassword,
-                    secureEntry: secureConfirmTextEntry,
-                    toggleSecure: () => setSecureConfirmTextEntry(!secureConfirmTextEntry),
-                    icon: <Feather name="lock" size={20} color="#FAC898" />,
-                  })}
-                {authMode === "login" && (
+
+              {authMode === "signup" &&
+                renderInput({
+                  placeholder: "Confirm Password",
+                  value: confirmPassword,
+                  setValue: setConfirmPassword,
+                  secureEntry: secureConfirmTextEntry,
+                  toggleSecure: () => setSecureConfirmTextEntry(!secureConfirmTextEntry),
+                  icon: <Feather name="lock" size={20} color="#6366F1" />,
+                  index: 4,
+                })}
+
+              {authMode === "login" && (
+                <Animated.View entering={FadeIn.delay(200).duration(400)}>
                   <TouchableOpacity
                     style={styles.forgotLink}
                     onPress={() => setAuthMode("forgotPassword")}
                   >
                     <Text style={styles.forgotText}>Forgot Password?</Text>
                   </TouchableOpacity>
-                )}
-              </View>
+                </Animated.View>
+              )}
+            </Animated.View>
+
+            <Animated.View style={[buttonStyle]}>
               <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
                 {loading ? (
-                  <ActivityIndicator color="#513C28" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <View style={styles.buttonInner}>
                     <Text style={styles.buttonText}>
@@ -459,23 +645,30 @@ const AuthScreen: React.FC = () => {
                           ? "SIGN UP"
                           : "RESET PASSWORD"}
                     </Text>
-                    <Feather name="arrow-right" size={16} color="#513C28" />
+                    <Feather name="arrow-right" size={16} color="#FFFFFF" />
                   </View>
                 )}
               </TouchableOpacity>
-              {authMode !== "forgotPassword" && (
-                <View style={styles.socialSection}>
-                  <Text style={styles.orText}>Or continue with</Text>
-                  <TouchableOpacity
-                    style={styles.socialButton}
-                    onPress={handleAppleSignIn}
-                    disabled={loading}
-                  >
-                    <FontAwesome5 name="apple" size={24} color="#FFFFFF" />
-                    <Text style={styles.socialButtonText}>Sign in with Apple</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+            </Animated.View>
+
+            {authMode !== "forgotPassword" && (
+              <Animated.View
+                style={styles.socialSection}
+                entering={FadeIn.delay(700).duration(400)}
+              >
+                <Text style={styles.orText}>Or continue with</Text>
+                <TouchableOpacity
+                  style={styles.socialButton}
+                  onPress={handleAppleSignIn}
+                  disabled={loading}
+                >
+                  <FontAwesome5 name="apple" size={24} color="#333333" />
+                  <Text style={styles.socialButtonText}>Sign in with Apple</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
+            <Animated.View entering={FadeIn.delay(800).duration(400)}>
               <TouchableOpacity
                 onPress={() => setAuthMode(authMode === "login" ? "signup" : "login")}
               >
@@ -483,32 +676,54 @@ const AuthScreen: React.FC = () => {
                   {authMode === "login" ? "Need an account? Sign up" : "Already a member? Log in"}
                 </Text>
               </TouchableOpacity>
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>Powered by faith</Text>
-              </View>
             </Animated.View>
-          </SafeAreaView>
-        </View>
+
+            <Animated.View style={styles.footer} entering={FadeIn.delay(900).duration(400)}>
+              <Text style={styles.footerText}>Powered by faith</Text>
+            </Animated.View>
+          </View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  background: { ...StyleSheet.absoluteFillObject },
-  overlay: {
+  container: {
+    flex: 1,
+  },
+  background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   safeArea: {
     flex: 1,
     width: "100%",
     paddingTop: Platform.OS === "ios" ? 40 : 20,
   },
-  crossContainer: { alignSelf: "center", marginBottom: 8 },
+  crossContainer: {
+    alignSelf: "center",
+    marginBottom: 8,
+  },
+  crossIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  crossVertical: {
+    position: "absolute",
+    width: 8,
+    height: 48,
+    backgroundColor: "#6366F1",
+    borderRadius: 4,
+  },
+  crossHorizontal: {
+    position: "absolute",
+    width: 48,
+    height: 8,
+    backgroundColor: "#6366F1",
+    borderRadius: 4,
+  },
   content: {
     width: "100%",
     maxWidth: 400,
@@ -518,18 +733,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "300",
-    color: "#FFFFFF",
+    fontWeight: "700",
+    color: "#374151",
     letterSpacing: 1,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 18,
-    color: "#FFFFFF",
+    color: "#4B5563",
     marginBottom: 30,
     textAlign: "center",
-    fontWeight: "300",
+    fontWeight: "400",
     opacity: 0.9,
     letterSpacing: 0.5,
     maxWidth: 280,
@@ -552,45 +767,84 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16, 185, 129, 0.1)",
     borderColor: "rgba(16, 185, 129, 0.3)",
   },
-  error: { color: "#ef4444", marginLeft: 8, fontSize: 14, fontWeight: "500" },
-  message: { color: "#10b981", marginLeft: 8, fontSize: 14, fontWeight: "500" },
-  form: { width: "100%", gap: 16, marginBottom: 20 },
+  error: {
+    color: "#ef4444",
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  message: {
+    color: "#10b981",
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  form: {
+    width: "100%",
+    gap: 16,
+    marginBottom: 20,
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 52,
+    height: 56,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(99, 102, 241, 0.2)",
     width: "100%",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  nameInput: { flex: 1, width: undefined },
+  nameInput: {
+    flex: 1,
+    width: undefined,
+  },
   input: {
     flex: 1,
-    color: "#fff",
+    color: "#374151",
     fontSize: 16,
     marginLeft: 12,
     height: "100%",
   },
-  eyeIcon: { padding: 8 },
+  eyeIcon: {
+    padding: 8,
+  },
   nameRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
     width: "100%",
   },
-  forgotLink: { alignSelf: "flex-end", marginTop: 8, marginBottom: 0 },
-  forgotText: { color: "#FFFFFF", fontSize: 14, opacity: 0.8 },
+  forgotLink: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+    marginBottom: 0,
+  },
+  forgotText: {
+    color: "#6366F1",
+    fontSize: 14,
+    fontWeight: "500",
+  },
   button: {
     width: "100%",
-    height: 52,
-    borderRadius: 30,
-    backgroundColor: "#FAC898",
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#6366F1",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 24,
+    marginBottom: 16,
+    paddingHorizontal: 24,
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 5,
   },
   buttonInner: {
     flexDirection: "row",
@@ -598,7 +852,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonText: {
-    color: "#513C28",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
     marginRight: 8,
@@ -609,35 +863,95 @@ const styles = StyleSheet.create({
     gap: 16,
     width: "100%",
   },
-  orText: { color: "rgba(255, 255, 255, 0.6)", fontSize: 14 },
+  orText: {
+    color: "#6B7280",
+    fontSize: 14,
+  },
   socialButton: {
     width: "100%",
-    height: 52,
-    borderRadius: 30,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    gap: 8,
+    borderColor: "rgba(0, 0, 0, 0.1)",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  socialButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "400" },
-  switchText: { color: "#FFFFFF", fontSize: 14, marginTop: 24, opacity: 0.8 },
-  footer: { marginTop: 32, marginBottom: 24 },
-  footerText: { color: "rgba(255, 255, 255, 0.5)", fontSize: 12 },
+  socialButtonText: {
+    color: "#333333",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  switchText: {
+    color: "#6366F1",
+    fontSize: 14,
+    marginTop: 24,
+    fontWeight: "500",
+  },
+  footer: {
+    marginTop: 32,
+    marginBottom: 24,
+  },
+  footerText: {
+    color: "#9CA3AF",
+    fontSize: 12,
+  },
   toastContainer: {
     position: "absolute",
     top: 50,
     left: 20,
     right: 20,
     backgroundColor: "rgba(239,68,68,0.9)",
-    padding: 10,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 12,
     zIndex: 100,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  toastText: { color: "#fff", fontSize: 14 },
+  toastText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  // Decorative elements
+  decorativeCircle1: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    top: -50,
+    right: -50,
+  },
+  decorativeCircle2: {
+    position: "absolute",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    bottom: 100,
+    left: -50,
+  },
+  decorativeCircle3: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    bottom: 30,
+    right: 30,
+  },
 });
 
 export default AuthScreen;

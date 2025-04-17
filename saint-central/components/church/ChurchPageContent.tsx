@@ -15,14 +15,24 @@ import {
   Modal,
   Dimensions,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Church, ChurchMember } from "@/types/church";
 import { ChurchActionButton } from "./ChurchActionButton";
 import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
 import { useChurchContext } from "@/contexts/church";
-import { useNavigation, ParamListBase } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  MinistriesScreen: undefined;
+  coursehomepage: undefined;
+  church_events: undefined;
+  church_members: { church_id: string; church_name?: string };
+  volunteerhomepage: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type Props = {
   church: Church;
@@ -31,10 +41,12 @@ type Props = {
 };
 
 export default function ChurchPageContent({ church, member, userData }: Props) {
+  const navigation = useNavigation<NavigationProp>();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const [memberCount, setMemberCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { reset: resetChurchData } = useChurchContext();
+
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const { width } = useWindowDimensions();
   const isTablet = width > 768;
@@ -283,6 +295,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             isTablet && styles.tabletServicesScrollContainer,
           ]}
         >
+
           <ServiceCard
             title="Sunday Mass"
             time="9:00 AM"
