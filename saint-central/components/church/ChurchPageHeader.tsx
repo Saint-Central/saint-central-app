@@ -34,7 +34,7 @@ export default function ChurchPageHeader({ church, userData, onPressMenu }: Prop
   const isTablet = width > 768;
 
   const [memberCount, setMemberCount] = useState<number>(0);
-  const [eventsCount, setEventsCount] = useState<number>(12); // Default for now
+  const [eventsCount, setEventsCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fadeAnim = useSharedValue(0);
@@ -63,6 +63,31 @@ export default function ChurchPageHeader({ church, userData, onPressMenu }: Prop
     };
 
     fetchMemberCount();
+  }, [church.id]);
+
+  // Fetch events count
+  useEffect(() => {
+    const fetchEventsCount = async () => {
+      try {
+        setIsLoading(true);
+        const { count, error } = await supabase
+          .from("church_events")
+          .select("id", { count: "exact", head: true })
+          .eq("church_id", church.id);
+
+        if (error) {
+          console.error("Error fetching events count:", error);
+        } else {
+          setEventsCount(count || 0);
+        }
+      } catch (error) {
+        console.error("Error in fetching events count:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEventsCount();
   }, [church.id]);
 
   // Animation for component mount
@@ -163,7 +188,7 @@ export default function ChurchPageHeader({ church, userData, onPressMenu }: Prop
             <Ionicons name="calendar" size={16} color="#FFFFFF" />
           </LinearGradient>
           <View>
-            <Text style={styles.statValue}>{eventsCount}</Text>
+            <Text style={styles.statValue}>{isLoading ? "..." : eventsCount}</Text>
             <Text style={styles.statLabel}>Events</Text>
           </View>
         </View>
