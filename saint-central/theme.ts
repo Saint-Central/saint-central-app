@@ -1,60 +1,60 @@
 import { Platform } from "react-native";
 
 export default {
-  // New modern color palette
+  // New warm and cozy color palette
   // Main colors
-  primary: "#6366F1", // Indigo
-  secondary: "#8B5CF6", // Violet
-  tertiary: "#EC4899", // Pink
+  primary: "#A87C5F", // Warm brown
+  secondary: "#C27F55", // Soft terracotta
+  tertiary: "#D8846B", // Soft coral
 
   // Accent colors
-  accent1: "#22D3EE", // Cyan
-  accent2: "#F472B6", // Pink
-  accent3: "#34D399", // Emerald
-  accent4: "#FB923C", // Orange
+  accent1: "#9B8557", // Muted gold
+  accent2: "#B97A65", // Muted rust
+  accent3: "#7D9B6A", // Sage green
+  accent4: "#C78D60", // Warm amber
 
   // Neutrals
-  neutral900: "#020617", // Almost black
-  neutral800: "#0F172A",
-  neutral700: "#1E293B",
-  neutral600: "#475569",
-  neutral500: "#64748B",
-  neutral400: "#94A3B8",
-  neutral300: "#CBD5E1",
-  neutral200: "#E2E8F0",
-  neutral100: "#F1F5F9",
-  neutral50: "#F8FAFC", // Almost white
+  neutral900: "#2D241F", // Almost black with warm undertone
+  neutral800: "#3A2E28",
+  neutral700: "#4E3F37",
+  neutral600: "#6B5A50",
+  neutral500: "#8A7668",
+  neutral400: "#A99686",
+  neutral300: "#C7B9AD",
+  neutral200: "#E2D7CE",
+  neutral100: "#F2EBE4",
+  neutral50: "#F9F5F1", // Almost white with warm undertone
 
   // Special colors
-  success: "#10B981", // Emerald
-  warning: "#F59E0B", // Amber
-  error: "#EF4444", // Red
-  info: "#3B82F6", // Blue
+  success: "#7D9B6A", // Sage green
+  warning: "#C78D60", // Warm amber
+  error: "#BC6C64", // Dusty rose
+  info: "#6B8A9B", // Muted blue
 
   // Text
-  textDark: "#0F172A",
-  textMedium: "#475569",
-  textLight: "#94A3B8",
-  textWhite: "#FFFFFF",
+  textDark: "#3A2E28",
+  textMedium: "#6B5A50",
+  textLight: "#A99686",
+  textWhite: "#F9F5F1",
 
   // UI Elements
   cardBg: "#FFFFFF",
-  pageBg: "#F8FAFC",
-  divider: "#E2E8F0",
-  overlay: "rgba(0, 0, 0, 0.5)",
-  overlayLight: "rgba(0, 0, 0, 0.2)",
+  pageBg: "#F9F5F1",
+  divider: "#E2D7CE",
+  overlay: "rgba(45, 36, 31, 0.5)",
+  overlayLight: "rgba(45, 36, 31, 0.2)",
 
   // Gradients
-  gradientPrimary: ["#6366F1", "#8B5CF6"],
-  gradientSecondary: ["#8B5CF6", "#D946EF"],
-  gradientSuccess: ["#10B981", "#34D399"],
-  gradientWarning: ["#F59E0B", "#FB923C"],
-  gradientDanger: ["#EF4444", "#E11D48"],
-  gradientInfo: ["#3B82F6", "#60A5FA"],
-  gradientLight: ["#F8FAFC", "#F1F5F9"],
-  gradientNeutral: ["#475569", "#64748B"],
-  gradientCool: ["#22D3EE", "#38BDF8"],
-  gradientWarm: ["#FB923C", "#F87171"],
+  gradientPrimary: ["#A87C5F", "#C27F55"],
+  gradientSecondary: ["#C27F55", "#D8846B"],
+  gradientSuccess: ["#7D9B6A", "#96B585"],
+  gradientWarning: ["#C78D60", "#D9A97C"],
+  gradientDanger: ["#BC6C64", "#D28A82"],
+  gradientInfo: ["#6B8A9B", "#89A5B3"],
+  gradientLight: ["#F9F5F1", "#F2EBE4"],
+  gradientNeutral: ["#6B5A50", "#8A7668"],
+  gradientCool: ["#7B9DA0", "#A4BEC0"],
+  gradientWarm: ["#C78D60", "#D8846B"],
 
   // Typography
   fontRegular: "400",
@@ -81,21 +81,21 @@ export default {
 
   // Effects
   shadowLight: {
-    shadowColor: "rgba(0,0,0,0.1)",
+    shadowColor: "rgba(45,36,31,0.08)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
   },
   shadowMedium: {
-    shadowColor: "rgba(0,0,0,0.12)",
+    shadowColor: "rgba(45,36,31,0.1)",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
     shadowRadius: 12,
     elevation: 5,
   },
   shadowHeavy: {
-    shadowColor: "rgba(0,0,0,0.15)",
+    shadowColor: "rgba(45,36,31,0.12)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 16,

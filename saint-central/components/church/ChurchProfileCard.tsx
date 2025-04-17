@@ -4,8 +4,15 @@ import React from "react";
 import { View, TouchableOpacity, Linking, StyleSheet, Text, Platform } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import theme from "@/theme";
+
+type RootStackParamList = {
+  church_events: undefined;
+  church_members: { church_id: string; church_name?: string };
+};
 
 type Props = {
   church: Church;
@@ -75,7 +82,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
   return (
     <Animated.View style={styles.card}>
       <LinearGradient
-        colors={["#F5F7FF", "#EEF2FF"]}
+        colors={[theme.neutral50, theme.neutral100]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.cardGradient}
