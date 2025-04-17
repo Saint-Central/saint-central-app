@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,11 @@ import {
   Image,
   SafeAreaView,
   Alert,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../supabaseClient';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { supabase } from "../../supabaseClient";
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 
 interface Ministry {
   id: number;
@@ -25,8 +25,8 @@ interface Ministry {
 export default function JoinMinistryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const ministryId = typeof params.id === 'string' ? parseInt(params.id) : 0;
-  
+  const ministryId = typeof params.id === "string" ? parseInt(params.id) : 0;
+
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState<Ministry | null>(null);
   const [joiningMinistry, setJoiningMinistry] = useState(false);
@@ -39,11 +39,14 @@ export default function JoinMinistryScreen() {
   const checkMembershipAndLoadData = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError || !user) {
-        console.log('[DEBUG] Join Screen - No user found or error:', userError);
+        console.log("[DEBUG] Join Screen - No user found or error:", userError);
         Alert.alert("Error", "Please log in to continue");
         router.back();
         return;
@@ -54,27 +57,27 @@ export default function JoinMinistryScreen() {
 
       // Check if user is already a member
       const { data: membershipData, error: membershipError } = await supabase
-        .from('ministry_members')
-        .select('role')
-        .eq('ministry_id', ministryId)
-        .eq('user_id', user.id)
-        .eq('role', 'member')
+        .from("ministry_members")
+        .select("role")
+        .eq("ministry_id", ministryId)
+        .eq("user_id", user.id)
+        .eq("role", "member")
         .maybeSingle();
 
-      console.log('[DEBUG] Join Screen - Raw membership query result:', membershipData);
-      console.log('[DEBUG] Join Screen - Membership error:', membershipError);
+      console.log("[DEBUG] Join Screen - Raw membership query result:", membershipData);
+      console.log("[DEBUG] Join Screen - Membership error:", membershipError);
 
       // If user is already a member, redirect to ministry detail
       if (membershipData) {
-        console.log('[DEBUG] Join Screen - Found active membership, redirecting to detail screen');
+        console.log("[DEBUG] Join Screen - Found active membership, redirecting to detail screen");
         router.replace({
           pathname: "/(tabs)/ministryDetail",
-          params: { id: ministryId }
+          params: { id: ministryId },
         });
         return;
       }
 
-      console.log('[DEBUG] Join Screen - No active membership found, continuing to join screen');
+      console.log("[DEBUG] Join Screen - No active membership found, continuing to join screen");
 
       // Get church ID
       const { data: churchMember, error: churchError } = await supabase
@@ -102,7 +105,6 @@ export default function JoinMinistryScreen() {
       }
 
       setMinistry(ministryData);
-
     } catch (error) {
       console.error("[JOIN] Error:", error);
       Alert.alert("Error", "An unexpected error occurred");
@@ -114,8 +116,11 @@ export default function JoinMinistryScreen() {
   const handleJoinMinistry = async () => {
     try {
       setJoiningMinistry(true);
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError || !user) {
         Alert.alert("Error", "Please log in to continue");
         return;
@@ -127,15 +132,13 @@ export default function JoinMinistryScreen() {
       }
 
       // Insert membership record
-      const { error: joinError } = await supabase
-        .from("ministry_members")
-        .insert({
-          ministry_id: ministryId,
-          user_id: user.id,
-          church_id: userChurchId,
-          joined_at: new Date().toISOString(),
-          role: "member"
-        });
+      const { error: joinError } = await supabase.from("ministry_members").insert({
+        ministry_id: ministryId,
+        user_id: user.id,
+        church_id: userChurchId,
+        joined_at: new Date().toISOString(),
+        role: "member",
+      });
 
       if (joinError) {
         console.error("Error joining ministry:", joinError);
@@ -146,7 +149,7 @@ export default function JoinMinistryScreen() {
       // Navigate to ministry details
       router.replace({
         pathname: "/(tabs)/ministryDetail",
-        params: { id: ministryId }
+        params: { id: ministryId },
       });
     } catch (error) {
       console.error("Error:", error);
@@ -169,10 +172,7 @@ export default function JoinMinistryScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#2196F3" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Join Ministry</Text>
@@ -181,10 +181,7 @@ export default function JoinMinistryScreen() {
       {/* Ministry Details */}
       <View style={styles.content}>
         {ministry?.image_url ? (
-          <Image 
-            source={{ uri: ministry.image_url }} 
-            style={styles.ministryImage}
-          />
+          <Image source={{ uri: ministry.image_url }} style={styles.ministryImage} />
         ) : (
           <View style={styles.placeholderImage}>
             <Ionicons name="people-circle-outline" size={80} color="#94A3B8" />
@@ -193,7 +190,7 @@ export default function JoinMinistryScreen() {
 
         <Text style={styles.ministryName}>{ministry?.name}</Text>
         <Text style={styles.ministryDescription}>{ministry?.description}</Text>
-        
+
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{ministry?.member_count || 0}</Text>
@@ -223,14 +220,14 @@ export default function JoinMinistryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: "#E2E8F0",
   },
   backButton: {
     padding: 8,
@@ -238,12 +235,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#1E293B',
+    fontWeight: "600",
+    color: "#1E293B",
   },
   content: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     padding: 24,
   },
   ministryImage: {
@@ -256,50 +253,50 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 24,
   },
   ministryName: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontWeight: "700",
+    color: "#1E293B",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   ministryDescription: {
     fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
+    color: "#64748B",
+    textAlign: "center",
     marginBottom: 24,
     lineHeight: 24,
   },
   statsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 32,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
     marginHorizontal: 16,
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#2196F3',
+    fontWeight: "700",
+    color: "#2196F3",
   },
   statLabel: {
     fontSize: 14,
-    color: '#64748B',
+    color: "#64748B",
     marginTop: 4,
   },
   joinButton: {
-    flexDirection: 'row',
-    backgroundColor: '#2196F3',
+    flexDirection: "row",
+    backgroundColor: "#2196F3",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 24,
-    alignItems: 'center',
+    alignItems: "center",
   },
   joiningButton: {
     opacity: 0.7,
@@ -308,19 +305,19 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   joinButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#64748B',
+    color: "#64748B",
   },
-}); 
+});

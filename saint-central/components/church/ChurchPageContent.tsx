@@ -47,7 +47,6 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { reset: resetChurchData } = useChurchContext();
 
-  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const { width } = useWindowDimensions();
   const isTablet = width > 768;
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
@@ -295,7 +294,6 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             isTablet && styles.tabletServicesScrollContainer,
           ]}
         >
-
           <ServiceCard
             title="Sunday Mass"
             time="9:00 AM"
