@@ -29,6 +29,7 @@ import {
   Feather,
   AntDesign,
 } from "@expo/vector-icons";
+import theme from "@/theme";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -172,17 +173,17 @@ export default function ChurchSidebar({
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("Lent2025")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
-                  colors={["#8338EC", "#6A0DAD"]}
+                  colors={[theme.secondary, theme.accent2]}
                   style={[styles.iconGradient, styles.muted]}
                 >
-                  <FontAwesome5 name="bible" size={22} color="#FFFFFF" />
+                  <FontAwesome5 name="bible" size={22} color={theme.textWhite} />
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Lent 2025</Text>
                 <Text style={styles.menuDescription}>Journey through the Lenten season</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             {/* Rosary Section */}
@@ -192,51 +193,51 @@ export default function ChurchSidebar({
             >
               <View style={styles.menuIconContainer}>
                 <LinearGradient
-                  colors={["#FF006E", "#FB5607"]}
+                  colors={[theme.tertiary, theme.accent2]}
                   style={[styles.iconGradient, styles.muted]}
                 >
-                  <FontAwesome5 name="praying-hands" size={22} color="#FFFFFF" />
+                  <FontAwesome5 name="praying-hands" size={22} color={theme.textWhite} />
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Rosary</Text>
                 <Text style={styles.menuDescription}>Prayers and meditations</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             {/* Events Section */}
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("events")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
-                  colors={["#3A86FF", "#4361EE"]}
+                  colors={[theme.info, theme.accent1]}
                   style={[styles.iconGradient, styles.muted]}
                 >
-                  <FontAwesome5 name="calendar-alt" size={22} color="#FFFFFF" />
+                  <FontAwesome5 name="calendar-alt" size={22} color={theme.textWhite} />
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Events</Text>
                 <Text style={styles.menuDescription}>Upcoming church activities</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             {/* Donations Section */}
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("donate")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
-                  colors={["#06D6A0", "#1A936F"]}
+                  colors={[theme.success, theme.accent3]}
                   style={[styles.iconGradient, styles.muted]}
                 >
-                  <FontAwesome5 name="heart" size={22} color="#FFFFFF" />
+                  <FontAwesome5 name="heart" size={22} color={theme.textWhite} />
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Donations</Text>
                 <Text style={styles.menuDescription}>Support our ministries</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             {/* Divider */}
@@ -248,52 +249,52 @@ export default function ChurchSidebar({
               onPress={() => navigateTo("MinistriesScreen")}
             >
               <View style={styles.menuIconContainer}>
-                <FontAwesome5 name="church" size={20} color="#64748B" />
+                <FontAwesome5 name="church" size={20} color={theme.textMedium} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Ministries</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("courses")}>
               <View style={styles.menuIconContainer}>
-                <Ionicons name="book-outline" size={20} color="#64748B" />
+                <Ionicons name="book-outline" size={20} color={theme.textMedium} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Courses</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("schedule")}>
               <View style={styles.menuIconContainer}>
-                <MaterialCommunityIcons name="calendar-clock" size={20} color="#64748B" />
+                <MaterialCommunityIcons name="calendar-clock" size={20} color={theme.textMedium} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Mass Schedule</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("community")}>
               <View style={styles.menuIconContainer}>
-                <Ionicons name="people" size={20} color="#64748B" />
+                <Ionicons name="people" size={20} color={theme.textMedium} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Community</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("settings")}>
               <View style={styles.menuIconContainer}>
-                <Ionicons name="settings-outline" size={20} color="#64748B" />
+                <Ionicons name="settings-outline" size={20} color={theme.textMedium} />
               </View>
               <View style={styles.menuTextContainer}>
                 <Text style={styles.menuTitle}>Settings</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
           </ScrollView>
 
@@ -305,7 +306,7 @@ export default function ChurchSidebar({
                 /* Handle logout */
               }}
             >
-              <Feather name="log-out" size={18} color="#E11D48" />
+              <Feather name="log-out" size={18} color={theme.error} />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           </View>
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: theme.overlay,
   },
   sidebar: {
     position: "absolute",
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
     height: "100%",
     left: 0,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: {
       width: 5,
       height: 0,
@@ -352,7 +353,7 @@ const styles = StyleSheet.create({
   },
   safeAreaSpacer: {
     height: Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 0,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "rgba(45, 36, 31, 0.4)",
     width: "100%",
   },
   headerBackground: {
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
   headerOverlay: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "rgba(45, 36, 31, 0.4)",
     paddingTop: 70, // Increased padding to move content down more
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -397,7 +398,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 22,
     fontWeight: "700",
-    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowColor: "rgba(45, 36, 31, 0.2)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 4.5,
@@ -455,22 +456,22 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1E293B",
+    color: theme.textDark,
     marginBottom: 4,
   },
   menuDescription: {
     fontSize: 13,
-    color: "#64748B",
+    color: theme.textMedium,
   },
   divider: {
     height: 1,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: theme.divider,
     marginVertical: 16,
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: theme.divider,
   },
   logoutButton: {
     flexDirection: "row",
@@ -478,11 +479,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "rgba(188, 108, 100, 0.15)",
   },
   logoutText: {
     marginLeft: 8,
-    color: "#E11D48",
+    color: theme.error,
     fontWeight: "600",
   },
 });
