@@ -1,10 +1,9 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
   View,
   TouchableOpacity,
-  Animated,
   Dimensions,
   StatusBar,
   Platform,
@@ -13,6 +12,15 @@ import {
   ImageBackground,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  interpolate,
+  Extrapolate,
+  runOnJS,
+} from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Ionicons,
@@ -37,46 +45,60 @@ export default function ChurchSidebar({
   onClose,
   userName,
   profileImage,
-}: SidebarProps): JSX.Element | null {
+}: SidebarProps): JSX.Element {
   const navigation = useNavigation();
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [visibilityFlag, setVisibilityFlag] = useState(false);
+  const animationProgress = useSharedValue(0);
+
+  // Create animated styles - IMPORTANT: these must be called every render
+  const containerStyle = useAnimatedStyle(() => {
+    return {
+      opacity: animationProgress.value,
+      zIndex: 1000,
+      pointerEvents: isOpen ? ("auto" as const) : ("none" as const),
+    };
+  });
+
+  const sidebarStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      animationProgress.value,
+      [0, 1],
+      [-SIDEBAR_WIDTH, 0],
+      Extrapolate.CLAMP,
+    );
+
+    return {
+      transform: [{ translateX }],
+    };
+  });
 
   // Animation controls
   useEffect(() => {
     if (isOpen) {
       setVisibilityFlag(true);
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        // Only set visibility to false AFTER animation completes
-        setVisibilityFlag(false);
+      animationProgress.value = withTiming(1, {
+        duration: 300,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       });
+    } else {
+      const hideComponent = () => {
+        setVisibilityFlag(false);
+      };
+
+      animationProgress.value = withTiming(
+        0,
+        {
+          duration: 250,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        },
+        (finished) => {
+          if (finished) {
+            runOnJS(hideComponent)();
+          }
+        },
+      );
     }
-  }, [isOpen, slideAnim, fadeAnim]);
+  }, [isOpen, animationProgress]);
 
   // Navigate to different sections
   const navigateTo = (screen: string) => {
@@ -87,41 +109,18 @@ export default function ChurchSidebar({
     }, 300);
   };
 
-  // Hide sidebar if not open
+  // Render null with a wrapper component if not visible
   if (!visibilityFlag && !isOpen) {
-    return null;
+    return <View style={{ display: "none" }} />;
   }
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          opacity: fadeAnim,
-          zIndex: 1000, // Always keep high zIndex during animation
-          pointerEvents: isOpen ? "auto" : "none",
-        },
-      ]}
-    >
+    <Animated.View style={[styles.container, containerStyle]}>
       {/* Backdrop for clicking outside to close */}
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
       {/* Sidebar Panel */}
-      <Animated.View
-        style={[
-          styles.sidebar,
-          {
-            transform: [
-              {
-                translateX: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-SIDEBAR_WIDTH, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.sidebar, sidebarStyle]}>
         <View style={styles.sidebarContent}>
           {/* Header with Background Image - includes the safe area */}
           <View style={styles.headerContainer}>

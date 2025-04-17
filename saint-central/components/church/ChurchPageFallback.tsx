@@ -1,14 +1,21 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import {
   StyleSheet,
   Text,
   View,
   SafeAreaView,
-  Animated,
   StatusBar,
   TouchableOpacity,
   Platform,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+} from "react-native-reanimated";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import theme from "@/theme";
@@ -30,69 +37,105 @@ export default function ChurchPageFallback({ error }: Props) {
   const router = useRouter();
 
   // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const contentAnim = useRef(new Animated.Value(0)).current;
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const buttonAnimValues = [0, 1, 2].map(() => useRef(new Animated.Value(0)).current);
-  const registerButtonAnim = useRef(new Animated.Value(0)).current;
-  const cardScaleAnim = useRef(new Animated.Value(0.96)).current;
+  const fadeAnim = useSharedValue(0);
+  const contentAnim = useSharedValue(0);
+  const buttonAnimValues = [0, 1, 2].map(() => useSharedValue(0));
+  const registerButtonAnim = useSharedValue(0);
+  const cardScaleAnim = useSharedValue(0.96);
 
   // Handle animations
   useEffect(() => {
-    // First animate the content upward
-    Animated.sequence([
-      // Fade in the main content
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 650,
-        useNativeDriver: true,
+    // First animate main content fade in
+    fadeAnim.value = withTiming(1, { duration: 650 });
+
+    // Scale up card with subtle spring effect
+    cardScaleAnim.value = withDelay(
+      650,
+      withSpring(1, {
+        damping: 10,
+        stiffness: 40,
+        mass: 1,
       }),
-      // Scale up card with subtle spring effect
-      Animated.spring(cardScaleAnim, {
-        toValue: 1,
-        friction: 10,
-        tension: 40,
-        useNativeDriver: true,
+    );
+
+    // Then animate content sliding up
+    contentAnim.value = withDelay(
+      650 + 100, // After card animation starts
+      withSpring(1, {
+        damping: 10,
+        stiffness: 40,
+        mass: 1,
       }),
-      // Then animate content sliding up
-      Animated.spring(contentAnim, {
-        toValue: 1,
-        friction: 10,
-        tension: 40,
-        useNativeDriver: true,
+    );
+
+    // Then animate the register button
+    registerButtonAnim.value = withDelay(
+      650 + 200, // After content slide animation starts
+      withSpring(1, {
+        damping: 8,
+        stiffness: 35,
+        mass: 1,
       }),
-      // Then animate the register button
-      Animated.spring(registerButtonAnim, {
-        toValue: 1,
-        friction: 8,
-        tension: 35,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    );
 
     // Animate buttons entrance with staggered delay
-    Animated.stagger(
-      120,
-      buttonAnimValues.map((anim) =>
-        Animated.spring(anim, {
-          toValue: 1,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
+    buttonAnimValues.forEach((anim, index) => {
+      anim.value = withDelay(
+        650 + 200 + index * 120, // Start after register button with 120ms stagger
+        withSpring(1, {
+          damping: 8,
+          stiffness: 50,
+          mass: 1,
         }),
-      ),
-    ).start();
-  }, [buttonAnimValues, fadeAnim, contentAnim, registerButtonAnim, cardScaleAnim]);
+      );
+    });
+  }, []);
 
   // Button press animation
   const pressButton = (index: number, pressed: boolean) => {
-    Animated.spring(buttonAnimValues[index], {
-      toValue: pressed ? 0.96 : 1,
-      friction: 6,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    buttonAnimValues[index].value = withSpring(pressed ? 0.96 : 1, {
+      damping: 6,
+      stiffness: 40,
+      mass: 1,
+    });
   };
+
+  // Animated styles
+  const mainContentStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeAnim.value,
+      transform: [
+        {
+          translateY: withTiming(contentAnim.value * 30, { duration: 300 }),
+        },
+      ],
+    };
+  });
+
+  const cardScaleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: cardScaleAnim.value }],
+    };
+  });
+
+  const registerButtonStyle = useAnimatedStyle(() => {
+    return {
+      opacity: registerButtonAnim.value,
+      transform: [
+        { scale: registerButtonAnim.value },
+        { translateY: (1 - registerButtonAnim.value) * 10 },
+      ],
+    };
+  });
+
+  const buttonStyles = buttonAnimValues.map((anim, index) =>
+    useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: anim.value }, { translateY: (1 - anim.value) * 30 }],
+        opacity: anim.value,
+      };
+    }),
+  );
 
   // Not a church member UI
   return (
@@ -100,44 +143,26 @@ export default function ChurchPageFallback({ error }: Props) {
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       <DecoratedHeader
         label="Find Your Community"
-        styles={{ marginTop: theme.spacingTopBar, marginBottom: 30, marginLeft: 24 }}
+        styles={{
+          marginTop: Platform.OS === "android" ? StatusBar.currentHeight || 24 : 44,
+          marginBottom: 30,
+          marginLeft: 24,
+        }}
       />
-      <Animated.View
-        style={[
-          styles.mainContent,
-          {
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateY: contentAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.mainContent, mainContentStyle]}>
         {error ? (
           <View style={styles.errorContainer}>
             <LinearGradient
               colors={["rgba(239, 68, 68, 0.08)", "rgba(220, 38, 38, 0.12)"]}
               style={styles.errorGradient}
             >
-              <Ionicons name="alert-circle-outline" size={22} color={theme.textErrorColor} />
+              <Ionicons name="alert-circle-outline" size={22} color="#EF4444" />
               <Text style={styles.errorText}>Something went wrong. Please try again.</Text>
             </LinearGradient>
           </View>
         ) : (
           <>
-            <Animated.View
-              style={[
-                styles.infoCard,
-                {
-                  transform: [{ scale: cardScaleAnim }],
-                },
-              ]}
-            >
+            <Animated.View style={[styles.infoCard, cardScaleStyle]}>
               <LinearGradient
                 colors={["#6172E4", "#4C59C9"]}
                 start={{ x: 0, y: 0 }}
@@ -158,23 +183,7 @@ export default function ChurchPageFallback({ error }: Props) {
                   fellowship activities.
                 </Text>
 
-                <Animated.View
-                  style={[
-                    styles.registerButtonContainer,
-                    {
-                      opacity: registerButtonAnim,
-                      transform: [
-                        { scale: registerButtonAnim },
-                        {
-                          translateY: registerButtonAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [10, 0],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
+                <Animated.View style={[styles.registerButtonContainer, registerButtonStyle]}>
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPressIn={() => pressButton(2, true)}
@@ -183,11 +192,9 @@ export default function ChurchPageFallback({ error }: Props) {
                     style={styles.registerButtonTouchable}
                   >
                     <Animated.View
-                      style={[
-                        {
-                          transform: [{ scale: buttonAnimValues[2] }],
-                        },
-                      ]}
+                      style={useAnimatedStyle(() => ({
+                        transform: [{ scale: buttonAnimValues[2].value }],
+                      }))}
                     >
                       <LinearGradient
                         colors={["#5CAF70", "#419458"]}
@@ -205,23 +212,7 @@ export default function ChurchPageFallback({ error }: Props) {
             </Animated.View>
 
             <View style={styles.buttonsContainer}>
-              <Animated.View
-                style={[
-                  styles.buttonWrapper,
-                  {
-                    transform: [
-                      { scale: buttonAnimValues[0] },
-                      {
-                        translateY: buttonAnimValues[0].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [30, 0],
-                        }),
-                      },
-                    ],
-                    opacity: buttonAnimValues[0],
-                  },
-                ]}
-              >
+              <Animated.View style={[styles.buttonWrapper, buttonStyles[0]]}>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPressIn={() => pressButton(0, true)}
@@ -245,23 +236,7 @@ export default function ChurchPageFallback({ error }: Props) {
                 </TouchableOpacity>
               </Animated.View>
 
-              <Animated.View
-                style={[
-                  styles.buttonWrapper,
-                  {
-                    transform: [
-                      { scale: buttonAnimValues[1] },
-                      {
-                        translateY: buttonAnimValues[1].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [30, 0],
-                        }),
-                      },
-                    ],
-                    opacity: buttonAnimValues[1],
-                  },
-                ]}
-              >
+              <Animated.View style={[styles.buttonWrapper, buttonStyles[1]]}>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPressIn={() => pressButton(1, true)}
@@ -321,9 +296,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: theme.textErrorColor,
+    color: "#EF4444",
     marginLeft: 12,
-    fontWeight: theme.fontMedium,
+    fontWeight: "500",
     flex: 1,
   },
   infoIconContainer: {
@@ -438,6 +413,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: "600",
-    color: theme.buttonText,
+    color: "#FFFFFF",
   },
 });

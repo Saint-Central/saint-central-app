@@ -1,24 +1,11 @@
 import { Church, ChurchMember } from "@/types/church";
 import { FontAwesome5, Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
-import {
-  Animated,
-  View,
-  TouchableOpacity,
-  Linking,
-  StyleSheet,
-  Text,
-  Platform,
-} from "react-native";
+import React from "react";
+import { View, TouchableOpacity, Linking, StyleSheet, Text, Platform } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-type RootStackParamList = {
-  church_events: undefined;
-  church_members: { church_id: string; church_name?: string };
-  // Add other screen names as needed
-};
+import theme from "@/theme";
 
 type Props = {
   church: Church;
@@ -28,26 +15,39 @@ type Props = {
 export default function ChurchProfileCard({ church, member }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   // Animation for button press
-  const [actionScale1] = useState(new Animated.Value(1));
-  const [actionScale2] = useState(new Animated.Value(1));
+  const actionScale1 = useSharedValue(1);
+  const actionScale2 = useSharedValue(1);
 
   const handlePressIn = (buttonNumber: 1 | 2) => {
-    Animated.spring(buttonNumber === 1 ? actionScale1 : actionScale2, {
-      toValue: 0.97,
-      friction: 5,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    const targetScale = buttonNumber === 1 ? actionScale1 : actionScale2;
+    targetScale.value = withSpring(0.97, {
+      damping: 5,
+      stiffness: 40,
+      mass: 1,
+    });
   };
 
   const handlePressOut = (buttonNumber: 1 | 2) => {
-    Animated.spring(buttonNumber === 1 ? actionScale1 : actionScale2, {
-      toValue: 1,
-      friction: 5,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    const targetScale = buttonNumber === 1 ? actionScale1 : actionScale2;
+    targetScale.value = withSpring(1, {
+      damping: 5,
+      stiffness: 40,
+      mass: 1,
+    });
   };
+
+  // Create animated styles
+  const animatedStyle1 = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: actionScale1.value }],
+    };
+  });
+
+  const animatedStyle2 = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: actionScale2.value }],
+    };
+  });
 
   // Open phone call
   const callPhone = () => {
@@ -75,7 +75,7 @@ export default function ChurchProfileCard({ church, member }: Props) {
   return (
     <Animated.View style={styles.card}>
       <LinearGradient
-        colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+        colors={["#F5F7FF", "#EEF2FF"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.cardGradient}
@@ -84,12 +84,12 @@ export default function ChurchProfileCard({ church, member }: Props) {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <LinearGradient
-              colors={["#3A86FF", "#4361EE"]}
+              colors={[theme.primary, theme.primary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconBackgroundGradient}
             >
-              <FontAwesome5 name="info-circle" size={16} color="#FFFFFF" />
+              <FontAwesome5 name="info-circle" size={15} color="#FFFFFF" />
             </LinearGradient>
             <Text style={styles.sectionTitle}>About</Text>
           </View>
@@ -104,12 +104,12 @@ export default function ChurchProfileCard({ church, member }: Props) {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <LinearGradient
-              colors={["#8338EC", "#6A0DAD"]}
+              colors={[theme.tertiary, theme.tertiary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconBackgroundGradient}
             >
-              <FontAwesome5 name="address-book" size={16} color="#FFFFFF" />
+              <FontAwesome5 name="address-book" size={15} color="#FFFFFF" />
             </LinearGradient>
             <Text style={styles.sectionTitle}>Contact & Location</Text>
           </View>
@@ -117,36 +117,36 @@ export default function ChurchProfileCard({ church, member }: Props) {
           <View style={styles.contactGrid}>
             <TouchableOpacity onPress={callPhone} style={styles.contactCard} activeOpacity={0.8}>
               <LinearGradient
-                colors={["#3A86FF", "#4361EE"]}
+                colors={[theme.primary, theme.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
               >
-                <FontAwesome5 name="phone" size={16} color="#FFFFFF" />
+                <FontAwesome5 name="phone" size={14} color="#FFFFFF" />
               </LinearGradient>
               <Text style={styles.contactLabel}>Phone</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={sendEmail} style={styles.contactCard} activeOpacity={0.8}>
               <LinearGradient
-                colors={["#FF006E", "#FB5607"]}
+                colors={[theme.tertiary, theme.tertiary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
               >
-                <FontAwesome5 name="envelope" size={16} color="#FFFFFF" />
+                <FontAwesome5 name="envelope" size={14} color="#FFFFFF" />
               </LinearGradient>
               <Text style={styles.contactLabel}>Email</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={openWebsite} style={styles.contactCard} activeOpacity={0.8}>
               <LinearGradient
-                colors={["#06D6A0", "#1A936F"]}
+                colors={[theme.accent3, theme.accent3]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
               >
-                <FontAwesome5 name="globe" size={16} color="#FFFFFF" />
+                <FontAwesome5 name="globe" size={14} color="#FFFFFF" />
               </LinearGradient>
               <Text style={styles.contactLabel}>Website</Text>
             </TouchableOpacity>
@@ -159,12 +159,12 @@ export default function ChurchProfileCard({ church, member }: Props) {
               }
             >
               <LinearGradient
-                colors={["#8338EC", "#6A0DAD"]}
+                colors={[theme.secondary, theme.secondary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.contactIconGradient}
               >
-                <FontAwesome5 name="map-pin" size={16} color="#FFFFFF" />
+                <FontAwesome5 name="map-pin" size={14} color="#FFFFFF" />
               </LinearGradient>
               <Text style={styles.contactLabel}>Map</Text>
             </TouchableOpacity>
@@ -175,12 +175,12 @@ export default function ChurchProfileCard({ church, member }: Props) {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <LinearGradient
-              colors={["#FF006E", "#FB5607"]}
+              colors={[theme.tertiary, theme.tertiary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconBackgroundGradient}
             >
-              <FontAwesome5 name="calendar-alt" size={16} color="#FFFFFF" />
+              <FontAwesome5 name="calendar-alt" size={15} color="#FFFFFF" />
             </LinearGradient>
             <Text style={styles.sectionTitle}>Mass Schedule</Text>
           </View>
@@ -194,12 +194,12 @@ export default function ChurchProfileCard({ church, member }: Props) {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <LinearGradient
-                colors={["#FF006E", "#FB5607"]}
+                colors={[theme.tertiary, theme.tertiary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.iconBackgroundGradient}
               >
-                <FontAwesome5 name="user-circle" size={16} color="#FFFFFF" />
+                <FontAwesome5 name="user-circle" size={15} color="#FFFFFF" />
               </LinearGradient>
               <Text style={styles.sectionTitle}>Membership</Text>
             </View>
@@ -231,16 +231,16 @@ export default function ChurchProfileCard({ church, member }: Props) {
             onPressOut={() => handlePressOut(1)}
             onPress={() => navigation.navigate("church_events")}
           >
-            <Animated.View style={[styles.actionButton, { transform: [{ scale: actionScale1 }] }]}>
+            <Animated.View style={[styles.actionButton, animatedStyle1]}>
               <LinearGradient
-                colors={["#3A86FF", "#4361EE"]}
+                colors={[theme.primary, theme.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.actionGradient}
               >
                 <FontAwesome5
                   name="calendar-alt"
-                  size={16}
+                  size={15}
                   color="#FFFFFF"
                   style={styles.actionIcon}
                 />
@@ -261,14 +261,14 @@ export default function ChurchProfileCard({ church, member }: Props) {
               });
             }}
           >
-            <Animated.View style={[styles.actionButton, { transform: [{ scale: actionScale2 }] }]}>
+            <Animated.View style={[styles.actionButton, animatedStyle2]}>
               <LinearGradient
-                colors={["#4CC9F0", "#4895EF"]}
+                colors={[theme.accent1, theme.accent1]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.actionGradient}
               >
-                <FontAwesome5 name="users" size={16} color="#FFFFFF" style={styles.actionIcon} />
+                <FontAwesome5 name="users" size={15} color="#FFFFFF" style={styles.actionIcon} />
                 <Text style={styles.actionText}>Members</Text>
               </LinearGradient>
             </Animated.View>
@@ -280,79 +280,79 @@ export default function ChurchProfileCard({ church, member }: Props) {
 }
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: "hidden",
     marginBottom: 20,
-    shadowColor: "#4361EE",
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "rgba(99, 102, 241, 0.3)",
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowRadius: 10,
+    elevation: 4,
   },
   cardGradient: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(203, 213, 225, 0.5)",
+    borderColor: "rgba(224, 231, 255, 0.7)",
   },
   sectionContainer: {
-    marginBottom: 24,
+    marginBottom: 22,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   iconBackgroundGradient: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: "#1E293B",
+    color: theme.textDark || "#1E293B",
   },
   sectionText: {
     fontSize: 15,
     lineHeight: 22,
-    color: "#475569",
+    color: theme.textMedium || "#64748B",
     marginBottom: 10,
   },
   scheduleContainer: {
-    backgroundColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.7)",
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: "rgba(226, 232, 240, 0.9)",
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 8,
-    backgroundColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.7)",
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: "rgba(226, 232, 240, 0.9)",
   },
   detailLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: theme.textMedium || "#64748B",
     width: 80,
   },
   detailText: {
     fontSize: 14,
-    color: "#1E293B",
+    color: theme.textDark || "#1E293B",
     flex: 1,
   },
   contactGrid: {
@@ -363,122 +363,122 @@ const styles = StyleSheet.create({
   },
   contactCard: {
     width: "48%",
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: "rgba(226, 232, 240, 0.9)",
     alignItems: "center",
   },
   contactIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
     elevation: 2,
   },
   contactLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
-    color: "#334155",
+    color: theme.textDark || "#1E293B",
     marginTop: 4,
   },
   contactItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: "rgba(226, 232, 240, 0.9)",
   },
   contactIconContainer: {
     marginRight: 14,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   chevronContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "rgba(241, 245, 249, 0.7)",
     justifyContent: "center",
     alignItems: "center",
   },
   contactText: {
     fontSize: 15,
-    color: "#334155",
+    color: theme.textDark || "#1E293B",
     flex: 1,
   },
   membershipContainer: {
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: "rgba(226, 232, 240, 0.9)",
   },
   membershipInfo: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   membershipLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
-    width: 120,
+    color: theme.textMedium || "#64748B",
+    width: 110,
   },
   membershipText: {
-    fontSize: 15,
-    color: "#1E293B",
+    fontSize: 14,
+    color: theme.textDark || "#1E293B",
   },
   roleBadge: {
-    backgroundColor: "#EEF2FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    backgroundColor: theme.accent1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(79, 70, 229, 0.2)",
+    borderColor: "rgba(79, 70, 229, 0.15)",
   },
   roleText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4F46E5",
+    color: theme.primary,
   },
   actionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 8,
   },
   actionButtonWrapper: {
     flex: 1,
-    marginHorizontal: 6,
+    marginHorizontal: 5,
   },
   actionButton: {
     borderRadius: 14,
     overflow: "hidden",
-    shadowColor: "#4361EE",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowColor: "rgba(0, 0, 0, 0.1)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
   },
   actionGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 15,
+    paddingVertical: 14,
     paddingHorizontal: 10,
   },
   actionIcon: {
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
   },
 });
