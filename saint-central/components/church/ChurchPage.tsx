@@ -11,7 +11,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,13 +24,14 @@ import Animated, {
   Extrapolate,
   useDerivedValue,
 } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { Church, ChurchMember } from "@/types/church";
 import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
 import ChurchSidebar from "@/components/church/ChurchSidebar";
 import theme from "@/theme";
-import { supabase } from "../../supabaseClient"; // Import the Supabase client
-import { useNavigation } from "@react-navigation/native"; // Import navigation hook
+import { supabase } from "../../supabaseClient";
+import { useNavigation } from "@react-navigation/native";
 
 // Define interfaces for our database models
 interface Ministry {
@@ -70,6 +71,14 @@ type Props = {
 const TABS = ["Home", "Events", "Ministries", "Community"];
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
+// Spring animation config
+const springConfig = {
+  damping: 15,
+  stiffness: 400,
+  mass: 1,
+  overshootClamping: false,
+};
 
 export default function ChurchPage({ church, member, userData }: Props) {
   const navigation = useNavigation();
@@ -280,8 +289,24 @@ export default function ChurchPage({ church, member, userData }: Props) {
     });
   };
 
-  // Component for Event Card - IMPROVED STYLING
+  // Component for Event Card - MODERN DESIGN
   const EventCard = ({ event }: { event: ChurchEvent }) => {
+    const pressAnim = useSharedValue(1);
+
+    const handlePressIn = () => {
+      pressAnim.value = withSpring(0.98, springConfig);
+    };
+
+    const handlePressOut = () => {
+      pressAnim.value = withSpring(1, springConfig);
+    };
+
+    const animatedStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: pressAnim.value }],
+      };
+    });
+
     const navigateToEventDetails = () => {
       // @ts-ignore - Ignoring type checking for navigation
       navigation.navigate("church_events", {
@@ -292,54 +317,121 @@ export default function ChurchPage({ church, member, userData }: Props) {
 
     return (
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.9}
         onPress={navigateToEventDetails}
-        style={[styles.eventCard, isTablet && styles.tabletEventCard]}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.eventCardWrapper}
       >
-        {event.image_url && (
-          <Image
-            source={{ uri: event.image_url }}
-            style={isTablet ? styles.tabletEventImage : styles.eventImage}
-            resizeMode="cover"
-          />
-        )}
-        <View style={styles.eventDetails}>
-          <Text style={styles.eventTitle} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <View style={styles.eventTimeContainer}>
-            <Ionicons name="calendar" size={16} color={theme.primary} />
-            <Text style={styles.eventTime}>
-              {formatDate(event.time)} at {formatTime(event.time)}
-            </Text>
+        <Animated.View
+          style={[styles.eventCard, isTablet && styles.tabletEventCard, animatedStyle]}
+        >
+          <View style={styles.eventCardContent}>
+            <View style={styles.eventImageContainer}>
+              {event.image_url ? (
+                <Image
+                  source={{ uri: event.image_url }}
+                  style={isTablet ? styles.tabletEventImage : styles.eventImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={[theme.neutral100, theme.neutral200]}
+                  style={isTablet ? styles.tabletEventImage : styles.eventImage}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <FontAwesome5 name="calendar-alt" size={28} color={theme.neutral400} />
+                </LinearGradient>
+              )}
+            </View>
+
+            <View style={styles.eventDetailsContainer}>
+              <View style={styles.eventHeader}>
+                <Text style={styles.eventTitle} numberOfLines={1}>
+                  {event.title}
+                </Text>
+
+                {event.is_recurring && (
+                  <LinearGradient
+                    colors={[theme.primary, theme.primary]}
+                    style={styles.recurringBadge}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="repeat" size={12} color="#FFFFFF" />
+                    <Text style={styles.recurringText}>Recurring</Text>
+                  </LinearGradient>
+                )}
+              </View>
+
+              <View style={styles.eventMetaContainer}>
+                <View style={styles.eventMetaItem}>
+                  <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+                  <Text style={styles.eventMetaText}>{formatDate(event.time)}</Text>
+                </View>
+
+                <View style={styles.eventMetaItem}>
+                  <Ionicons name="time-outline" size={16} color={theme.primary} />
+                  <Text style={styles.eventMetaText}>{formatTime(event.time)}</Text>
+                </View>
+              </View>
+
+              {event.event_location && (
+                <View style={styles.eventLocationContainer}>
+                  <Ionicons name="location-outline" size={16} color={theme.textMedium} />
+                  <Text style={styles.eventLocation} numberOfLines={1}>
+                    {event.event_location}
+                  </Text>
+                </View>
+              )}
+
+              {event.excerpt && (
+                <Text style={styles.eventExcerpt} numberOfLines={2}>
+                  {event.excerpt}
+                </Text>
+              )}
+
+              <View style={styles.eventFooter}>
+                <TouchableOpacity style={styles.viewDetailsButton} onPress={navigateToEventDetails}>
+                  <LinearGradient
+                    colors={[theme.primary, theme.primary]}
+                    style={styles.viewDetailsGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.viewDetailsText}>View Details</Text>
+                    <View style={styles.arrowContainer}>
+                      <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-          {event.event_location && (
-            <View style={styles.eventLocationContainer}>
-              <Ionicons name="location" size={16} color={theme.textMedium} />
-              <Text style={styles.eventLocation}>{event.event_location}</Text>
-            </View>
-          )}
-          {event.excerpt && (
-            <Text style={styles.eventExcerpt} numberOfLines={3}>
-              {event.excerpt}
-            </Text>
-          )}
-          {event.is_recurring && (
-            <View style={styles.recurringBadge}>
-              <Ionicons name="repeat" size={12} color="#FFFFFF" />
-              <Text style={styles.recurringText}>Recurring</Text>
-            </View>
-          )}
-          <TouchableOpacity style={styles.viewDetailsButton} onPress={navigateToEventDetails}>
-            <Text style={styles.viewDetailsText}>View Details</Text>
-          </TouchableOpacity>
-        </View>
+        </Animated.View>
       </TouchableOpacity>
     );
   };
 
-  // Component for Ministry Card - IMPROVED STYLING & MODIFIED NAVIGATION
+  // Component for Ministry Card - MODERN DESIGN
   const MinistryCard = ({ ministry }: { ministry: Ministry }) => {
+    const pressAnim = useSharedValue(1);
+
+    const handlePressIn = () => {
+      pressAnim.value = withSpring(0.98, springConfig);
+    };
+
+    const handlePressOut = () => {
+      pressAnim.value = withSpring(1, springConfig);
+    };
+
+    const animatedStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: pressAnim.value }],
+      };
+    });
+
     const navigateToJoinMinistry = () => {
       // MODIFIED: Navigate to JoinMinistryScreen instead of MinistriesScreen
       // Pass id instead of ministryId to match what JoinMinistryScreen expects
@@ -352,28 +444,64 @@ export default function ChurchPage({ church, member, userData }: Props) {
 
     return (
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.9}
         onPress={navigateToJoinMinistry}
-        style={[styles.ministryCard, isTablet && styles.tabletMinistryCard]}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.ministryCardWrapper}
       >
-        {ministry.image_url && (
-          <Image
-            source={{ uri: ministry.image_url }}
-            style={isTablet ? styles.tabletMinistryImage : styles.ministryImage}
-            resizeMode="cover"
-          />
-        )}
-        <View style={styles.ministryDetails}>
-          <Text style={styles.ministryTitle}>{ministry.name}</Text>
-          {ministry.description && (
-            <Text style={styles.ministryDescription} numberOfLines={3}>
-              {ministry.description}
-            </Text>
-          )}
-          <TouchableOpacity style={styles.joinButton} onPress={navigateToJoinMinistry}>
-            <Text style={styles.joinButtonText}>Join Ministry</Text>
-          </TouchableOpacity>
-        </View>
+        <Animated.View
+          style={[styles.ministryCard, isTablet && styles.tabletMinistryCard, animatedStyle]}
+        >
+          <View style={styles.ministryCardContent}>
+            <View style={styles.ministryImageContainer}>
+              {ministry.image_url ? (
+                <Image
+                  source={{ uri: ministry.image_url }}
+                  style={isTablet ? styles.tabletMinistryImage : styles.ministryImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={[theme.neutral100, theme.neutral200]}
+                  style={isTablet ? styles.tabletMinistryImage : styles.ministryImage}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <FontAwesome5 name="church" size={28} color={theme.neutral400} />
+                </LinearGradient>
+              )}
+            </View>
+
+            <View style={styles.ministryDetailsContainer}>
+              <Text style={styles.ministryTitle} numberOfLines={2}>
+                {ministry.name}
+              </Text>
+
+              {ministry.description && (
+                <Text style={styles.ministryDescription} numberOfLines={isTablet ? 3 : 2}>
+                  {ministry.description}
+                </Text>
+              )}
+
+              <View style={styles.ministryFooter}>
+                <TouchableOpacity style={styles.joinButton} onPress={navigateToJoinMinistry}>
+                  <LinearGradient
+                    colors={[theme.secondary, theme.secondary]}
+                    style={styles.joinButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.joinButtonText}>Join Ministry</Text>
+                    <View style={styles.arrowContainer}>
+                      <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
       </TouchableOpacity>
     );
   };
@@ -382,19 +510,29 @@ export default function ChurchPage({ church, member, userData }: Props) {
   const EventsTab = () => {
     if (isEventsLoading) {
       return (
-        <View style={styles.loadingContainer}>
+        <View style={styles.stateContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Loading events...</Text>
+          <Text style={styles.stateText}>Loading events...</Text>
         </View>
       );
     }
 
     if (eventsError) {
       return (
-        <View style={styles.errorContainer}>
+        <View style={styles.stateContainer}>
+          <View style={styles.errorIconContainer}>
+            <Ionicons name="alert-circle" size={36} color={theme.error} />
+          </View>
           <Text style={styles.errorText}>{eventsError}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchEvents}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <LinearGradient
+              colors={[theme.primary, theme.primary]}
+              style={styles.retryButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       );
@@ -402,22 +540,27 @@ export default function ChurchPage({ church, member, userData }: Props) {
 
     if (events.length === 0) {
       return (
-        <View style={styles.comingSoonContainer}>
-          <FontAwesome5 name="calendar-alt" size={42} color={theme.primary} />
-          <Text style={styles.comingSoonTitle}>No Events Found</Text>
-          <Text style={styles.comingSoonText}>
-            There are no upcoming events scheduled at this time.
-          </Text>
+        <View style={styles.stateContainer}>
+          <View style={styles.emptyIconContainer}>
+            <FontAwesome5 name="calendar-alt" size={36} color={theme.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>No Events Found</Text>
+          <Text style={styles.emptyText}>There are no upcoming events scheduled at this time.</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.eventsContainer}>
-        <Text style={styles.sectionTitle}>All Events</Text>
-        {events.map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
+        <View style={styles.sectionHeaderContainer}>
+          <Text style={styles.sectionTitle}>All Events</Text>
+          <View style={styles.sectionHeaderLine} />
+        </View>
+        <View style={styles.eventsGrid}>
+          {events.map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))}
+        </View>
       </View>
     );
   };
@@ -426,19 +569,29 @@ export default function ChurchPage({ church, member, userData }: Props) {
   const MinistriesTab = () => {
     if (isMinistriesLoading) {
       return (
-        <View style={styles.loadingContainer}>
+        <View style={styles.stateContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Loading ministries...</Text>
+          <Text style={styles.stateText}>Loading ministries...</Text>
         </View>
       );
     }
 
     if (ministriesError) {
       return (
-        <View style={styles.errorContainer}>
+        <View style={styles.stateContainer}>
+          <View style={styles.errorIconContainer}>
+            <Ionicons name="alert-circle" size={36} color={theme.error} />
+          </View>
           <Text style={styles.errorText}>{ministriesError}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchMinistries}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <LinearGradient
+              colors={[theme.primary, theme.primary]}
+              style={styles.retryButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       );
@@ -446,20 +599,27 @@ export default function ChurchPage({ church, member, userData }: Props) {
 
     if (ministries.length === 0) {
       return (
-        <View style={styles.comingSoonContainer}>
-          <FontAwesome5 name="church" size={42} color={theme.primary} />
-          <Text style={styles.comingSoonTitle}>No Ministries Found</Text>
-          <Text style={styles.comingSoonText}>There are no ministries available at this time.</Text>
+        <View style={styles.stateContainer}>
+          <View style={styles.emptyIconContainer}>
+            <FontAwesome5 name="church" size={36} color={theme.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>No Ministries Found</Text>
+          <Text style={styles.emptyText}>There are no ministries available at this time.</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.ministriesContainer}>
-        <Text style={styles.sectionTitle}>Our Ministries</Text>
-        {ministries.map((ministry) => (
-          <MinistryCard key={ministry.id} ministry={ministry} />
-        ))}
+        <View style={styles.sectionHeaderContainer}>
+          <Text style={styles.sectionTitle}>Our Ministries</Text>
+          <View style={styles.sectionHeaderLine} />
+        </View>
+        <View style={styles.ministriesGrid}>
+          {ministries.map((ministry) => (
+            <MinistryCard key={ministry.id} ministry={ministry} />
+          ))}
+        </View>
       </View>
     );
   };
@@ -641,16 +801,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.neutral200,
   },
-  headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: theme.neutral200,
-  },
   headerSpacer: {
     width: 36,
   },
@@ -721,6 +871,74 @@ const styles = StyleSheet.create({
   tabletTabContent: {
     paddingHorizontal: 0,
   },
+
+  // Common states styling
+  stateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacingXL,
+    marginTop: theme.spacing2XL,
+  },
+  stateText: {
+    fontSize: 16,
+    fontWeight: theme.fontMedium,
+    color: theme.textMedium,
+    marginTop: theme.spacingM,
+  },
+  errorIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: theme.radiusFull,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: theme.spacingL,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: theme.fontMedium,
+    color: theme.error,
+    textAlign: "center",
+    marginBottom: theme.spacingL,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: theme.radiusFull,
+    backgroundColor: `${theme.primary}15`,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: theme.spacingL,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginBottom: theme.spacingS,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: theme.fontRegular,
+    color: theme.textMedium,
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  retryButton: {
+    marginTop: theme.spacingL,
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  retryButtonGradient: {
+    paddingHorizontal: theme.spacingXL,
+    paddingVertical: theme.spacingM,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: theme.fontSemiBold,
+    fontSize: 14,
+  },
   comingSoonContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -741,120 +959,95 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
   },
-  // Styles for Events and Ministries - IMPROVED
-  loadingContainer: {
+
+  // Section headers
+  sectionHeaderContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    padding: theme.spacingXL,
-    marginTop: theme.spacing2XL,
-  },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: theme.fontMedium,
-    color: theme.textMedium,
-    marginTop: theme.spacingM,
-  },
-  errorContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: theme.spacingXL,
-    marginTop: theme.spacing2XL,
-  },
-  errorText: {
-    fontSize: 16,
-    fontWeight: theme.fontMedium,
-    color: theme.textError,
-    textAlign: "center",
     marginBottom: theme.spacingL,
-  },
-  retryButton: {
-    backgroundColor: theme.primary,
-    paddingHorizontal: theme.spacingL,
-    paddingVertical: theme.spacingM,
-    borderRadius: theme.radiusL,
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: theme.fontSemiBold,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginBottom: theme.spacingL,
-  },
-  eventsContainer: {
-    paddingVertical: theme.spacingL,
-  },
-  eventCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: theme.radiusL,
-    marginBottom: theme.spacingL,
-    overflow: "hidden",
-    ...theme.shadowMedium,
-    borderWidth: 1,
-    borderColor: theme.neutral200,
-  },
-  eventImage: {
-    height: 200,
-    width: "100%",
-  },
-  tabletEventCard: {
-    flexDirection: "row",
-    height: 200,
-  },
-  tabletEventImage: {
-    width: 280,
-    height: "100%",
-  },
-  eventDetails: {
-    padding: theme.spacingL,
-    flex: 1,
-  },
-  eventTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
     color: theme.textDark,
-    marginBottom: theme.spacingM,
-    lineHeight: 26,
+    marginRight: theme.spacingM,
+    letterSpacing: -0.5,
   },
-  eventTimeContainer: {
+  sectionHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.neutral200,
+  },
+
+  // MODERN EVENTS STYLING
+  eventsContainer: {
+    paddingVertical: theme.spacingL,
+  },
+  eventsGrid: {
+    flexDirection: "column",
+    gap: 16,
+  },
+  eventCardWrapper: {
+    marginBottom: 8,
+  },
+  eventCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: theme.neutral200,
+    ...theme.shadowLight,
+  },
+  eventCardContent: {
     flexDirection: "row",
+    height: 160,
+  },
+  tabletEventCard: {
+    height: 180,
+  },
+  eventImageContainer: {
+    width: "30%",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: theme.spacingM,
+    overflow: "hidden",
   },
-  eventTime: {
-    fontSize: 14,
-    fontWeight: theme.fontMedium,
-    color: theme.primary,
-    marginLeft: 6,
+  eventImage: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  eventLocationContainer: {
+  tabletEventImage: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  eventDetailsContainer: {
+    flex: 1,
+    padding: theme.spacingM,
+    justifyContent: "space-between",
+  },
+  eventHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacingM,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
   },
-  eventLocation: {
-    fontSize: 14,
-    color: theme.textMedium,
-    marginLeft: 6,
-  },
-  eventExcerpt: {
-    fontSize: 14,
-    color: theme.textMedium,
-    lineHeight: 20,
-    marginBottom: theme.spacingM,
+  eventTitle: {
+    fontSize: 18,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    flex: 1,
   },
   recurringBadge: {
-    position: "absolute",
-    top: theme.spacingM,
-    right: theme.spacingM,
-    backgroundColor: theme.primary,
-    borderRadius: theme.radiusL,
-    paddingHorizontal: theme.spacingS,
+    paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: theme.radiusMedium,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
   recurringText: {
     color: "#FFFFFF",
@@ -862,66 +1055,143 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontSemiBold,
     marginLeft: 4,
   },
+  eventMetaContainer: {
+    flexDirection: "row",
+    marginBottom: 8,
+    flexWrap: "wrap",
+  },
+  eventMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: `${theme.primary}10`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.radiusMedium,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  eventMetaText: {
+    fontSize: 12,
+    fontWeight: theme.fontMedium,
+    color: theme.primary,
+    marginLeft: 4,
+  },
+  eventLocationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  eventLocation: {
+    fontSize: 13,
+    color: theme.textMedium,
+    marginLeft: 6,
+    flex: 1,
+  },
+  eventExcerpt: {
+    fontSize: 13,
+    color: theme.textMedium,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  eventFooter: {
+    alignItems: "flex-start",
+  },
   viewDetailsButton: {
-    backgroundColor: theme.primary,
-    paddingHorizontal: theme.spacingL,
-    paddingVertical: theme.spacingS,
-    borderRadius: theme.radiusL,
-    alignSelf: "flex-start",
-    marginTop: theme.spacingS,
+    overflow: "hidden",
+    borderRadius: theme.radiusMedium,
+  },
+  viewDetailsGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radiusMedium,
+    flexDirection: "row",
+    alignItems: "center",
   },
   viewDetailsText: {
     color: "#FFFFFF",
     fontWeight: theme.fontSemiBold,
     fontSize: 12,
   },
+  arrowContainer: {
+    marginLeft: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // MODERN MINISTRIES STYLING
   ministriesContainer: {
     paddingVertical: theme.spacingL,
   },
+  ministriesGrid: {
+    flexDirection: "column",
+    gap: 16,
+  },
+  ministryCardWrapper: {
+    marginBottom: 8,
+  },
   ministryCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: theme.radiusL,
-    marginBottom: theme.spacingL,
+    borderRadius: theme.radiusMedium,
     overflow: "hidden",
-    ...theme.shadowMedium,
     borderWidth: 1,
     borderColor: theme.neutral200,
+    ...theme.shadowLight,
+  },
+  ministryCardContent: {
+    flexDirection: "row",
+    height: 140,
   },
   tabletMinistryCard: {
-    flexDirection: "row",
-    height: 180,
+    height: 160,
+  },
+  ministryImageContainer: {
+    width: "30%",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
   },
   ministryImage: {
-    height: 160,
     width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   tabletMinistryImage: {
-    width: 240,
+    width: "100%",
     height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  ministryDetails: {
-    padding: theme.spacingL,
+  ministryDetailsContainer: {
     flex: 1,
+    padding: theme.spacingM,
+    justifyContent: "space-between",
   },
   ministryTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: theme.fontBold,
     color: theme.textDark,
-    marginBottom: theme.spacingS,
+    marginBottom: 8,
   },
   ministryDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.textMedium,
-    lineHeight: 20,
-    marginBottom: theme.spacingM,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  ministryFooter: {
+    alignItems: "flex-start",
   },
   joinButton: {
-    backgroundColor: theme.primary,
-    paddingHorizontal: theme.spacingL,
-    paddingVertical: theme.spacingS,
-    borderRadius: theme.radiusL,
-    alignSelf: "flex-start",
-    marginTop: theme.spacingS,
+    overflow: "hidden",
+    borderRadius: theme.radiusMedium,
+  },
+  joinButtonGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radiusMedium,
+    flexDirection: "row",
+    alignItems: "center",
   },
   joinButtonText: {
     color: "#FFFFFF",
