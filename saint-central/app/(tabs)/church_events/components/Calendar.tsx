@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Animated } from "react
 import { Feather } from "@expo/vector-icons";
 import { CalendarDay } from "../types";
 import { styles } from "../styles";
-import { THEME } from "../theme";
+import THEME from "../../../../theme";
 import { formatMonth, getDayName, getDateKey } from "../utils/dateUtils";
 
 interface CalendarProps {
@@ -68,7 +68,7 @@ const Calendar: React.FC<CalendarProps> = ({
             <Text
               style={[
                 styles.dayNumber,
-                !day.isCurrentMonth && styles.dayNumberOtherMonth,
+                !day.isCurrentMonth && { opacity: 0.5 },
                 day.isToday && styles.todayNumber,
                 isSelected && styles.selectedDayNumber,
               ]}
@@ -77,17 +77,30 @@ const Calendar: React.FC<CalendarProps> = ({
             </Text>
           </View>
           {day.events.length > 0 && (
-            <View style={styles.eventIndicatorContainer}>
+            <View style={styles.dayEventsIndicator}>
               {day.events.length <= 3 ? (
                 day.events.map((event, i) => {
-                  const color = event.is_recurring ? THEME.buttonPrimary : "#4299E1";
-                  return (
-                    <View key={i} style={[styles.eventIndicator, { backgroundColor: color }]} />
-                  );
+                  const color = event.is_recurring ? THEME.primary : "#4299E1";
+                  return <View key={i} style={[styles.eventDot, { backgroundColor: color }]} />;
                 })
               ) : (
-                <View style={styles.multipleEventsIndicator}>
-                  <Text style={styles.multipleEventsText}>{day.events.length}</Text>
+                <View
+                  style={{
+                    backgroundColor: THEME.primary,
+                    borderRadius: 10,
+                    paddingHorizontal: 5,
+                    paddingVertical: 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: THEME.textWhite,
+                      fontSize: 10,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {day.events.length}
+                  </Text>
                 </View>
               )}
             </View>
@@ -116,11 +129,11 @@ const Calendar: React.FC<CalendarProps> = ({
       {/* Month Navigation */}
       <View style={styles.monthNavigation}>
         <TouchableOpacity style={styles.monthNavArrow} onPress={() => onChangeMonth(-1)}>
-          <Feather name="chevron-left" size={24} color={THEME.secondary} />
+          <Feather name="chevron-left" size={24} color={THEME.textMedium} />
         </TouchableOpacity>
         <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
         <TouchableOpacity style={styles.monthNavArrow} onPress={() => onChangeMonth(1)}>
-          <Feather name="chevron-right" size={24} color={THEME.secondary} />
+          <Feather name="chevron-right" size={24} color={THEME.textMedium} />
         </TouchableOpacity>
       </View>
 
@@ -134,8 +147,8 @@ const Calendar: React.FC<CalendarProps> = ({
           ))}
         </View>
         {loading ? (
-          <View style={styles.calendarLoading}>
-            <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={THEME.primary} />
             <Text style={styles.loadingText}>Loading calendar...</Text>
           </View>
         ) : (

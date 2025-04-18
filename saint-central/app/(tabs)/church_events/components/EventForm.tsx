@@ -13,7 +13,7 @@ import { Feather, AntDesign } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { EventFormData } from "../types";
 import { styles } from "../styles";
-import { THEME } from "../theme";
+import THEME from "../../../../theme";
 import { getDayName } from "../utils/dateUtils";
 
 interface EventFormProps {
@@ -52,35 +52,35 @@ const EventForm: React.FC<EventFormProps> = ({
   onToggleRecurrenceDay,
 }) => {
   return (
-    <ScrollView style={styles.modalForm}>
-      <View style={styles.formGroup}>
+    <ScrollView style={styles.formContainer}>
+      <View style={styles.formControl}>
         <Text style={styles.formLabel}>Event Title*</Text>
         <TextInput
           style={styles.formInput}
           value={formData.title}
           onChangeText={(value) => onChangeField("title", value)}
           placeholder="Enter event title"
-          placeholderTextColor={THEME.light}
+          placeholderTextColor={THEME.textLight}
         />
       </View>
 
-      <View style={styles.formGroup}>
+      <View style={styles.formControl}>
         <Text style={styles.formLabel}>Description*</Text>
         <TextInput
           style={[styles.formInput, styles.textAreaInput]}
           value={formData.excerpt}
           onChangeText={(value) => onChangeField("excerpt", value)}
           placeholder="Event description"
-          placeholderTextColor={THEME.light}
+          placeholderTextColor={THEME.textLight}
           multiline
           numberOfLines={4}
         />
       </View>
 
-      <View style={styles.formGroup}>
+      <View style={styles.formControl}>
         <Text style={styles.formLabel}>Date & Time*</Text>
-        <TouchableOpacity style={styles.dateTimeButton} onPress={onToggleTimePicker}>
-          <Feather name="calendar" size={18} color={THEME.buttonPrimary} />
+        <TouchableOpacity style={styles.dateTimePickerButton} onPress={onToggleTimePicker}>
+          <Feather name="calendar" size={18} color={THEME.primary} />
           <Text style={styles.dateTimeText}>{new Date(formData.time).toLocaleString()}</Text>
         </TouchableOpacity>
       </View>
@@ -94,20 +94,20 @@ const EventForm: React.FC<EventFormProps> = ({
         />
       )}
 
-      <View style={styles.formGroup}>
+      <View style={styles.formControl}>
         <Text style={styles.formLabel}>Location</Text>
         <TextInput
           style={styles.formInput}
           value={formData.author_name || ""}
           onChangeText={(value) => onChangeField("author_name", value)}
           placeholder="Event location"
-          placeholderTextColor={THEME.light}
+          placeholderTextColor={THEME.textLight}
         />
       </View>
 
-      <View style={styles.formGroup}>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Recurring event</Text>
+      <View style={styles.formControl}>
+        <View style={styles.recurrenceUntilContainer}>
+          <Text style={styles.formLabel}>Recurring event</Text>
           <Switch
             value={formData.is_recurring}
             onValueChange={(value) => {
@@ -125,15 +125,15 @@ const EventForm: React.FC<EventFormProps> = ({
               }
             }}
             trackColor={{ false: "#E4E4E7", true: "#D1D5F9" }}
-            thumbColor={formData.is_recurring ? THEME.buttonPrimary : "#FFFFFF"}
+            thumbColor={formData.is_recurring ? THEME.primary : "#FFFFFF"}
             ios_backgroundColor="#E4E4E7"
           />
         </View>
       </View>
 
       {formData.is_recurring && (
-        <View style={styles.recurringContainer}>
-          <View style={styles.formGroup}>
+        <View style={styles.recurrenceContainer}>
+          <View style={styles.formControl}>
             <Text style={styles.formLabel}>Repeat</Text>
             <View style={styles.recurrenceTypeContainer}>
               {["daily", "weekly", "monthly", "yearly"].map((type) => (
@@ -158,10 +158,10 @@ const EventForm: React.FC<EventFormProps> = ({
             </View>
           </View>
 
-          <View style={styles.formGroup}>
+          <View style={styles.formControl}>
             <Text style={styles.formLabel}>Frequency</Text>
-            <View style={styles.intervalRow}>
-              <Text style={styles.intervalLabel}>Every</Text>
+            <View style={styles.intervalContainer}>
+              <Text style={styles.recurrenceOptionLabel}>Every</Text>
               <TextInput
                 style={styles.intervalInput}
                 value={formData.recurrence_interval?.toString() || "1"}
@@ -173,7 +173,7 @@ const EventForm: React.FC<EventFormProps> = ({
                 keyboardType="number-pad"
                 maxLength={2}
               />
-              <Text style={styles.intervalText}>
+              <Text style={styles.recurrenceOptionLabel}>
                 {formData.recurrence_type === "daily"
                   ? "day(s)"
                   : formData.recurrence_type === "weekly"
@@ -186,9 +186,9 @@ const EventForm: React.FC<EventFormProps> = ({
           </View>
 
           {formData.recurrence_type === "weekly" && (
-            <View style={styles.formGroup}>
+            <View style={styles.formControl}>
               <Text style={styles.formLabel}>On these days</Text>
-              <View style={styles.daysRow}>
+              <View style={styles.daysContainer}>
                 {[
                   { day: 0, label: "S" },
                   { day: 1, label: "M" },
@@ -222,102 +222,97 @@ const EventForm: React.FC<EventFormProps> = ({
             </View>
           )}
 
-          <View style={styles.formGroup}>
+          <View style={styles.formControl}>
             <Text style={styles.formLabel}>End Date (Optional)</Text>
-            <TouchableOpacity style={styles.dateTimeButton} onPress={onToggleEndDatePicker}>
-              <Feather name="calendar" size={16} color={THEME.buttonPrimary} />
+            <TouchableOpacity style={styles.dateTimePickerButton} onPress={onToggleEndDatePicker}>
+              <Feather name="calendar" size={18} color={THEME.primary} />
               <Text style={styles.dateTimeText}>
                 {formData.recurrence_end_date
                   ? new Date(formData.recurrence_end_date).toLocaleDateString()
                   : "No end date"}
               </Text>
             </TouchableOpacity>
-            {formData.recurrence_end_date && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={() => onChangeField("recurrence_end_date", null)}
-              >
-                <Text style={styles.clearButtonText}>Clear</Text>
-              </TouchableOpacity>
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={
+                  formData.recurrence_end_date ? new Date(formData.recurrence_end_date) : new Date()
+                }
+                mode="date"
+                display="default"
+                onChange={onEndDateChange}
+              />
             )}
           </View>
-
-          {showEndDatePicker && (
-            <DateTimePicker
-              value={
-                formData.recurrence_end_date ? new Date(formData.recurrence_end_date) : new Date()
-              }
-              mode="date"
-              display="default"
-              onChange={onEndDateChange}
-            />
-          )}
         </View>
       )}
 
-      <View style={styles.formGroup}>
+      <View style={styles.formControl}>
         <Text style={styles.formLabel}>Event Image</Text>
         <TouchableOpacity
-          style={styles.imagePickerButton}
+          style={styles.imagePickerContainer}
           onPress={onPickImage}
           disabled={formImageLoading}
         >
           {formImageLoading ? (
-            <ActivityIndicator size="small" color={THEME.buttonPrimary} />
+            <ActivityIndicator size="small" color={THEME.primary} style={{ marginVertical: 12 }} />
           ) : (
             <>
-              <Feather name="image" size={22} color={THEME.buttonPrimary} />
-              <Text style={styles.imagePickerText}>
-                {formData.image_url ? "Change Image" : "Select Image"}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Feather name="image" size={18} color={THEME.primary} />
+                <Text style={{ marginLeft: 10, color: THEME.primary }}>
+                  {formData.image_url ? "Change Image" : "Add Image"}
+                </Text>
+              </View>
+              {formData.image_url && (
+                <Image
+                  source={{ uri: formData.image_url }}
+                  style={styles.imagePreview}
+                  resizeMode="cover"
+                />
+              )}
             </>
           )}
         </TouchableOpacity>
       </View>
 
-      {formData.image_url && (
-        <View style={styles.previewImageContainer}>
-          <Image
-            source={{ uri: formData.image_url }}
-            style={styles.previewImage}
-            resizeMode="cover"
-          />
-          <TouchableOpacity
-            style={styles.removeImageButton}
-            onPress={() => onChangeField("image_url", null)}
-          >
-            <AntDesign name="closecircle" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.formGroup}>
+      <View style={styles.formControl}>
         <Text style={styles.formLabel}>Video Link (Optional)</Text>
         <TextInput
           style={styles.formInput}
           value={formData.video_link || ""}
           onChangeText={(value) => onChangeField("video_link", value)}
-          placeholder="Add YouTube or video URL"
-          placeholderTextColor={THEME.light}
+          placeholder="YouTube or other video URL"
+          placeholderTextColor={THEME.textLight}
           keyboardType="url"
         />
       </View>
 
-      <TouchableOpacity style={styles.submitButton} onPress={onSubmit} disabled={isSubmitting}>
-        {isSubmitting ? (
-          <ActivityIndicator size="small" color={THEME.buttonText} />
-        ) : (
-          <Text style={styles.submitButtonText}>
-            {isEditMode ? "CONFIRM EDIT" : "CREATE EVENT"}
+      <View style={styles.formActions}>
+        <TouchableOpacity
+          style={[styles.formButton, styles.cancelButton]}
+          onPress={() => {
+            // Close the modal
+            isEditMode ? (onDelete ? onDelete() : null) : null;
+          }}
+        >
+          <Text style={[styles.buttonText, styles.cancelButtonText]}>
+            {isEditMode && onDelete ? "Delete" : "Cancel"}
           </Text>
-        )}
-      </TouchableOpacity>
-
-      {isEditMode && onDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={onDelete} disabled={isSubmitting}>
-          <Text style={styles.deleteButtonText}>DELETE EVENT</Text>
         </TouchableOpacity>
-      )}
+        <TouchableOpacity
+          style={[styles.formButton, styles.submitButton]}
+          onPress={onSubmit}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={THEME.textWhite} />
+          ) : (
+            <Text style={[styles.buttonText, styles.submitButtonText]}>
+              {isEditMode ? "Update" : "Create"}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };

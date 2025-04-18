@@ -4,7 +4,7 @@ import { AntDesign, Feather } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { ChurchEvent } from "../types";
 import { styles } from "../styles";
-import { THEME } from "../theme";
+import THEME from "../../../../theme";
 import EventCard from "./EventCard";
 import { formatDate } from "../utils/dateUtils";
 
@@ -56,16 +56,16 @@ const EventDetail: React.FC<EventDetailProps> = ({
       </View>
       <View style={styles.dateDetailContent}>
         {selectedDayEvents.length === 0 ? (
-          <View style={styles.noEventsForDay}>
-            <Feather name="calendar" size={50} color={THEME.light} />
-            <Text style={styles.noEventsForDayText}>No church events for this day</Text>
+          <View style={styles.noEventsContainer}>
+            <Feather name="calendar" size={50} color={THEME.textLight} />
+            <Text style={styles.noEventsText}>No church events for this day</Text>
             {hasPermissionToCreate && (
               <TouchableOpacity
-                style={styles.addEventForDayButton}
+                style={styles.dateDetailAddButton}
                 onPress={() => onAddEvent(selectedDate)}
               >
-                <Text style={styles.addEventForDayText}>Add Event</Text>
-                <Feather name="plus" size={16} color={THEME.buttonPrimary} />
+                <Text style={styles.dateDetailAddButtonText}>Add Event</Text>
+                <Feather name="plus" size={16} color={THEME.primary} />
               </TouchableOpacity>
             )}
           </View>

@@ -12,7 +12,7 @@ import {
   formatEventMonth,
   formatEventTime,
 } from "../utils/dateUtils";
-import { THEME } from "../theme";
+import THEME from "../../../../theme";
 
 interface EventCardProps {
   item: ChurchEvent;
@@ -53,49 +53,95 @@ const EventCard: React.FC<EventCardProps> = ({
   return (
     <TouchableOpacity
       key={item.id.toString()}
-      style={[styles.eventCard, { borderLeftColor: color }, isPastEvent && styles.pastEventCard]}
+      style={[styles.eventCard, { borderLeftColor: color, opacity: isPastEvent ? 0.8 : 1 }]}
       onPress={handleCardPress}
     >
-      <View style={styles.eventHeader}>
-        <View style={[styles.eventIconContainer, { backgroundColor: color }]}>
+      <View style={styles.eventCardHeader}>
+        <View
+          style={[
+            {
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: color,
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 12,
+            },
+          ]}
+        >
           <Feather name={icon as any} size={20} color="#fff" />
         </View>
-        <View style={styles.eventTitleContainer}>
+        <View style={styles.eventCardContent}>
           <Text style={styles.eventTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          <View style={styles.eventTimeLocationContainer}>
-            <View style={styles.dateTimeRow}>
-              <Feather name="clock" size={14} color={THEME.secondary} style={styles.smallIcon} />
-              <Text style={styles.eventDateTime}>
+          <View style={{ flexDirection: "column" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}>
+              <Feather name="clock" size={14} color={THEME.textMedium} style={{ marginRight: 4 }} />
+              <Text style={styles.eventTime}>
                 {formatEventDay(item.time)}, {formatEventMonth(item.time)}{" "}
                 {formatEventDate(item.time)} • {formatEventTime(item.time)}
               </Text>
             </View>
-            <View style={styles.locationRow}>
-              <Feather name="map-pin" size={14} color={THEME.secondary} style={styles.smallIcon} />
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Feather
+                name="map-pin"
+                size={14}
+                color={THEME.textMedium}
+                style={{ marginRight: 4 }}
+              />
               <Text style={styles.eventLocation} numberOfLines={1} ellipsizeMode="tail">
                 {item.author_name || "Location TBD"}
+                {item.churches && (
+                  <Text style={{ color: THEME.textLight }}>• {item.churches.name}</Text>
+                )}
               </Text>
-              {item.churches && <Text style={styles.churchName}>• {item.churches.name}</Text>}
             </View>
           </View>
         </View>
 
         {item.is_recurring && (
-          <View style={styles.recurringBadge}>
-            <MaterialIcons name="repeat" size={16} color={THEME.buttonPrimary} />
+          <View
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              backgroundColor: THEME.accent1,
+              justifyContent: "center",
+              alignItems: "center",
+              marginLeft: 8,
+            }}
+          >
+            <MaterialIcons name="repeat" size={16} color={THEME.primary} />
           </View>
         )}
       </View>
 
       {item.is_recurring && (
-        <View style={styles.recurringInfoCard}>
-          <View style={styles.recurringInfoHeader}>
-            <MaterialIcons name="repeat" size={16} color={THEME.buttonPrimary} />
-            <Text style={styles.recurringInfoTitle}>Recurring Event</Text>
+        <View
+          style={{
+            backgroundColor: THEME.neutral100,
+            borderRadius: 12,
+            padding: 12,
+            marginTop: 12,
+            marginBottom: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+            <MaterialIcons name="repeat" size={16} color={THEME.primary} />
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: THEME.primary,
+                marginLeft: 6,
+              }}
+            >
+              Recurring Event
+            </Text>
           </View>
-          <Text style={styles.recurringInfoText}>
+          <Text style={{ fontSize: 14, color: THEME.textMedium }}>
             {item.recurrence_type === "daily" && `Repeats daily`}
             {item.recurrence_type === "weekly" &&
               `Repeats weekly on ${item.recurrence_days_of_week?.map((day) => getDayName(day)).join(", ")}`}
@@ -112,60 +158,94 @@ const EventCard: React.FC<EventCardProps> = ({
 
       {item.image_url && (
         <TouchableOpacity
-          style={styles.eventImageContainer}
+          style={{
+            height: 200,
+            borderRadius: 12,
+            overflow: "hidden",
+            marginBottom: 16,
+          }}
           onPress={() => item.image_url && onImagePress && onImagePress(item.image_url)}
         >
-          <Image source={{ uri: item.image_url }} style={styles.eventImage} resizeMode="cover" />
+          <Image
+            source={{ uri: item.image_url }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+          />
         </TouchableOpacity>
       )}
 
-      <Text style={styles.eventExcerpt} numberOfLines={3}>
+      <Text
+        style={{
+          fontSize: 15,
+          color: THEME.textMedium,
+          lineHeight: 22,
+          marginVertical: 16,
+        }}
+        numberOfLines={3}
+      >
         {item.excerpt}
       </Text>
 
       {item.video_link && (
         <TouchableOpacity
-          style={styles.videoLinkButton}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 14,
+            backgroundColor: THEME.pageBg,
+            borderRadius: 12,
+            marginBottom: 16,
+          }}
           onPress={() => item.video_link && Linking.openURL(item.video_link)}
         >
           <Feather name="youtube" size={20} color={THEME.primary} />
-          <Text style={styles.videoLinkText}>Watch Video</Text>
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 16,
+              color: THEME.primary,
+              fontWeight: "600",
+            }}
+          >
+            Watch Video
+          </Text>
         </TouchableOpacity>
       )}
 
-      <View style={styles.eventActionRow}>
-        {canEdit && (
-          <>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.editActionButton]}
-              onPress={() => onEdit(item)}
-            >
-              <Feather name="edit-2" size={16} color={THEME.buttonPrimary} />
-              <Text style={[styles.actionButtonText, styles.editActionText]}>Edit</Text>
-            </TouchableOpacity>
+      <View style={styles.eventCardFooter}>
+        <View style={styles.eventMetaInfo}>{/* Empty for now */}</View>
+        <View style={styles.eventActionButtons}>
+          {canEdit && (
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.editActionButton]}
+                onPress={() => onEdit(item)}
+              >
+                <Feather name="edit-2" size={16} color={THEME.textWhite} />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.deleteActionButton]}
-              onPress={() => onDelete(item.id)}
-            >
-              <Feather name="trash-2" size={16} color={THEME.error} />
-              <Text style={[styles.actionButtonText, styles.deleteActionText]}>Delete</Text>
-            </TouchableOpacity>
-          </>
-        )}
+              <TouchableOpacity
+                style={[styles.actionButton, styles.deleteActionButton]}
+                onPress={() => onDelete(item.id)}
+              >
+                <Feather name="trash-2" size={16} color={THEME.textWhite} />
+              </TouchableOpacity>
+            </>
+          )}
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.shareActionButton]}
-          onPress={() => {
-            const message = `${item.title}\n${formatEventDay(item.time)}, ${formatEventMonth(item.time)} ${formatEventDate(item.time)} at ${formatEventTime(item.time)}\nLocation: ${item.author_name || "TBD"}\n\n${item.excerpt}`;
-            Linking.openURL(
-              `mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(message)}`,
-            );
-          }}
-        >
-          <Feather name="share-2" size={16} color={THEME.secondary} />
-          <Text style={styles.actionButtonText}>Share</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.shareActionButton]}
+            onPress={() => {
+              const message = `${item.title}\n${formatEventDay(item.time)}, ${formatEventMonth(item.time)} ${formatEventDate(item.time)} at ${formatEventTime(item.time)}\nLocation: ${item.author_name || "TBD"}\n\n${item.excerpt}`;
+              Linking.openURL(
+                `mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(message)}`,
+              );
+            }}
+          >
+            <Feather name="share-2" size={16} color={THEME.textMedium} />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
