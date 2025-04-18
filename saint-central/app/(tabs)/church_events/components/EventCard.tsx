@@ -86,28 +86,54 @@ const EventCard: React.FC<EventCardProps> = ({
     }
   };
 
+  // Handle swipe reset
+  const resetSwipe = () => {
+    translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    actionButtonsOpacity.value = withTiming(0, { duration: 200 });
+    isExpanded.value = false;
+  };
+
+  // Create a global tap handler
+  const handleOutsidePress = () => {
+    if (isExpanded.value) {
+      resetSwipe();
+    }
+  };
+
   // Pan gesture handler for swipe actions
   const panGestureHandler = useAnimatedGestureHandler({
     onStart: (_, ctx: any) => {
       ctx.startX = translateX.value;
     },
     onActive: (event, ctx) => {
-      // Only allow swipe left (negative values)
-      const newX = ctx.startX + Math.min(0, event.translationX);
-      // Limit how far user can swipe
-      translateX.value = Math.max(newX, -120);
+      // Allow swipe in both directions when expanded
+      if (isExpanded.value) {
+        const newX = ctx.startX + event.translationX;
+        // When expanded, allow swiping back to original position (to right)
+        translateX.value = Math.min(Math.max(newX, -80), 0);
+      } else {
+        // Only allow swipe left (negative values) when not expanded
+        const newX = ctx.startX + Math.min(0, event.translationX);
+        // Limit how far user can swipe
+        translateX.value = Math.max(newX, -80);
+      }
 
-      // Show action buttons when swiped more than 40
-      if (translateX.value < -40 && actionButtonsOpacity.value === 0) {
+      // Show action buttons when swiped more than 30
+      if (translateX.value < -30 && actionButtonsOpacity.value === 0) {
         actionButtonsOpacity.value = withTiming(1, { duration: 200 });
-      } else if (translateX.value > -40 && actionButtonsOpacity.value === 1) {
+      } else if (translateX.value > -30 && actionButtonsOpacity.value === 1) {
         actionButtonsOpacity.value = withTiming(0, { duration: 200 });
       }
     },
     onEnd: (event) => {
-      if (event.velocityX < -500 || translateX.value < -80) {
-        // Snap to open state if swiped fast enough or far enough
-        translateX.value = withSpring(-120, { damping: 15, stiffness: 150 });
+      if (event.velocityX > 500 && isExpanded.value) {
+        // Snap back to closed state if swiped right when expanded
+        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+        actionButtonsOpacity.value = withTiming(0, { duration: 200 });
+        isExpanded.value = false;
+      } else if (event.velocityX < -500 || translateX.value < -50) {
+        // Snap to open state if swiped fast enough or far enough to left
+        translateX.value = withSpring(-80, { damping: 15, stiffness: 150 });
         actionButtonsOpacity.value = withTiming(1, { duration: 200 });
         isExpanded.value = true;
       } else {
@@ -118,13 +144,6 @@ const EventCard: React.FC<EventCardProps> = ({
       }
     },
   });
-
-  // Handle swipe reset
-  const resetSwipe = () => {
-    translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-    actionButtonsOpacity.value = withTiming(0, { duration: 200 });
-    isExpanded.value = false;
-  };
 
   // Delete action with animation
   const handleDelete = useCallback(() => {
@@ -138,26 +157,58 @@ const EventCard: React.FC<EventCardProps> = ({
 
   // Animated styles
   const cardStyle = useAnimatedStyle(() => {
+    const swipedAmount = Math.abs(translateX.value);
+    const isSwipeActive = swipedAmount > 10;
+
     return {
       transform: [{ scale: scale.value }, { translateX: translateX.value }],
       opacity: cardOpacity.value,
+      // Add shadow and border effects when swiped
+      shadowOpacity: isSwipeActive ? 0.15 : 0.1,
+      shadowRadius: isSwipeActive ? 15 : 10,
+      elevation: isSwipeActive ? 5 : 3,
+      // Add right border highlight when swiped
+      borderRightWidth: isSwipeActive ? 3 : 0,
+      borderRightColor: THEME.primary + "50", // Semi-transparent version of primary color
     };
   });
 
   const actionButtonsStyle = useAnimatedStyle(() => {
     return {
       opacity: actionButtonsOpacity.value,
-      transform: [{ translateX: interpolate(actionButtonsOpacity.value, [0, 1], [0, 30]) }],
+      transform: [
+        { translateX: interpolate(actionButtonsOpacity.value, [0, 1], [20, 0]) },
+        { scale: interpolate(actionButtonsOpacity.value, [0, 1], [0.8, 1]) },
+      ],
     };
   });
 
   return (
     <View style={cardStyles.cardContainer}>
+      {/* Overlay to handle tap outside when card is expanded */}
+      {isExpanded.value ? (
+        <TouchableOpacity
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              zIndex: 5,
+              position: "absolute",
+              top: -20,
+              left: -20,
+              right: -20,
+              bottom: -20,
+            },
+          ]}
+          activeOpacity={1}
+          onPress={resetSwipe}
+        />
+      ) : null}
+
       {/* Action buttons container (positioned absolute) */}
       <Animated.View style={[cardStyles.actionButtonsContainer, actionButtonsStyle]}>
         {canEdit && (
           <TouchableOpacity
-            style={cardStyles.actionButton}
+            style={[cardStyles.actionButton, { backgroundColor: THEME.primary }]}
             onPress={() => {
               resetSwipe();
               onEdit(item);
@@ -178,7 +229,11 @@ const EventCard: React.FC<EventCardProps> = ({
       </Animated.View>
 
       {/* Card content with pan gesture */}
-      <PanGestureHandler onGestureEvent={panGestureHandler} failOffsetY={[-10, 10]}>
+      <PanGestureHandler
+        onGestureEvent={panGestureHandler}
+        activeOffsetX={[-10, 10]}
+        failOffsetY={[-5, 5]}
+      >
         <Animated.View style={[cardStyles.card, cardStyle]}>
           <AnimatedTouchable
             onPressIn={handlePressIn}
@@ -513,26 +568,30 @@ const cardStyles = StyleSheet.create({
   },
   actionButtonsContainer: {
     position: "absolute",
-    right: 16,
+    right: 8,
     top: "50%",
-    marginTop: -24,
+    marginTop: -60,
     zIndex: 10,
-    flexDirection: "row",
-    height: 48,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 120,
+    paddingRight: 8,
   },
   actionButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: THEME.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    marginBottom: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+    transform: [{ scale: 0.95 }],
   },
 });
 

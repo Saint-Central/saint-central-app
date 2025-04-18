@@ -365,7 +365,7 @@ const EventForm: React.FC<EventFormProps> = ({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.formControl}>
+          <View style={[styles.formControl, { marginBottom: 30 }]}>
             <Text style={styles.formLabel}>Video Link (Optional)</Text>
             <TextInput
               style={styles.formInput}
@@ -377,7 +377,7 @@ const EventForm: React.FC<EventFormProps> = ({
             />
           </View>
 
-          <View style={styles.formActions}>
+          <View style={[styles.formActions, { marginBottom: 30 }]}>
             <TouchableOpacity
               style={[styles.formButton, styles.cancelButton]}
               onPress={() => {

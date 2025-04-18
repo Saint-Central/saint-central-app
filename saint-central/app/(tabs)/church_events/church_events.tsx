@@ -411,9 +411,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
 
         {/* Hero Content */}
         <Animated.View style={[simpleStyles.heroContent, heroOpacityStyle]}>
-          <Animated.View style={[simpleStyles.iconContainer, pulsateStyle]}>
-            <Feather name="calendar" size={30} color="#FFFFFF" />
-          </Animated.View>
           <Text style={simpleStyles.heroTitle}>Church Events</Text>
           <Text style={simpleStyles.heroSubtitle}>
             Find upcoming events, gatherings, and celebrations
@@ -503,13 +500,14 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
       <ScrollView
         style={[simpleStyles.scrollView, { marginTop: 0 }]}
         contentContainerStyle={[simpleStyles.scrollContent, { paddingTop: 350 }]}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={5}
-        decelerationRate={Platform.OS === "ios" ? "fast" : "normal"}
+        showsVerticalScrollIndicator={true}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
         bounces={true}
         alwaysBounceVertical={true}
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
+        overScrollMode="always"
         onScroll={(event) => {
           // First update the animated value for other animations
           scrollY.value = event.nativeEvent.contentOffset.y;
@@ -665,7 +663,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
 
               {!loading && filteredEvents.length === 0 && (
                 <View style={simpleStyles.centeredContent}>
-                  <Feather name="calendar" size={50} color="rgba(150,150,150,0.6)" />
                   <Text style={simpleStyles.noEventsText}>No events found</Text>
                   <Text style={simpleStyles.noEventsSubtext}>
                     {searchQuery
@@ -735,13 +732,25 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
             onClose={() => setShowDetailModal(false)}
             onEdit={
               hasPermissionToCreate ||
-              (currentUser?.id && detailEvent.created_by === currentUser.id)
+              (!!currentUser?.id &&
+                (detailEvent.created_by === currentUser.id ||
+                  userChurches.some(
+                    (church) =>
+                      church.id === detailEvent.church_id &&
+                      ["admin", "owner"].includes(church.role.toLowerCase()),
+                  )))
                 ? handleSelectEventForEdit
                 : undefined
             }
             onDelete={
               hasPermissionToCreate ||
-              (currentUser?.id && detailEvent.created_by === currentUser.id)
+              (!!currentUser?.id &&
+                (detailEvent.created_by === currentUser.id ||
+                  userChurches.some(
+                    (church) =>
+                      church.id === detailEvent.church_id &&
+                      ["admin", "owner"].includes(church.role.toLowerCase()),
+                  )))
                 ? handleDeleteEvent
                 : undefined
             }
