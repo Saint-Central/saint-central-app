@@ -125,9 +125,17 @@ export default function DiscoverScreen() {
           activeOpacity={0.9}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
-          onPress={() =>
-            router.push(`/${category.title.replace(/\s+/g, "-").toLowerCase()}` as any)
-          }
+          onPress={() => {
+            let path;
+            if (category.title === "Women's Ministry") {
+              path = "/womens-ministry";
+            } else if (category.title === "Culture & Testimonies") {
+              path = "/culture-and-testimonies";
+            } else {
+              path = `/${category.title.replace(/\s+/g, "-").toLowerCase()}`;
+            }
+            router.push(path as any);
+          }}
         >
           <LinearGradient
             colors={[theme.neutral50, theme.neutral100]}
