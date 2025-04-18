@@ -1356,7 +1356,6 @@ export default function MinistryDetails(): JSX.Element {
         Alert.alert("Notification Error", error.message);
       } else {
         console.log("Notification sent successfully:", data);
-        Alert.alert("Success", "Test notification sent to Supabase");
       }
     } catch (error) {
       console.error("Error in testDirectNotification:", error);
