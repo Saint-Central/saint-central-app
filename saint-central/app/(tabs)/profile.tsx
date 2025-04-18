@@ -13,17 +13,19 @@ import {
   Dimensions,
   Platform,
   StatusBar as RNStatusBar,
+  ScrollView,
 } from "react-native";
 import { supabase } from "../../supabaseClient";
 import { Session } from "@supabase/supabase-js";
 import { useRouter, useFocusEffect } from "expo-router";
-import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons, FontAwesome5, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import theme from "@/theme";
 
 interface UserProfile {
   id: string;
@@ -33,7 +35,84 @@ interface UserProfile {
   created_at?: string;
   updated_at?: string;
   profile_image?: string;
+  denomination?: string;
 }
+
+// Define the denominations array with name, description, and icon
+const denominations = [
+  {
+    id: "catholic",
+    name: "Catholic",
+    description: "Roman Catholic Church",
+    icon: "sun",
+  },
+  {
+    id: "protestant",
+    name: "Protestant",
+    description: "Various Protestant denominations",
+    icon: "book-open",
+  },
+  {
+    id: "orthodox",
+    name: "Orthodox",
+    description: "Eastern Orthodox Church",
+    icon: "compass",
+  },
+  {
+    id: "evangelical",
+    name: "Evangelical",
+    description: "Evangelical Christian churches",
+    icon: "mic",
+  },
+  {
+    id: "baptist",
+    name: "Baptist",
+    description: "Baptist churches and associations",
+    icon: "droplet",
+  },
+  {
+    id: "methodist",
+    name: "Methodist",
+    description: "Methodist denomination",
+    icon: "heart",
+  },
+  {
+    id: "lutheran",
+    name: "Lutheran",
+    description: "Lutheran denomination",
+    icon: "bookmark",
+  },
+  {
+    id: "presbyterian",
+    name: "Presbyterian",
+    description: "Presbyterian denomination",
+    icon: "shield",
+  },
+  {
+    id: "anglican",
+    name: "Anglican/Episcopal",
+    description: "Anglican Communion churches",
+    icon: "flag",
+  },
+  {
+    id: "pentecostal",
+    name: "Pentecostal",
+    description: "Pentecostal churches",
+    icon: "wind",
+  },
+  {
+    id: "nondenominational",
+    name: "Non-denominational",
+    description: "Non-denominational Christian",
+    icon: "users",
+  },
+  {
+    id: "other",
+    name: "Other",
+    description: "Other faith traditions",
+    icon: "more-horizontal",
+  },
+];
 
 export default function MeScreen() {
   const [session, setSession] = useState<Session | null>(null);
@@ -45,10 +124,12 @@ export default function MeScreen() {
     first_name: "",
     last_name: "",
     profile_image: "",
+    denomination: "",
   });
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [denominationModalVisible, setDenominationModalVisible] = useState(false);
   const router = useRouter();
 
   // Animation values
@@ -127,6 +208,7 @@ export default function MeScreen() {
           first_name: data.first_name || "",
           last_name: data.last_name || "",
           profile_image: data.profile_image || "",
+          denomination: data.denomination || "",
         });
       }
     } catch (err: unknown) {
@@ -267,6 +349,7 @@ export default function MeScreen() {
           first_name: editForm.first_name,
           last_name: editForm.last_name,
           profile_image: editForm.profile_image,
+          denomination: editForm.denomination,
           updated_at: new Date().toISOString(),
         })
         .eq("id", session.user.id)
@@ -280,6 +363,7 @@ export default function MeScreen() {
           first_name: data[0].first_name || "",
           last_name: data[0].last_name || "",
           profile_image: data[0].profile_image || "",
+          denomination: data[0].denomination || "",
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -429,11 +513,18 @@ export default function MeScreen() {
     </View>
   );
 
+  // Add a getSelectedDenominationName helper function before the render
+  const getSelectedDenominationName = () => {
+    if (!editForm.denomination) return "";
+    const selected = denominations.find((d) => d.id === editForm.denomination);
+    return selected ? selected.name : editForm.denomination;
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar style="dark" />
-        <ActivityIndicator size="large" color="#3A86FF" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
     );
   }
@@ -504,7 +595,7 @@ export default function MeScreen() {
         >
           <View style={styles.titleWrapper}>
             <LinearGradient
-              colors={["#3A86FF", "#4361EE"]}
+              colors={theme.gradientPrimary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.titleAccent}
@@ -549,7 +640,7 @@ export default function MeScreen() {
             }}
           >
             <LinearGradient
-              colors={["#3A86FF", "#4361EE"]}
+              colors={theme.gradientPrimary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.editGradient}
@@ -585,7 +676,7 @@ export default function MeScreen() {
               <Image source={{ uri: userProfile.profile_image }} style={styles.avatarImage} />
             ) : (
               <LinearGradient
-                colors={["#3A86FF", "#4361EE"]}
+                colors={theme.gradientPrimary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.avatarGradient}
@@ -620,7 +711,16 @@ export default function MeScreen() {
             ]}
           >
             <LinearGradient
-              colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+              colors={[
+                `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+                  theme.primary.substring(3, 5),
+                  16,
+                )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.05)`,
+                `rgba(${parseInt(theme.secondary.substring(1, 3), 16)}, ${parseInt(
+                  theme.secondary.substring(3, 5),
+                  16,
+                )}, ${parseInt(theme.secondary.substring(5, 7), 16)}, 0.1)`,
+              ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.cardGradient}
@@ -631,7 +731,7 @@ export default function MeScreen() {
               <View style={styles.formContainer}>
                 <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
                   <LinearGradient
-                    colors={["#3A86FF", "#4361EE"]}
+                    colors={theme.gradientPrimary}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.imagePickerGradient}
@@ -669,12 +769,24 @@ export default function MeScreen() {
                       placeholder="Enter your last name"
                     />
                   </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Denomination</Text>
+                    <TouchableOpacity
+                      style={styles.denominationSelector}
+                      onPress={() => setDenominationModalVisible(true)}
+                    >
+                      <Text style={styles.denominationText}>
+                        {getSelectedDenominationName() || "Select your denomination"}
+                      </Text>
+                      <Feather name="chevron-down" size={18} color={theme.textMedium} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.actionsContainer}>
                   <TouchableOpacity style={styles.actionButton} onPress={handleSubmit}>
                     <LinearGradient
-                      colors={["#3A86FF", "#4361EE"]}
+                      colors={theme.gradientPrimary}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.actionGradient}
@@ -698,7 +810,7 @@ export default function MeScreen() {
                   }}
                 >
                   <LinearGradient
-                    colors={["#FF4560", "#FF006E"]}
+                    colors={[theme.error, theme.error]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.deleteGradient}
@@ -733,7 +845,16 @@ export default function MeScreen() {
             ]}
           >
             <LinearGradient
-              colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+              colors={[
+                `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+                  theme.primary.substring(3, 5),
+                  16,
+                )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.05)`,
+                `rgba(${parseInt(theme.secondary.substring(1, 3), 16)}, ${parseInt(
+                  theme.secondary.substring(3, 5),
+                  16,
+                )}, ${parseInt(theme.secondary.substring(5, 7), 16)}, 0.1)`,
+              ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.cardGradient}
@@ -774,6 +895,16 @@ export default function MeScreen() {
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Last Name</Text>
                     <Text style={styles.detailValue}>{userProfile.last_name || "Not set"}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconContainer}>
+                    <FontAwesome5 name="church" size={14} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Denomination</Text>
+                    <Text style={styles.detailValue}>{userProfile.denomination || "Not set"}</Text>
                   </View>
                 </View>
               </View>
@@ -846,7 +977,7 @@ export default function MeScreen() {
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LinearGradient
-            colors={["#4CC9F0", "#4895EF"]}
+            colors={theme.gradientInfo}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.logoutGradient}
@@ -934,6 +1065,78 @@ export default function MeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Denomination Picker Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={denominationModalVisible}
+        onRequestClose={() => setDenominationModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.denominationModalContent}>
+            <View style={styles.denominationModalHeader}>
+              <Text style={styles.denominationModalTitle}>Select Denomination</Text>
+              <TouchableOpacity
+                onPress={() => setDenominationModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Feather name="x" size={24} color={theme.textDark} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.denominationList}>
+              {denominations.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.denominationItem,
+                    editForm.denomination === item.id && styles.selectedDenominationItem,
+                  ]}
+                  onPress={() => {
+                    setEditForm({ ...editForm, denomination: item.id });
+                    setDenominationModalVisible(false);
+                  }}
+                >
+                  <View style={styles.denominationIconContainer}>
+                    <Feather
+                      name={item.icon as any}
+                      size={20}
+                      color={editForm.denomination === item.id ? theme.textWhite : theme.primary}
+                    />
+                  </View>
+                  <View style={styles.denominationTextContainer}>
+                    <Text
+                      style={[
+                        styles.denominationItemName,
+                        editForm.denomination === item.id && styles.selectedDenominationText,
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.denominationItemDescription,
+                        editForm.denomination === item.id && styles.selectedDenominationText,
+                      ]}
+                    >
+                      {item.description}
+                    </Text>
+                  </View>
+                  {editForm.denomination === item.id && (
+                    <Feather
+                      name="check"
+                      size={20}
+                      color={theme.textWhite}
+                      style={styles.checkIcon}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -943,13 +1146,14 @@ const { width, height } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.pageBg,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 20 : RNStatusBar.currentHeight || 20,
-    paddingBottom: 60,
+    paddingHorizontal: theme.spacingXL,
+    paddingTop:
+      Platform.OS === "ios" ? theme.spacingXL : RNStatusBar.currentHeight || theme.spacingXL,
+    paddingBottom: theme.spacing3XL,
   },
   headerBackground: {
     position: "absolute",
@@ -959,8 +1163,8 @@ const styles = StyleSheet.create({
     height: Platform.OS === "ios" ? 100 : 80,
     zIndex: 100,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(203, 213, 225, 0.5)",
-    shadowColor: "#94A3B8",
+    borderBottomColor: theme.divider,
+    shadowColor: theme.textMedium,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
   },
@@ -970,7 +1174,7 @@ const styles = StyleSheet.create({
   floatingTitleContainer: {
     position: "absolute",
     width: "100%",
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacingXL,
     top: Platform.OS === "ios" ? 55 : 30,
     height: 30,
     alignItems: "center",
@@ -985,13 +1189,13 @@ const styles = StyleSheet.create({
   titleAccent: {
     width: 4,
     height: 20,
-    borderRadius: 2,
-    marginRight: 12,
+    borderRadius: theme.radiusSmall / 2,
+    marginRight: theme.spacingM,
   },
   floatingTitle: {
     fontSize: 20,
-    fontWeight: "800",
-    color: "#1E293B",
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
     letterSpacing: 0.5,
     lineHeight: 24,
   },
@@ -999,8 +1203,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
-    marginTop: 20,
+    marginBottom: theme.spacingXL,
+    marginTop: theme.spacingXL,
   },
   headerLeft: {
     flexDirection: "row",
@@ -1009,38 +1213,41 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    borderRadius: theme.radiusFull,
+    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.1)`,
     justifyContent: "center",
     alignItems: "center",
   },
   editButton: {
     zIndex: 10,
-    shadowColor: "#3A86FF",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
     overflow: "hidden",
   },
   editGradient: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
   },
   profileHeader: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: theme.spacingXL,
   },
   avatarContainer: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-    shadowColor: "#3A86FF",
+    borderRadius: theme.radiusFull,
+    marginBottom: theme.spacingL,
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1050,7 +1257,7 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 100,
     height: 100,
-    borderRadius: 50,
+    borderRadius: theme.radiusFull,
   },
   avatarGradient: {
     width: 100,
@@ -1060,34 +1267,34 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 36,
-    fontWeight: "600",
-    color: "#FFFFFF",
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
   },
   profileName: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 6,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginBottom: theme.spacingXS,
   },
   profileEmail: {
     fontSize: 16,
-    color: "#64748B",
+    color: theme.textMedium,
   },
   card: {
-    borderRadius: 20,
+    borderRadius: theme.radiusLarge,
     overflow: "hidden",
-    marginBottom: 24,
-    shadowColor: "#94A3B8",
+    marginBottom: theme.spacingXL,
+    shadowColor: theme.textLight,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
   cardGradient: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingXL,
     borderWidth: 1,
-    borderColor: "rgba(203, 213, 225, 0.5)",
+    borderColor: theme.divider,
   },
   cardDecoration: {
     position: "absolute",
@@ -1098,37 +1305,46 @@ const styles = StyleSheet.create({
   },
   decorationDot: {
     position: "absolute",
-    borderRadius: 50,
+    borderRadius: theme.radiusFull,
   },
   decorationDot1: {
     width: 12,
     height: 12,
-    backgroundColor: "rgba(58, 134, 255, 0.2)",
+    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.2)`,
     top: 15,
     right: 15,
   },
   decorationDot2: {
     width: 8,
     height: 8,
-    backgroundColor: "rgba(58, 134, 255, 0.15)",
+    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.15)`,
     top: 30,
     right: 22,
   },
   decorationDot3: {
     width: 6,
     height: 6,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.1)`,
     top: 24,
     right: 35,
   },
   formContainer: {
-    gap: 16,
+    gap: theme.spacingL,
   },
   imagePickerButton: {
-    marginBottom: 16,
-    borderRadius: 12,
+    marginBottom: theme.spacingL,
+    borderRadius: theme.radiusMedium,
     overflow: "hidden",
-    shadowColor: "#3A86FF",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1138,54 +1354,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL,
   },
   imagePickerText: {
-    color: "#FFFFFF",
-    marginLeft: 8,
-    fontWeight: "600",
+    color: theme.textWhite,
+    marginLeft: theme.spacingS,
+    fontWeight: theme.fontSemiBold,
     fontSize: 15,
   },
   sectionContainer: {
-    marginBottom: 24,
+    marginBottom: theme.spacingXL,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: theme.spacingL,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginLeft: 8,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginLeft: theme.spacingS,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: theme.spacingL,
   },
   inputLabel: {
     fontSize: 14,
-    marginBottom: 8,
-    color: "#64748B",
-    fontWeight: "500",
+    marginBottom: theme.spacingS,
+    color: theme.textMedium,
+    fontWeight: theme.fontMedium,
   },
   input: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: theme.neutral50,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    padding: 12,
-    color: "#1E293B",
+    borderColor: theme.divider,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
+    color: theme.textDark,
     fontSize: 16,
   },
   actionsContainer: {
-    marginBottom: 16,
+    marginBottom: theme.spacingL,
   },
   actionButton: {
-    borderRadius: 12,
+    borderRadius: theme.radiusMedium,
     overflow: "hidden",
-    shadowColor: "#3A86FF",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -1195,20 +1411,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: theme.spacingL,
   },
   actionIcon: {
-    marginRight: 8,
+    marginRight: theme.spacingS,
   },
   actionText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
     fontSize: 16,
   },
   deleteButton: {
-    borderRadius: 12,
+    borderRadius: theme.radiusMedium,
     overflow: "hidden",
-    shadowColor: "#FF006E",
+    shadowColor: theme.error,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -1218,52 +1434,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: theme.spacingL,
   },
   deleteIcon: {
-    marginRight: 8,
+    marginRight: theme.spacingS,
   },
   deleteText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
     fontSize: 16,
   },
   detailItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    backgroundColor: theme.neutral50,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingL,
+    marginBottom: theme.spacingS,
   },
   detailIconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#3A86FF",
+    borderRadius: theme.radiusFull,
+    backgroundColor: theme.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: theme.spacingL,
   },
   detailContent: {
     flex: 1,
   },
   detailLabel: {
     fontSize: 13,
-    color: "#64748B",
+    color: theme.textMedium,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 15,
-    color: "#1E293B",
-    fontWeight: "500",
+    color: theme.textDark,
+    fontWeight: theme.fontMedium,
   },
   logoutButton: {
-    borderRadius: 12,
+    borderRadius: theme.radiusMedium,
     overflow: "hidden",
-    marginTop: 8,
-    marginBottom: 24,
-    shadowColor: "#4895EF",
+    marginTop: theme.spacingS,
+    marginBottom: theme.spacingXL,
+    shadowColor: theme.accent2,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -1275,13 +1491,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: theme.spacingL,
   },
   logoutText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
     fontSize: 16,
-    marginLeft: 8,
+    marginLeft: theme.spacingS,
   },
   bottomSpacing: {
     height: 40,
@@ -1290,96 +1506,108 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.pageBg,
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    padding: 20,
+    backgroundColor: theme.pageBg,
+    padding: theme.spacingXL,
   },
   errorBox: {
     width: "100%",
     alignItems: "center",
-    backgroundColor: "rgba(255, 0, 110, 0.05)",
+    backgroundColor: `rgba(${parseInt(theme.error.substring(1, 3), 16)}, ${parseInt(
+      theme.error.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.error.substring(5, 7), 16)}, 0.05)`,
     borderWidth: 1,
-    borderColor: "rgba(255, 0, 110, 0.1)",
-    borderRadius: 20,
-    padding: 24,
+    borderColor: `rgba(${parseInt(theme.error.substring(1, 3), 16)}, ${parseInt(
+      theme.error.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.error.substring(5, 7), 16)}, 0.1)`,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingXL,
   },
   errorTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginTop: 12,
-    marginBottom: 8,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginTop: theme.spacingM,
+    marginBottom: theme.spacingS,
   },
   errorText: {
     fontSize: 16,
-    color: "#64748B",
+    color: theme.textMedium,
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: theme.spacingXL,
   },
   errorButton: {
-    backgroundColor: "#3A86FF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: theme.primary,
+    paddingHorizontal: theme.spacingXL,
+    paddingVertical: theme.spacingM,
+    borderRadius: theme.radiusMedium,
   },
   errorButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
   },
   warningBox: {
     width: "100%",
     alignItems: "center",
-    backgroundColor: "rgba(67, 97, 238, 0.05)",
+    backgroundColor: `rgba(${parseInt(theme.accent1.substring(1, 3), 16)}, ${parseInt(
+      theme.accent1.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.accent1.substring(5, 7), 16)}, 0.05)`,
     borderWidth: 1,
-    borderColor: "rgba(67, 97, 238, 0.1)",
-    borderRadius: 20,
-    padding: 24,
+    borderColor: `rgba(${parseInt(theme.accent1.substring(1, 3), 16)}, ${parseInt(
+      theme.accent1.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.accent1.substring(5, 7), 16)}, 0.1)`,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingXL,
   },
   warningTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginTop: 12,
-    marginBottom: 8,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginTop: theme.spacingM,
+    marginBottom: theme.spacingS,
   },
   warningText: {
     fontSize: 16,
-    color: "#64748B",
+    color: theme.textMedium,
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: theme.spacingXL,
   },
   warningButton: {
-    backgroundColor: "#3A86FF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: theme.primary,
+    paddingHorizontal: theme.spacingXL,
+    paddingVertical: theme.spacingM,
+    borderRadius: theme.radiusMedium,
   },
   warningButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    backgroundColor: theme.overlay,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: theme.spacingXL,
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingXL,
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: theme.divider,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
@@ -1388,15 +1616,15 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#DC2626",
-    marginBottom: 16,
+    fontWeight: theme.fontBold,
+    color: theme.error,
+    marginBottom: theme.spacingL,
     textAlign: "center",
   },
   modalMessage: {
     fontSize: 16,
-    color: "#475569",
-    marginBottom: 24,
+    color: theme.textMedium,
+    marginBottom: theme.spacingXL,
     textAlign: "center",
     lineHeight: 22,
   },
@@ -1406,38 +1634,139 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginRight: 8,
+    backgroundColor: theme.neutral100,
+    borderRadius: theme.radiusMedium,
+    paddingVertical: theme.spacingM,
+    marginRight: theme.spacingS,
     alignItems: "center",
   },
   modalCancelButtonText: {
-    color: "#1E293B",
-    fontWeight: "600",
+    color: theme.textDark,
+    fontWeight: theme.fontSemiBold,
     fontSize: 16,
   },
   modalConfirmButton: {
     flex: 1,
-    backgroundColor: "#DC2626",
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginLeft: 8,
+    backgroundColor: theme.error,
+    borderRadius: theme.radiusMedium,
+    paddingVertical: theme.spacingM,
+    marginLeft: theme.spacingS,
     alignItems: "center",
   },
   modalConfirmButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
     fontSize: 16,
   },
   deleteConfirmInput: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: theme.neutral50,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    padding: 12,
-    color: "#1E293B",
+    borderColor: theme.divider,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
+    color: theme.textDark,
     fontSize: 16,
-    marginBottom: 24,
+    marginBottom: theme.spacingXL,
+  },
+  denominationSelector: {
+    backgroundColor: theme.neutral50,
+    borderWidth: 1,
+    borderColor: theme.divider,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  denominationText: {
+    color: theme.textDark,
+    fontSize: 16,
+  },
+  denominationModalContent: {
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    padding: 0,
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "80%",
+    borderWidth: 1,
+    borderColor: theme.divider,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
+    overflow: "hidden",
+  },
+  denominationModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: theme.spacingL,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.divider,
+  },
+  denominationModalTitle: {
+    fontSize: 18,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radiusFull,
+    backgroundColor: theme.neutral100,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  denominationList: {
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingL,
+    maxHeight: 500,
+  },
+  denominationItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.neutral50,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
+    marginBottom: theme.spacingS,
+    borderWidth: 1,
+    borderColor: theme.divider,
+  },
+  selectedDenominationItem: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  denominationIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radiusFull,
+    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.1)`,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: theme.spacingM,
+  },
+  denominationTextContainer: {
+    flex: 1,
+  },
+  denominationItemName: {
+    fontSize: 15,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+    marginBottom: 2,
+  },
+  denominationItemDescription: {
+    fontSize: 13,
+    color: theme.textMedium,
+  },
+  selectedDenominationText: {
+    color: theme.textWhite,
+  },
+  checkIcon: {
+    marginLeft: theme.spacingS,
   },
 });

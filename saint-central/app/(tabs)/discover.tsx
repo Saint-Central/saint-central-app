@@ -5,60 +5,96 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  StatusBar,
+  StatusBar as RNStatusBar,
   Animated,
   ImageBackground,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import theme from "@/theme";
+import { BlurView } from "expo-blur";
 
-// Mapping gradients to category icons
+// Mapping gradients to category icons using theme colors
 const gradientMap: Record<string, { start: string; end: string }> = {
-  heart: { start: "#3A86FF", end: "#4361EE" },
-  users: { start: "#FF006E", end: "#FB5607" },
-  "book-open": { start: "#8338EC", end: "#6A0DAD" },
-  globe: { start: "#06D6A0", end: "#1A936F" },
+  "praying-hands": { start: theme.primary, end: theme.secondary },
+  users: { start: theme.tertiary, end: theme.accent2 },
+  "book-open": { start: theme.accent3, end: theme.accent1 },
+  church: { start: theme.accent4, end: theme.accent2 },
 };
 
 interface Category {
   id: number;
   title: string;
-  icon: "heart" | "users" | "book-open" | "globe";
+  icon: "praying-hands" | "users" | "book-open" | "church";
   description: string;
 }
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+
+  // Header animation
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 180],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
 
   const categories: Category[] = [
     {
       id: 1,
       title: "Faith",
-      icon: "heart",
+      icon: "praying-hands",
       description: "Explore resources to grow in your spiritual journey",
     },
     {
       id: 2,
-      title: "Womens Ministry",
+      title: "Women's Ministry",
       icon: "users",
       description: "Connect with our community of women supporting each other",
     },
     {
       id: 3,
-      title: "Culture and Testimonies",
+      title: "Culture & Testimonies",
       icon: "book-open",
       description: "Read inspiring stories and cultural perspectives",
     },
     {
       id: 4,
       title: "News",
-      icon: "globe",
+      icon: "church",
       description: "Stay updated with the latest events and announcements",
     },
   ];
+
+  // Floating header for when user scrolls
+  const FloatingHeader = () => (
+    <Animated.View
+      style={[
+        styles.floatingHeader,
+        {
+          opacity: headerOpacity,
+          transform: [
+            {
+              translateY: headerOpacity.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-10, 0],
+              }),
+            },
+          ],
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
+      <View style={styles.floatingHeaderContent}>
+        <Text style={styles.floatingHeaderTitle}>Discover</Text>
+      </View>
+    </Animated.View>
+  );
 
   // Category card component with press animations
   const CategoryCard = ({ category }: { category: Category }) => {
@@ -67,6 +103,8 @@ export default function DiscoverScreen() {
     const handlePressIn = () => {
       Animated.spring(scale, {
         toValue: 0.97,
+        friction: 8,
+        tension: 40,
         useNativeDriver: true,
       }).start();
     };
@@ -74,232 +112,419 @@ export default function DiscoverScreen() {
     const handlePressOut = () => {
       Animated.spring(scale, {
         toValue: 1,
+        friction: 8,
+        tension: 40,
         useNativeDriver: true,
       }).start();
     };
 
     return (
-      <Animated.View style={{ transform: [{ scale }] }}>
+      <Animated.View style={[styles.cardWrapper, { transform: [{ scale }] }]}>
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.9}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
-          onPress={() =>
-            router.push(`/${category.title.replace(/\s+/g, "-").toLowerCase()}` as any)
-          }
+          onPress={() => {
+            let path;
+            if (category.title === "Women's Ministry") {
+              path = "/womens-ministry";
+            } else if (category.title === "Culture & Testimonies") {
+              path = "/culture-and-testimonies";
+            } else {
+              path = `/${category.title.replace(/\s+/g, "-").toLowerCase()}`;
+            }
+            router.push(path as any);
+          }}
         >
-          <View style={styles.cardHeader}>
-            <LinearGradient
-              colors={[gradientMap[category.icon].start, gradientMap[category.icon].end]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconContainer}
-            >
-              <Feather name={category.icon} size={24} color="#FFFFFF" />
-            </LinearGradient>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{category.title}</Text>
-              <Text style={styles.cardDescription}>{category.description}</Text>
+          <LinearGradient
+            colors={[theme.neutral50, theme.neutral100]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cardGradient}
+          >
+            <View style={styles.cardHeader}>
+              <LinearGradient
+                colors={[gradientMap[category.icon].start, gradientMap[category.icon].end]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.iconContainer}
+              >
+                <FontAwesome5 name={category.icon} size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{category.title}</Text>
+                <Text style={styles.cardDescription}>{category.description}</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.cardFooter}>
-            <Text style={styles.exploreText}>Explore</Text>
-            <Feather name="arrow-right" size={16} color="#3A86FF" />
-          </View>
+            <View style={styles.cardFooter}>
+              <Text style={styles.exploreText}>Explore</Text>
+              <View style={styles.arrowContainer}>
+                <FontAwesome5 name="arrow-right" size={14} color="#FFFFFF" />
+              </View>
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <Animated.ScrollView
-        contentContainerStyle={styles.scrollContent}
-        scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: true,
-        })}
+  // Event card component
+  const EventCard = () => (
+    <TouchableOpacity
+      style={styles.eventCard}
+      activeOpacity={0.9}
+      onPress={() => router.push("/events")}
+    >
+      <LinearGradient
+        colors={[
+          `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+            theme.primary.substring(3, 5),
+            16,
+          )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.05)`,
+          `rgba(${parseInt(theme.secondary.substring(1, 3), 16)}, ${parseInt(
+            theme.secondary.substring(3, 5),
+            16,
+          )}, ${parseInt(theme.secondary.substring(5, 7), 16)}, 0.1)`,
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.eventCardGradient}
       >
-        {/* Full-Width Integrated Header */}
-        <ImageBackground
-          source={require("../../assets/images/jesus_on_cross.png")}
-          style={styles.header}
-          resizeMode="cover"
-          imageStyle={{ opacity: 0.65 }}
-        >
+        <View style={styles.eventIconContainer}>
           <LinearGradient
-            colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0.0)"]}
-            style={styles.headerOverlay}
-          />
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Discover</Text>
-            <Text style={styles.headerSubtitle}>
-              Explore resources and connect with our community
-            </Text>
-          </View>
-        </ImageBackground>
-
-        {/* Upcoming Events Banner */}
-        <View style={styles.eventsBanner}>
-          <View style={styles.eventsTextContainer}>
-            <Text style={styles.eventsTitle}>Upcoming Events</Text>
-            <Text style={styles.eventsSubtitle}>Check out what's happening</Text>
-          </View>
-          <TouchableOpacity style={styles.eventsButton} onPress={() => router.push("/events")}>
-            <Text style={styles.buttonText}>View All</Text>
-            <Feather name="arrow-right" size={14} color="#FFFFFF" />
-          </TouchableOpacity>
+            colors={theme.gradientWarm}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.eventIconBackground}
+          >
+            <FontAwesome5 name="calendar-alt" size={20} color="#FFFFFF" />
+          </LinearGradient>
         </View>
-
-        {/* Category Cards */}
-        <View style={styles.cardsContainer}>
-          {categories.map((category) => (
-            <CategoryCard key={category.id} category={category} />
-          ))}
+        <View style={styles.eventContent}>
+          <Text style={styles.eventTitle}>Upcoming Events</Text>
+          <Text style={styles.eventDescription}>Explore what's happening in our community</Text>
+          <View style={styles.eventFooter}>
+            <LinearGradient
+              colors={theme.gradientPrimary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.eventButton}
+            >
+              <Text style={styles.eventButtonText}>View All</Text>
+              <FontAwesome5
+                name="arrow-right"
+                size={12}
+                color="#FFFFFF"
+                style={styles.buttonIcon}
+              />
+            </LinearGradient>
+          </View>
         </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
 
-        {/* Extra bottom spacing */}
-        <View style={styles.navBarSpacer} />
-      </Animated.ScrollView>
-    </SafeAreaView>
+  return (
+    <View style={styles.container}>
+      {/* Background header image that extends to edges */}
+      <ImageBackground
+        source={require("../../assets/images/jesus_on_cross.png")}
+        style={[styles.header, { paddingTop: insets.top }]}
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.75 }}
+      >
+        <LinearGradient
+          colors={["rgba(45, 36, 31, 0.65)", "rgba(45, 36, 31, 0.1)"]}
+          style={styles.headerOverlay}
+        />
+        <Animated.View
+          style={[
+            styles.headerContent,
+            {
+              marginTop: insets.top,
+              opacity: scrollY.interpolate({
+                inputRange: [0, 100],
+                outputRange: [1, 0],
+                extrapolate: "clamp",
+              }),
+              transform: [
+                {
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: [0, -50],
+                    extrapolate: "clamp",
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.headerTitle}>Discover</Text>
+          <Text style={styles.headerSubtitle}>
+            Explore resources and connect with our community
+          </Text>
+        </Animated.View>
+      </ImageBackground>
+
+      {/* Floating header that appears when scrolling */}
+      <FloatingHeader />
+
+      {/* Main scrollable content */}
+      <SafeAreaView style={styles.safeAreaContainer} edges={["right", "left", "bottom"]}>
+        <Animated.ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 290 }]}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
+        >
+          {/* Main Content Container */}
+          <View style={styles.mainContent}>
+            {/* Upcoming Events Card */}
+            <EventCard />
+
+            {/* Section Title */}
+            <View style={styles.sectionTitleContainer}>
+              <View style={styles.sectionTitleAccent} />
+              <Text style={styles.sectionTitle}>Categories</Text>
+            </View>
+
+            {/* Category Cards */}
+            <View style={styles.cardsContainer}>
+              {categories.map((category) => (
+                <CategoryCard key={category.id} category={category} />
+              ))}
+            </View>
+
+            {/* Extra bottom spacing */}
+            <View style={styles.navBarSpacer} />
+          </View>
+        </Animated.ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
+  },
+  safeAreaContainer: {
+    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   scrollContent: {
-    paddingBottom: 40,
+    flexGrow: 1,
+  },
+  mainContent: {
+    marginTop: 0,
+    paddingHorizontal: theme.spacingL,
+    borderTopLeftRadius: theme.radiusLarge,
+    borderTopRightRadius: theme.radiusLarge,
+    backgroundColor: theme.pageBg,
+    paddingTop: theme.spacingXL,
+  },
+  floatingHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: `rgba(${parseInt(theme.divider.substring(1, 3), 16)}, ${parseInt(
+      theme.divider.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.divider.substring(5, 7), 16)}, 0.5)`,
+  },
+  floatingHeaderContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 16,
+  },
+  floatingHeaderTitle: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
   },
   header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     width: "100%",
-    height: 300,
+    height: 320,
     justifyContent: "flex-end",
-    backgroundColor: "#F4EBD0",
+    backgroundColor: theme.neutral200,
   },
   headerOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   headerContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: theme.spacingXL,
+    paddingBottom: theme.spacing4XL,
     zIndex: 1,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: "700",
+    fontSize: 36,
+    fontWeight: theme.fontBold,
     color: "#fff",
-    marginBottom: 6,
+    marginBottom: theme.spacingS,
     textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   headerSubtitle: {
     fontSize: 18,
-    color: "#E0E7FF",
+    color: "rgba(255, 255, 255, 0.9)",
     textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  eventsBanner: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-    backgroundColor: "#F8FAFC",
-    borderColor: "#F1F5F9",
+  eventCard: {
+    marginBottom: theme.spacingXL,
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+    ...theme.shadowMedium,
+  },
+  eventCardGradient: {
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingL,
     borderWidth: 1,
-    borderRadius: 15,
-    padding: 16,
-    flexDirection: "row",
+    borderColor: theme.divider,
+  },
+  eventIconContainer: {
+    marginBottom: theme.spacingM,
+  },
+  eventIconBackground: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.radiusMedium,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
   },
-  eventsTextContainer: {
-    flex: 1,
-  },
-  eventsTitle: {
+  eventContent: {},
+  eventTitle: {
     fontSize: 20,
-    fontWeight: "500",
-    color: "#1E293B",
-    marginBottom: 4,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginBottom: theme.spacingXS,
   },
-  eventsSubtitle: {
-    fontSize: 14,
-    color: "#475569",
+  eventDescription: {
+    fontSize: 15,
+    color: theme.textMedium,
+    marginBottom: theme.spacingL,
   },
-  eventsButton: {
-    backgroundColor: "#3A86FF",
-    borderRadius: 30,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+  eventFooter: {
+    alignItems: "flex-start",
+  },
+  eventButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 12,
+    paddingVertical: theme.spacingS,
+    paddingHorizontal: theme.spacingM,
+    borderRadius: theme.radiusFull,
   },
-  buttonText: {
+  eventButtonText: {
     color: "#FFFFFF",
+    fontWeight: theme.fontSemiBold,
     fontSize: 14,
-    fontWeight: "600",
-    marginRight: 4,
+  },
+  buttonIcon: {
+    marginLeft: theme.spacingS,
+  },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacingL,
+  },
+  sectionTitleAccent: {
+    width: 4,
+    height: 20,
+    backgroundColor: theme.primary,
+    borderRadius: 2,
+    marginRight: theme.spacingS,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
   },
   cardsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 16,
+    marginBottom: theme.spacingXL,
+    gap: theme.spacingL,
+  },
+  cardWrapper: {
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+    ...theme.shadowLight,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#F1F5F9",
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+  },
+  cardGradient: {
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingL,
     borderWidth: 1,
-    borderRadius: 15,
-    padding: 16,
-    shadowColor: "#94A3B8",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    borderColor: theme.divider,
   },
   cardHeader: {
     flexDirection: "row",
-    marginBottom: 12,
+    marginBottom: theme.spacingM,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: theme.radiusMedium,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
+    marginRight: theme.spacingM,
   },
   cardContent: {
     flex: 1,
+    justifyContent: "center",
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#1E293B",
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+    marginBottom: theme.spacingXS,
   },
   cardDescription: {
     fontSize: 14,
-    color: "#475569",
+    color: theme.textMedium,
     lineHeight: 20,
   },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",
+    marginTop: theme.spacingS,
   },
   exploreText: {
     fontSize: 14,
-    color: "#3A86FF",
-    marginRight: 4,
+    fontWeight: theme.fontMedium,
+    color: theme.primary,
+    marginRight: theme.spacingS,
+  },
+  arrowContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
   navBarSpacer: {
-    height: 80,
+    height: 100,
   },
 });
