@@ -404,10 +404,10 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
           </ImageBackground>
         </Animated.View>
 
-        {/* Decorative Elements */}
-        <Animated.View style={[simpleStyles.decorElement1, decorStyle1]} />
-        <Animated.View style={[simpleStyles.decorElement2, decorStyle2]} />
-        <Animated.View style={[simpleStyles.decorElement3, decorStyle3]} />
+        {/* Decorative Elements - with pointerEvents="none" to allow scrolling through them */}
+        <Animated.View style={[simpleStyles.decorElement1, decorStyle1]} pointerEvents="none" />
+        <Animated.View style={[simpleStyles.decorElement2, decorStyle2]} pointerEvents="none" />
+        <Animated.View style={[simpleStyles.decorElement3, decorStyle3]} pointerEvents="none" />
 
         {/* Hero Content */}
         <Animated.View style={[simpleStyles.heroContent, heroOpacityStyle]}>
@@ -432,7 +432,10 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
       </Animated.View>
 
       {/* Header - Floating over hero with enhanced blur and gradient */}
-      <Animated.View style={[simpleStyles.headerBackground, headerBgStyle]}>
+      <Animated.View
+        style={[simpleStyles.headerBackground, headerBgStyle]}
+        pointerEvents="box-none"
+      >
         {/* Tiered blur for depth */}
         <Animated.View style={[StyleSheet.absoluteFill, blurIntensityStyle]}>
           <BlurView
@@ -478,7 +481,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
       </Animated.View>
 
       {/* Safe Area for Header */}
-      <SafeAreaView style={{ zIndex: 20, backgroundColor: "transparent" }}>
+      <SafeAreaView style={{ zIndex: 20, backgroundColor: "transparent" }} pointerEvents="box-none">
         <View style={simpleStyles.header}>
           <Animated.Text style={[simpleStyles.headerTitle, headerTitleStyle]}>
             Church Events
@@ -488,6 +491,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
               style={simpleStyles.headerButton}
               onPress={openAddModal}
               activeOpacity={0.7}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
               <Feather name="plus" size={24} color="#FFFFFF" />
             </TouchableOpacity>
@@ -502,6 +506,10 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={5}
         decelerationRate={Platform.OS === "ios" ? "fast" : "normal"}
+        bounces={true}
+        alwaysBounceVertical={true}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
         onScroll={(event) => {
           // First update the animated value for other animations
           scrollY.value = event.nativeEvent.contentOffset.y;
@@ -700,10 +708,15 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button with proper touchable area */}
       {hasPermissionToCreate && (
         <Animated.View style={[simpleStyles.fabContainer, fabStyle]}>
-          <TouchableOpacity style={simpleStyles.fab} onPress={openAddModal} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={simpleStyles.fab}
+            onPress={openAddModal}
+            activeOpacity={0.8}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          >
             <Feather name="plus" size={24} color="#FFF" />
           </TouchableOpacity>
         </Animated.View>
@@ -917,9 +930,11 @@ const simpleStyles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    width: "100%",
   },
   scrollContent: {
     paddingBottom: 100,
+    flexGrow: 1,
   },
   heroSection: {
     height: 350,

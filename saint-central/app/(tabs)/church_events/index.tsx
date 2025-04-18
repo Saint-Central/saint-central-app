@@ -33,7 +33,7 @@ export default function ChurchEventsScreen() {
   console.log("Index route params:", { churchId, eventId });
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, width: "100%", height: "100%" }}>
       <ChurchEvents churchId={churchId} eventId={eventId} />
     </GestureHandlerRootView>
   );
