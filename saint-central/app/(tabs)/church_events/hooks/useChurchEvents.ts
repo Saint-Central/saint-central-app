@@ -66,11 +66,62 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
 
   // Load events when church selection changes
   useEffect(() => {
+    console.log("selectedChurchId changed to:", selectedChurchId);
     if (selectedChurchId) {
       fetchEvents();
       checkPermissions();
     }
   }, [selectedChurchId]);
+
+  // Initial fetch of events when component mounts, if we have an initialChurchId
+  useEffect(() => {
+    console.log("Initial useEffect with initialChurchId:", initialChurchId);
+    if (initialChurchId) {
+      // Force a fetch even if we haven't loaded the user yet
+      const numericChurchId = Number(
+        Array.isArray(initialChurchId) ? initialChurchId[0] : initialChurchId,
+      );
+      console.log("Forcing initial fetch with church ID:", numericChurchId);
+
+      // Directly fetch events for this church ID
+      const directFetch = async () => {
+        try {
+          setLoading(true);
+          const { data, error } = await supabase
+            .from("church_events")
+            .select("*, churches(id, name)")
+            .eq("church_id", numericChurchId)
+            .order("time", { ascending: true });
+
+          if (error) throw error;
+
+          console.log(`Initial fetch: got ${data?.length || 0} events`);
+
+          // Process recurrence_days_of_week
+          const processedEvents = (data || []).map((event) => {
+            let daysOfWeek = null;
+            if (event.recurrence_days_of_week !== null) {
+              const daysString = event.recurrence_days_of_week.toString();
+              daysOfWeek = Array.from(daysString, Number);
+            }
+            return {
+              ...event,
+              recurrence_days_of_week: daysOfWeek,
+            };
+          });
+
+          setEvents(processedEvents);
+          setFilteredEvents(processedEvents);
+        } catch (error) {
+          console.error("Error in initial fetch:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      directFetch();
+    }
+  }, []);
 
   // Fetch user's churches with role information
   const fetchUserChurches = async () => {
@@ -128,7 +179,11 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
 
   // Fetch events for selected church
   const fetchEvents = async () => {
-    if (!currentUser || !selectedChurchId) {
+    console.log("fetchEvents called with selectedChurchId:", selectedChurchId);
+
+    // If no church is selected, we can't fetch events
+    if (!selectedChurchId) {
+      console.log("No selectedChurchId, clearing events");
       setEvents([]);
       setFilteredEvents([]);
       return;
@@ -136,6 +191,7 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
 
     try {
       setLoading(true);
+      console.log("Fetching events for church ID:", selectedChurchId);
 
       // Fetch events for the selected church
       const { data, error } = await supabase
@@ -145,6 +201,8 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
         .order("time", { ascending: true });
 
       if (error) throw error;
+
+      console.log(`Fetched ${data?.length || 0} events from Supabase`);
 
       // Process recurrence_days_of_week from int to array
       const processedEvents = (data || []).map((event) => {

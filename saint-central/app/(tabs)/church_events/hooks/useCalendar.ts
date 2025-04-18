@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { Animated, Dimensions } from "react-native";
+import { useState, useEffect } from "react";
+import { Dimensions, Animated } from "react-native";
+import { useSharedValue, withTiming, withDelay, Easing, runOnJS } from "react-native-reanimated";
 import { CalendarDay, ChurchEvent } from "../types";
 import { generateCalendarData } from "../utils/calendarUtils";
 import { getDateKey } from "../utils/dateUtils";
 
 const { height } = Dimensions.get("window");
 
+// Use React Native's Animated API for day animations to avoid hook issues
+// This is a safer approach as it doesn't involve creating hooks conditionally
 export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
   // Calendar states
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -15,11 +18,13 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
   const [showDateDetail, setShowDateDetail] = useState(false);
   const [selectedDayEvents, setSelectedDayEvents] = useState<ChurchEvent[]>([]);
 
-  // Animation values
-  const dayAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const detailSlideAnim = useRef(new Animated.Value(height)).current;
+  // Use Reanimated for global animations
+  const fadeAnim = useSharedValue(0);
+  const slideAnim = useSharedValue(50);
+  const detailSlideAnim = useSharedValue(height);
+
+  // Use React Native's Animated API for day animations to avoid hook issues
+  const [dayAnimations, setDayAnimations] = useState<Record<string, Animated.Value>>({});
 
   // Update calendar when month or events change
   useEffect(() => {
@@ -27,42 +32,40 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
       const newCalendarData = generateCalendarData(currentMonth, events);
       setCalendarData(newCalendarData);
 
-      // Initialize animations for days
+      // Initialize animations for new days
+      const newAnimations = { ...dayAnimations };
+
       newCalendarData.forEach((day) => {
         const dateKey = getDateKey(day.date);
-        if (!dayAnimations[dateKey]) {
-          dayAnimations[dateKey] = new Animated.Value(0);
+        if (!newAnimations[dateKey]) {
+          newAnimations[dateKey] = new Animated.Value(0);
         }
       });
+
+      if (Object.keys(newAnimations).length !== Object.keys(dayAnimations).length) {
+        setDayAnimations(newAnimations);
+      }
+
+      // Animate the day cells
+      Animated.stagger(
+        20,
+        newCalendarData.map((day) => {
+          const dateKey = getDateKey(day.date);
+          return Animated.timing(newAnimations[dateKey], {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          });
+        }),
+      ).start();
     }
   }, [currentMonth, events, loading]);
 
-  // Animation for calendar and UI elements
+  // Animation for page elements
   useEffect(() => {
-    // Animate calendar days
-    const animations = Object.values(dayAnimations).map((anim) =>
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    );
-
-    Animated.stagger(20, animations).start();
-
-    // Animate page elements
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 900,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Animate page elements with Reanimated
+    fadeAnim.value = withTiming(1, { duration: 800 });
+    slideAnim.value = withTiming(0, { duration: 900 });
   }, [calendarData]);
 
   // Change calendar month
@@ -78,24 +81,32 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
     setSelectedDayEvents(day.events);
 
     // Animate the detail view
-    Animated.timing(detailSlideAnim, {
-      toValue: 0,
+    detailSlideAnim.value = withTiming(0, {
       duration: 300,
-      useNativeDriver: true,
-    }).start();
+      easing: Easing.out(Easing.cubic),
+    });
 
     setShowDateDetail(true);
   };
 
-  // Close date detail view
+  // Close date detail view with proper use of runOnJS
   const closeDateDetail = () => {
-    Animated.timing(detailSlideAnim, {
-      toValue: height,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
+    const finish = () => {
       setShowDateDetail(false);
-    });
+    };
+
+    detailSlideAnim.value = withTiming(
+      height,
+      {
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+      },
+      (isFinished) => {
+        if (isFinished) {
+          runOnJS(finish)();
+        }
+      },
+    );
   };
 
   return {

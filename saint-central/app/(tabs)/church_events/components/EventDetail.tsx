@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Animated, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { AntDesign, Feather } from "@expo/vector-icons";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { ChurchEvent } from "../types";
 import { styles } from "../styles";
 import { THEME } from "../theme";
@@ -11,7 +12,7 @@ interface EventDetailProps {
   showDateDetail: boolean;
   selectedDate: Date;
   selectedDayEvents: ChurchEvent[];
-  detailSlideAnim: Animated.Value;
+  detailSlideAnim: Animated.SharedValue<number>;
   currentUserId: string | null;
   hasPermissionToCreate: boolean;
   onClose: () => void;
@@ -38,10 +39,14 @@ const EventDetail: React.FC<EventDetailProps> = ({
 }) => {
   if (!showDateDetail) return null;
 
+  const slideAnimStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: detailSlideAnim.value }],
+    };
+  });
+
   return (
-    <Animated.View
-      style={[styles.dateDetailContainer, { transform: [{ translateY: detailSlideAnim }] }]}
-    >
+    <Animated.View style={[styles.dateDetailContainer, slideAnimStyle]}>
       <View style={styles.dateDetailHandle} />
       <View style={styles.dateDetailHeader}>
         <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>

@@ -16,12 +16,13 @@ import { THEME } from "../theme";
 
 interface EventCardProps {
   item: ChurchEvent;
-  currentUserId: string | null;
-  hasPermissionToCreate: boolean;
-  onSelectDay: (event: ChurchEvent) => void;
+  currentUserId?: string | null;
+  hasPermissionToCreate?: boolean;
+  onSelectDay?: (event: ChurchEvent) => void;
   onEdit: (event: ChurchEvent) => void;
   onDelete: (eventId: number) => void;
-  onImagePress: (imageUrl: string) => void;
+  onImagePress?: (imageUrl: string) => void;
+  onView?: (event: ChurchEvent) => void;
 }
 
 const EventCard: React.FC<EventCardProps> = ({
@@ -32,6 +33,7 @@ const EventCard: React.FC<EventCardProps> = ({
   onEdit,
   onDelete,
   onImagePress,
+  onView,
 }) => {
   const { icon, color } = getEventIconAndColor(item);
   const eventTime = new Date(item.time);
@@ -40,11 +42,19 @@ const EventCard: React.FC<EventCardProps> = ({
   const isCreator = currentUserId && item.created_by === currentUserId;
   const canEdit = hasPermissionToCreate || isCreator;
 
+  const handleCardPress = () => {
+    if (onView) {
+      onView(item);
+    } else if (onEdit) {
+      onEdit(item);
+    }
+  };
+
   return (
     <TouchableOpacity
       key={item.id.toString()}
       style={[styles.eventCard, { borderLeftColor: color }, isPastEvent && styles.pastEventCard]}
-      onPress={() => onSelectDay(item)}
+      onPress={handleCardPress}
     >
       <View style={styles.eventHeader}>
         <View style={[styles.eventIconContainer, { backgroundColor: color }]}>
@@ -103,7 +113,7 @@ const EventCard: React.FC<EventCardProps> = ({
       {item.image_url && (
         <TouchableOpacity
           style={styles.eventImageContainer}
-          onPress={() => item.image_url && onImagePress(item.image_url)}
+          onPress={() => item.image_url && onImagePress && onImagePress(item.image_url)}
         >
           <Image source={{ uri: item.image_url }} style={styles.eventImage} resizeMode="cover" />
         </TouchableOpacity>

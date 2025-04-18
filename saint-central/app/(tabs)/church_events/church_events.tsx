@@ -7,16 +7,27 @@ import {
   SafeAreaView,
   ScrollView,
   FlatList,
-  Animated,
   ImageBackground,
   Modal,
   RefreshControl,
   Dimensions,
   Image,
+  Pressable,
+  StyleSheet,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolate,
+  withTiming,
+  withSpring,
+  runOnJS,
+} from "react-native-reanimated";
 
 // Import custom hooks
 import useChurchEvents from "./hooks/useChurchEvents";
@@ -47,25 +58,27 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   console.log("ChurchEvents component received props:", { churchId, eventId });
 
   // Animation values
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [200, 80],
-    extrapolate: "clamp",
-  });
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 90],
-    outputRange: [1, 0.3, 0],
-    extrapolate: "clamp",
-  });
-  const titleOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 90],
-    outputRange: [0, 0.3, 1],
-    extrapolate: "clamp",
-  });
-  const churchSelectorAnim = useRef(new Animated.Value(1)).current;
+  const scrollY = useSharedValue(0);
 
-  // Use custom hooks with parameters
+  // Set up animated styles using Reanimated
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    const height = interpolate(scrollY.value, [0, 100], [200, 80], Extrapolate.CLAMP);
+    return { height };
+  });
+
+  const headerOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 60, 90], [1, 0.3, 0], Extrapolate.CLAMP);
+    return { opacity };
+  });
+
+  const titleOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 60, 90], [0, 0.3, 1], Extrapolate.CLAMP);
+    return { opacity };
+  });
+
+  const churchSelectorAnim = useSharedValue(1);
+
+  // Use custom hooks with parameters - all hooks called unconditionally at the top level
   const {
     currentUser,
     userChurches,
@@ -125,16 +138,24 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     openImageViewer,
   } = useEventForm(currentUser?.id || null, selectedChurchId, hasPermissionToCreate, fetchEvents);
 
-  // Store the selected event for editing
+  // Local state - keep all useState calls together at the top level
   const [selectedEvent, setSelectedEvent] = useState<ChurchEvent | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+  const [detailEvent, setDetailEvent] = useState<ChurchEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<ChurchEvent | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
-  // Update the event selection when opening the form for editing
+  // Event handlers - simple functions without conditional hook calls
   const handleSelectEventForEdit = (event: ChurchEvent) => {
-    setSelectedEvent(event);
+    setEditingEvent(event);
     openEditModal(event);
   };
 
-  // Function to submit edit without requiring event parameter
+  const handleViewEventDetails = (event: ChurchEvent) => {
+    setDetailEvent(event);
+    setShowDetailModal(true);
+  };
+
   const handleSubmitEdit = () => {
     if (selectedEvent) {
       handleEditEvent();
@@ -143,11 +164,9 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
 
   // Effect to handle eventId if provided
   useEffect(() => {
-    // If eventId is provided and events are loaded, find the event and show details
     if (eventId && events.length > 0 && !loading) {
       const id = Number(Array.isArray(eventId) ? eventId[0] : eventId);
       const event = events.find((e) => e.id === id);
-
       if (event) {
         console.log("Found event for eventId:", event);
         handleSelectEventForEdit(event);
@@ -155,242 +174,220 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     }
   }, [eventId, events, loading]);
 
-  // Render hero section
-  const renderHero = () => (
-    <Animated.View
-      style={[
-        styles.heroSection,
-        {
-          height: headerHeight,
-          opacity: headerOpacity,
-        },
-      ]}
-    >
-      <ImageBackground
-        source={{
-          uri: "https://images.unsplash.com/photo-1511747779829-1d858eac30cc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80",
-        }}
-        style={{ width: "100%", height: "100%" }}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-          style={styles.heroBackground}
-        >
-          <View style={styles.iconContainer}>
-            <Feather name="calendar" size={30} color="#FFFFFF" />
-          </View>
-          <Text style={styles.heroTitle}>Church Events</Text>
-          <Text style={styles.heroSubtitle}>Stay updated with church events and activities</Text>
-          {hasPermissionToCreate && (
-            <TouchableOpacity style={styles.addEventButton} onPress={() => openAddModal()}>
-              <Text style={styles.addEventButtonText}>Create New Event</Text>
-              <Feather name="plus-circle" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </LinearGradient>
-      </ImageBackground>
-    </Animated.View>
-  );
-
-  // Render header with title
-  const renderHeader = () => (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Animated.Text
-          style={[
-            styles.headerTitle,
-            {
-              opacity: titleOpacity,
-            },
-          ]}
-        >
-          Church Events
-        </Animated.Text>
-        <View style={styles.headerButtons}>
-          {hasPermissionToCreate && (
-            <TouchableOpacity style={styles.headerButton} onPress={openAddModal}>
-              <Feather name="plus" size={24} color={THEME.buttonPrimary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </SafeAreaView>
-  );
-
-  // Render search input
-  const renderSearch = () => (
-    <View style={styles.searchContainer}>
-      <Feather name="search" size={20} color={THEME.secondary} style={styles.searchIcon} />
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search events..."
-        placeholderTextColor={THEME.light}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-      {searchQuery !== "" && (
-        <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery("")}>
-          <Feather name="x" size={20} color={THEME.secondary} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  // Render church selector horizontal list
-  const renderChurchSelector = () => (
-    <View style={styles.churchSelectorContainer}>
-      <Text style={styles.selectorLabel}>Your Churches</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.churchSelector}>
-        {userChurches.map((church) => (
-          <TouchableOpacity
-            key={church.id}
-            style={[
-              styles.churchOption,
-              selectedChurchId === church.id && styles.churchOptionActive,
-            ]}
-            onPress={() => setSelectedChurchId(church.id)}
-          >
-            <Text
-              style={[
-                styles.churchOptionText,
-                selectedChurchId === church.id && styles.churchOptionTextActive,
-              ]}
-            >
-              {church.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
-  // Render view selector (list or calendar)
-  const renderViewSelector = () => (
-    <View style={styles.viewSelector}>
-      <TouchableOpacity
-        style={[styles.viewOption, calendarView === "list" && styles.viewOptionActive]}
-        onPress={() => setCalendarView("list")}
-      >
-        <Feather
-          name="list"
-          size={16}
-          color={calendarView === "list" ? THEME.buttonText : THEME.secondary}
-        />
-        <Text
-          style={[styles.viewOptionText, calendarView === "list" && styles.viewOptionTextActive]}
-        >
-          List
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.viewOption, calendarView === "month" && styles.viewOptionActive]}
-        onPress={() => setCalendarView("month")}
-      >
-        <Feather
-          name="calendar"
-          size={16}
-          color={calendarView === "month" ? THEME.buttonText : THEME.secondary}
-        />
-        <Text
-          style={[styles.viewOptionText, calendarView === "month" && styles.viewOptionTextActive]}
-        >
-          Calendar
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // Render list of events
-  const renderEventsList = () => (
-    <View style={styles.listContainer}>
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Feather name="loader" size={30} color={THEME.buttonPrimary} />
-          <Text style={styles.loadingText}>Loading events...</Text>
-        </View>
-      ) : filteredEvents.length === 0 ? (
-        <View style={styles.noEventsContainer}>
-          <Feather name="calendar" size={50} color={THEME.light} />
-          <Text style={styles.noEventsText}>No Events Found</Text>
-          <Text style={styles.noEventsSubtext}>
-            {searchQuery
-              ? "Try adjusting your search query."
-              : hasPermissionToCreate
-                ? "Click the + button to create your first event."
-                : "There are no upcoming events to display."}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredEvents}
-          renderItem={({ item }) => (
-            <EventCard
-              item={item}
-              currentUserId={currentUser?.id || null}
-              hasPermissionToCreate={hasPermissionToCreate}
-              onSelectDay={() => {}}
-              onEdit={handleSelectEventForEdit}
-              onDelete={handleDeleteEvent}
-              onImagePress={openImageViewer}
-            />
-          )}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.eventsList}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        />
-      )}
-    </View>
-  );
-
-  // Render main content
-  const renderMainContent = () => (
-    <View style={styles.mainContent}>
-      {/* Church Selector */}
-      {userChurches.length > 0 && renderChurchSelector()}
-
-      {/* View Selector */}
-      {renderViewSelector()}
-
-      {/* Calendar or List View */}
-      {calendarView === "month" ? (
-        <Calendar
-          loading={loading}
-          currentMonth={currentMonth}
-          calendarData={calendarData}
-          selectedDate={selectedDate}
-          dayAnimations={dayAnimations}
-          onDaySelect={selectDay}
-          onChangeMonth={changeMonth}
-        />
-      ) : (
-        renderEventsList()
-      )}
-    </View>
-  );
-
+  // Simplify the component to always render the same structure
+  // with conditional visibility instead of conditional rendering
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
-      {renderHeader()}
 
-      {/* Main Scrollable Content */}
+      {/* Header - always rendered */}
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Animated.Text style={[styles.headerTitle, titleOpacityStyle]}>
+            Church Events
+          </Animated.Text>
+          <View style={styles.headerButtons}>
+            {hasPermissionToCreate && (
+              <TouchableOpacity style={styles.headerButton} onPress={openAddModal}>
+                <Feather name="plus" size={24} color={THEME.buttonPrimary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </SafeAreaView>
+
+      {/* Main content area - always a ScrollView for consistency */}
       <Animated.ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
         scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: false,
+        onScroll={useAnimatedScrollHandler({
+          onScroll: (event) => {
+            scrollY.value = event.contentOffset.y;
+          },
         })}
         showsVerticalScrollIndicator={false}
       >
-        {renderHero()}
-        {renderSearch()}
-        {renderMainContent()}
+        {/* Hero section */}
+        <Animated.View style={[styles.heroSection, headerAnimatedStyle, headerOpacityStyle]}>
+          <ImageBackground
+            source={{
+              uri: "https://images.unsplash.com/photo-1511747779829-1d858eac30cc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80",
+            }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+          >
+            <LinearGradient
+              colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
+              style={styles.heroBackground}
+            >
+              <View style={styles.iconContainer}>
+                <Feather name="calendar" size={30} color="#FFFFFF" />
+              </View>
+              <Text style={styles.heroTitle}>Church Events</Text>
+              <Text style={styles.heroSubtitle}>
+                Stay updated with church events and activities
+              </Text>
+              {hasPermissionToCreate && (
+                <TouchableOpacity style={styles.addEventButton} onPress={() => openAddModal()}>
+                  <Text style={styles.addEventButtonText}>Create New Event</Text>
+                  <Feather name="plus-circle" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+            </LinearGradient>
+          </ImageBackground>
+        </Animated.View>
+
+        {/* Search bar */}
+        <View style={styles.searchContainer}>
+          <Feather name="search" size={20} color={THEME.secondary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search events..."
+            placeholderTextColor={THEME.light}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery !== "" && (
+            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery("")}>
+              <Feather name="x" size={20} color={THEME.secondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Main content */}
+        <View style={styles.mainContent}>
+          {/* Church Selector */}
+          {userChurches.length > 0 && (
+            <View style={styles.churchSelectorContainer}>
+              <Text style={styles.selectorLabel}>Your Churches</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.churchSelector}
+              >
+                {userChurches.map((church) => (
+                  <TouchableOpacity
+                    key={church.id}
+                    style={[
+                      styles.churchOption,
+                      selectedChurchId === church.id && styles.churchOptionActive,
+                    ]}
+                    onPress={() => setSelectedChurchId(church.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.churchOptionText,
+                        selectedChurchId === church.id && styles.churchOptionTextActive,
+                      ]}
+                    >
+                      {church.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* View Selector */}
+          <View style={styles.viewSelector}>
+            <TouchableOpacity
+              style={[styles.viewOption, calendarView === "list" && styles.viewOptionActive]}
+              onPress={() => setCalendarView("list")}
+            >
+              <Feather
+                name="list"
+                size={16}
+                color={calendarView === "list" ? THEME.buttonText : THEME.secondary}
+              />
+              <Text
+                style={[
+                  styles.viewOptionText,
+                  calendarView === "list" && styles.viewOptionTextActive,
+                ]}
+              >
+                List
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewOption, calendarView === "month" && styles.viewOptionActive]}
+              onPress={() => setCalendarView("month")}
+            >
+              <Feather
+                name="calendar"
+                size={16}
+                color={calendarView === "month" ? THEME.buttonText : THEME.secondary}
+              />
+              <Text
+                style={[
+                  styles.viewOptionText,
+                  calendarView === "month" && styles.viewOptionTextActive,
+                ]}
+              >
+                Calendar
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Calendar View */}
+          {calendarView === "month" && (
+            <Calendar
+              loading={loading}
+              currentMonth={currentMonth}
+              calendarData={calendarData}
+              selectedDate={selectedDate}
+              dayAnimations={dayAnimations}
+              onDaySelect={selectDay}
+              onChangeMonth={changeMonth}
+            />
+          )}
+
+          {/* List View */}
+          {calendarView === "list" && (
+            <View style={styles.listContainer}>
+              {loading && (
+                <View style={styles.loadingContainer}>
+                  <Feather name="loader" size={30} color={THEME.buttonPrimary} />
+                  <Text style={styles.loadingText}>Loading events...</Text>
+                </View>
+              )}
+
+              {!loading && filteredEvents.length === 0 && (
+                <View style={styles.noEventsContainer}>
+                  <Feather name="calendar" size={50} color={THEME.light} />
+                  <Text style={styles.noEventsText}>No Events Found</Text>
+                  <Text style={styles.noEventsSubtext}>
+                    {searchQuery
+                      ? "Try adjusting your search query."
+                      : hasPermissionToCreate
+                        ? "Click the + button to create your first event."
+                        : "There are no upcoming events to display."}
+                  </Text>
+                </View>
+              )}
+
+              {!loading && filteredEvents.length > 0 && (
+                <View style={styles.eventsList}>
+                  {filteredEvents.map((item) => (
+                    <EventCard
+                      key={item.id}
+                      item={item}
+                      currentUserId={currentUser?.id}
+                      hasPermissionToCreate={hasPermissionToCreate}
+                      onEdit={handleSelectEventForEdit}
+                      onDelete={() => handleDeleteEvent(item.id)}
+                      onView={handleViewEventDetails}
+                      onImagePress={openImageViewer}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
       </Animated.ScrollView>
 
-      {/* Event Detail Modal */}
+      {/* Date Detail Panel for Calendar View */}
       <EventDetail
         showDateDetail={showDateDetail}
         selectedDate={selectedDate}
@@ -399,12 +396,214 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         currentUserId={currentUser?.id || null}
         hasPermissionToCreate={hasPermissionToCreate}
         onClose={closeDateDetail}
-        onAddEvent={() => openAddModal()}
-        onSelectDay={() => {}}
+        onAddEvent={openAddModal}
+        onSelectDay={handleViewEventDetails}
         onEditEvent={handleSelectEventForEdit}
         onDeleteEvent={handleDeleteEvent}
         onImagePress={openImageViewer}
       />
+
+      {/* Event Detail Modal */}
+      <Modal
+        visible={showDetailModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDetailModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              width: "90%",
+              maxHeight: "80%",
+              borderRadius: 16,
+              position: "relative",
+              overflow: "hidden",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+            }}
+          >
+            <TouchableOpacity
+              style={{
+                position: "absolute",
+                top: 15,
+                right: 15,
+                zIndex: 10,
+                backgroundColor: "rgba(255, 255, 255, 0.9)",
+                borderRadius: 20,
+                padding: 5,
+              }}
+              onPress={() => setShowDetailModal(false)}
+            >
+              <Feather name="x" size={24} color="#000" />
+            </TouchableOpacity>
+
+            {detailEvent?.image_url && (
+              <Pressable
+                onPress={() => {
+                  setShowDetailModal(false); // First close the current modal
+                  setTimeout(() => {
+                    openImageViewer(detailEvent.image_url!); // Then open the image viewer after a short delay
+                  }, 300);
+                }}
+              >
+                <Image
+                  source={{ uri: detailEvent.image_url }}
+                  style={{ width: "100%", height: 200 }}
+                  resizeMode="cover"
+                />
+              </Pressable>
+            )}
+
+            <ScrollView style={{ padding: 20, paddingTop: 10 }}>
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: "bold",
+                  color: THEME.primary,
+                  marginBottom: 15,
+                  marginTop: 15,
+                }}
+              >
+                {detailEvent?.title}
+              </Text>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <MaterialIcons name="event" size={20} color="#666" />
+                <Text
+                  style={{
+                    fontSize: 16,
+                    marginLeft: 10,
+                    color: THEME.primary,
+                  }}
+                >
+                  {detailEvent?.time
+                    ? new Date(detailEvent.time).toLocaleDateString()
+                    : "No date specified"}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <MaterialIcons name="access-time" size={20} color="#666" />
+                <Text
+                  style={{
+                    fontSize: 16,
+                    marginLeft: 10,
+                    color: THEME.primary,
+                  }}
+                >
+                  {detailEvent?.time
+                    ? new Date(detailEvent.time).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "No time specified"}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <MaterialIcons name="location-on" size={20} color="#666" />
+                <Text
+                  style={{
+                    fontSize: 16,
+                    marginLeft: 10,
+                    color: THEME.primary,
+                  }}
+                >
+                  {detailEvent?.author_name || "No location specified"}
+                </Text>
+              </View>
+
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  color: THEME.primary,
+                  marginTop: 20,
+                  marginBottom: 10,
+                }}
+              >
+                Description
+              </Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  lineHeight: 24,
+                  color: THEME.secondary,
+                }}
+              >
+                {detailEvent?.excerpt || "No description available"}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Full screen image viewer */}
+      <Modal
+        visible={!!fullscreenImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFullscreenImage(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.9)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              top: 40,
+              right: 20,
+              zIndex: 10,
+              padding: 10,
+            }}
+            onPress={() => setFullscreenImage(null)}
+          >
+            <Feather name="x" size={24} color="#fff" />
+          </TouchableOpacity>
+          {fullscreenImage && (
+            <Image
+              source={{ uri: fullscreenImage }}
+              style={{ width: "100%", height: "80%" }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
 
       {/* Add Event Modal */}
       <Modal

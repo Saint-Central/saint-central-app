@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { CalendarDay } from "../types";
 import { styles } from "../styles";
 import { THEME } from "../theme";
-import { formatMonth, getDayName } from "../utils/dateUtils";
+import { formatMonth, getDayName, getDateKey } from "../utils/dateUtils";
 
 interface CalendarProps {
   loading: boolean;
@@ -27,8 +27,8 @@ const Calendar: React.FC<CalendarProps> = ({
 }) => {
   // Render a single calendar day
   const renderCalendarDay = (day: CalendarDay, index: number) => {
-    const dateKey = `${day.date.getFullYear()}-${day.date.getMonth()}-${day.date.getDate()}`;
-    const animation = dayAnimations[dateKey] || new Animated.Value(1);
+    const dateKey = getDateKey(day.date);
+    const animation = dayAnimations[dateKey] || new Animated.Value(1); // Fallback
     const isSelected =
       day.date.getFullYear() === selectedDate.getFullYear() &&
       day.date.getMonth() === selectedDate.getMonth() &&
@@ -37,19 +37,17 @@ const Calendar: React.FC<CalendarProps> = ({
     return (
       <Animated.View
         key={dateKey}
-        style={[
-          {
-            opacity: animation,
-            transform: [
-              {
-                translateY: animation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
-          },
-        ]}
+        style={{
+          opacity: animation,
+          transform: [
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [20, 0],
+              }),
+            },
+          ],
+        }}
       >
         <TouchableOpacity
           style={[
