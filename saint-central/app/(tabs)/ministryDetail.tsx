@@ -30,6 +30,11 @@ import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from "@
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  scheduleLocalNotification,
+  sendMinistryNotification,
+  setupMinistryMessagesListener,
+} from "../../utils/notifications";
 
 // Interface definitions
 interface Ministry {
@@ -633,6 +638,9 @@ export default function MinistryDetails(): JSX.Element {
         }
       });
 
+    // Set up notifications for this ministry when component mounts
+    const notificationCleanup = setupMinistryMessagesListener([ministryId]);
+
     // Handle app going to background/foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (appStateRef.current.match(/inactive|background/) && nextAppState === "active") {
@@ -708,6 +716,11 @@ export default function MinistryDetails(): JSX.Element {
         supabase.removeChannel(messageSubscription);
       } catch (error) {
         console.error("Error removing subscription:", error);
+      }
+
+      // Clean up notification listener
+      if (notificationCleanup) {
+        notificationCleanup();
       }
 
       if (appStateSubscription && appStateSubscription.remove) {
@@ -1179,7 +1192,7 @@ export default function MinistryDetails(): JSX.Element {
     }
   }
 
-  // Improved send message function with temporary state handling
+  // Improved send message function with temporary state handling and notification
   async function sendMessage(): Promise<void> {
     if (!newMessage.trim() || !isMember) return;
 
@@ -1279,10 +1292,75 @@ export default function MinistryDetails(): JSX.Element {
         AsyncStorage.setItem(MESSAGES_CACHE_KEY(ministryId), JSON.stringify(updatedMessages)).catch(
           (err) => console.error("Cache update error:", err),
         );
+
+        // Send a notification for the ministry when a message is sent
+        if (ministry?.name) {
+          try {
+            // Schedule a local notification to test notifications (will appear on the sender's device)
+            // This is just for testing - in a real app, this would come from the server
+            if (process.env.NODE_ENV === "development") {
+              await scheduleLocalNotification(
+                `New message in ${ministry.name}`,
+                `${currentUser?.first_name || "Someone"}: ${messageText}`,
+                { ministryId, messageId: data[0].id },
+              );
+            }
+
+            // Send notification to other members (this would trigger push notifications via your backend)
+            await sendMinistryNotification(
+              ministryId,
+              `New message in ${ministry.name}`,
+              `${currentUser?.first_name || "Someone"}: ${messageText}`,
+            );
+
+            // Test direct notification to Supabase
+            await testDirectNotification(messageText);
+          } catch (notifError) {
+            console.error("Error sending notification:", notifError);
+          }
+        }
       }
     } catch (error) {
       console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message");
+    }
+  }
+
+  // Add test function for direct Supabase notifications
+  async function testDirectNotification(messageText: string): Promise<void> {
+    try {
+      // Get current user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("Error getting user:", userError);
+        return;
+      }
+
+      // Insert directly into ministry_notifications table
+      const { data, error } = await supabase
+        .from("ministry_notifications")
+        .insert({
+          ministry_id: ministryId,
+          sender_id: user.id,
+          title: `New message in ${ministry?.name || "ministry"}`,
+          message: `${currentUser?.first_name || "Someone"}: ${messageText}`,
+        })
+        .select();
+
+      if (error) {
+        console.error("Error creating notification:", error);
+        Alert.alert("Notification Error", error.message);
+      } else {
+        console.log("Notification sent successfully:", data);
+        Alert.alert("Success", "Test notification sent to Supabase");
+      }
+    } catch (error) {
+      console.error("Error in testDirectNotification:", error);
+      Alert.alert("Error", "Failed to send test notification");
     }
   }
 
