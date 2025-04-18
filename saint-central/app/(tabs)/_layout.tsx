@@ -9,9 +9,10 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
-import { Feather } from "@expo/vector-icons";
+import { FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ParamListBase, TabNavigationState } from "@react-navigation/native";
+import theme from "@/theme";
 
 interface TabBarProps {
   state: TabNavigationState<ParamListBase>;
@@ -42,7 +43,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
   useEffect(() => {
     // Animation configuration for more fluid movements
     const springConfig = {
-      damping: 10,
+      damping: 12,
       stiffness: 80,
       mass: 0.5,
       overshootClamping: false,
@@ -95,19 +96,19 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
   // Refined icon selection with improved naming
   const icon = {
     home: {
-      icon: <Feather name="home" size={ICON_SIZE} color="#FFFFFF" />,
+      icon: <FontAwesome5 name="home" size={ICON_SIZE} color="#FFFFFF" />,
       label: "Home",
     },
     discover: {
-      icon: <Feather name="compass" size={ICON_SIZE} color="#FFFFFF" />,
+      icon: <FontAwesome5 name="compass" size={ICON_SIZE} color="#FFFFFF" />,
       label: "Explore",
     },
     Bible: {
-      icon: <Feather name="book" size={ICON_SIZE} color="#FFFFFF" />,
+      icon: <FontAwesome5 name="bible" size={ICON_SIZE} color="#FFFFFF" />,
       label: "Bible",
     },
     profile: {
-      icon: <Feather name="user" size={ICON_SIZE} color="#FFFFFF" />,
+      icon: <FontAwesome5 name="user" size={ICON_SIZE} color="#FFFFFF" />,
       label: "Profile",
     },
   };
@@ -143,7 +144,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
             ]}
           >
             <LinearGradient
-              colors={["rgba(35, 35, 35, 0.98)", "rgba(20, 20, 20, 1)"]}
+              colors={[theme.neutral800, theme.neutral900]}
               style={StyleSheet.absoluteFill}
             />
             {Platform.OS === "ios" && (
@@ -156,7 +157,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
           </View>
 
           {/* Solid accent line for more defined appearance */}
-          <LinearGradient colors={["#FAC898", "#FAC898"]} style={styles.accentLine} />
+          <LinearGradient colors={[theme.primary, theme.secondary]} style={styles.accentLine} />
 
           {/* Tab buttons with improved spacing */}
           <View style={styles.tabButtonsRow}>
@@ -269,8 +270,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   blurView: {
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    borderTopLeftRadius: theme.radiusMedium,
+    borderTopRightRadius: theme.radiusMedium,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     borderWidth: 0,
@@ -279,14 +280,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(35, 35, 35, 0.95)",
   },
   androidBar: {
-    backgroundColor: "rgba(25, 25, 25, 0.98)",
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    backgroundColor: theme.neutral800,
+    borderTopLeftRadius: theme.radiusMedium,
+    borderTopRightRadius: theme.radiusMedium,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     borderWidth: 0,
     borderTopWidth: 1,
-    borderColor: "rgba(250, 200, 152, 0.2)",
+    borderColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.2)`,
   },
   accentLine: {
     position: "absolute",
@@ -322,7 +326,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(250, 200, 152, 0.6)",
+    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
+      theme.primary.substring(3, 5),
+      16,
+    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.6)`,
     zIndex: 1,
   },
   shimmerCircle: {
@@ -336,7 +343,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     color: "#FFFFFF",
     fontSize: 11,
-    fontWeight: "500",
+    fontWeight: theme.fontMedium,
     marginTop: 2,
     textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 0, height: 1 },
