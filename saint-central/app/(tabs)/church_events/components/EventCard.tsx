@@ -40,7 +40,7 @@ const EventCard: React.FC<EventCardProps> = ({
   const isPastEvent = eventTime < new Date();
   const imageUrl = item.image_url || "https://via.placeholder.com/400x200?text=Church+Event";
   const isCreator = currentUserId && item.created_by === currentUserId;
-  const canEdit = hasPermissionToCreate || isCreator;
+  const canEdit = hasPermissionToCreate || isCreator || !!onView;
 
   const handleCardPress = () => {
     if (onView) {

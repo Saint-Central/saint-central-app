@@ -76,11 +76,12 @@ const EventDetail: React.FC<EventDetailProps> = ({
               <EventCard
                 item={item}
                 currentUserId={currentUserId}
-                hasPermissionToCreate={hasPermissionToCreate}
+                hasPermissionToCreate={true}
                 onSelectDay={onSelectDay}
                 onEdit={onEditEvent}
                 onDelete={onDeleteEvent}
                 onImagePress={onImagePress}
+                onView={onSelectDay}
               />
             )}
             keyExtractor={(item) => item.id.toString()}
