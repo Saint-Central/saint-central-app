@@ -19,9 +19,10 @@ export * from "./utils/dateUtils";
 export * from "./utils/calendarUtils";
 export * from "./utils/eventUtils";
 
-import React from "react";
+import React, { useEffect } from "react";
 import ChurchEvents from "./church_events";
 import { useLocalSearchParams } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Only export the screen component as default
 export default function ChurchEventsScreen() {
@@ -31,5 +32,9 @@ export default function ChurchEventsScreen() {
 
   console.log("Index route params:", { churchId, eventId });
 
-  return <ChurchEvents churchId={churchId} eventId={eventId} />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ChurchEvents churchId={churchId} eventId={eventId} />
+    </GestureHandlerRootView>
+  );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Dimensions, Animated } from "react-native";
 import { useSharedValue, withTiming, withDelay, Easing, runOnJS } from "react-native-reanimated";
-import { CalendarDay, ChurchEvent } from "../types";
+import { CalendarDay, ChurchEvent, CalendarViewType } from "../types";
 import { generateCalendarData } from "../utils/calendarUtils";
 import { getDateKey } from "../utils/dateUtils";
 
@@ -13,8 +13,8 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
   // Calendar states
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
-  const [calendarView, setCalendarView] = useState<"month" | "list">("list");
+  const [calendarData, setCalendarData] = useState<CalendarDay[][]>([]);
+  const [calendarView, setCalendarView] = useState<CalendarViewType>("list");
   const [showDateDetail, setShowDateDetail] = useState(false);
   const [selectedDayEvents, setSelectedDayEvents] = useState<ChurchEvent[]>([]);
 
@@ -29,13 +29,26 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
   // Update calendar when month or events change
   useEffect(() => {
     if (events.length > 0 || !loading) {
-      const newCalendarData = generateCalendarData(currentMonth, events);
-      setCalendarData(newCalendarData);
+      const calendarDataFlat = generateCalendarData(currentMonth, events);
+
+      // Convert 1D array to 2D array (weeks)
+      const weeks: CalendarDay[][] = [];
+      let week: CalendarDay[] = [];
+
+      calendarDataFlat.forEach((day, index) => {
+        week.push(day);
+        if (week.length === 7 || index === calendarDataFlat.length - 1) {
+          weeks.push([...week]);
+          week = [];
+        }
+      });
+
+      setCalendarData(weeks);
 
       // Initialize animations for new days
       const newAnimations = { ...dayAnimations };
 
-      newCalendarData.forEach((day) => {
+      calendarDataFlat.forEach((day) => {
         const dateKey = getDateKey(day.date);
         if (!newAnimations[dateKey]) {
           newAnimations[dateKey] = new Animated.Value(0);
@@ -49,7 +62,7 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
       // Animate the day cells
       Animated.stagger(
         20,
-        newCalendarData.map((day) => {
+        calendarDataFlat.map((day) => {
           const dateKey = getDateKey(day.date);
           return Animated.timing(newAnimations[dateKey], {
             toValue: 1,

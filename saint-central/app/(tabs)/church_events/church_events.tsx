@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  FlatList,
   ImageBackground,
   Modal,
   RefreshControl,
@@ -14,25 +13,27 @@ import {
   Image,
   Pressable,
   StyleSheet,
+  Platform,
+  FlatList,
 } from "react-native";
-import { Feather, MaterialIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedScrollHandler,
   interpolate,
   Extrapolate,
   withTiming,
+  runOnJS,
+  Easing,
   withSpring,
   withDelay,
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-  runOnJS,
+  withRepeat,
+  withSequence,
 } from "react-native-reanimated";
+import { CalendarDay, ChurchEvent, CalendarViewType } from "./types";
 
 // Import custom hooks
 import useChurchEvents from "./hooks/useChurchEvents";
@@ -45,10 +46,9 @@ import Calendar from "./components/Calendar";
 import EventForm from "./components/EventForm";
 import EventDetail from "./components/EventDetail";
 
-// Import styles and themes - updated to use root theme
+// Import styles and themes
 import { styles } from "./styles";
 import THEME from "../../../theme";
-import { ChurchEvent } from "./types";
 
 const { width, height } = Dimensions.get("window");
 
@@ -59,43 +59,169 @@ interface ChurchEventsProps {
 }
 
 const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
-  // Log received props for debugging
-  console.log("ChurchEvents component received props:", { churchId, eventId });
-
   // Animation values
   const scrollY = useSharedValue(0);
   const fabOpacity = useSharedValue(1);
-  const fabScale = useSharedValue(1);
 
-  // Set up animated styles using Reanimated
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const height = interpolate(scrollY.value, [0, 100], [200, 80], Extrapolate.CLAMP);
-    return { height };
-  });
+  // Animation values for decorative elements
+  const decorElement1 = useSharedValue(0);
+  const decorElement2 = useSharedValue(0);
+  const decorElement3 = useSharedValue(0);
+  const pulsateValue = useSharedValue(1);
+  const shimmerValue = useSharedValue(0);
 
-  const headerOpacityStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 60, 90], [1, 0.3, 0], Extrapolate.CLAMP);
-    return { opacity };
-  });
+  // Start animations for decorative elements
+  useEffect(() => {
+    decorElement1.value = withRepeat(
+      withTiming(1, { duration: 20000, easing: Easing.linear }),
+      -1, // infinite repeat
+      false,
+    );
 
-  const titleOpacityStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 60, 90], [0, 0.3, 1], Extrapolate.CLAMP);
-    return { opacity };
-  });
+    decorElement2.value = withDelay(
+      500,
+      withRepeat(withTiming(1, { duration: 18000, easing: Easing.linear }), -1, false),
+    );
 
-  const fabAnimatedStyle = useAnimatedStyle(() => {
+    decorElement3.value = withDelay(
+      1000,
+      withRepeat(withTiming(1, { duration: 25000, easing: Easing.linear }), -1, false),
+    );
+
+    // Pulsating animation
+    pulsateValue.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+
+    // Shimmer animation
+    shimmerValue.value = withRepeat(withTiming(-width, { duration: 2000 }), -1, false);
+  }, []);
+
+  // Decorative element animations
+  const decorStyle1 = useAnimatedStyle(() => {
     return {
-      opacity: fabOpacity.value,
       transform: [
-        { scale: fabScale.value },
-        { translateY: interpolate(scrollY.value, [0, 300], [0, 80], Extrapolate.CLAMP) },
+        { rotate: `${decorElement1.value * 360}deg` },
+        { scale: interpolate(scrollY.value, [0, 150], [1, 0.6], Extrapolate.CLAMP) },
       ],
+      opacity: interpolate(scrollY.value, [0, 100], [0.7, 0.1], Extrapolate.CLAMP),
     };
   });
 
-  const churchSelectorAnim = useSharedValue(1);
+  const decorStyle2 = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotate: `${-decorElement2.value * 360}deg` },
+        { scale: interpolate(scrollY.value, [0, 150], [0.9, 0.5], Extrapolate.CLAMP) },
+      ],
+      opacity: interpolate(scrollY.value, [0, 100], [0.6, 0.1], Extrapolate.CLAMP),
+    };
+  });
 
-  // Use custom hooks with parameters - all hooks called unconditionally at the top level
+  const decorStyle3 = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotate: `${decorElement3.value * 180}deg` },
+        { scale: interpolate(scrollY.value, [0, 150], [0.8, 0.4], Extrapolate.CLAMP) },
+      ],
+      opacity: interpolate(scrollY.value, [0, 100], [0.5, 0], Extrapolate.CLAMP),
+    };
+  });
+
+  // Pulsate animation for icon
+  const pulsateStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulsateValue.value }],
+    };
+  });
+
+  // Shimmer animation style
+  const shimmerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: shimmerValue.value }],
+    };
+  });
+
+  // Header height animation
+  const headerHeightStyle = useAnimatedStyle(() => {
+    const height = interpolate(
+      scrollY.value,
+      [0, 150],
+      [350, Platform.OS === "ios" ? 120 : 100],
+      Extrapolate.CLAMP,
+    );
+    const translateY = interpolate(scrollY.value, [0, 150], [0, -10], Extrapolate.CLAMP);
+    return {
+      height,
+      transform: [{ translateY }],
+    };
+  });
+
+  // Header background opacity with smoother transition
+  const headerBgStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 100], [0, 1], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 100], [1.1, 1], Extrapolate.CLAMP);
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
+
+  // Parallax image animation
+  const parallaxImageStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(scrollY.value, [0, 150], [0, -40], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 150], [1, 1.15], Extrapolate.CLAMP);
+    return {
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  // Hero content opacity with enhanced fade effect
+  const heroOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 70, 120], [1, 0.8, 0], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 120], [0, -30], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 120], [1, 0.95], Extrapolate.CLAMP);
+    return {
+      opacity,
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  // Header title animation - more polished fade-in and positioning
+  const headerTitleStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [50, 100], [0, 1], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [50, 100], [15, 0], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [50, 100], [0.9, 1], Extrapolate.CLAMP);
+    return {
+      opacity,
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  // Blur intensity animation for more dynamic transitions
+  const blurIntensityStyle = useAnimatedStyle(() => {
+    const intensity = interpolate(scrollY.value, [0, 150], [0, 1], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 150], [-10, 0], Extrapolate.CLAMP);
+    return {
+      opacity: intensity,
+      transform: [{ translateY }],
+    };
+  });
+
+  // FAB animation
+  const fabStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fabOpacity.value,
+      transform: [{ scale: fabOpacity.value }],
+    };
+  });
+
+  // Use custom hooks
   const {
     currentUser,
     userChurches,
@@ -155,14 +281,12 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     openImageViewer,
   } = useEventForm(currentUser?.id || null, selectedChurchId, hasPermissionToCreate, fetchEvents);
 
-  // Local state - keep all useState calls together at the top level
-  const [selectedEvent, setSelectedEvent] = useState<ChurchEvent | null>(null);
+  // Local state
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<ChurchEvent | null>(null);
   const [editingEvent, setEditingEvent] = useState<ChurchEvent | null>(null);
-  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
-  // Event handlers - simple functions without conditional hook calls
+  // Event handlers
   const handleSelectEventForEdit = (event: ChurchEvent) => {
     setEditingEvent(event);
     openEditModal(event);
@@ -173,21 +297,13 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     setShowDetailModal(true);
   };
 
-  const handleSubmitEdit = () => {
-    if (selectedEvent) {
-      handleEditEvent();
-    }
-  };
-
   // Animation for FAB
   const hideFab = () => {
     fabOpacity.value = withTiming(0, { duration: 200 });
-    fabScale.value = withTiming(0, { duration: 200 });
   };
 
   const showFab = () => {
     fabOpacity.value = withTiming(1, { duration: 200 });
-    fabScale.value = withSpring(1, { damping: 12 });
   };
 
   // Effect to handle eventId if provided
@@ -196,255 +312,261 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
       const id = Number(Array.isArray(eventId) ? eventId[0] : eventId);
       const event = events.find((e) => e.id === id);
       if (event) {
-        console.log("Found event for eventId:", event);
         handleSelectEventForEdit(event);
       }
     }
   }, [eventId, events, loading]);
 
-  // Simplify the component to always render the same structure
-  // with conditional visibility instead of conditional rendering
-  return (
-    <View style={[styles.container, { backgroundColor: THEME.pageBg }]}>
-      <StatusBar style="auto" />
+  // Loader animation
+  const spinValue = useSharedValue(0);
 
-      {/* Header - always rendered */}
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: THEME.pageBg }]}>
-        <View
-          style={[
-            styles.header,
-            {
-              borderBottomColor: THEME.divider,
-              backgroundColor: THEME.pageBg,
-              ...THEME.shadowLight,
-            },
-          ]}
-        >
-          <Animated.Text
-            style={[
-              styles.headerTitle,
-              titleOpacityStyle,
-              {
-                color: THEME.textDark,
-                fontSize: 26,
-                fontWeight: THEME.fontBold,
-              },
-            ]}
+  useEffect(() => {
+    const startSpinning = () => {
+      spinValue.value = 0;
+      spinValue.value = withTiming(360, { duration: 1000, easing: Easing.linear }, (finished) => {
+        if (finished) {
+          runOnJS(startSpinning)();
+        }
+      });
+    };
+
+    startSpinning();
+    return () => {};
+  }, []);
+
+  const spinStyles = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${spinValue.value}deg` }],
+    };
+  });
+
+  // Custom renderItem function for calendar view events
+  const renderEventItem = ({ item }: { item: ChurchEvent }) => (
+    <TouchableOpacity
+      style={simpleStyles.eventItem}
+      onPress={() => {
+        // First close the date detail modal to prevent the app from freezing
+        closeDateDetail();
+        // Then show the event details with a small delay to ensure smooth transition
+        setTimeout(() => {
+          handleViewEventDetails(item);
+        }, 300);
+      }}
+    >
+      <View
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: item.color || THEME.primary,
+          marginRight: 8,
+        }}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={simpleStyles.eventTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={simpleStyles.eventTime}>
+          {new Date(item.time).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={simpleStyles.container}>
+      <StatusBar style="light" translucent />
+
+      {/* Hero Section - Full bleed to top of screen */}
+      <Animated.View
+        style={[
+          simpleStyles.heroSection,
+          headerHeightStyle,
+          { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1 },
+        ]}
+      >
+        {/* Parallax Effect for Background */}
+        <Animated.View style={[StyleSheet.absoluteFill, parallaxImageStyle]}>
+          <ImageBackground
+            source={{
+              uri: "https://images.unsplash.com/photo-1438232992991-995b7058bbb3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80",
+            }}
+            style={simpleStyles.heroBackground}
+            resizeMode="cover"
           >
+            <LinearGradient
+              colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
+              style={simpleStyles.heroGradient}
+            />
+          </ImageBackground>
+        </Animated.View>
+
+        {/* Decorative Elements */}
+        <Animated.View style={[simpleStyles.decorElement1, decorStyle1]} />
+        <Animated.View style={[simpleStyles.decorElement2, decorStyle2]} />
+        <Animated.View style={[simpleStyles.decorElement3, decorStyle3]} />
+
+        {/* Hero Content */}
+        <Animated.View style={[simpleStyles.heroContent, heroOpacityStyle]}>
+          <Animated.View style={[simpleStyles.iconContainer, pulsateStyle]}>
+            <Feather name="calendar" size={30} color="#FFFFFF" />
+          </Animated.View>
+          <Text style={simpleStyles.heroTitle}>Church Events</Text>
+          <Text style={simpleStyles.heroSubtitle}>
+            Find upcoming events, gatherings, and celebrations
+          </Text>
+          {hasPermissionToCreate && (
+            <TouchableOpacity
+              style={simpleStyles.addEventButton}
+              onPress={openAddModal}
+              activeOpacity={0.8}
+            >
+              <Text style={simpleStyles.addEventButtonText}>Create New Event</Text>
+              <Feather name="plus-circle" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </Animated.View>
+
+      {/* Header - Floating over hero with enhanced blur and gradient */}
+      <Animated.View style={[simpleStyles.headerBackground, headerBgStyle]}>
+        {/* Tiered blur for depth */}
+        <Animated.View style={[StyleSheet.absoluteFill, blurIntensityStyle]}>
+          <BlurView
+            intensity={Platform.OS === "ios" ? 35 : 100}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+
+        {/* Premium gradient overlay */}
+        <LinearGradient
+          colors={[
+            `${THEME.primary}CC`,
+            `${THEME.primary}EE`,
+            Platform.OS === "ios" ? `${THEME.primary}DD` : `${THEME.primary}CC`,
+          ]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+
+        {/* Subtle shimmer effect */}
+        <Animated.View style={[simpleStyles.shimmerOverlay, shimmerStyle]}>
+          <LinearGradient
+            colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.1)", "rgba(255,255,255,0)"]}
+            style={{ flex: 1 }}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+          />
+        </Animated.View>
+
+        {/* Subtle bottom border */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            backgroundColor: "rgba(255,255,255,0.2)",
+          }}
+        />
+      </Animated.View>
+
+      {/* Safe Area for Header */}
+      <SafeAreaView style={{ zIndex: 20, backgroundColor: "transparent" }}>
+        <View style={simpleStyles.header}>
+          <Animated.Text style={[simpleStyles.headerTitle, headerTitleStyle]}>
             Church Events
           </Animated.Text>
-          <View style={styles.headerButtons}>
-            {hasPermissionToCreate && (
-              <TouchableOpacity
-                style={[
-                  styles.headerButton,
-                  {
-                    backgroundColor: THEME.neutral100,
-                    ...THEME.shadowLight,
-                  },
-                ]}
-                onPress={openAddModal}
-              >
-                <Feather name="plus" size={24} color={THEME.primary} />
+          {hasPermissionToCreate && (
+            <TouchableOpacity
+              style={simpleStyles.headerButton}
+              onPress={openAddModal}
+              activeOpacity={0.7}
+            >
+              <Feather name="plus" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+
+      {/* Main Content */}
+      <ScrollView
+        style={[simpleStyles.scrollView, { marginTop: 0 }]}
+        contentContainerStyle={[simpleStyles.scrollContent, { paddingTop: 350 }]}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={5}
+        decelerationRate={Platform.OS === "ios" ? "fast" : "normal"}
+        onScroll={(event) => {
+          // First update the animated value for other animations
+          scrollY.value = event.nativeEvent.contentOffset.y;
+
+          // Then run the visibility logic
+          if (event.nativeEvent.contentOffset.y > 100 && fabOpacity.value === 1) {
+            hideFab();
+          } else if (event.nativeEvent.contentOffset.y <= 100 && fabOpacity.value === 0) {
+            showFab();
+          }
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={THEME.primary}
+            progressBackgroundColor="#ffffff"
+            progressViewOffset={150}
+            colors={[THEME.primary, THEME.accent1 || "#666", THEME.secondary || "#999"]}
+          />
+        }
+      >
+        {/* Search Bar */}
+        <View style={simpleStyles.searchContainer}>
+          <View style={simpleStyles.searchBar}>
+            <Feather name="search" size={20} color={THEME.textMedium} style={{ marginRight: 10 }} />
+            <TextInput
+              style={simpleStyles.searchInput}
+              placeholder="Search events..."
+              placeholderTextColor="#999999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery !== "" && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Feather name="x" size={20} color="#777777" />
               </TouchableOpacity>
             )}
           </View>
         </View>
-      </SafeAreaView>
 
-      {/* Main content area - always a ScrollView for consistency */}
-      <Animated.ScrollView
-        style={[styles.scrollView, { backgroundColor: THEME.pageBg }]}
-        contentContainerStyle={styles.scrollViewContent}
-        scrollEventThrottle={16}
-        onScroll={useAnimatedScrollHandler({
-          onScroll: (event) => {
-            scrollY.value = event.contentOffset.y;
-            if (event.contentOffset.y > 100 && fabOpacity.value === 1) {
-              runOnJS(hideFab)();
-            } else if (event.contentOffset.y <= 100 && fabOpacity.value === 0) {
-              runOnJS(showFab)();
-            }
-          },
-        })}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero section */}
-        <Animated.View
-          style={[
-            styles.heroSection,
-            headerAnimatedStyle,
-            headerOpacityStyle,
-            {
-              borderRadius: THEME.radiusLarge,
-              ...THEME.shadowMedium,
-            },
-          ]}
-          entering={FadeIn.duration(800)}
-        >
-          <ImageBackground
-            source={{
-              uri: "https://images.unsplash.com/photo-1511747779829-1d858eac30cc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80",
-            }}
-            style={{ width: "100%", height: "100%" }}
-            resizeMode="cover"
-          >
-            <LinearGradient colors={THEME.gradientPrimary} style={styles.heroBackground}>
-              <View
-                style={[
-                  styles.iconContainer,
-                  {
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                    borderRadius: THEME.radiusFull,
-                    padding: THEME.spacingL,
-                  },
-                ]}
-              >
-                <Feather name="calendar" size={30} color="#FFFFFF" />
-              </View>
-              <Text
-                style={[
-                  styles.heroTitle,
-                  {
-                    color: THEME.textWhite,
-                    fontSize: 28,
-                    fontWeight: THEME.fontBold,
-                    marginTop: THEME.spacingL,
-                  },
-                ]}
-              >
-                Church Events
-              </Text>
-              <Text
-                style={[
-                  styles.heroSubtitle,
-                  {
-                    color: THEME.textWhite,
-                    fontSize: 16,
-                    opacity: 0.9,
-                    marginBottom: THEME.spacingL,
-                  },
-                ]}
-              >
-                Stay updated with church events and activities
-              </Text>
-              {hasPermissionToCreate && (
-                <TouchableOpacity
-                  style={[
-                    styles.addEventButton,
-                    {
-                      backgroundColor: "rgba(255,255,255,0.2)",
-                      borderRadius: THEME.radiusFull,
-                      paddingVertical: THEME.spacingM,
-                      paddingHorizontal: THEME.spacingXL,
-                      flexDirection: "row",
-                      alignItems: "center",
-                    },
-                  ]}
-                  onPress={() => openAddModal()}
-                >
-                  <Text
-                    style={[
-                      styles.addEventButtonText,
-                      {
-                        color: THEME.textWhite,
-                        marginRight: THEME.spacingS,
-                      },
-                    ]}
-                  >
-                    Create New Event
-                  </Text>
-                  <Feather name="plus-circle" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              )}
-            </LinearGradient>
-          </ImageBackground>
-        </Animated.View>
-
-        {/* Search bar */}
-        <Animated.View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: THEME.cardBg,
-              borderColor: THEME.divider,
-              borderRadius: THEME.radiusMedium,
-              ...THEME.shadowLight,
-              marginVertical: THEME.spacingL,
-            },
-          ]}
-          entering={FadeIn.delay(200).duration(600)}
-        >
-          <Feather name="search" size={20} color={THEME.textMedium} style={styles.searchIcon} />
-          <TextInput
-            style={[styles.searchInput, { color: THEME.textDark }]}
-            placeholder="Search events..."
-            placeholderTextColor={THEME.textLight}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery !== "" && (
-            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery("")}>
-              <Feather name="x" size={20} color={THEME.textMedium} />
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-
-        {/* Main content */}
-        <View style={styles.mainContent}>
+        {/* Main Content */}
+        <View style={simpleStyles.mainContainer}>
           {/* Church Selector */}
           {userChurches.length > 0 && (
-            <Animated.View
-              style={[
-                styles.churchSelectorContainer,
-                {
-                  marginHorizontal: THEME.spacingL,
-                  marginBottom: THEME.spacingL,
-                },
-              ]}
-              entering={FadeIn.delay(300).duration(600)}
-            >
-              <Text
-                style={[
-                  styles.selectorLabel,
-                  {
-                    color: THEME.textDark,
-                    fontWeight: THEME.fontMedium,
-                    marginBottom: THEME.spacingS,
-                  },
-                ]}
-              >
-                Your Churches
-              </Text>
+            <View style={simpleStyles.sectionContainer}>
+              <Text style={simpleStyles.sectionTitle}>Your Churches</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={styles.churchSelector}
+                contentContainerStyle={{ paddingBottom: 8 }}
               >
                 {userChurches.map((church) => (
                   <TouchableOpacity
                     key={church.id}
                     style={[
-                      styles.churchOption,
-                      {
-                        backgroundColor:
-                          selectedChurchId === church.id ? THEME.primary : THEME.cardBg,
-                        borderRadius: THEME.radiusFull,
-                        paddingVertical: THEME.spacingM,
-                        paddingHorizontal: THEME.spacingXL,
-                        marginRight: THEME.spacingM,
-                        ...THEME.shadowLight,
-                      },
+                      simpleStyles.pill,
+                      selectedChurchId === church.id && simpleStyles.pillActive,
                     ]}
                     onPress={() => setSelectedChurchId(church.id)}
                   >
                     <Text
                       style={[
-                        styles.churchOptionText,
-                        {
-                          color: selectedChurchId === church.id ? THEME.textWhite : THEME.textDark,
-                          fontWeight: THEME.fontMedium,
-                        },
+                        simpleStyles.pillText,
+                        selectedChurchId === church.id && simpleStyles.pillTextActive,
                       ]}
                     >
                       {church.name}
@@ -452,48 +574,27 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </Animated.View>
+            </View>
           )}
 
           {/* View Selector */}
-          <Animated.View
-            style={[
-              styles.viewSelector,
-              {
-                backgroundColor: THEME.neutral100,
-                borderRadius: THEME.radiusFull,
-                ...THEME.shadowLight,
-                marginBottom: THEME.spacingXL,
-              },
-            ]}
-            entering={FadeIn.delay(400).duration(600)}
-          >
+          <View style={simpleStyles.viewSelector}>
             <TouchableOpacity
               style={[
-                styles.viewOption,
-                calendarView === "list" && [
-                  styles.viewOptionActive,
-                  {
-                    backgroundColor: THEME.primary,
-                    borderRadius: THEME.radiusFull,
-                  },
-                ],
+                simpleStyles.viewOption,
+                calendarView === "list" && simpleStyles.viewOptionActive,
               ]}
               onPress={() => setCalendarView("list")}
             >
               <Feather
                 name="list"
-                size={16}
-                color={calendarView === "list" ? THEME.textWhite : THEME.textMedium}
+                size={18}
+                color={calendarView === "list" ? "#FFFFFF" : THEME.textMedium}
               />
               <Text
                 style={[
-                  styles.viewOptionText,
-                  {
-                    color: calendarView === "list" ? THEME.textWhite : THEME.textMedium,
-                    marginLeft: THEME.spacingS,
-                    fontWeight: THEME.fontMedium,
-                  },
+                  simpleStyles.viewOptionText,
+                  calendarView === "list" && { color: "#FFFFFF" },
                 ]}
               >
                 List
@@ -501,630 +602,677 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[
-                styles.viewOption,
-                calendarView === "month" && [
-                  styles.viewOptionActive,
-                  {
-                    backgroundColor: THEME.primary,
-                    borderRadius: THEME.radiusFull,
-                  },
-                ],
+                simpleStyles.viewOption,
+                calendarView === "month" && simpleStyles.viewOptionActive,
               ]}
               onPress={() => setCalendarView("month")}
             >
               <Feather
                 name="calendar"
-                size={16}
-                color={calendarView === "month" ? THEME.textWhite : THEME.textMedium}
+                size={18}
+                color={calendarView === "month" ? "#FFFFFF" : THEME.textMedium}
               />
               <Text
                 style={[
-                  styles.viewOptionText,
-                  {
-                    color: calendarView === "month" ? THEME.textWhite : THEME.textMedium,
-                    marginLeft: THEME.spacingS,
-                    fontWeight: THEME.fontMedium,
-                  },
+                  simpleStyles.viewOptionText,
+                  calendarView === "month" && { color: "#FFFFFF" },
                 ]}
               >
                 Calendar
               </Text>
             </TouchableOpacity>
-          </Animated.View>
+          </View>
 
           {/* Calendar View */}
-          {calendarView === "month" && (
-            <Animated.View entering={FadeIn.duration(600)}>
+          {calendarView === "month" ? (
+            <View style={simpleStyles.calendarWrapper}>
               <Calendar
                 loading={loading}
                 currentMonth={currentMonth}
                 calendarData={calendarData}
                 selectedDate={selectedDate}
                 dayAnimations={dayAnimations}
-                onDaySelect={selectDay}
-                onChangeMonth={changeMonth}
+                onDaySelect={(date) => {
+                  const flatCalendarData = calendarData.flat();
+                  const calendarDay = flatCalendarData.find(
+                    (day) => day.date.toDateString() === date.toDateString(),
+                  );
+                  if (calendarDay) {
+                    selectDay(calendarDay);
+                  }
+                }}
+                onChangeMonth={(direction) => changeMonth(direction === "prev" ? -1 : 1)}
               />
-            </Animated.View>
-          )}
-
-          {/* List View */}
-          {calendarView === "list" && (
-            <Animated.View style={styles.listContainer} entering={FadeIn.duration(600)}>
+            </View>
+          ) : (
+            <View style={simpleStyles.eventsListContainer}>
               {loading && (
-                <View
-                  style={[
-                    styles.loadingContainer,
-                    {
-                      paddingVertical: THEME.spacing2XL,
-                      alignItems: "center",
-                    },
-                  ]}
-                >
-                  <Feather name="loader" size={30} color={THEME.primary} />
-                  <Text
-                    style={[
-                      styles.loadingText,
-                      {
-                        color: THEME.textMedium,
-                        marginTop: THEME.spacingM,
-                        fontSize: 16,
-                      },
-                    ]}
-                  >
-                    Loading events...
-                  </Text>
+                <View style={simpleStyles.centeredContent}>
+                  <Animated.View style={spinStyles}>
+                    <Feather name="loader" size={30} color={THEME.primary} />
+                  </Animated.View>
+                  <Text style={simpleStyles.loadingText}>Loading events...</Text>
                 </View>
               )}
 
               {!loading && filteredEvents.length === 0 && (
-                <View
-                  style={[
-                    styles.noEventsContainer,
-                    {
-                      paddingVertical: THEME.spacing3XL,
-                      alignItems: "center",
-                    },
-                  ]}
-                >
-                  <Feather name="calendar" size={50} color={THEME.textLight} />
-                  <Text
-                    style={[
-                      styles.noEventsText,
-                      {
-                        color: THEME.textDark,
-                        fontSize: 18,
-                        fontWeight: THEME.fontMedium,
-                        marginTop: THEME.spacingL,
-                      },
-                    ]}
-                  >
-                    No Events Found
-                  </Text>
-                  <Text
-                    style={[
-                      styles.noEventsSubtext,
-                      {
-                        color: THEME.textMedium,
-                        textAlign: "center",
-                        marginTop: THEME.spacingS,
-                        marginHorizontal: THEME.spacingXL,
-                      },
-                    ]}
-                  >
+                <View style={simpleStyles.centeredContent}>
+                  <Feather name="calendar" size={50} color="rgba(150,150,150,0.6)" />
+                  <Text style={simpleStyles.noEventsText}>No events found</Text>
+                  <Text style={simpleStyles.noEventsSubtext}>
                     {searchQuery
-                      ? "Try adjusting your search query."
-                      : hasPermissionToCreate
-                        ? "Click the + button to create your first event."
-                        : "There are no upcoming events to display."}
+                      ? "Try adjusting your search criteria"
+                      : "There are no events scheduled yet"}
                   </Text>
+                  {hasPermissionToCreate && (
+                    <TouchableOpacity style={simpleStyles.createButton} onPress={openAddModal}>
+                      <Text style={simpleStyles.createButtonText}>Create Event</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 
               {!loading && filteredEvents.length > 0 && (
-                <View
-                  style={[
-                    styles.eventsList,
-                    {
-                      paddingHorizontal: THEME.spacingL,
-                    },
-                  ]}
-                >
-                  {filteredEvents.map((item) => (
-                    <Animated.View
-                      key={item.id}
-                      entering={FadeIn.duration(600).delay((item.id % 5) * 100)}
+                <View style={simpleStyles.eventsGrid}>
+                  {filteredEvents.map((item, index) => (
+                    <View
+                      key={item.id.toString()}
+                      style={[
+                        simpleStyles.eventCard,
+                        index < filteredEvents.length - 1 && { marginBottom: 16 },
+                      ]}
                     >
                       <EventCard
                         item={item}
                         currentUserId={currentUser?.id}
                         hasPermissionToCreate={hasPermissionToCreate}
                         onEdit={handleSelectEventForEdit}
-                        onDelete={() => handleDeleteEvent(item.id)}
-                        onView={handleViewEventDetails}
+                        onDelete={handleDeleteEvent}
                         onImagePress={openImageViewer}
+                        onView={handleViewEventDetails}
                       />
-                    </Animated.View>
+                    </View>
                   ))}
                 </View>
               )}
-            </Animated.View>
+            </View>
           )}
         </View>
-      </Animated.ScrollView>
+      </ScrollView>
 
       {/* Floating Action Button */}
       {hasPermissionToCreate && (
-        <Animated.View
-          style={[
-            {
-              position: "absolute",
-              bottom: THEME.spacing2XL,
-              right: THEME.spacingXL,
-              borderRadius: THEME.radiusFull,
-              backgroundColor: THEME.primary,
-              padding: THEME.spacingL,
-              ...THEME.shadowMedium,
-            },
-            fabAnimatedStyle,
-          ]}
-        >
-          <TouchableOpacity onPress={openAddModal}>
-            <Feather name="plus" size={28} color={THEME.textWhite} />
+        <Animated.View style={[simpleStyles.fabContainer, fabStyle]}>
+          <TouchableOpacity style={simpleStyles.fab} onPress={openAddModal} activeOpacity={0.8}>
+            <Feather name="plus" size={24} color="#FFF" />
           </TouchableOpacity>
         </Animated.View>
       )}
 
-      {/* Date Detail Panel for Calendar View */}
-      <EventDetail
-        showDateDetail={showDateDetail}
-        selectedDate={selectedDate}
-        selectedDayEvents={selectedDayEvents}
-        detailSlideAnim={detailSlideAnim}
-        currentUserId={currentUser?.id || null}
-        hasPermissionToCreate={hasPermissionToCreate}
-        onClose={closeDateDetail}
-        onAddEvent={openAddModal}
-        onSelectDay={handleViewEventDetails}
-        onEditEvent={handleSelectEventForEdit}
-        onDeleteEvent={handleDeleteEvent}
-        onImagePress={openImageViewer}
-      />
-
       {/* Event Detail Modal */}
       <Modal
         visible={showDetailModal}
-        animationType="slide"
         transparent={true}
+        animationType="slide"
         onRequestClose={() => setShowDetailModal(false)}
       >
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(300)}
-          style={{
-            flex: 1,
-            backgroundColor: THEME.overlay,
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 20,
-          }}
-        >
-          <Animated.View
-            entering={SlideInDown.springify().damping(14)}
-            exiting={SlideOutDown.duration(300)}
-            style={{
-              backgroundColor: THEME.cardBg,
-              width: "90%",
-              maxHeight: "80%",
-              borderRadius: THEME.radiusLarge,
-              position: "relative",
-              overflow: "hidden",
-              ...THEME.shadowHeavy,
-            }}
-          >
-            <TouchableOpacity
-              style={{
-                position: "absolute",
-                top: 15,
-                right: 15,
-                zIndex: 10,
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                borderRadius: THEME.radiusFull,
-                padding: THEME.spacingS,
-              }}
-              onPress={() => setShowDetailModal(false)}
-            >
-              <Feather name="x" size={24} color={THEME.textDark} />
-            </TouchableOpacity>
-
-            {detailEvent?.image_url && (
-              <Pressable
-                onPress={() => {
-                  setShowDetailModal(false); // First close the current modal
-                  setTimeout(() => {
-                    openImageViewer(detailEvent.image_url!); // Then open the image viewer after a short delay
-                  }, 300);
-                }}
-              >
-                <Image
-                  source={{ uri: detailEvent.image_url }}
-                  style={{ width: "100%", height: 200 }}
-                  resizeMode="cover"
-                />
-              </Pressable>
-            )}
-
-            <ScrollView style={{ padding: THEME.spacingXL, paddingTop: THEME.spacingM }}>
-              <Text
-                style={{
-                  fontSize: 24,
-                  fontWeight: THEME.fontBold,
-                  color: THEME.primary,
-                  marginBottom: THEME.spacingL,
-                  marginTop: THEME.spacingL,
-                }}
-              >
-                {detailEvent?.title}
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: THEME.spacingM,
-                }}
-              >
-                <MaterialIcons name="event" size={20} color={THEME.textMedium} />
-                <Text
-                  style={{
-                    fontSize: 16,
-                    marginLeft: THEME.spacingM,
-                    color: THEME.textDark,
-                  }}
-                >
-                  {detailEvent?.time
-                    ? new Date(detailEvent.time).toLocaleDateString()
-                    : "No date specified"}
-                </Text>
-              </View>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: THEME.spacingM,
-                }}
-              >
-                <MaterialIcons name="access-time" size={20} color={THEME.textMedium} />
-                <Text
-                  style={{
-                    fontSize: 16,
-                    marginLeft: THEME.spacingM,
-                    color: THEME.textDark,
-                  }}
-                >
-                  {detailEvent?.time
-                    ? new Date(detailEvent.time).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "No time specified"}
-                </Text>
-              </View>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: THEME.spacingM,
-                }}
-              >
-                <MaterialIcons name="location-on" size={20} color={THEME.textMedium} />
-                <Text
-                  style={{
-                    fontSize: 16,
-                    marginLeft: THEME.spacingM,
-                    color: THEME.textDark,
-                  }}
-                >
-                  {detailEvent?.author_name || "No location specified"}
-                </Text>
-              </View>
-
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: THEME.fontSemiBold,
-                  color: THEME.textDark,
-                  marginTop: THEME.spacingXL,
-                  marginBottom: THEME.spacingM,
-                }}
-              >
-                Description
-              </Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  lineHeight: 24,
-                  color: THEME.textMedium,
-                }}
-              >
-                {detailEvent?.excerpt || "No description available"}
-              </Text>
-            </ScrollView>
-          </Animated.View>
-        </Animated.View>
-      </Modal>
-
-      {/* Full screen image viewer */}
-      <Modal
-        visible={!!fullscreenImage}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setFullscreenImage(null)}
-      >
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(300)}
-          style={{
-            flex: 1,
-            backgroundColor: THEME.neutral900,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <TouchableOpacity
-            style={{
-              position: "absolute",
-              top: 40,
-              right: 20,
-              zIndex: 10,
-              padding: THEME.spacingM,
-            }}
-            onPress={() => setFullscreenImage(null)}
-          >
-            <Feather name="x" size={24} color={THEME.textWhite} />
-          </TouchableOpacity>
-          {fullscreenImage && (
-            <Image
-              source={{ uri: fullscreenImage }}
-              style={{ width: "100%", height: "80%" }}
-              resizeMode="contain"
-            />
-          )}
-        </Animated.View>
-      </Modal>
-
-      {/* Add Event Modal */}
-      <Modal
-        visible={showAddModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(300)}
-          style={[
-            styles.modalContainer,
-            {
-              backgroundColor: THEME.overlay,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            onPress={() => setShowAddModal(false)}
-            activeOpacity={1}
+        {detailEvent && (
+          <EventDetail
+            event={detailEvent}
+            onClose={() => setShowDetailModal(false)}
+            onEdit={
+              hasPermissionToCreate ||
+              (currentUser?.id && detailEvent.created_by === currentUser.id)
+                ? handleSelectEventForEdit
+                : undefined
+            }
+            onDelete={
+              hasPermissionToCreate ||
+              (currentUser?.id && detailEvent.created_by === currentUser.id)
+                ? handleDeleteEvent
+                : undefined
+            }
           />
-          <Animated.View
-            entering={SlideInDown.springify().damping(14)}
-            exiting={SlideOutDown.duration(300)}
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: THEME.cardBg,
-                borderTopLeftRadius: THEME.radiusXL,
-                borderTopRightRadius: THEME.radiusXL,
-                ...THEME.shadowHeavy,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.modalHandle,
-                {
-                  backgroundColor: THEME.neutral300,
-                  width: 40,
-                  height: 5,
-                  borderRadius: 3,
-                  marginTop: THEME.spacingM,
-                  alignSelf: "center",
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.modalHeader,
-                {
-                  paddingHorizontal: THEME.spacingXL,
-                  paddingVertical: THEME.spacingL,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.modalTitle,
-                  {
-                    fontSize: 20,
-                    fontWeight: THEME.fontBold,
-                    color: THEME.textDark,
-                  },
-                ]}
-              >
-                Create Event
-              </Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowAddModal(false)}
-              >
-                <Feather name="x" size={24} color={THEME.textDark} />
-              </TouchableOpacity>
-            </View>
-            <EventForm
-              formData={formData}
-              isSubmitting={isSubmitting}
-              formImageLoading={formImageLoading}
-              showTimePicker={showTimePicker}
-              showEndDatePicker={showEndDatePicker}
-              isEditMode={false}
-              onSubmit={handleAddEvent}
-              onChangeField={handleFormChange}
-              onDateTimeChange={handleDateTimeChange}
-              onEndDateChange={handleEndDateChange}
-              onToggleTimePicker={() => setShowTimePicker(!showTimePicker)}
-              onToggleEndDatePicker={() => setShowEndDatePicker(!showEndDatePicker)}
-              onPickImage={pickImage}
-              onToggleRecurrenceDay={toggleRecurrenceDay}
-            />
-          </Animated.View>
-        </Animated.View>
+        )}
       </Modal>
 
-      {/* Edit Event Modal */}
+      {/* Event Form Modals */}
       <Modal
-        visible={showEditModal}
-        animationType="slide"
+        visible={showAddModal || showEditModal}
         transparent={true}
-        onRequestClose={() => setShowEditModal(false)}
+        animationType="slide"
+        onRequestClose={() => {
+          if (showAddModal) setShowAddModal(false);
+          if (showEditModal) setShowEditModal(false);
+        }}
       >
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(300)}
-          style={[
-            styles.modalContainer,
-            {
-              backgroundColor: THEME.overlay,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            onPress={() => setShowEditModal(false)}
-            activeOpacity={1}
-          />
-          <Animated.View
-            entering={SlideInDown.springify().damping(14)}
-            exiting={SlideOutDown.duration(300)}
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: THEME.cardBg,
-                borderTopLeftRadius: THEME.radiusXL,
-                borderTopRightRadius: THEME.radiusXL,
-                ...THEME.shadowHeavy,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.modalHandle,
-                {
-                  backgroundColor: THEME.neutral300,
-                  width: 40,
-                  height: 5,
-                  borderRadius: 3,
-                  marginTop: THEME.spacingM,
-                  alignSelf: "center",
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.modalHeader,
-                {
-                  paddingHorizontal: THEME.spacingXL,
-                  paddingVertical: THEME.spacingL,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.modalTitle,
-                  {
-                    fontSize: 20,
-                    fontWeight: THEME.fontBold,
-                    color: THEME.textDark,
-                  },
-                ]}
-              >
-                Edit Event
-              </Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowEditModal(false)}
-              >
-                <Feather name="x" size={24} color={THEME.textDark} />
-              </TouchableOpacity>
-            </View>
-            <EventForm
-              formData={formData}
-              isSubmitting={isSubmitting}
-              formImageLoading={formImageLoading}
-              showTimePicker={showTimePicker}
-              showEndDatePicker={showEndDatePicker}
-              isEditMode={true}
-              onSubmit={handleSubmitEdit}
-              onDelete={() => {
-                setShowEditModal(false);
-                selectedEvent?.id && handleDeleteEvent(selectedEvent.id);
-              }}
-              onChangeField={handleFormChange}
-              onDateTimeChange={handleDateTimeChange}
-              onEndDateChange={handleEndDateChange}
-              onToggleTimePicker={() => setShowTimePicker(!showTimePicker)}
-              onToggleEndDatePicker={() => setShowEndDatePicker(!showEndDatePicker)}
-              onPickImage={pickImage}
-              onToggleRecurrenceDay={toggleRecurrenceDay}
-            />
-          </Animated.View>
-        </Animated.View>
+        <EventForm
+          isEditing={showEditModal}
+          formData={formData}
+          showTimePicker={showTimePicker}
+          showEndDatePicker={showEndDatePicker}
+          isSubmitting={isSubmitting}
+          onClose={() => {
+            if (showAddModal) setShowAddModal(false);
+            if (showEditModal) setShowEditModal(false);
+          }}
+          onChange={handleFormChange}
+          onDateChange={handleDateTimeChange}
+          onEndDateChange={handleEndDateChange}
+          onToggleRecurrenceDay={toggleRecurrenceDay}
+          onPickImage={pickImage}
+          onSubmit={showEditModal ? handleEditEvent : handleAddEvent}
+          setShowTimePicker={setShowTimePicker}
+          setShowEndDatePicker={setShowEndDatePicker}
+          formImageLoading={formImageLoading}
+        />
       </Modal>
 
       {/* Image Viewer Modal */}
       <Modal
         visible={showImageModal}
         transparent={true}
+        animationType="fade"
         onRequestClose={() => setShowImageModal(false)}
       >
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(300)}
-          style={[
-            styles.imageViewerContainer,
-            {
-              backgroundColor: THEME.neutral900,
-            },
-          ]}
-        >
-          <TouchableOpacity
+        {selectedImage && (
+          <View style={simpleStyles.imageViewerContainer}>
+            <TouchableOpacity
+              style={simpleStyles.closeImageButton}
+              onPress={() => setShowImageModal(false)}
+            >
+              <Feather name="x" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: selectedImage }}
+              style={simpleStyles.fullscreenImage}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+      </Modal>
+
+      {/* Selected Date Detail Modal */}
+      <Modal
+        visible={showDateDetail}
+        transparent={true}
+        animationType="none"
+        onRequestClose={closeDateDetail}
+      >
+        <Pressable style={simpleStyles.modalOverlay} onPress={closeDateDetail}>
+          <Animated.View
             style={[
-              styles.imageViewerCloseButton,
+              simpleStyles.dateDetailContainer,
               {
-                top: 40,
-                right: 20,
-                padding: THEME.spacingM,
-                zIndex: 10,
+                transform: [{ translateY: detailSlideAnim }],
               },
             ]}
-            onPress={() => setShowImageModal(false)}
           >
-            <Feather name="x" size={24} color={THEME.textWhite} />
-          </TouchableOpacity>
-          <Image source={{ uri: selectedImage }} style={styles.fullImage} resizeMode="contain" />
-        </Animated.View>
+            <View style={simpleStyles.dateDetailHeader}>
+              <View>
+                <Text style={simpleStyles.dateDetailTitle}>
+                  {selectedDate
+                    ? new Date(selectedDate).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : ""}
+                </Text>
+                <Text style={simpleStyles.dateDetailSubtitle}>
+                  {selectedDayEvents.length} Event{selectedDayEvents.length !== 1 ? "s" : ""}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeDateDetail} style={simpleStyles.closeButton}>
+                <Feather name="x" size={24} color={THEME.textDark} />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={selectedDayEvents}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderEventItem}
+              ListEmptyComponent={() => (
+                <View style={simpleStyles.centeredContent}>
+                  <Feather name="calendar" size={40} color={THEME.textLight} />
+                  <Text style={simpleStyles.noEventsText}>No events scheduled for this day</Text>
+                </View>
+              )}
+              contentContainerStyle={{
+                flexGrow: 1,
+                maxHeight: height * 0.4,
+                paddingBottom: 20,
+              }}
+              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={false}
+            />
+          </Animated.View>
+        </Pressable>
       </Modal>
     </View>
   );
 };
+
+// Simple clean styles
+const simpleStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: THEME.pageBg,
+  },
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === "ios" ? 120 : 100,
+    zIndex: 10,
+    overflow: "hidden",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  shimmerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: width * 2,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 0 : 10,
+    height: 60,
+    zIndex: 15,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  heroSection: {
+    height: 350,
+    width: "100%",
+    overflow: "hidden",
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  heroBackground: {
+    flex: 1,
+  },
+  heroGradient: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  heroContent: {
+    padding: 30,
+    paddingBottom: 60,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+  },
+  // Decorative elements
+  decorElement1: {
+    position: "absolute",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    top: -30,
+    right: -30,
+    zIndex: 1,
+  },
+  decorElement2: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    top: 70,
+    left: -20,
+    zIndex: 1,
+  },
+  decorElement3: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    bottom: 60,
+    right: 40,
+    zIndex: 1,
+  },
+  iconContainer: {
+    width: 70,
+    height: 70,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 35,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  heroTitle: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 10,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  heroSubtitle: {
+    fontSize: 18,
+    color: "rgba(255,255,255,0.95)",
+    marginBottom: 30,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+    fontWeight: "500",
+    lineHeight: 24,
+  },
+  addEventButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 30,
+    alignSelf: "flex-start",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  addEventButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+    marginRight: 10,
+  },
+  searchContainer: {
+    marginHorizontal: 20,
+    marginTop: -50,
+    marginBottom: 15,
+    zIndex: 10,
+  },
+  searchBar: {
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: THEME.textDark,
+  },
+  mainContainer: {
+    paddingHorizontal: 20,
+  },
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: THEME.textDark,
+    marginBottom: 12,
+  },
+  pill: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: 20,
+    marginRight: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  pillActive: {
+    backgroundColor: THEME.primary,
+  },
+  pillText: {
+    color: THEME.textDark,
+    fontWeight: "500",
+  },
+  pillTextActive: {
+    color: "#FFFFFF",
+  },
+  viewSelector: {
+    flexDirection: "row",
+    marginBottom: 20,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: 30,
+    padding: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  viewOption: {
+    flex: 1,
+    flexDirection: "row",
+    paddingVertical: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 26,
+  },
+  viewOptionActive: {
+    backgroundColor: THEME.primary,
+  },
+  viewOptionText: {
+    marginLeft: 8,
+    fontWeight: "600",
+    color: THEME.textMedium,
+  },
+  calendarWrapper: {
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  eventsListContainer: {
+    marginBottom: 20,
+  },
+  centeredContent: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: THEME.textMedium,
+    marginTop: 16,
+    fontSize: 16,
+  },
+  noEventsText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: THEME.textDark,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  noEventsSubtext: {
+    fontSize: 16,
+    color: THEME.textMedium,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  createButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: THEME.primary,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  createButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  eventsGrid: {
+    flex: 1,
+  },
+  eventCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  fabContainer: {
+    position: "absolute",
+    bottom: 30,
+    right: 30,
+    zIndex: 10,
+  },
+  fab: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: THEME.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  eventItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: THEME.textDark,
+    marginBottom: 4,
+  },
+  eventTime: {
+    fontSize: 14,
+    color: THEME.textMedium,
+  },
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeImageButton: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  fullscreenImage: {
+    width: width,
+    height: height * 0.7,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  dateDetailContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dateDetailHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  dateDetailTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: THEME.textDark,
+  },
+  dateDetailSubtitle: {
+    fontSize: 14,
+    color: THEME.textMedium,
+    marginTop: 4,
+  },
+  closeButton: {
+    padding: 8,
+  },
+});
 
 export default ChurchEvents;

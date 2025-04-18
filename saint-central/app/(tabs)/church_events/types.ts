@@ -3,26 +3,34 @@ export interface ChurchBasic {
   name: string;
 }
 
+export interface Church {
+  id: number;
+  name: string;
+}
+
 export interface ChurchEvent {
   id: number;
-  time: string;
-  created_by: string;
   title: string;
-  image_url: string | null;
   excerpt: string;
-  video_link: string | null;
-  author_name: string;
-  event_location: string;
+  image_url?: string | null;
+  video_link?: string | null;
+  event_date?: string | null;
+  time: string;
+  author_name?: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+  is_deleted: boolean;
   is_recurring: boolean;
-  recurrence_type: "daily" | "weekly" | "monthly" | "yearly" | null;
-  recurrence_interval: number | null;
-  recurrence_end_date: string | null;
-  recurrence_days_of_week: number[] | null;
-  church_id: number;
-  churches?: {
-    id: number;
-    name: string;
-  };
+  recurrence_type?: string | null;
+  recurrence_interval?: number | null;
+  recurrence_days_of_week?: number[] | null;
+  recurrence_end_date?: string | null;
+  churches?: Church | null;
+  color?: string;
+  formatted_time?: string;
+  event_location?: string | null;
+  church_id?: number;
 }
 
 export interface EventFormData {

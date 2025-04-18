@@ -90,20 +90,31 @@ export const useEventForm = (
     }
 
     setSelectedEvent(event); // Set the selected event first
+
+    // Add a type check to ensure event_location exists or provide a default
+    const eventLocation = "event_location" in event ? event.event_location || "" : "";
+
+    // Check if recurrence_type is a valid value
+    const validRecurrenceTypes = ["daily", "weekly", "monthly", "yearly", null];
+    const recurrenceType =
+      event.recurrence_type && validRecurrenceTypes.includes(event.recurrence_type)
+        ? (event.recurrence_type as "daily" | "weekly" | "monthly" | "yearly" | null)
+        : "weekly";
+
     setFormData({
       title: event.title,
       time: event.time,
-      image_url: event.image_url,
+      image_url: event.image_url || null,
       excerpt: event.excerpt || "",
-      video_link: event.video_link,
+      video_link: event.video_link || null,
       author_name: event.author_name || "",
-      event_location: event.event_location || "",
+      event_location: eventLocation,
       is_recurring: event.is_recurring || false,
-      recurrence_type: event.recurrence_type || "weekly",
+      recurrence_type: recurrenceType,
       recurrence_interval: event.recurrence_interval || 1,
       recurrence_end_date: event.recurrence_end_date || null,
       recurrence_days_of_week: event.recurrence_days_of_week || [1],
-      church_id: event.church_id,
+      church_id: "church_id" in event ? event.church_id || selectedChurchId : selectedChurchId,
     });
     setShowEditModal(true);
   };
