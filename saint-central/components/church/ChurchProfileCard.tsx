@@ -6,6 +6,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-na
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRouter } from "expo-router";
 
 import theme from "@/theme";
 
@@ -21,6 +22,7 @@ type Props = {
 
 export default function ChurchProfileCard({ church, member }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const router = useRouter();
   // Animation for button press
   const actionScale1 = useSharedValue(1);
   const actionScale2 = useSharedValue(1);
@@ -236,7 +238,12 @@ export default function ChurchProfileCard({ church, member }: Props) {
             activeOpacity={0.95}
             onPressIn={() => handlePressIn(1)}
             onPressOut={() => handlePressOut(1)}
-            onPress={() => navigation.navigate("church_events")}
+            onPress={() =>
+              router.push({
+                pathname: "/church_events",
+                params: { churchId: church.id },
+              })
+            }
           >
             <Animated.View style={[styles.actionButton, animatedStyle1]}>
               <LinearGradient
