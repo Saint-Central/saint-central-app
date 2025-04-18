@@ -32,6 +32,7 @@ import ChurchSidebar from "@/components/church/ChurchSidebar";
 import theme from "@/theme";
 import { supabase } from "../../supabaseClient";
 import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 
 // Define interfaces for our database models
 interface Ministry {
@@ -82,6 +83,7 @@ const springConfig = {
 
 export default function ChurchPage({ church, member, userData }: Props) {
   const navigation = useNavigation();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>(TABS[0]);
 
@@ -308,10 +310,13 @@ export default function ChurchPage({ church, member, userData }: Props) {
     });
 
     const navigateToEventDetails = () => {
-      // @ts-ignore - Ignoring type checking for navigation
-      navigation.navigate("church_events", {
-        eventId: event.id,
-        churchId: church.id,
+      // Use Expo Router instead of React Navigation
+      router.push({
+        pathname: "/church_events",
+        params: {
+          id: event.id,
+          churchId: church.id,
+        },
       });
     };
 

@@ -23,6 +23,7 @@ import { supabase } from "@/supabaseClient";
 import { LinearGradient } from "expo-linear-gradient";
 import { useChurchContext } from "@/contexts/church";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRouter } from "expo-router";
 
 type RootStackParamList = {
   MinistriesScreen: undefined;
@@ -42,6 +43,7 @@ type Props = {
 
 export default function ChurchPageContent({ church, member, userData }: Props) {
   const navigation = useNavigation<NavigationProp>();
+  const router = useRouter();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const [memberCount, setMemberCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -370,7 +372,12 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
               <Ionicons name="calendar" size={isTablet ? 22 : 18} color="#FFFFFF" />
             </LinearGradient>
           }
-          onPress={() => navigation.navigate("EventsScreen", { churchId: church.id })}
+          onPress={() =>
+            router.push({
+              pathname: "/church_events",
+              params: { churchId: church.id },
+            })
+          }
         >
           <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
             Events Calendar
@@ -396,7 +403,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
               <FontAwesome5 name="donate" size={isTablet ? 22 : 18} color="#FFFFFF" />
             </LinearGradient>
           }
-          onPress={() => navigation.navigate("DonateScreen", { churchId: church.id })}
+          onPress={() => navigation.navigate("coursehomepage")}
         >
           <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
             Donate
@@ -422,7 +429,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
               <FontAwesome5 name="church" size={isTablet ? 22 : 18} color="#FFFFFF" />
             </LinearGradient>
           }
-          onPress={() => navigation.navigate("MinistriesScreen", { churchId: church.id })}
+          onPress={() => navigation.navigate("MinistriesScreen")}
         >
           <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
             Ministries

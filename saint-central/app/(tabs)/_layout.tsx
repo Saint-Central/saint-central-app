@@ -230,6 +230,7 @@ export default function TabLayout() {
       <Tabs.Screen name="statistics" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="community" options={{ tabBarButton: () => null }} />
+      <Tabs.Screen name="church_events" options={{ tabBarButton: () => null }} />
       {/* Removed the bible-detail screen since we're using Bible as a main tab */}
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/index" options={{ tabBarButton: () => null }} />
