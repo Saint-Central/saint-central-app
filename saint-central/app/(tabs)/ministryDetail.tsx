@@ -1296,15 +1296,7 @@ export default function MinistryDetails(): JSX.Element {
         // Send a notification for the ministry when a message is sent
         if (ministry?.name) {
           try {
-            // Schedule a local notification to test notifications (will appear on the sender's device)
-            // This is just for testing - in a real app, this would come from the server
-            if (process.env.NODE_ENV === "development") {
-              await scheduleLocalNotification(
-                `New message in ${ministry.name}`,
-                `${currentUser?.first_name || "Someone"}: ${messageText}`,
-                { ministryId, messageId: data[0].id },
-              );
-            }
+            // Local notification test removed - we now use the real notification system
 
             // Send notification to other members (this would trigger push notifications via your backend)
             await sendMinistryNotification(
