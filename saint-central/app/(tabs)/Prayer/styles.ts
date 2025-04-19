@@ -1052,4 +1052,12 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(226, 232, 240, 0.8)",
   },
+  headerRightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerButton: {
+    padding: 8,
+  },
 });

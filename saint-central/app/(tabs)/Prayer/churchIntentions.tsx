@@ -37,6 +37,7 @@ import HomeView from "./views/HomeView";
 import ChurchesView from "./views/ChurchesView";
 import ChurchDetailsView from "./views/ChurchDetailsView";
 import IntentionsView from "./views/IntentionsView";
+import GroupsView from "./views/GroupsView";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android") {
@@ -1026,13 +1027,22 @@ export default function ChurchIntentions() {
           isLoading={isLoading}
         />
       );
+    case "groups":
+      return (
+        <GroupsView
+          churches={churches}
+          isLoading={isLoading}
+          refreshing={refreshing}
+          navigateToHome={navigateToHome}
+          handleRefresh={handleRefresh}
+        />
+      );
     case "home":
     default:
       return (
         <HomeView
           navigateToChurches={navigateToChurches}
           navigateToGroups={navigateToGroups}
-          // navigateToIntentions prop removed
         />
       );
   }

@@ -46,7 +46,7 @@ interface IntentionsViewProps {
   createDescriptionFocused: boolean;
   editDescriptionFocused: boolean;
   churches: Church[];
-  setCurrentView: (view: "home" | "churchDetails") => void;
+  setCurrentView: (view: "home" | "churchDetails" | "groups") => void;
   setShowFilterDropdown: React.Dispatch<React.SetStateAction<boolean>>;
   handleSelectFilter: (filter: string) => void;
   setShowIntentionModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -214,12 +214,21 @@ const IntentionsView: React.FC<IntentionsViewProps> = ({
           </View>
         </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => setShowIntentionModal(true)}
-        >
-          <Feather name="plus" size={24} color="#4361EE" />
-        </TouchableOpacity>
+        <View style={styles.headerRightButtons}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setCurrentView("groups")}
+          >
+            <FontAwesome5 name="users" size={20} color="#4361EE" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowIntentionModal(true)}
+          >
+            <Feather name="plus" size={24} color="#4361EE" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       {/* Filter Dropdown */}

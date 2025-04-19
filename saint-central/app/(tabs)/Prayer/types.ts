@@ -83,8 +83,16 @@ export interface UserData {
     name: string;
     description: string;
     created_at: string;
-    created_by: string;
+    created_by: string | null;
     church_id: string;
+    is_ministry_group: boolean;
+  }
+  
+  export interface Ministry {
+    id: string;
+    name: string;
+    church_id: string;
+    created_at: string;
   }
   
   export interface Intention {
