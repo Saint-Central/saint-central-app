@@ -17,6 +17,7 @@ Notifications.setNotificationHandler({
 // Storage keys
 const PUSH_TOKEN_KEY = "pushToken";
 const USER_NOTIFICATION_PREFERENCES = "userNotificationPreferences";
+const APP_STATE_KEY = "appState";
 
 // Default user preferences for different notification types
 const DEFAULT_NOTIFICATION_PREFERENCES = {
@@ -237,7 +238,72 @@ export async function scheduleLocalNotification(
 }
 
 /**
- * Send message to a ministry channel
+ * Check if the app is in foreground
+ * This helps determine if we should send push notifications or just show local notifications
+ */
+export async function isAppInForeground(): Promise<boolean> {
+  try {
+    const appState = await AsyncStorage.getItem(APP_STATE_KEY);
+    return appState === "foreground";
+  } catch (error) {
+    console.error("Error checking app state:", error);
+    return false;
+  }
+}
+
+/**
+ * Update app state (call this in your AppState change listener)
+ */
+export async function updateAppState(
+  state: "foreground" | "background" | "inactive",
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(APP_STATE_KEY, state);
+  } catch (error) {
+    console.error("Error updating app state:", error);
+  }
+}
+
+/**
+ * Send a message to a ministry chat
+ */
+export async function sendMinistryMessage(ministryId: number, messageText: string): Promise<void> {
+  try {
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Error getting user:", userError);
+      return;
+    }
+
+    // Check app state to determine if push notifications will be handled by Edge Function
+    const isInForeground = await isAppInForeground();
+
+    // Add message to database
+    // If app is in foreground, mark push_sent as true since we'll handle notifications in the app
+    // If app is in background, mark push_sent as false so the Edge Function will send push notifications
+    const { error } = await supabase.from("ministry_messages").insert({
+      ministry_id: ministryId,
+      user_id: user.id,
+      message_text: messageText,
+      sent_at: new Date().toISOString(),
+      push_sent: isInForeground, // If app is in foreground, we don't need the Edge Function to send push
+    });
+
+    if (error) {
+      console.error("Error sending ministry message:", error);
+    }
+  } catch (error) {
+    console.error("Error in sendMinistryMessage:", error);
+  }
+}
+
+/**
+ * Send message to a ministry channel as a notification
  */
 export async function sendMinistryNotification(
   ministryId: number,
@@ -256,6 +322,9 @@ export async function sendMinistryNotification(
       return;
     }
 
+    // Check app state to determine if push notifications will be handled by Edge Function
+    const isInForeground = await isAppInForeground();
+
     // Add notification to database
     const { error } = await supabase.from("ministry_notifications").insert({
       ministry_id: ministryId,
@@ -263,6 +332,7 @@ export async function sendMinistryNotification(
       title,
       message,
       created_at: new Date().toISOString(),
+      push_sent: isInForeground, // If app is in foreground, we don't need the Edge Function to send push
     });
 
     if (error) {
@@ -325,6 +395,12 @@ export function setupMinistryNotificationsListener(ministryIds: number[] = []): 
             notificationId: notification.id,
             type: "ministry_notification",
           });
+
+          // Mark this notification as push_sent=true since we've handled it locally
+          await supabase
+            .from("ministry_notifications")
+            .update({ push_sent: true })
+            .eq("id", notification.id);
         },
       );
     });
@@ -424,6 +500,9 @@ export function setupMinistryMessagesListener(ministryIds: number[] = []): () =>
               type: "ministry_message",
             },
           );
+
+          // Mark this message as push_sent=true since we've handled it locally
+          await supabase.from("ministry_messages").update({ push_sent: true }).eq("id", message.id);
         },
       );
     });
