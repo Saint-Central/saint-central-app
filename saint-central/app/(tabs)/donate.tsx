@@ -14,8 +14,9 @@ import {
   Keyboard,
   StatusBar,
 } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import { LinearGradient } from "expo-linear-gradient";
 import { useStripe } from "@stripe/stripe-react-native";
+import theme from "../../theme";
 
 const { width } = Dimensions.get("window");
 
@@ -122,17 +123,17 @@ const DonateScreen: React.FC = () => {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        {/* Video Background */}
-        <Video
-          source={require("../../assets/images/background.mp4")}
-          rate={1.0}
-          volume={1.0}
-          isMuted
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
-          style={styles.backgroundVideo}
-        />
+
+        {/* Gradient Background */}
+        <View style={styles.backgroundGradient}>
+          <LinearGradient
+            colors={theme.gradientWarm}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </View>
+
         <View style={styles.overlay} />
         <View style={styles.centerContainer}>
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
@@ -164,7 +165,7 @@ const DonateScreen: React.FC = () => {
 
             <TouchableOpacity style={styles.button} onPress={handleDonate} disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={theme.neutral900} />
               ) : (
                 <Text style={styles.buttonText}>Donate</Text>
               )}
@@ -193,45 +194,42 @@ const DonateScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.neutral900,
   },
-  backgroundVideo: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
+  backgroundGradient: {
+    ...StyleSheet.absoluteFillObject,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.80)", // Increased opacity for a darker background
+    backgroundColor: "rgba(45, 36, 31, 0.65)",
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacingXL,
     transform: [{ translateY: -30 }],
   },
   content: {
     width: "100%",
     maxWidth: 400,
     alignItems: "center",
-    paddingVertical: 24,
+    paddingVertical: theme.spacing2XL,
     zIndex: 10,
   },
   title: {
     fontSize: 36,
-    fontWeight: "300",
-    color: "#FFFFFF",
+    fontWeight: theme.fontRegular,
+    color: theme.textWhite,
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: theme.spacingS,
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 18,
-    color: "#FFF",
+    color: theme.textWhite,
     textAlign: "center",
-    marginBottom: 30,
+    marginBottom: theme.spacing2XL,
     opacity: 0.9,
     letterSpacing: 0.5,
   },
@@ -239,36 +237,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
-    borderRadius: 12,
-    padding: 10,
+    marginBottom: theme.spacingL,
+    backgroundColor: theme.overlayLight,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     width: "100%",
   },
   error: {
-    color: "#ef4444",
-    marginLeft: 8,
+    color: theme.error,
+    marginLeft: theme.spacingS,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: theme.fontMedium,
   },
   message: {
-    color: "#10b981",
-    marginLeft: 8,
+    color: theme.success,
+    marginLeft: theme.spacingS,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: theme.fontMedium,
   },
   form: {
     width: "100%",
-    marginBottom: 16,
+    marginBottom: theme.spacingL,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 15,
-    paddingHorizontal: 12,
+    borderRadius: theme.radiusLarge,
+    paddingHorizontal: theme.spacingM,
     height: 52,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
@@ -276,50 +274,51 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 16,
-    marginLeft: 12,
+    marginLeft: theme.spacingM,
     height: "100%",
   },
   button: {
     width: "100%",
     paddingVertical: 14,
     paddingHorizontal: 40,
-    borderRadius: 30,
+    borderRadius: theme.radiusFull,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 24,
-    backgroundColor: "#FAC898",
+    marginTop: theme.spacingXL,
+    backgroundColor: theme.accent4,
+    ...theme.shadowMedium,
   },
   buttonText: {
-    color: "#513C28",
+    color: theme.neutral900,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
   },
   infoButton: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 30,
+    marginTop: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL,
+    borderRadius: theme.radiusFull,
     borderWidth: 1,
-    borderColor: "#FAC898",
+    borderColor: theme.accent4,
   },
   infoButtonText: {
-    color: "#FAC898",
+    color: theme.accent4,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: theme.fontMedium,
   },
   safetyInfoContainer: {
-    marginTop: 16,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    marginTop: theme.spacingL,
+    padding: theme.spacingM,
+    borderRadius: theme.radiusMedium,
+    backgroundColor: theme.overlayLight,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     width: "100%",
   },
   safetyInfoText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 14,
     textAlign: "center",
   },
