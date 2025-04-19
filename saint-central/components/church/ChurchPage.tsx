@@ -729,12 +729,90 @@ export default function ChurchPage({ church, member, userData }: Props) {
             {activeTab === "Ministries" && <MinistriesTab />}
 
             {activeTab === "Community" && (
-              <View style={styles.comingSoonContainer}>
-                <FontAwesome5 name="users" size={42} color={theme.primary} />
-                <Text style={styles.comingSoonTitle}>Community Coming Soon</Text>
-                <Text style={styles.comingSoonText}>
-                  Connect with our community members and join discussions
-                </Text>
+              <View style={styles.communityButtonsContainer}>
+                {/* Community Members Button */}
+                <TouchableOpacity 
+                  style={styles.prayerCard}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    // Navigate to community members section
+                    router.push({
+                      pathname: "/churchcommunity",
+                      params: { churchId: church.id }
+                    });
+                  }}
+                >
+                  <View style={styles.prayerCardContent}>
+                    <View style={styles.communityImageContainer}>
+                      <Image 
+                        source={require("../../assets/images/community-members.jpg")} 
+                        style={styles.communityImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <View style={styles.communityDetailsContainer}>
+                      <Text style={styles.communityCardTitle}>Community Members</Text>
+                      <Text style={styles.communityCardDescription}>
+                        Connect with our church family and discover ways to get involved.
+                      </Text>
+                      <TouchableOpacity style={styles.communityButton}>
+                        <LinearGradient
+                          colors={[theme.primary, theme.primary]}
+                          style={styles.communityButtonGradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                        >
+                          <Text style={styles.communityButtonText}>Enter Community</Text>
+                          <View style={styles.arrowContainer}>
+                            <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Prayer Intentions Button */}
+                <TouchableOpacity 
+                  style={styles.communityCard}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    // Navigate to prayer intentions section
+                    router.push({
+                      pathname: "/churchIntentions",
+                      params: { churchId: church.id }
+                    });
+                  }}
+                >
+                  <View style={styles.communityCardContent}>
+                    <View style={styles.communityImageContainer}>
+                      <Image 
+                        source={require("../../assets/images/prayer-intentions.jpg")} 
+                        style={styles.communityImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <View style={styles.communityDetailsContainer}>
+                      <Text style={styles.prayerCardTitle}>Prayer Intentions</Text>
+                      <Text style={styles.prayerCardDescription}>
+                        Share your prayer intentions, pray for others, and see how our community supports one another through faith.
+                      </Text>
+                      <TouchableOpacity style={styles.communityButton}>
+                        <LinearGradient
+                          colors={[theme.secondary, theme.secondary]}
+                          style={styles.prayerButtonGradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                        >
+                          <Text style={styles.prayerButtonText}>View Prayer Intentions</Text>
+                          <View style={styles.arrowContainer}>
+                            <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -943,26 +1021,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: theme.fontSemiBold,
     fontSize: 14,
-  },
-  comingSoonContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: theme.spacingXL,
-    marginTop: theme.spacing2XL,
-  },
-  comingSoonTitle: {
-    fontSize: 20,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginTop: theme.spacingL,
-    marginBottom: theme.spacingS,
-  },
-  comingSoonText: {
-    fontSize: 16,
-    fontWeight: theme.fontRegular,
-    color: theme.textMedium,
-    textAlign: "center",
-    lineHeight: 24,
   },
 
   // Section headers
@@ -1202,5 +1260,103 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: theme.fontSemiBold,
     fontSize: 12,
+  },
+
+  // COMMUNITY TAB STYLING
+  communityButtonsContainer: {
+    paddingVertical: theme.spacingL,
+    gap: 16,
+  },
+  communityCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: theme.neutral200,
+    marginBottom: 12,
+    ...theme.shadowLight,
+  },
+  prayerCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: theme.neutral200,
+    marginBottom: 16,
+    ...theme.shadowLight,
+  },
+  communityCardContent: {
+    flexDirection: "row",
+    height: 180,
+  },
+  prayerCardContent: {
+    flexDirection: "row",
+    height: 200,
+  },
+  communityImageContainer: {
+    width: "40%",
+    overflow: "hidden",
+  },
+  communityImage: {
+    width: "100%",
+    height: "100%",
+  },
+  communityDetailsContainer: {
+    flex: 1,
+    padding: theme.spacingM,
+    justifyContent: "space-between",
+  },
+  communityCardTitle: {
+    fontSize: 24,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginBottom: 8,
+  },
+  prayerCardTitle: {
+    fontSize: 24,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
+    marginBottom: 12,
+  },
+  communityCardDescription: {
+    fontSize: 14,
+    color: theme.textMedium,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  prayerCardDescription: {
+    fontSize: 14,
+    color: theme.textMedium,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  communityButton: {
+    alignSelf: "flex-start",
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  communityButtonGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.radiusMedium,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  prayerButtonGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.radiusMedium,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  communityButtonText: {
+    color: "#FFFFFF",
+    fontWeight: theme.fontSemiBold,
+    fontSize: 12,
+  },
+  prayerButtonText: {
+    color: "#FFFFFF",
+    fontWeight: theme.fontSemiBold,
+    fontSize: 14,
   },
 });
