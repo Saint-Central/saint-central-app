@@ -779,7 +779,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
                   onPress={() => {
                     // Navigate to prayer intentions section
                     router.push({
-                      pathname: "/churchIntentions",
+                      pathname: "/(tabs)/Prayer/churchIntentions",
                       params: { churchId: church.id }
                     });
                   }}
