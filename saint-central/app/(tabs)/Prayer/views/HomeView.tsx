@@ -7,10 +7,10 @@ import { styles } from "../styles";
 
 interface HomeViewProps {
   navigateToChurches: () => void;
-  navigateToIntentions: () => void;
+  navigateToGroups: () => void;
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ navigateToChurches, navigateToIntentions }) => {
+const HomeView: React.FC<HomeViewProps> = ({ navigateToChurches, navigateToGroups }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -39,29 +39,16 @@ const HomeView: React.FC<HomeViewProps> = ({ navigateToChurches, navigateToInten
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.featureCard} onPress={navigateToIntentions}>
-            <LinearGradient
-              colors={["#4361EE", "#3A86FF"]}
-              style={styles.iconContainer}
-            >
-              <FontAwesome5 name="praying-hands" size={24} color="#FFFFFF" />
-            </LinearGradient>
-            <Text style={styles.featureTitle}>Prayer Intentions</Text>
-            <Text style={styles.featureDescription}>
-              Share and pray for intentions with your church
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.featureCard}>
+          <TouchableOpacity style={styles.featureCard} onPress={navigateToGroups}>
             <LinearGradient
               colors={["#3A86FF", "#4361EE"]}
               style={styles.iconContainer}
             >
               <Feather name="users" size={24} color="#FFFFFF" />
             </LinearGradient>
-            <Text style={styles.featureTitle}>Community</Text>
+            <Text style={styles.featureTitle}>Groups</Text>
             <Text style={styles.featureDescription}>
-              Connect with other members of your faith community
+              Connect with your church groups and ministries
             </Text>
           </TouchableOpacity>
         </View>

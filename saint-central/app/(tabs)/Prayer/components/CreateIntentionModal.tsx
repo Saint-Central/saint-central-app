@@ -69,7 +69,7 @@ const CreateIntentionModal: React.FC<CreateIntentionModalProps> = ({
           {showName 
             ? `${member.user?.first_name || ''} ${member.user?.last_name || ''}`.trim() 
             : "Anonymous Member"}
-          {isCurrentUser && " (You)"}
+          {isCurrentUser && <Text> (You)</Text>}
         </Text>
       </TouchableOpacity>
     );
@@ -193,14 +193,6 @@ const CreateIntentionModal: React.FC<CreateIntentionModalProps> = ({
                           setNewIntention({
                             ...newIntention,
                             visibility: option.label as VisibilityType,
-                            selected_groups:
-                              option.label === "Certain Groups"
-                                ? newIntention.selected_groups
-                                : [],
-                            selected_friends:
-                              option.label === "Certain Members"
-                                ? newIntention.selected_friends
-                                : [],
                           });
                           setShowVisibilityDropdownNew(false);
                         }}
@@ -211,60 +203,6 @@ const CreateIntentionModal: React.FC<CreateIntentionModalProps> = ({
                         </View>
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
-                
-                {/* Group selection section */}
-                {newIntention.visibility === "Certain Groups" && (
-                  <View style={styles.groupSelectorContainer}>
-                    <Text style={styles.groupSelectorLabel}>Select Groups:</Text>
-                    <View style={styles.groupSelectorList}>
-                      {churchGroups.length === 0 ? (
-                        <Text style={styles.noGroupsText}>No groups available</Text>
-                      ) : (
-                        churchGroups.map((group) => (
-                          <TouchableOpacity
-                            key={group.id}
-                            style={[
-                              styles.groupOption,
-                              newIntention.selected_groups.includes(group.id)
-                                ? styles.groupOptionSelected
-                                : null,
-                            ]}
-                            onPress={() => toggleNewGroupSelection(group.id)}
-                          >
-                            <Text style={styles.groupOptionText}>{group.name}</Text>
-                          </TouchableOpacity>
-                        ))
-                      )}
-                    </View>
-                  </View>
-                )}
-                
-                {/* Member selection section */}
-                {newIntention.visibility === "Certain Members" && (
-                  <View style={styles.memberSelectorContainer}>
-                    <Text style={styles.memberSelectorLabel}>
-                      Select Members ({churchMembers.length})
-                    </Text>
-                    <ScrollView
-                      style={styles.memberSelectorList}
-                      contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
-                      showsVerticalScrollIndicator={true}
-                    >
-                      {churchMembers.length === 0 ? (
-                        <Text style={styles.noMembersText}>
-                          No members found. Please select a different visibility option.
-                        </Text>
-                      ) : (
-                        churchMembers.map((member) => (
-                          renderMemberOption(
-                            member,
-                            newIntention.selected_friends.includes(member.user_id)
-                          )
-                        ))
-                      )}
-                    </ScrollView>
                   </View>
                 )}
               </View>

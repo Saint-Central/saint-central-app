@@ -220,7 +220,27 @@ const CreateMinistryScreen = (): JSX.Element => {
         throw ministryError;
       }
       
-      // Add creator as member 
+      // Create a group for the ministry
+      const { data: newGroup, error: groupError } = await supabase
+        .from("groups")
+        .insert({
+          name: `${ministryData.name} Group`,
+          description: `Official group for ${ministryData.name} ministry`,
+          created_at: new Date().toISOString(),
+          created_by: userId,
+          church_id: churchId,
+          ministry_id: newMinistry.id,
+          is_system_generated: true
+        })
+        .select()
+        .single();
+
+      if (groupError) {
+        console.error("Error creating group for ministry:", groupError);
+        // Continue anyway - we'll at least have the ministry
+      }
+
+      // Add creator as member of both ministry and group
       const { error: memberError } = await supabase
         .from("ministry_members")
         .insert({
@@ -230,6 +250,21 @@ const CreateMinistryScreen = (): JSX.Element => {
           joined_at: new Date().toISOString(),
           member_status: 'leader'
         });
+
+      if (newGroup) {
+        const { error: groupMemberError } = await supabase
+          .from("group_members")
+          .insert({
+            group_id: newGroup.id,
+            user_id: userId,
+            role: 'admin',
+            joined_at: new Date().toISOString()
+          });
+
+        if (groupMemberError) {
+          console.error("Error adding creator as group member:", groupMemberError);
+        }
+      }
         
       if (memberError) {
         console.error("Error adding creator as member:", memberError);
@@ -241,7 +276,7 @@ const CreateMinistryScreen = (): JSX.Element => {
         );
       } else {
         // Success message
-        Alert.alert("Success", "Ministry created successfully!");
+        Alert.alert("Success", "Ministry and associated group created successfully!");
       }
       
       // Navigate to the ministries screen

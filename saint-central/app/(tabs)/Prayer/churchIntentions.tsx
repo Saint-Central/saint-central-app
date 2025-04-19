@@ -174,20 +174,36 @@ export default function ChurchIntentions() {
   }, [showFilterDropdown]);
 
   useEffect(() => {
-    if (currentView === "intentions" && selectedChurch) {
-      fetchIntentions();
-      fetchChurchMembers();
-      fetchChurchGroups();
+    if (selectedChurch && currentView === "intentions") {
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          await Promise.all([
+            fetchIntentions(),
+            fetchChurchMembers(),
+            fetchChurchGroups()
+          ]);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          setNotification({
+            message: "Error fetching data",
+            type: "error"
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchData();
     }
-  }, [currentView, selectedChurch, intentionsFilter]);
+  }, [selectedChurch, currentView, intentionsFilter]);
 
   // When selecting a church, update related state
   useEffect(() => {
     if (selectedChurch) {
-      setNewIntention({
-        ...newIntention,
-        selected_church: selectedChurch.id,
-      });
+      setNewIntention(prev => ({
+        ...prev,
+        selected_church: selectedChurch.id
+      }));
     }
   }, [selectedChurch]);
 
@@ -302,7 +318,10 @@ export default function ChurchIntentions() {
 
   const fetchChurchMembers = async () => {
     try {
-      if (!selectedChurch) return;
+      if (!selectedChurch?.id) {
+        console.log('No church selected, skipping member fetch');
+        return;
+      }
 
       const { data, error } = await supabase
         .from("church_members")
@@ -313,7 +332,7 @@ export default function ChurchIntentions() {
           hide_email,
           hide_name,
           hide_phone,
-          created_at,
+          joined_at,
           users (
             id,
             email,
@@ -337,7 +356,7 @@ export default function ChurchIntentions() {
           hide_email: item.hide_email,
           hide_name: item.hide_name,
           hide_phone: item.hide_phone,
-          created_at: item.created_at,
+          joined_at: item.joined_at,
           user: item.users ? {
             id: item.users.id,
             email: item.users.email,
@@ -351,12 +370,19 @@ export default function ChurchIntentions() {
       }
     } catch (error) {
       console.error('Error fetching members:', error);
+      setNotification({
+        message: "Error fetching members: " + (error instanceof Error ? error.message : String(error)),
+        type: "error",
+      });
     }
   };
 
   const fetchChurchGroups = async () => {
     try {
-      if (!selectedChurch) return;
+      if (!selectedChurch?.id) {
+        console.log('No church selected, skipping groups fetch');
+        return;
+      }
       
       const { data, error } = await supabase
         .from("groups")
@@ -367,18 +393,25 @@ export default function ChurchIntentions() {
       setChurchGroups(data || []);
     } catch (error) {
       console.error("Error fetching church groups:", error);
+      setNotification({
+        message: "Error fetching groups: " + (error instanceof Error ? error.message : String(error)),
+        type: "error",
+      });
     }
   };
 
   const fetchIntentions = async () => {
     try {
-      if (!selectedChurch) return;
+      if (!selectedChurch?.id) {
+        console.log('No church selected, skipping intentions fetch');
+        return;
+      }
       
       setIsLoading(true);
       
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
-      if (!user) throw new Error("Not authenticated");
+      if (!user?.id) throw new Error("Not authenticated");
       
       // Base query for intentions
       let query = supabase
@@ -476,8 +509,8 @@ export default function ChurchIntentions() {
 
           return {
             ...intention,
-            likes_count: likesCount,
-            comments_count: commentsCount,
+            likes_count: likesCount || 0,
+            comments_count: commentsCount || 0,
             is_liked: !!userLike,
             selected_groups: parseSelectedGroups(intention.selected_groups),
             selected_friends: parseSelectedMembers(intention.selected_friends),
@@ -761,8 +794,14 @@ export default function ChurchIntentions() {
         return;
       }
 
+      if (!currentUserId) {
+        Alert.alert('Error', 'You must be logged in to create an intention');
+        return;
+      }
+
       const intentionData = {
         ...newIntention,
+        user_id: currentUserId,
         type: newIntention.type as IntentionType,
         visibility: newIntention.visibility as VisibilityType,
         selected_church: selectedChurch?.id || null,
@@ -850,22 +889,39 @@ export default function ChurchIntentions() {
     setCurrentView("churches");
   };
 
-  const navigateToChurchDetails = (church: Church) => {
-    setSelectedChurch(church);
-    fetchChurchDetails(church.id);
-    setCurrentView("churchDetails");
+  const navigateToChurchDetails = async (church: Church) => {
+    try {
+      setIsLoading(true);
+      await fetchChurchDetails(church.id);
+      setSelectedChurch(church);
+      setCurrentView("churchDetails");
+    } catch (error) {
+      console.error("Error navigating to church details:", error);
+      setNotification({
+        message: "Error loading church details",
+        type: "error"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const navigateToIntentions = (church?: Church) => {
-    if (church) {
-      setSelectedChurch(church);
+  const navigateToIntentions = async (church?: Church) => {
+    try {
+      if (church) {
+        setIsLoading(true);
+        await fetchChurchDetails(church.id);
+        setSelectedChurch(church);
+      }
       setCurrentView("intentions");
-      setNewIntention(prev => ({
-        ...prev,
-        selected_church: church.id
-      }));
-    } else {
-      setCurrentView("intentions");
+    } catch (error) {
+      console.error("Error navigating to intentions:", error);
+      setNotification({
+        message: "Error loading intentions",
+        type: "error"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -874,6 +930,10 @@ export default function ChurchIntentions() {
     if (intention) {
       handleDeleteIntention(intention);
     }
+  };
+
+  const navigateToGroups = () => {
+    setCurrentView('groups');
   };
 
   // Main render based on current view
@@ -971,7 +1031,8 @@ export default function ChurchIntentions() {
       return (
         <HomeView
           navigateToChurches={navigateToChurches}
-          navigateToIntentions={navigateToIntentions}
+          navigateToGroups={navigateToGroups}
+          // navigateToIntentions prop removed
         />
       );
   }

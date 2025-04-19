@@ -28,7 +28,7 @@ export interface UserData {
     hide_email: boolean;
     hide_name: boolean;
     hide_phone: boolean;
-    created_at: string;
+    joined_at: string;
     user?: {
       id: string;
       email: string;
@@ -47,7 +47,7 @@ export interface UserData {
     hide_email: boolean;
     hide_name: boolean;
     hide_phone: boolean;
-    created_at: string;
+    joined_at: string;
     users: {
       id: string;
       email: string;
@@ -135,7 +135,7 @@ export interface UserData {
     | "personal"
     | "other";
   
-  export type VisibilityType = "Church" | "Certain Groups" | "Just Me" | "Certain Members";
+  export type VisibilityType = "Church" | "Just Me";
   
   export interface Notification {
     message: string;
@@ -154,4 +154,4 @@ export interface UserData {
   }
   
   // Define the views/screens for navigation
-  export type AppView = "home" | "churches" | "churchDetails" | "intentions";
+  export type AppView = "home" | "churches" | "churchDetails" | "intentions" | "groups";

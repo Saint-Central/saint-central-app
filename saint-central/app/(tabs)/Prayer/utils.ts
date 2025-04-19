@@ -43,14 +43,6 @@ export const VISIBILITY_OPTIONS = [
     iconName: "home", // Feather icon name
   },
   {
-    label: "Certain Groups",
-    iconName: "users", // Feather icon name
-  },
-  {
-    label: "Certain Members",
-    iconName: "user-check", // Feather icon name
-  },
-  {
     label: "Just Me",
     iconName: "user", // Feather icon name
   },
