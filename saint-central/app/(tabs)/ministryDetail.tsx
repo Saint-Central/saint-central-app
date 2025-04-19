@@ -30,11 +30,6 @@ import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from "@
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  scheduleLocalNotification,
-  sendMinistryNotification,
-  setupMinistryMessagesListener,
-} from "../../utils/notifications";
 
 // Interface definitions
 interface Ministry {
@@ -610,7 +605,7 @@ export default function MinistryDetails(): JSX.Element {
     }).start();
   }, [ministryId]);
 
-  // Set up real-time subscription and app state handlers
+  // Set up real-time subscription to messages with better error handling
   useEffect(() => {
     let isComponentMounted = true;
 
@@ -638,8 +633,8 @@ export default function MinistryDetails(): JSX.Element {
         }
       });
 
-    // Set up notifications for this ministry when component mounts
-    const notificationCleanup = setupMinistryMessagesListener([ministryId]);
+    // We're using the edge function for notifications instead of real-time listeners
+    // This prevents double notifications
 
     // Handle app going to background/foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
@@ -716,11 +711,6 @@ export default function MinistryDetails(): JSX.Element {
         supabase.removeChannel(messageSubscription);
       } catch (error) {
         console.error("Error removing subscription:", error);
-      }
-
-      // Clean up notification listener
-      if (notificationCleanup) {
-        notificationCleanup();
       }
 
       if (appStateSubscription && appStateSubscription.remove) {
@@ -1192,6 +1182,28 @@ export default function MinistryDetails(): JSX.Element {
     }
   }
 
+  // Function to trigger the ministry-notifications edge function with specific message ID
+  async function triggerNotificationsEdgeFunction(messageId: number): Promise<void> {
+    try {
+      const { data, error } = await supabase.functions.invoke("ministry-notifications", {
+        method: "POST",
+        body: {
+          source: "app",
+          ministryId: ministryId,
+          messageId: messageId, // Pass the specific message ID
+        },
+      });
+
+      if (error) {
+        console.error("Error triggering notifications edge function:", error);
+      } else {
+        console.log("Notifications edge function triggered for message:", messageId, data);
+      }
+    } catch (error) {
+      console.error("Exception triggering notifications edge function:", error);
+    }
+  }
+
   // Improved send message function with temporary state handling and notification
   async function sendMessage(): Promise<void> {
     if (!newMessage.trim() || !isMember) return;
@@ -1242,6 +1254,7 @@ export default function MinistryDetails(): JSX.Element {
           ministry_id: ministryId,
           user_id: user.id,
           message_text: messageText,
+          push_sent: false, // Setting to false so the edge function can handle it
         })
         .select();
 
@@ -1293,65 +1306,19 @@ export default function MinistryDetails(): JSX.Element {
           (err) => console.error("Cache update error:", err),
         );
 
-        // Send a notification for the ministry when a message is sent
-        if (ministry?.name) {
+        // Trigger notification for the specific message that was just sent
+        if (ministry?.name && data[0].id) {
           try {
-            // Local notification test removed - we now use the real notification system
-
-            // Send notification to other members (this would trigger push notifications via your backend)
-            await sendMinistryNotification(
-              ministryId,
-              `New message in ${ministry.name}`,
-              `${currentUser?.first_name || "Someone"}: ${messageText}`,
-            );
-
-            // Test direct notification to Supabase
-            await testDirectNotification(messageText);
+            // Pass the specific message ID to the edge function
+            await triggerNotificationsEdgeFunction(data[0].id);
           } catch (notifError) {
-            console.error("Error sending notification:", notifError);
+            console.error("Error triggering notification:", notifError);
           }
         }
       }
     } catch (error) {
       console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message");
-    }
-  }
-
-  // Add test function for direct Supabase notifications
-  async function testDirectNotification(messageText: string): Promise<void> {
-    try {
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.error("Error getting user:", userError);
-        return;
-      }
-
-      // Insert directly into ministry_notifications table
-      const { data, error } = await supabase
-        .from("ministry_notifications")
-        .insert({
-          ministry_id: ministryId,
-          sender_id: user.id,
-          title: `New message in ${ministry?.name || "ministry"}`,
-          message: `${currentUser?.first_name || "Someone"}: ${messageText}`,
-        })
-        .select();
-
-      if (error) {
-        console.error("Error creating notification:", error);
-        Alert.alert("Notification Error", error.message);
-      } else {
-        console.log("Notification sent successfully:", data);
-      }
-    } catch (error) {
-      console.error("Error in testDirectNotification:", error);
-      Alert.alert("Error", "Failed to send test notification");
     }
   }
 
