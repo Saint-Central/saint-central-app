@@ -304,25 +304,25 @@ const MessageItem = ({
 
 const MemoizedMessageItem = React.memo(MessageItem);
 
-// Create a memoized date divider component with Reanimated
+// Create a memoized date divider component with simplified rendering
 const DateDivider = ({ date }: { date: string }) => (
-  <Animated.View entering={FadeIn.duration(400)} style={styles.dateDividerContainer}>
+  <View style={styles.dateDividerContainer}>
     <View style={styles.dateDividerLine} />
-    <Animated.View style={styles.dateDividerTextContainer} entering={ZoomIn.duration(400)}>
+    <View style={styles.dateDividerTextContainer}>
       <Text style={styles.dateDividerText}>{formatMessageDate(date)}</Text>
-    </Animated.View>
+    </View>
     <View style={styles.dateDividerLine} />
-  </Animated.View>
+  </View>
 );
 
 const MemoizedDateDivider = React.memo(DateDivider);
 
 // Create load more header component with Reanimated
 const LoadingHeader = React.memo(() => (
-  <Animated.View entering={FadeIn.duration(300)} style={styles.loadMoreHeader}>
+  <View style={styles.loadMoreHeader}>
     <ActivityIndicator size="small" color={theme.primary} />
     <Text style={styles.loadMoreText}>Loading older messages...</Text>
-  </Animated.View>
+  </View>
 ));
 
 // Optimized Message Input Area Component
@@ -673,30 +673,44 @@ export default function MinistryDetails(): JSX.Element {
     };
   });
 
-  // Scroll handler for animations
+  // Scroll handler for animations - simplified version
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
+      // Only update scrollY for header animations
       scrollY.value = event.contentOffset.y;
-
-      // Check if we're at the top of the list for loading more
-      if (
-        event.contentOffset.y < 50 &&
-        !isLoadingMore &&
-        !allMessagesLoaded &&
-        messages.length >= 20
-      ) {
-        loadMoreAnim.value = withTiming(1, { duration: 300 });
-        runOnJS(handleLoadMoreMessages)();
-      }
     },
   });
 
-  // Function to load more messages
+  // Separate function for handling scroll to load more
+  const handleScroll = useCallback(
+    (event: any) => {
+      const offsetY = event.nativeEvent.contentOffset.y;
+
+      // Only attempt to load more if we're near the top, not already loading, and have more to load
+      if (
+        offsetY < 50 && // Increased threshold from 20 to 50 pixels
+        !isLoadingMore &&
+        !messageLoading &&
+        !allMessagesLoaded &&
+        messages.length >= 10 // Reduced threshold to trigger loading sooner
+      ) {
+        // Set loading state immediately to prevent multiple calls
+        setIsLoadingMore(true);
+        // Safe delay before actual loading
+        setTimeout(() => {
+          fetchMessages(true);
+        }, 100);
+      }
+    },
+    [isLoadingMore, messageLoading, allMessagesLoaded, messages.length],
+  );
+
+  // Function to load more messages - simplified
   const handleLoadMoreMessages = useCallback(() => {
-    if (!isLoadingMore && !allMessagesLoaded) {
+    if (!isLoadingMore && !allMessagesLoaded && !messageLoading) {
       fetchMessages(true);
     }
-  }, [isLoadingMore, allMessagesLoaded]);
+  }, [isLoadingMore, allMessagesLoaded, messageLoading]);
 
   // Enhanced keyboard handling function
   const handleKeyboardAnimation = useCallback(() => {
@@ -1160,184 +1174,304 @@ export default function MinistryDetails(): JSX.Element {
     }
   }
 
-  // Optimized message fetching with pagination and cache
+  // Optimized message fetching with pagination and cache - completely rewritten for stability
   async function fetchMessages(loadOlder: boolean = false): Promise<void> {
     try {
-      if (loadOlder && allMessagesLoaded) {
-        console.log("All messages already loaded");
-        loadMoreAnim.value = withTiming(0, { duration: 300 });
+      // Prevent duplicate loading
+      if (loadOlder && isLoadingMore) {
+        console.log("Already loading older messages");
         return;
       }
 
+      if (!loadOlder && messageLoading) {
+        console.log("Already loading initial messages");
+        return;
+      }
+
+      // Don't automatically assume all messages are loaded - removed allMessagesLoaded check
+
+      // Set loading state
       if (loadOlder) {
+        console.log("Setting isLoadingMore to true");
         setIsLoadingMore(true);
-        loadMoreAnim.value = withTiming(1, { duration: 300 });
       } else {
         setMessageLoading(true);
       }
 
-      // Keep track of current messages if loading older messages
-      const currentMessages = loadOlder ? [...messages] : [];
+      console.log(
+        `Fetching ${loadOlder ? "older" : "initial"} messages from timestamp: ${oldestMessageTimestamp || "none"}`,
+      );
 
-      // Determine the query parameters
-      let query = supabase
-        .from("ministry_messages")
-        .select("*")
-        .eq("ministry_id", ministryId)
-        .order("sent_at", { ascending: false }) // Newest first for efficient pagination
-        .limit(20); // Load 20 messages at a time
+      // Get existing messages for reference
+      const currentMessages = [...messages];
 
-      // If loading older messages, use the oldest message timestamp as a cursor
-      if (loadOlder && oldestMessageTimestamp) {
-        query = query.lt("sent_at", oldestMessageTimestamp);
-      }
+      try {
+        // Build query
+        let query = supabase
+          .from("ministry_messages")
+          .select("*")
+          .eq("ministry_id", ministryId)
+          .order("sent_at", { ascending: false })
+          .limit(20); // Increased from 10 to 20 for better pagination
 
-      // Execute the query
-      const { data: messagesData, error: messagesError } = await query;
-
-      if (messagesError) {
-        console.error("Error fetching messages:", messagesError);
-        throw messagesError;
-      }
-
-      // Check if we've loaded all messages
-      if (!messagesData || messagesData.length === 0) {
-        if (loadOlder) {
-          setAllMessagesLoaded(true);
-          loadMoreAnim.value = withTiming(0, { duration: 300 });
-          setIsLoadingMore(false);
-        } else {
-          setMessages([]);
+        // If loading older messages, use the oldest timestamp as reference
+        if (loadOlder && oldestMessageTimestamp) {
+          console.log(`Using timestamp for pagination: ${oldestMessageTimestamp}`);
+          query = query.lt("sent_at", oldestMessageTimestamp);
         }
-        setMessageLoading(false);
+
+        // Execute the query
+        const { data: messagesData, error: messagesError } = await query;
+
+        // Handle errors
+        if (messagesError) {
+          console.error("Error fetching messages:", messagesError);
+          if (loadOlder) setIsLoadingMore(false);
+          else setMessageLoading(false);
+          return;
+        }
+
+        // Check if we got any messages
+        if (!messagesData || messagesData.length === 0) {
+          console.log("No messages found or reached the end");
+          if (loadOlder) setAllMessagesLoaded(true);
+          if (loadOlder) setIsLoadingMore(false);
+          else setMessageLoading(false);
+          return;
+        }
+
+        console.log(`Got ${messagesData.length} messages from server`);
+
+        // Sort messages newest to oldest
+        const sortedMessages = [...messagesData];
+
+        // Update the oldest message timestamp for pagination
+        if (sortedMessages.length > 0) {
+          const oldestMessage = sortedMessages[sortedMessages.length - 1];
+          console.log(`Setting new oldest timestamp: ${oldestMessage.sent_at}`);
+          setOldestMessageTimestamp(oldestMessage.sent_at);
+        }
+
+        // Get user IDs from messages
+        const userIds = [...new Set(messagesData.map((msg) => msg.user_id))];
+
+        // Fetch user data if we have user IDs
+        if (userIds.length > 0) {
+          try {
+            const { data: usersData } = await supabase.from("users").select("*").in("id", userIds);
+
+            // Create user map
+            const userMap: { [key: string]: User } = {};
+            if (usersData) {
+              usersData.forEach((user) => {
+                userMap[user.id] = user;
+              });
+            }
+
+            // Add users to state
+            setUsers((prev) => ({ ...prev, ...userMap }));
+
+            // Process messages with user data
+            const processedMessages = sortedMessages
+              .map((message) => ({
+                ...message,
+                user: userMap[message.user_id] || users[message.user_id],
+                _status: "sent",
+              }))
+              .reverse(); // Reverse for chronological order
+
+            // Update state with the processed messages
+            if (loadOlder) {
+              // Filter out duplicates for older messages
+              const existingIds = new Set(currentMessages.map((msg) => msg.id));
+              const uniqueMessages = processedMessages.filter((msg) => !existingIds.has(msg.id));
+
+              console.log(`Adding ${uniqueMessages.length} new messages to the beginning`);
+
+              if (uniqueMessages.length === 0) {
+                // No new unique messages found
+                // Don't mark as all loaded yet, might be a temporary issue
+                // Only set allMessagesLoaded if we got fewer than the max messages
+                if (sortedMessages.length < 20) {
+                  console.log(
+                    "No new unique messages and got fewer than requested, marking as all loaded",
+                  );
+                  setAllMessagesLoaded(true);
+                } else {
+                  // We need to adjust the timestamp to skip duplicates
+                  console.log(
+                    "Got duplicates but full batch size - adjusting timestamp and trying again",
+                  );
+                  if (oldestMessageTimestamp) {
+                    const adjustedDate = new Date(oldestMessageTimestamp);
+                    adjustedDate.setMilliseconds(adjustedDate.getMilliseconds() - 10); // Go back 10ms to avoid timestamp collision
+                    setOldestMessageTimestamp(adjustedDate.toISOString());
+                  }
+                }
+                setIsLoadingMore(false);
+              } else {
+                // Update state with new messages at the beginning
+                setMessages((prev) => {
+                  const newMessages = [...uniqueMessages, ...prev];
+
+                  // Update cache after state update
+                  AsyncStorage.setItem(
+                    MESSAGES_CACHE_KEY(ministryId),
+                    JSON.stringify(newMessages),
+                  ).catch((err) => console.error("Cache error:", err));
+
+                  return newMessages;
+                });
+
+                // If we got fewer messages than the limit, we might be at the end
+                if (sortedMessages.length < 20) {
+                  console.log("Got fewer messages than requested limit, likely at the end");
+                  setAllMessagesLoaded(true);
+                }
+
+                // Reset loading state after successful update
+                setTimeout(() => {
+                  setIsLoadingMore(false);
+                }, 300);
+              }
+            } else {
+              // For initial load, just replace all messages
+              setMessages(processedMessages);
+
+              // Reset allMessagesLoaded for initial load
+              setAllMessagesLoaded(false);
+
+              // Update cache
+              AsyncStorage.setItem(
+                MESSAGES_CACHE_KEY(ministryId),
+                JSON.stringify(processedMessages),
+              ).catch((err) => console.error("Cache error:", err));
+
+              // Reset loading state and scroll to bottom
+              setTimeout(() => {
+                setMessageLoading(false);
+                if (messageListRef.current) {
+                  messageListRef.current.scrollToEnd({ animated: false });
+                }
+              }, 200);
+            }
+          } catch (userError) {
+            console.error("Error fetching users:", userError);
+            // Handle error case
+            if (loadOlder) setIsLoadingMore(false);
+            else setMessageLoading(false);
+          }
+        } else {
+          // No user IDs, just process messages
+          const simpleMessages = sortedMessages
+            .map((message) => ({
+              ...message,
+              _status: "sent",
+            }))
+            .reverse();
+
+          if (loadOlder) {
+            // Add to beginning after filtering duplicates
+            const existingIds = new Set(currentMessages.map((msg) => msg.id));
+            const uniqueMessages = simpleMessages.filter((msg) => !existingIds.has(msg.id));
+
+            if (uniqueMessages.length > 0) {
+              setMessages((prev) => [...uniqueMessages, ...prev]);
+
+              // Only mark all loaded if we got fewer than requested
+              if (sortedMessages.length < 20) {
+                setAllMessagesLoaded(true);
+              }
+            } else if (sortedMessages.length < 20) {
+              setAllMessagesLoaded(true);
+            }
+
+            setIsLoadingMore(false);
+          } else {
+            // Replace all
+            setMessages(simpleMessages);
+            setAllMessagesLoaded(false);
+            setMessageLoading(false);
+          }
+        }
+      } catch (innerError) {
+        console.error("Error in message processing:", innerError);
+        if (loadOlder) setIsLoadingMore(false);
+        else setMessageLoading(false);
+      }
+    } catch (error) {
+      console.error("Error in fetchMessages:", error);
+      if (loadOlder) setIsLoadingMore(false);
+      else setMessageLoading(false);
+    }
+  }
+
+  // Safe helper for handling older messages
+  const handleOlderMessages = (newMessages: Message[], currentMessages: Message[]) => {
+    try {
+      // Check for duplicate messages
+      const existingIds = new Set(currentMessages.map((msg) => msg.id));
+      const uniqueNewMessages = newMessages.filter((msg) => !existingIds.has(msg.id));
+
+      if (uniqueNewMessages.length === 0) {
+        console.log("No new unique messages found");
+        setAllMessagesLoaded(true);
+        setIsLoadingMore(false);
         return;
       }
 
-      // Sort messages newest to oldest for processing
-      const sortedMessages = [...messagesData].sort(
-        (a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime(),
+      console.log(`Adding ${uniqueNewMessages.length} older messages`);
+
+      // Update messages with a delay
+      setTimeout(() => {
+        setMessages((prev) => {
+          const updatedMessages = [...uniqueNewMessages, ...prev];
+
+          // Cache messages
+          AsyncStorage.setItem(
+            MESSAGES_CACHE_KEY(ministryId),
+            JSON.stringify(updatedMessages),
+          ).catch((err) => console.error("Cache error:", err));
+
+          return updatedMessages;
+        });
+
+        // Clear loading state after update
+        setIsLoadingMore(false);
+      }, 300);
+    } catch (error) {
+      console.error("Error handling older messages:", error);
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Safe helper for handling initial messages
+  const handleInitialMessages = (messages: Message[]) => {
+    try {
+      // Set initial messages
+      setMessages(messages);
+
+      // Cache messages
+      AsyncStorage.setItem(MESSAGES_CACHE_KEY(ministryId), JSON.stringify(messages)).catch((err) =>
+        console.error("Cache error:", err),
       );
 
-      // Update the oldest message timestamp for next pagination
-      if (sortedMessages.length > 0) {
-        const oldestMessage = sortedMessages[sortedMessages.length - 1];
-        setOldestMessageTimestamp(oldestMessage.sent_at);
-      }
+      // Clear loading state after update
+      setTimeout(() => {
+        setMessageLoading(false);
 
-      // Get unique user IDs from messages
-      const userIds = [...new Set(messagesData.map((msg) => msg.user_id))];
-
-      // Fetch user details for all message authors
-      if (userIds.length > 0) {
-        const { data: usersData, error: usersError } = await supabase
-          .from("users")
-          .select("*")
-          .in("id", userIds);
-
-        if (usersError) {
-          console.error("Error fetching users:", usersError);
-        } else {
-          // Create a map of user IDs to user objects
-          const userMap =
-            usersData?.reduce(
-              (acc, user) => {
-                acc[user.id] = user;
-                return acc;
-              },
-              {} as { [key: string]: User },
-            ) || {};
-
-          // Update the users state with new users
-          setUsers((prevUsers) => ({
-            ...prevUsers,
-            ...userMap,
-          }));
-
-          // Attach user data to messages and reverse to chronological order for display
-          const messagesWithUsers = sortedMessages
-            .map((message) => ({
-              ...message,
-              user: userMap[message.user_id] || users[message.user_id],
-              _status: "sent" as "sending" | "sent" | "error",
-            }))
-            .reverse(); // Reverse back to chronological order for display
-
-          // If loading older messages, append to the beginning
-          if (loadOlder) {
-            // Check for duplicate messages
-            const existingIds = new Set(currentMessages.map((msg) => msg.id));
-            const uniqueNewMessages = messagesWithUsers.filter((msg) => !existingIds.has(msg.id));
-
-            // Combine with existing messages, placing older messages at the beginning
-            const combinedMessages = [...uniqueNewMessages, ...currentMessages];
-
-            // Update state directly without setTimeout
-            setMessages(combinedMessages);
-
-            // Update cache
-            AsyncStorage.setItem(
-              MESSAGES_CACHE_KEY(ministryId),
-              JSON.stringify(combinedMessages),
-            ).catch((err) => console.error("Cache update error:", err));
-
-            // Complete loading animation
-            loadMoreAnim.value = withTiming(0, { duration: 300 });
-            setIsLoadingMore(false);
-          } else {
-            // Initial load - replace messages
-            setMessages(messagesWithUsers);
-
-            // Cache the messages
-            AsyncStorage.setItem(
-              MESSAGES_CACHE_KEY(ministryId),
-              JSON.stringify(messagesWithUsers),
-            ).catch((err) => console.error("Cache update error:", err));
-
-            // Scroll to bottom after initial messages are loaded with smooth animation
-            setTimeout(() => {
-              messageListRef.current?.scrollToEnd({ animated: true });
-              setMessageLoading(false);
-            }, 300);
+        // Safely scroll to bottom
+        setTimeout(() => {
+          if (messageListRef.current) {
+            messageListRef.current.scrollToEnd({ animated: false });
           }
-        }
-      } else {
-        // Handle the case where we have messages but no user IDs (unlikely but possible)
-        const messagesReversed = [...sortedMessages].reverse();
-
-        if (loadOlder) {
-          const existingIds = new Set(currentMessages.map((msg) => msg.id));
-          const uniqueNewMessages = messagesReversed.filter((msg) => !existingIds.has(msg.id));
-          const combinedMessages = [...uniqueNewMessages, ...currentMessages];
-
-          setMessages(combinedMessages);
-          loadMoreAnim.value = withTiming(0, { duration: 300 });
-          setIsLoadingMore(false);
-
-          AsyncStorage.setItem(
-            MESSAGES_CACHE_KEY(ministryId),
-            JSON.stringify(combinedMessages),
-          ).catch((err) => console.error("Cache update error:", err));
-        } else {
-          setMessages(messagesReversed);
-          setMessageLoading(false);
-
-          AsyncStorage.setItem(
-            MESSAGES_CACHE_KEY(ministryId),
-            JSON.stringify(messagesReversed),
-          ).catch((err) => console.error("Cache update error:", err));
-
-          setTimeout(() => {
-            messageListRef.current?.scrollToEnd({ animated: true });
-          }, 300);
-        }
-      }
+        }, 50);
+      }, 300);
     } catch (error) {
-      console.error("Error fetching messages:", error);
-      loadMoreAnim.value = withTiming(0, { duration: 300 });
-      setIsLoadingMore(false);
+      console.error("Error handling initial messages:", error);
       setMessageLoading(false);
     }
-  }
+  };
 
   // Improved fetchUserForMessage to handle real-time updates
   async function fetchUserForMessage(message: Message): Promise<void> {
@@ -1772,30 +1906,33 @@ export default function MinistryDetails(): JSX.Element {
   }, [messages]);
 
   // Render message group with optimized performance
-  const renderMessageGroup = ({
-    item,
-    index,
-  }: {
-    item: { date: string; messages: Message[] };
-    index: number;
-  }) => (
-    // Remove entering animation to test if it causes crash on prepending data
-    <Animated.View key={item.date}>
-      <MemoizedDateDivider date={item.date} />
-      {item.messages.map((message, messageIndex) => (
-        <View key={`msg-${message.id}-${message._status}`}>
-          <MemoizedMessageItem
-            message={message}
-            isCurrentUser={message.user_id === currentUser?.id}
-            renderUserAvatar={renderUserAvatar}
-            index={messageIndex}
-          />
-        </View>
-      ))}
-    </Animated.View>
+  const renderMessageGroup = useCallback(
+    ({ item }: { item: { date: string; messages: Message[] }; index: number }) => (
+      <View key={item.date}>
+        <MemoizedDateDivider date={item.date} />
+        {item.messages.map((message) => (
+          <View key={`msg-${message.id}`}>
+            <MemoizedMessageItem
+              message={message}
+              isCurrentUser={message.user_id === currentUser?.id}
+              renderUserAvatar={renderUserAvatar}
+              index={0} // Remove index-based animations
+            />
+          </View>
+        ))}
+      </View>
+    ),
+    [currentUser, renderUserAvatar],
   );
 
-  // Memoized message input component
+  // Keyextractor for the FlatList
+  const keyExtractor = useCallback(
+    (item: { date: string; messages: Message[] }) =>
+      `group-${item.date}-${item.messages[0]?.id || "no-msgs"}`,
+    [],
+  );
+
+  // Memoized message input component - add back with simplified implementation
   const messageInputComponent = useMemo(() => {
     return (
       <MessageInputArea
@@ -1804,13 +1941,18 @@ export default function MinistryDetails(): JSX.Element {
         onSend={sendMessage}
         onFocus={() => {
           setIsInputFocused(true);
-          setTimeout(() => messageListRef.current?.scrollToEnd({ animated: true }), 200);
+          // Simplified scrolling logic
+          setTimeout(() => {
+            if (messageListRef.current) {
+              messageListRef.current.scrollToEnd({ animated: false });
+            }
+          }, 50);
         }}
         onBlur={() => setIsInputFocused(false)}
         messageListRef={messageListRef}
       />
     );
-  }, [newMessage, sendMessage, messageListRef]);
+  }, [newMessage, sendMessage]);
 
   if (loading) {
     return (
@@ -1913,43 +2055,96 @@ export default function MinistryDetails(): JSX.Element {
                 </Text>
               </Animated.View>
             ) : (
-              <AnimatedFlashList
+              <FlatList
                 ref={messageListRef}
                 data={groupedMessages}
-                renderItem={renderMessageGroup as any}
-                keyExtractor={(item: any) =>
-                  `group-${item.date}-${item.messages[0]?.id || "no-msgs"}`
-                }
-                contentContainerStyle={[
-                  styles.messagesList,
-                  {
-                    paddingBottom: theme.spacingM, // Minimal paddingBottom
-                  },
-                ]}
-                onScroll={scrollHandler}
-                scrollEventThrottle={16}
-                refreshing={false}
-                bounces={true}
-                maintainVisibleContentPosition={{
-                  minIndexForVisible: 0,
-                  autoscrollToTopThreshold: 10,
-                }}
-                keyboardShouldPersistTaps="handled"
-                removeClippedSubviews={Platform.OS === "android"}
-                onContentSizeChange={() => {
-                  if (messages.length > 0 && !isLoadingMore) {
-                    messageListRef.current?.scrollToEnd({ animated: false });
+                renderItem={renderMessageGroup}
+                keyExtractor={keyExtractor}
+                contentContainerStyle={styles.messagesList}
+                onScroll={(e) => {
+                  // Just update scroll position for header opacity
+                  const nativeEvent = e.nativeEvent;
+                  scrollY.value = nativeEvent.contentOffset.y;
+
+                  // Check for scroll position to load more - IMPROVED DETECTION
+                  // For older messages, we need to check when scrolling near the top
+                  if (
+                    nativeEvent.contentOffset.y < 50 && // Increased threshold to 50
+                    !isLoadingMore &&
+                    !allMessagesLoaded &&
+                    messages.length >= 10 && // Reduced threshold to load more sooner
+                    !messageLoading
+                  ) {
+                    console.log("Near top of list, loading older messages...");
+                    // Set loading state and fetch older messages
+                    setIsLoadingMore(true);
+                    // Use requestAnimationFrame for smoother performance
+                    requestAnimationFrame(() => {
+                      fetchMessages(true).catch((err) => {
+                        console.error("Error loading older messages:", err);
+                        // Reset loading state on error
+                        setIsLoadingMore(false);
+                      });
+                    });
                   }
                 }}
-                onLayout={() => {
+                scrollEventThrottle={200} // Less frequent checks for better performance
+                bounces={true}
+                keyboardShouldPersistTaps="handled"
+                removeClippedSubviews={false}
+                initialNumToRender={10} // Reduced to improve initial load time
+                maxToRenderPerBatch={5}
+                updateCellsBatchingPeriod={100}
+                windowSize={5}
+                onContentSizeChange={() => {
                   if (messages.length > 0 && !isLoadingMore) {
-                    messageListRef.current?.scrollToEnd({ animated: false });
+                    setTimeout(() => {
+                      if (messageListRef.current) {
+                        messageListRef.current.scrollToEnd({ animated: false });
+                      }
+                    }, 100);
                   }
                 }}
                 ListHeaderComponent={
-                  <Animated.View style={loadMoreStyle}>
-                    {isLoadingMore && <LoadingHeader />}
-                  </Animated.View>
+                  <>
+                    {isLoadingMore && (
+                      <View style={styles.loadMoreHeader}>
+                        <ActivityIndicator size="small" color={theme.primary} />
+                        <Text style={styles.loadMoreText}>Loading messages...</Text>
+                      </View>
+                    )}
+                    {/* Debug info to help diagnose message loading issues */}
+                    {__DEV__ && (
+                      <View style={styles.debugInfoContainer}>
+                        <Text style={styles.debugInfoText}>
+                          Messages: {messages.length} | Loading: {isLoadingMore ? "Yes" : "No"} |
+                          All loaded: {allMessagesLoaded ? "Yes" : "No"}
+                        </Text>
+                        <Text style={styles.debugInfoText}>
+                          Oldest timestamp:{" "}
+                          {oldestMessageTimestamp
+                            ? new Date(oldestMessageTimestamp).toLocaleTimeString()
+                            : "None"}
+                        </Text>
+                        <TouchableOpacity
+                          style={{
+                            marginTop: 4,
+                            backgroundColor: theme.primary,
+                            padding: 4,
+                            borderRadius: 4,
+                          }}
+                          onPress={() => {
+                            setAllMessagesLoaded(false);
+                            fetchMessages(true);
+                          }}
+                        >
+                          <Text style={{ color: "#fff", fontSize: 10, textAlign: "center" }}>
+                            Force Load More
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </>
                 }
               />
             )}
@@ -2456,5 +2651,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
     color: theme.error,
+  },
+  // Debug styles
+  debugInfoContainer: {
+    padding: 8,
+    backgroundColor: "#333",
+    margin: 4,
+    borderRadius: 4,
+  },
+  debugInfoText: {
+    color: "#fff",
+    fontSize: 10,
   },
 });
