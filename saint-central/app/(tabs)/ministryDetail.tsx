@@ -6,11 +6,9 @@ import {
   StatusBar,
   Image,
   TouchableOpacity,
-  FlatList,
   TextInput,
   Alert,
   ActivityIndicator,
-  Animated,
   Platform,
   KeyboardAvoidingView,
   AppState,
@@ -20,6 +18,7 @@ import {
   Pressable,
   Dimensions,
   TouchableWithoutFeedback,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,6 +29,34 @@ import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from "@
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  interpolate,
+  Extrapolate,
+  runOnJS,
+  SlideInRight,
+  SlideOutRight,
+  FadeIn,
+  FadeOut,
+  ZoomIn,
+  BounceIn,
+  useAnimatedScrollHandler,
+  useDerivedValue,
+  Layout,
+  Easing,
+} from "react-native-reanimated";
+import { PanGestureHandler, Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
+import theme from "../../theme";
+
+// Animated variations of components
+const AnimatedFlashList = Animated.createAnimatedComponent(FlatList);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 // Interface definitions
 interface Ministry {
@@ -138,14 +165,13 @@ const formatMessageDate = (timestamp: string): string => {
 
 // Avatar utilities
 const AVATAR_COLORS = [
-  "#4A55A2", // Royal Blue
-  "#7895CB", // Light Blue
-  "#A0C49D", // Sage Green
-  "#917FB3", // Lavender
-  "#E4A5FF", // Light Purple
-  "#5272F2", // Bright Blue
-  "#FFA1CF", // Pink
-  "#FFCF96", // Peach
+  theme.primary,
+  theme.secondary,
+  theme.tertiary,
+  theme.accent1,
+  theme.accent2,
+  theme.accent3,
+  theme.accent4,
 ];
 
 const getAvatarColor = (name: string): string => {
@@ -171,21 +197,42 @@ const getInitials = (name: string): string => {
   return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
 };
 
-// Create a memoized message component to improve performance
+// Create a memoized message component with Reanimated
 const MessageItem = ({
   message,
   isCurrentUser,
   renderUserAvatar,
+  index,
 }: {
   message: Message;
   isCurrentUser: boolean;
   renderUserAvatar: (user?: User) => JSX.Element;
+  index: number;
 }) => {
   const isSending = message._status === "sending";
   const isError = message._status === "error";
 
+  // Animated bubble styles
+  const bubbleStyle = useAnimatedStyle(() => {
+    return {
+      opacity: withTiming(1, { duration: 300 }),
+      transform: [
+        {
+          translateY: withTiming(0, {
+            duration: 300,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          }),
+        },
+      ],
+    };
+  });
+
   return (
-    <View
+    <Animated.View
+      entering={SlideInRight.duration(300)
+        .delay(index * 50)
+        .springify()}
+      layout={Layout.springify()}
       style={[
         styles.messageContainer,
         isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
@@ -193,12 +240,13 @@ const MessageItem = ({
     >
       {!isCurrentUser && <View style={styles.messageAvatar}>{renderUserAvatar(message.user)}</View>}
 
-      <View
+      <Animated.View
         style={[
           styles.messageBubble,
           isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
           isSending && styles.sendingMessage,
           isError && styles.errorMessage,
+          bubbleStyle,
         ]}
       >
         {!isCurrentUser && (
@@ -226,7 +274,7 @@ const MessageItem = ({
               {isSending ? (
                 <ActivityIndicator
                   size="small"
-                  color={isCurrentUser ? "#E0E0FF" : "#A3A3A3"}
+                  color={isCurrentUser ? theme.neutral100 : theme.neutral400}
                   style={styles.statusIcon}
                 />
               ) : isError ? (
@@ -234,7 +282,7 @@ const MessageItem = ({
                   <Ionicons
                     name="alert-circle"
                     size={14}
-                    color="#EF4444"
+                    color={theme.error}
                     style={styles.statusIcon}
                   />
                 </TouchableOpacity>
@@ -242,43 +290,40 @@ const MessageItem = ({
                 <Ionicons
                   name="checkmark-done"
                   size={14}
-                  color={isCurrentUser ? "#E0E0FF" : "#5B6EF5"}
+                  color={isCurrentUser ? theme.neutral100 : theme.primary}
                   style={styles.statusIcon}
                 />
               )}
             </View>
           )}
         </View>
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 };
 
 const MemoizedMessageItem = React.memo(MessageItem);
-MessageItem.displayName = "MessageItem";
 
-// Create a memoized date divider component
+// Create a memoized date divider component with Reanimated
 const DateDivider = ({ date }: { date: string }) => (
-  <View style={styles.dateDividerContainer}>
+  <Animated.View entering={FadeIn.duration(400)} style={styles.dateDividerContainer}>
     <View style={styles.dateDividerLine} />
-    <View style={styles.dateDividerTextContainer}>
+    <Animated.View style={styles.dateDividerTextContainer} entering={ZoomIn.duration(400)}>
       <Text style={styles.dateDividerText}>{formatMessageDate(date)}</Text>
-    </View>
+    </Animated.View>
     <View style={styles.dateDividerLine} />
-  </View>
+  </Animated.View>
 );
 
 const MemoizedDateDivider = React.memo(DateDivider);
-DateDivider.displayName = "DateDivider";
 
-// Create load more header component
+// Create load more header component with Reanimated
 const LoadingHeader = React.memo(() => (
-  <View style={styles.loadMoreHeader}>
-    <ActivityIndicator size="small" color="#5B6EF5" />
+  <Animated.View entering={FadeIn.duration(300)} style={styles.loadMoreHeader}>
+    <ActivityIndicator size="small" color={theme.primary} />
     <Text style={styles.loadMoreText}>Loading older messages...</Text>
-  </View>
+  </Animated.View>
 ));
-LoadingHeader.displayName = "LoadingHeader";
 
 // Optimized Message Input Area Component
 const InputArea = ({
@@ -294,18 +339,28 @@ const InputArea = ({
   onSend: () => void;
   onFocus: () => void;
   onBlur: () => void;
-  messageListRef: React.RefObject<FlatList<any>>;
+  messageListRef: React.RefObject<Animated.FlatList<any>>;
 }) => {
   const [localValue, setLocalValue] = useState(value);
   const [inputHeight, setInputHeight] = useState(40);
   const inputLocalRef = useRef<TextInput>(null);
+
+  // Animation value for send button
+  const sendButtonScale = useSharedValue(1);
+
+  // Animated styles for send button
+  const sendButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: sendButtonScale.value }],
+    };
+  });
 
   // Synchronize with parent state only when necessary
   useEffect(() => {
     if (value !== localValue) {
       setLocalValue(value);
     }
-  }, [value]);
+  }, [value, localValue]);
 
   const handleContentSizeChange = (event: any) => {
     const { height } = event.nativeEvent.contentSize;
@@ -315,22 +370,22 @@ const InputArea = ({
 
   const handleLocalChange = (text: string) => {
     setLocalValue(text);
-
-    // Use requestAnimationFrame to avoid UI jank
-    if (Platform.OS !== "web") {
-      requestAnimationFrame(() => {
-        onChangeText(text);
-      });
-    } else {
-      onChangeText(text);
-    }
+    // Update parent state directly, removing requestAnimationFrame
+    onChangeText(text);
   };
 
   const handleSend = () => {
     if (!localValue.trim()) return;
 
+    // Animate button press - simplified animation
+    sendButtonScale.value = withSpring(0.9);
+    setTimeout(() => {
+      sendButtonScale.value = withSpring(1);
+    }, 100);
+
+    // Haptic feedback
     if (Platform.OS === "ios" || Platform.OS === "android") {
-      Vibration.vibrate(10);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
     onSend();
@@ -347,21 +402,25 @@ const InputArea = ({
     }, 150);
   };
 
+  // Always return the same JSX structure
   return (
     <View style={styles.inputContainer}>
       <TouchableOpacity
         style={styles.attachButton}
         activeOpacity={0.7}
-        onPress={() => inputLocalRef.current?.focus()}
+        onPress={() => {
+          inputLocalRef.current?.focus();
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
       >
-        <Ionicons name="add-circle-outline" size={24} color="#5B6EF5" />
+        <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
       </TouchableOpacity>
 
       <TextInput
         ref={inputLocalRef}
         style={[styles.messageInput, { height: inputHeight }]}
         placeholder="Type a message..."
-        placeholderTextColor="#A3A3A3"
+        placeholderTextColor={theme.neutral400}
         value={localValue}
         onChangeText={handleLocalChange}
         onContentSizeChange={handleContentSizeChange}
@@ -376,20 +435,26 @@ const InputArea = ({
         autoCapitalize="sentences"
         returnKeyType="default"
         enablesReturnKeyAutomatically={false}
-        selectionColor="#5B6EF5"
+        selectionColor={theme.primary}
       />
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.sendButton,
-          !localValue.trim() && styles.sendButtonDisabled,
-          pressed && localValue.trim() && styles.sendButtonPressed,
-        ]}
-        onPress={handleSend}
-        disabled={!localValue.trim()}
-      >
-        <Ionicons name="paper-plane" size={20} color={localValue.trim() ? "#FFFFFF" : "#A3A3A3"} />
-      </Pressable>
+      <Animated.View style={sendButtonStyle}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.sendButton,
+            !localValue.trim() && styles.sendButtonDisabled,
+            pressed && localValue.trim() && styles.sendButtonPressed,
+          ]}
+          onPress={handleSend}
+          disabled={!localValue.trim()}
+        >
+          <Ionicons
+            name="paper-plane"
+            size={20}
+            color={localValue.trim() ? theme.neutral50 : theme.neutral400}
+          />
+        </Pressable>
+      </Animated.View>
     </View>
   );
 };
@@ -398,7 +463,112 @@ const MessageInputArea = React.memo(
   InputArea,
   (prevProps, nextProps) => prevProps.value === nextProps.value,
 );
-InputArea.displayName = "InputArea";
+
+// Move this component outside the main function component (before or after)
+const MinistryInfoPanel = ({
+  ministry,
+  isMember,
+  infoSlideAnim,
+  SCREEN_WIDTH,
+  infoSlideStyle,
+  toggleMinistryInfo,
+  renderMinistryAvatar,
+  handleLeaveMinistry,
+  visible,
+}: {
+  ministry: Ministry | null;
+  isMember: boolean;
+  infoSlideAnim: Animated.SharedValue<number>;
+  SCREEN_WIDTH: number;
+  infoSlideStyle: any;
+  toggleMinistryInfo: () => void;
+  renderMinistryAvatar: () => React.ReactNode;
+  handleLeaveMinistry: () => void;
+  visible: boolean;
+}) => {
+  // Gesture handler for swiping panel
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationX > 0) {
+        const newValue = Math.max(0, 1 - e.translationX / SCREEN_WIDTH);
+        infoSlideAnim.value = newValue;
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationX > SCREEN_WIDTH * 0.4) {
+        infoSlideAnim.value = withSpring(0);
+        runOnJS(toggleMinistryInfo)();
+      } else {
+        infoSlideAnim.value = withSpring(1);
+      }
+    });
+
+  return (
+    <Animated.View
+      style={[styles.ministryInfoPanel, infoSlideStyle, { display: visible ? "flex" : "none" }]}
+    >
+      <GestureDetector gesture={panGesture}>
+        <View style={styles.ministryInfoContainer}>
+          <View style={styles.ministryInfoHeader}>
+            <TouchableOpacity
+              style={styles.closeInfoButton}
+              onPress={toggleMinistryInfo}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={24} color={theme.primary} />
+            </TouchableOpacity>
+            <Text style={styles.ministryInfoTitle}>Ministry Details</Text>
+          </View>
+
+          <View style={styles.ministryInfoContent}>
+            <Animated.View
+              style={styles.ministryInfoAvatar}
+              entering={BounceIn.delay(100).duration(600)}
+            >
+              {renderMinistryAvatar()}
+            </Animated.View>
+
+            <Animated.Text
+              style={styles.ministryInfoName}
+              entering={FadeIn.delay(300).duration(500)}
+            >
+              {ministry?.name}
+            </Animated.Text>
+
+            <Animated.Text
+              style={styles.ministryInfoMembers}
+              entering={FadeIn.delay(400).duration(500)}
+            >
+              {ministry?.member_count || 0} {ministry?.member_count === 1 ? "member" : "members"}
+            </Animated.Text>
+
+            <Animated.View
+              style={styles.ministryInfoDescriptionContainer}
+              entering={SlideInRight.delay(500).duration(500).springify()}
+            >
+              <Text style={styles.ministryInfoDescriptionTitle}>About</Text>
+              <Text style={styles.ministryInfoDescription}>
+                {ministry?.description || "No description available."}
+              </Text>
+            </Animated.View>
+
+            {isMember && (
+              <Animated.View entering={FadeIn.delay(600).duration(500)}>
+                <TouchableOpacity
+                  style={styles.leaveMinistryButton}
+                  onPress={handleLeaveMinistry}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.leaveMinistryButtonText}>Leave Ministry</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
+        </View>
+      </GestureDetector>
+    </Animated.View>
+  );
+};
 
 // Main component
 export default function MinistryDetails(): JSX.Element {
@@ -433,38 +603,106 @@ export default function MinistryDetails(): JSX.Element {
     new Set(),
   );
 
-  // Refs
-  const messageListRef = useRef<FlatList<any>>(null);
+  // ALL refs must be declared here
+  const messageListRef = useRef<any>(null);
   const appStateRef = useRef(AppState.currentState);
+  // Additional refs that might be needed - declare them all here
+  const keyboardListenerRef = useRef<any>(null);
+  const tempMessagesRef = useRef<any>(null);
 
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const infoSlideAnim = useRef(new Animated.Value(0)).current;
-  const inputBottomAnim = useRef(new Animated.Value(0)).current; // New animation for input box
+  // Shared animation values with Reanimated
+  const fadeAnim = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+  const infoSlideAnim = useSharedValue(0);
+  const keyboardAnim = useSharedValue(0);
+  const refreshAnim = useSharedValue(0);
+  const loadMoreAnim = useSharedValue(0);
 
-  // Header animations based on scroll
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
+  // Derived values
+  const headerOpacity = useDerivedValue(() => {
+    return interpolate(scrollY.value, [0, 80], [0, 1], Extrapolate.CLAMP);
   });
 
-  const headerElevation = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [0, 5],
-    extrapolate: "clamp",
+  const headerElevation = useDerivedValue(() => {
+    return interpolate(scrollY.value, [0, 80], [0, 5], Extrapolate.CLAMP);
   });
 
-  // Enhanced keyboard handling function - defined inside component
+  // Animated styles
+  const fadeStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeAnim.value,
+    };
+  });
+
+  const headerStyle = useAnimatedStyle(() => {
+    return {
+      opacity: headerOpacity.value,
+      shadowOpacity: interpolate(headerOpacity.value, [0, 1], [0, 0.1]),
+      elevation: headerElevation.value,
+    };
+  });
+
+  const infoSlideStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateX: interpolate(infoSlideAnim.value, [0, 1], [SCREEN_WIDTH, 0]),
+        },
+      ],
+    };
+  });
+
+  const keyboardStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: interpolate(keyboardAnim.value, [0, 1], [0, -keyboardHeight]) }],
+    };
+  });
+
+  // Loading animation styles moved here to ensure hooks run unconditionally
+  const loadingIndicatorStyle = useAnimatedStyle(() => {
+    return {
+      opacity: refreshAnim.value,
+      transform: [{ rotate: `${refreshAnim.value * 360}deg` }],
+    };
+  });
+
+  // Loading messages animation style moved here
+  const loadMoreStyle = useAnimatedStyle(() => {
+    return {
+      opacity: loadMoreAnim.value,
+    };
+  });
+
+  // Scroll handler for animations
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+
+      // Check if we're at the top of the list for loading more
+      if (
+        event.contentOffset.y < 50 &&
+        !isLoadingMore &&
+        !allMessagesLoaded &&
+        messages.length >= 20
+      ) {
+        loadMoreAnim.value = withTiming(1, { duration: 300 });
+        runOnJS(handleLoadMoreMessages)();
+      }
+    },
+  });
+
+  // Function to load more messages
+  const handleLoadMoreMessages = useCallback(() => {
+    if (!isLoadingMore && !allMessagesLoaded) {
+      fetchMessages(true);
+    }
+  }, [isLoadingMore, allMessagesLoaded]);
+
+  // Enhanced keyboard handling function
   const handleKeyboardAnimation = useCallback(() => {
     if (keyboardHeight > 0) {
       // When keyboard is open
-      Animated.timing(inputBottomAnim, {
-        toValue: keyboardHeight,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+      keyboardAnim.value = withTiming(1, { duration: 250 });
 
       // Ensure we scroll to bottom when keyboard appears
       requestAnimationFrame(() => {
@@ -476,13 +714,16 @@ export default function MinistryDetails(): JSX.Element {
       });
     } else {
       // When keyboard is closed
-      Animated.timing(inputBottomAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      keyboardAnim.value = withTiming(0, { duration: 200 });
+
+      // Allow some time for the keyboard to fully hide before scrolling
+      setTimeout(() => {
+        if (messageListRef.current && messages.length > 0) {
+          messageListRef.current.scrollToEnd({ animated: false });
+        }
+      }, 100);
     }
-  }, [keyboardHeight, inputBottomAnim, messages.length]);
+  }, [keyboardHeight, keyboardAnim, messages.length]);
 
   // Get current user on component mount
   useEffect(() => {
@@ -597,19 +838,15 @@ export default function MinistryDetails(): JSX.Element {
 
     checkCachedMembership();
 
-    // Animate content fade in
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [ministryId]);
+    // Animate content fade in with Reanimated
+    fadeAnim.value = withTiming(1, { duration: 500 });
+  }, [ministryId, fadeAnim]);
 
   // Set up real-time subscription to messages with better error handling
   useEffect(() => {
     let isComponentMounted = true;
 
-    // Set up real-time subscription to messages with better error handling
+    // Set up real-time subscription to messages
     const messageSubscription = supabase
       .channel("ministry_messages")
       .on(
@@ -632,9 +869,6 @@ export default function MinistryDetails(): JSX.Element {
           console.warn("Subscription status:", status);
         }
       });
-
-    // We're using the edge function for notifications instead of real-time listeners
-    // This prevents double notifications
 
     // Handle app going to background/foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
@@ -660,7 +894,7 @@ export default function MinistryDetails(): JSX.Element {
       }
     }
 
-    // Enhanced keyboard event listeners compatible with React Native
+    // Enhanced keyboard event listeners
     let keyboardShowSubscription: any = null;
     let keyboardHideSubscription: any = null;
 
@@ -675,7 +909,7 @@ export default function MinistryDetails(): JSX.Element {
           // Improved timing for scroll animation
           setTimeout(
             () => {
-              if (messageListRef.current) {
+              if (messageListRef.current && messages.length > 0) {
                 messageListRef.current.scrollToEnd({ animated: true });
               }
             },
@@ -692,7 +926,7 @@ export default function MinistryDetails(): JSX.Element {
 
           // Allow some time for the keyboard to fully hide before scrolling
           setTimeout(() => {
-            if (messageListRef.current) {
+            if (messageListRef.current && messages.length > 0) {
               messageListRef.current.scrollToEnd({ animated: false });
             }
           }, 100);
@@ -713,7 +947,7 @@ export default function MinistryDetails(): JSX.Element {
         console.error("Error removing subscription:", error);
       }
 
-      if (appStateSubscription && appStateSubscription.remove) {
+      if (appStateSubscription?.remove) {
         appStateSubscription.remove();
       }
 
@@ -725,7 +959,7 @@ export default function MinistryDetails(): JSX.Element {
         keyboardHideSubscription.remove();
       }
     };
-  }, []);
+  }, [handleKeyboardAnimation]);
 
   // Use effect for screen focus - load data
   useEffect(() => {
@@ -737,17 +971,18 @@ export default function MinistryDetails(): JSX.Element {
     fetchData();
   }, [ministryId]);
 
-  // Toggle ministry info panel
+  // Toggle ministry info panel with Reanimated
   const toggleMinistryInfo = useCallback(() => {
-    const newState = !showMinistryInfo;
-    setShowMinistryInfo(newState);
+    // Trigger haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    Animated.timing(infoSlideAnim, {
-      toValue: newState ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [showMinistryInfo, infoSlideAnim]);
+    // Toggle state and animate in a single operation
+    setShowMinistryInfo((prev) => {
+      // Animate info panel slide based on new state
+      infoSlideAnim.value = withSpring(!prev ? 1 : 0);
+      return !prev;
+    });
+  }, [infoSlideAnim]);
 
   // Function to refresh membership status - both from server and update cache
   async function refreshMembershipStatus(): Promise<void> {
@@ -818,6 +1053,8 @@ export default function MinistryDetails(): JSX.Element {
       }
 
       setLoading(true);
+      // Start refresh animation
+      refreshAnim.value = withRepeat(withTiming(1, { duration: 700 }), -1, false);
 
       // Get current user
       const {
@@ -917,6 +1154,8 @@ export default function MinistryDetails(): JSX.Element {
       console.error("Error in data fetch:", error);
       setError(error instanceof Error ? error : new Error("Unknown error"));
     } finally {
+      // Stop refresh animation
+      refreshAnim.value = withTiming(0, { duration: 300 });
       setLoading(false);
     }
   }
@@ -926,11 +1165,13 @@ export default function MinistryDetails(): JSX.Element {
     try {
       if (loadOlder && allMessagesLoaded) {
         console.log("All messages already loaded");
+        loadMoreAnim.value = withTiming(0, { duration: 300 });
         return;
       }
 
       if (loadOlder) {
         setIsLoadingMore(true);
+        loadMoreAnim.value = withTiming(1, { duration: 300 });
       } else {
         setMessageLoading(true);
       }
@@ -963,6 +1204,7 @@ export default function MinistryDetails(): JSX.Element {
       if (!messagesData || messagesData.length === 0) {
         if (loadOlder) {
           setAllMessagesLoaded(true);
+          loadMoreAnim.value = withTiming(0, { duration: 300 });
           setIsLoadingMore(false);
         } else {
           setMessages([]);
@@ -1029,7 +1271,7 @@ export default function MinistryDetails(): JSX.Element {
             // Combine with existing messages, placing older messages at the beginning
             const combinedMessages = [...uniqueNewMessages, ...currentMessages];
 
-            // Update state
+            // Update state directly without setTimeout
             setMessages(combinedMessages);
 
             // Update cache
@@ -1037,6 +1279,10 @@ export default function MinistryDetails(): JSX.Element {
               MESSAGES_CACHE_KEY(ministryId),
               JSON.stringify(combinedMessages),
             ).catch((err) => console.error("Cache update error:", err));
+
+            // Complete loading animation
+            loadMoreAnim.value = withTiming(0, { duration: 300 });
+            setIsLoadingMore(false);
           } else {
             // Initial load - replace messages
             setMessages(messagesWithUsers);
@@ -1047,9 +1293,10 @@ export default function MinistryDetails(): JSX.Element {
               JSON.stringify(messagesWithUsers),
             ).catch((err) => console.error("Cache update error:", err));
 
-            // Scroll to bottom after initial messages are loaded
+            // Scroll to bottom after initial messages are loaded with smooth animation
             setTimeout(() => {
-              messageListRef.current?.scrollToEnd({ animated: false });
+              messageListRef.current?.scrollToEnd({ animated: true });
+              setMessageLoading(false);
             }, 300);
           }
         }
@@ -1063,6 +1310,8 @@ export default function MinistryDetails(): JSX.Element {
           const combinedMessages = [...uniqueNewMessages, ...currentMessages];
 
           setMessages(combinedMessages);
+          loadMoreAnim.value = withTiming(0, { duration: 300 });
+          setIsLoadingMore(false);
 
           AsyncStorage.setItem(
             MESSAGES_CACHE_KEY(ministryId),
@@ -1070,6 +1319,7 @@ export default function MinistryDetails(): JSX.Element {
           ).catch((err) => console.error("Cache update error:", err));
         } else {
           setMessages(messagesReversed);
+          setMessageLoading(false);
 
           AsyncStorage.setItem(
             MESSAGES_CACHE_KEY(ministryId),
@@ -1077,15 +1327,15 @@ export default function MinistryDetails(): JSX.Element {
           ).catch((err) => console.error("Cache update error:", err));
 
           setTimeout(() => {
-            messageListRef.current?.scrollToEnd({ animated: false });
+            messageListRef.current?.scrollToEnd({ animated: true });
           }, 300);
         }
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
-    } finally {
-      setMessageLoading(false);
+      loadMoreAnim.value = withTiming(0, { duration: 300 });
       setIsLoadingMore(false);
+      setMessageLoading(false);
     }
   }
 
@@ -1168,6 +1418,11 @@ export default function MinistryDetails(): JSX.Element {
         return updatedMessages;
       });
 
+      // Use haptic feedback for new message notification
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
       // Improved scroll to bottom with new messages
       // Wait for state update to complete, then scroll
       requestAnimationFrame(() => {
@@ -1242,7 +1497,12 @@ export default function MinistryDetails(): JSX.Element {
       // Add message to state optimistically
       setMessages((prev) => [...prev, tempMessage]);
 
-      // Scroll to bottom after adding the message
+      // Use haptic feedback
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Scroll to bottom after adding the message with smooth animation
       setTimeout(() => {
         messageListRef.current?.scrollToEnd({ animated: true });
       }, 50);
@@ -1261,6 +1521,11 @@ export default function MinistryDetails(): JSX.Element {
       if (error) {
         console.error("Error sending message:", error);
 
+        // Haptic feedback for error
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+
         // Update message status to error
         setMessages((prev) =>
           prev.map((msg) => (msg.id === tempId ? { ...msg, _status: "error" } : msg)),
@@ -1275,6 +1540,11 @@ export default function MinistryDetails(): JSX.Element {
           (err) => console.error("Cache update error:", err),
         );
       } else if (data && data[0]) {
+        // Haptic feedback for success
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+
         // Add the server-generated ID to our recently sent list to prevent duplicates
         setRecentlySentMessageIds((prev) => {
           const newSet = new Set(prev);
@@ -1322,7 +1592,7 @@ export default function MinistryDetails(): JSX.Element {
     }
   }
 
-  // Leave a ministry with improved error handling
+  // Leave a ministry with improved error handling and animation
   async function handleLeaveMinistry(): Promise<void> {
     Alert.alert("Leave Ministry", "Are you sure you want to leave this ministry?", [
       { text: "Cancel", style: "cancel" },
@@ -1332,6 +1602,9 @@ export default function MinistryDetails(): JSX.Element {
         onPress: async () => {
           try {
             setLoading(true);
+
+            // Start leave animation
+            refreshAnim.value = withRepeat(withTiming(1, { duration: 700 }), -1, false);
 
             const {
               data: { user },
@@ -1354,6 +1627,11 @@ export default function MinistryDetails(): JSX.Element {
               console.error("Error leaving ministry:", error);
               Alert.alert("Error", "Could not leave the ministry. Please try again.");
               return;
+            }
+
+            // Haptic feedback for successful leave
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
 
             // Update local state and cache
@@ -1386,11 +1664,17 @@ export default function MinistryDetails(): JSX.Element {
             );
 
             Alert.alert("Success", "You have left the ministry");
-            router.push("/(tabs)/MinistriesScreen");
+
+            // Animate exit before navigation
+            fadeAnim.value = withTiming(0, { duration: 300 });
+            setTimeout(() => {
+              router.push("/(tabs)/MinistriesScreen");
+            }, 300);
           } catch (error) {
             console.error("Error in handleLeaveMinistry:", error);
             Alert.alert("Error", "Could not leave the ministry. Please try again.");
           } finally {
+            refreshAnim.value = withTiming(0, { duration: 300 });
             setLoading(false);
           }
         },
@@ -1398,29 +1682,20 @@ export default function MinistryDetails(): JSX.Element {
     ]);
   }
 
-  // Navigate back
+  // Navigate back with animation
   const navigateBack = useCallback(() => {
-    router.push("/(tabs)/MinistriesScreen");
-  }, [router]);
+    // Haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-  // Combine scroll handlers for header opacity and loading more messages
-  const handleScroll = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
-      // Track scroll position for header opacity
-      const offsetY = event.nativeEvent.contentOffset.y;
-      scrollY.setValue(offsetY);
-
-      // Check if we're at the top of the list (with some threshold)
-      if (offsetY < 50 && !isLoadingMore && !allMessagesLoaded && messages.length >= 20) {
-        console.log("Reached top, loading older messages");
-        fetchMessages(true);
-      }
-    },
-    [scrollY, isLoadingMore, allMessagesLoaded, messages.length],
-  );
+    // Animate exit before navigation
+    fadeAnim.value = withTiming(0, { duration: 300 });
+    setTimeout(() => {
+      router.push("/(tabs)/MinistriesScreen");
+    }, 300);
+  }, [router, fadeAnim]);
 
   // Render ministry avatar
-  const renderMinistryAvatar = useCallback(() => {
+  const renderMinistryAvatar = () => {
     if (ministry?.image_url) {
       return <Image source={{ uri: ministry.image_url }} style={styles.ministryAvatarImage} />;
     }
@@ -1430,14 +1705,17 @@ export default function MinistryDetails(): JSX.Element {
     const initials = getInitials(ministry?.name || "");
 
     return (
-      <View style={[styles.ministryAvatarPlaceholder, { backgroundColor: avatarColor }]}>
+      <LinearGradient
+        colors={[theme.primary, theme.secondary]}
+        style={styles.ministryAvatarPlaceholder}
+      >
         <Text style={styles.ministryAvatarInitials}>{initials}</Text>
-      </View>
+      </LinearGradient>
     );
-  }, [ministry]);
+  };
 
   // Render user avatar for messages
-  const renderUserAvatar = useCallback((user?: User) => {
+  const renderUserAvatar = (user?: User) => {
     if (user?.profile_image) {
       return <Image source={{ uri: user.profile_image }} style={styles.userAvatarImage} />;
     }
@@ -1448,11 +1726,14 @@ export default function MinistryDetails(): JSX.Element {
     const initials = getInitials(name);
 
     return (
-      <View style={[styles.userAvatarPlaceholder, { backgroundColor: avatarColor }]}>
+      <LinearGradient
+        colors={[avatarColor, avatarColor === theme.primary ? theme.secondary : theme.primary]}
+        style={styles.userAvatarPlaceholder}
+      >
         <Text style={styles.userAvatarInitials}>{initials}</Text>
-      </View>
+      </LinearGradient>
     );
-  }, []);
+  };
 
   // Group messages by date - memoize to prevent unnecessary calculations
   const groupedMessages = useMemo(() => {
@@ -1491,78 +1772,28 @@ export default function MinistryDetails(): JSX.Element {
   }, [messages]);
 
   // Render message group with optimized performance
-  const renderMessageGroup = useCallback(
-    ({ item }: { item: { date: string; messages: Message[] } }) => (
-      <View key={item.date}>
-        <MemoizedDateDivider date={item.date} />
-        {item.messages.map((message) => (
-          <View key={`msg-${message.id}-${message._status}`}>
-            <MemoizedMessageItem
-              message={message}
-              isCurrentUser={message.user_id === currentUser?.id}
-              renderUserAvatar={renderUserAvatar}
-            />
-          </View>
-        ))}
-      </View>
-    ),
-    [currentUser?.id, renderUserAvatar],
+  const renderMessageGroup = ({
+    item,
+    index,
+  }: {
+    item: { date: string; messages: Message[] };
+    index: number;
+  }) => (
+    // Remove entering animation to test if it causes crash on prepending data
+    <Animated.View key={item.date}>
+      <MemoizedDateDivider date={item.date} />
+      {item.messages.map((message, messageIndex) => (
+        <View key={`msg-${message.id}-${message._status}`}>
+          <MemoizedMessageItem
+            message={message}
+            isCurrentUser={message.user_id === currentUser?.id}
+            renderUserAvatar={renderUserAvatar}
+            index={messageIndex}
+          />
+        </View>
+      ))}
+    </Animated.View>
   );
-
-  // Ministry Info Panel Component
-  const MinistryInfoPanel = useCallback(() => {
-    const panelTranslateX = infoSlideAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [SCREEN_WIDTH, 0],
-    });
-
-    return (
-      <Animated.View
-        style={[
-          styles.ministryInfoPanel,
-          {
-            transform: [{ translateX: panelTranslateX }],
-          },
-        ]}
-      >
-        <View style={styles.ministryInfoHeader}>
-          <TouchableOpacity style={styles.closeInfoButton} onPress={toggleMinistryInfo}>
-            <Ionicons name="close" size={24} color="#4A55A2" />
-          </TouchableOpacity>
-          <Text style={styles.ministryInfoTitle}>Ministry Details</Text>
-        </View>
-
-        <View style={styles.ministryInfoContent}>
-          <View style={styles.ministryInfoAvatar}>{renderMinistryAvatar()}</View>
-          <Text style={styles.ministryInfoName}>{ministry?.name}</Text>
-          <Text style={styles.ministryInfoMembers}>
-            {ministry?.member_count || 0} {ministry?.member_count === 1 ? "member" : "members"}
-          </Text>
-
-          <View style={styles.ministryInfoDescriptionContainer}>
-            <Text style={styles.ministryInfoDescriptionTitle}>About</Text>
-            <Text style={styles.ministryInfoDescription}>
-              {ministry?.description || "No description available."}
-            </Text>
-          </View>
-
-          {isMember && (
-            <TouchableOpacity style={styles.leaveMinistryButton} onPress={handleLeaveMinistry}>
-              <Text style={styles.leaveMinistryButtonText}>Leave Ministry</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </Animated.View>
-    );
-  }, [
-    ministry,
-    isMember,
-    infoSlideAnim,
-    SCREEN_WIDTH,
-    toggleMinistryInfo,
-    renderMinistryAvatar,
-    handleLeaveMinistry,
-  ]);
 
   // Memoized message input component
   const messageInputComponent = useMemo(() => {
@@ -1584,8 +1815,12 @@ export default function MinistryDetails(): JSX.Element {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4A55A2" />
-        <Text style={styles.loadingText}>Loading ministry chat...</Text>
+        <Animated.View style={loadingIndicatorStyle}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </Animated.View>
+        <Animated.Text entering={FadeIn.duration(400)} style={styles.loadingText}>
+          Loading ministry chat...
+        </Animated.Text>
       </View>
     );
   }
@@ -1593,8 +1828,8 @@ export default function MinistryDetails(): JSX.Element {
   if (error) {
     return (
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        <Animated.View style={[styles.errorContainer, fadeStyle]} entering={FadeIn.duration(500)}>
+          <Ionicons name="alert-circle-outline" size={48} color={theme.error} />
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorText}>
             {error?.message || "Could not load ministry information"}
@@ -1602,7 +1837,7 @@ export default function MinistryDetails(): JSX.Element {
           <TouchableOpacity style={styles.errorButton} onPress={navigateBack}>
             <Text style={styles.errorButtonText}>Go Back</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </SafeAreaView>
     );
   }
@@ -1611,24 +1846,13 @@ export default function MinistryDetails(): JSX.Element {
     <SafeAreaView style={[styles.container, { paddingBottom: 0 }]} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Floating header effect */}
-      <Animated.View
-        style={[
-          styles.floatingHeader,
-          {
-            opacity: headerOpacity,
-            elevation: headerElevation,
-            shadowOpacity: headerOpacity,
-          },
-        ]}
-      >
-        <BlurView intensity={85} tint="light" style={styles.blurView} />
-      </Animated.View>
+      {/* Floating header effect with BlurView */}
+      <AnimatedBlurView style={[styles.floatingHeader, headerStyle]} intensity={85} tint="light" />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={navigateBack}>
-          <Ionicons name="arrow-back" size={24} color="#5B6EF5" />
+        <TouchableOpacity style={styles.backButton} onPress={navigateBack} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={24} color={theme.primary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -1652,58 +1876,60 @@ export default function MinistryDetails(): JSX.Element {
           onPress={toggleMinistryInfo}
           activeOpacity={0.7}
         >
-          <Ionicons name="information-circle-outline" size={24} color="#5B6EF5" />
+          <Ionicons name="information-circle-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Improved keyboard handling with KeyboardAvoidingView */}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1 }} // REMOVED marginBottom
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+        // REMOVED keyboardVerticalOffset
       >
         <View style={styles.chatContainer}>
           <Animated.View
             style={[
               styles.messagesContainer,
-              { opacity: fadeAnim },
+              fadeStyle,
               isInputFocused && styles.messagesContainerWithKeyboard,
             ]}
           >
             {messageLoading && messages.length === 0 ? (
-              <View style={styles.messageLoadingContainer}>
-                <ActivityIndicator size="large" color="#5B6EF5" />
+              <Animated.View
+                style={[styles.messageLoadingContainer, loadingIndicatorStyle]}
+                entering={FadeIn.duration(400)}
+              >
+                <ActivityIndicator size="large" color={theme.primary} />
                 <Text style={styles.messageLoadingText}>Loading messages...</Text>
-              </View>
+              </Animated.View>
             ) : messages.length === 0 ? (
-              <View style={styles.emptyMessagesContainer}>
-                <LinearGradient colors={["#5B6EF5", "#8B9DFF"]} style={styles.emptyMessagesIcon}>
-                  <FontAwesome5 name="comment-dots" size={40} color="#FFFFFF" />
+              <Animated.View style={styles.emptyMessagesContainer} entering={FadeIn.duration(600)}>
+                <LinearGradient colors={theme.gradientPrimary} style={styles.emptyMessagesIcon}>
+                  <FontAwesome5 name="comment-dots" size={40} color={theme.neutral50} />
                 </LinearGradient>
                 <Text style={styles.emptyMessagesTitle}>No Messages Yet</Text>
                 <Text style={styles.emptyMessagesSubtitle}>
                   Be the first to start a conversation!
                 </Text>
-              </View>
+              </Animated.View>
             ) : (
-              <FlatList
+              <AnimatedFlashList
                 ref={messageListRef}
                 data={groupedMessages}
-                renderItem={renderMessageGroup}
-                keyExtractor={(item) => item.date}
+                renderItem={renderMessageGroup as any}
+                keyExtractor={(item: any) =>
+                  `group-${item.date}-${item.messages[0]?.id || "no-msgs"}`
+                }
                 contentContainerStyle={[
                   styles.messagesList,
                   {
-                    // Ensure adequate padding so last message is above input box
                     paddingBottom: 200,
                   },
                 ]}
-                onScroll={handleScroll}
-                scrollEventThrottle={400} // Reduced for better performance
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
                 refreshing={false}
-                initialNumToRender={20}
-                maxToRenderPerBatch={10}
-                windowSize={21}
+                bounces={true}
                 maintainVisibleContentPosition={{
                   minIndexForVisible: 0,
                   autoscrollToTopThreshold: 10,
@@ -1720,31 +1946,41 @@ export default function MinistryDetails(): JSX.Element {
                     messageListRef.current?.scrollToEnd({ animated: false });
                   }
                 }}
-                ListHeaderComponent={isLoadingMore ? <LoadingHeader /> : null}
+                ListHeaderComponent={
+                  <Animated.View style={loadMoreStyle}>
+                    {isLoadingMore && <LoadingHeader />}
+                  </Animated.View>
+                }
               />
             )}
           </Animated.View>
         </View>
+        {/* Input area moved inside KeyboardAvoidingView */}
+        <View
+          style={[
+            styles.inputAreaContainer,
+            {
+              // Conditional padding: minimal when keyboard open, larger when closed for tab bar
+              paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom, 10) + 60,
+            },
+          ]}
+        >
+          {messageInputComponent}
+        </View>
       </KeyboardAvoidingView>
 
-      {/* Fixed input area positioning - outside of KeyboardAvoidingView for better control */}
-      <View
-        style={[
-          styles.inputAreaContainer,
-          {
-            // Set bottom position to ensure it's above the nav bar
-            bottom: keyboardHeight > 0 ? keyboardHeight : 0,
-            // Ensure it's well above the nav bar when keyboard is closed
-            paddingBottom: keyboardHeight > 0 ? 0 : Math.max(insets.bottom, 10),
-            marginBottom: keyboardHeight > 0 ? 0 : 60,
-          },
-        ]}
-      >
-        {messageInputComponent}
-      </View>
-
       {/* Sliding Ministry Info Panel */}
-      {showMinistryInfo && <MinistryInfoPanel />}
+      <MinistryInfoPanel
+        ministry={ministry}
+        isMember={isMember}
+        infoSlideAnim={infoSlideAnim}
+        SCREEN_WIDTH={SCREEN_WIDTH}
+        infoSlideStyle={infoSlideStyle}
+        toggleMinistryInfo={toggleMinistryInfo}
+        renderMinistryAvatar={renderMinistryAvatar}
+        handleLeaveMinistry={handleLeaveMinistry}
+        visible={showMinistryInfo} // Pass visibility as a prop instead of conditional rendering
+      />
     </SafeAreaView>
   );
 }
@@ -1752,7 +1988,7 @@ export default function MinistryDetails(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFC",
+    backgroundColor: theme.pageBg,
   },
   floatingHeader: {
     position: "absolute",
@@ -1762,79 +1998,66 @@ const styles = StyleSheet.create({
     height: Platform.OS === "ios" ? 90 : 60,
     zIndex: 100,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(203, 213, 225, 0.5)",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-  },
-  blurView: {
-    ...StyleSheet.absoluteFillObject,
+    borderBottomColor: theme.divider,
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    ...theme.shadowLight,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: theme.spacingL,
     paddingTop: Platform.OS === "ios" ? 40 : 16,
     paddingBottom: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral50,
     zIndex: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    ...theme.shadowLight,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F7FF",
+    backgroundColor: theme.neutral100,
   },
   ministryTitleContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingS,
+    borderRadius: theme.radiusMedium,
   },
   headerAvatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+    borderRadius: theme.radiusFull,
+    marginRight: theme.spacingM,
     overflow: "hidden",
-    backgroundColor: "#F3F4F6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: theme.neutral200,
+    ...theme.shadowLight,
   },
   headerInfo: {
     flex: 1,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: theme.fontSemiBold,
+    color: theme.neutral900,
   },
   memberCount: {
     fontSize: 12,
-    color: "#6B7280",
+    color: theme.neutral600,
     marginTop: 2,
   },
   infoButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F7FF",
+    backgroundColor: theme.neutral100,
   },
   chatContainer: {
     flex: 1,
@@ -1843,14 +2066,14 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
-    padding: 8,
-    paddingBottom: 0, // Removed extra padding that was causing issues
+    padding: theme.spacingS,
+    paddingBottom: 0,
   },
   messagesContainerWithKeyboard: {
-    paddingBottom: 0, // Removed conflicting padding
+    paddingBottom: 0,
   },
   messagesList: {
-    paddingVertical: 10,
+    paddingVertical: theme.spacingM,
     paddingBottom: 100, // Larger padding to keep last message above input
   },
   messageLoadingContainer: {
@@ -1859,74 +2082,66 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   messageLoadingText: {
-    marginTop: 12,
+    marginTop: theme.spacingM,
     fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "500",
+    color: theme.neutral600,
+    fontWeight: theme.fontMedium,
   },
   emptyMessagesContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: theme.spacingXL,
   },
   emptyMessagesIcon: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 6,
+    marginBottom: theme.spacing2XL,
+    ...theme.shadowMedium,
   },
   emptyMessagesTitle: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 10,
+    fontWeight: theme.fontBold,
+    color: theme.neutral900,
+    marginBottom: theme.spacingM,
   },
   emptyMessagesSubtitle: {
     fontSize: 16,
-    color: "#6B7280",
+    color: theme.neutral600,
     textAlign: "center",
     lineHeight: 22,
   },
   dateDividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 16,
-    paddingHorizontal: 16,
+    marginVertical: theme.spacingL,
+    paddingHorizontal: theme.spacingL,
   },
   dateDividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: theme.divider,
   },
   dateDividerTextContainer: {
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginHorizontal: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-    elevation: 1,
+    backgroundColor: theme.neutral100,
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingS,
+    borderRadius: theme.radiusMedium,
+    marginHorizontal: theme.spacingS,
+    ...theme.shadowLight,
   },
   dateDividerText: {
     fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
+    color: theme.neutral600,
+    fontWeight: theme.fontMedium,
   },
   messageContainer: {
     flexDirection: "row",
     marginVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: theme.spacingS,
   },
   currentUserMessage: {
     justifyContent: "flex-end",
@@ -1937,81 +2152,69 @@ const styles = StyleSheet.create({
   messageAvatar: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    marginRight: 8,
+    borderRadius: theme.radiusFull,
+    marginRight: theme.spacingS,
     alignSelf: "flex-end",
     marginBottom: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    ...theme.shadowLight,
   },
   userAvatarImage: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: theme.radiusFull,
   },
   userAvatarPlaceholder: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
   },
   userAvatarInitials: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontWeight: theme.fontBold,
+    color: theme.neutral50,
   },
   messageBubble: {
-    maxWidth: "80%", // Increased from 75%
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
+    maxWidth: "80%",
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    borderRadius: theme.radiusLarge,
     marginBottom: 4,
   },
   currentUserBubble: {
-    backgroundColor: "#5B6EF5",
+    backgroundColor: theme.primary,
     borderBottomRightRadius: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    ...theme.shadowLight,
   },
   otherUserBubble: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral50,
     borderBottomLeftRadius: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    ...theme.shadowLight,
   },
   sendingMessage: {
     opacity: 0.7,
   },
   errorMessage: {
     borderWidth: 1,
-    borderColor: "#EF4444",
+    borderColor: theme.error,
   },
   messageUsername: {
     fontSize: 12,
-    fontWeight: "700",
-    color: "#5B6EF5",
+    fontWeight: theme.fontBold,
+    color: theme.primary,
     marginBottom: 2,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    flexShrink: 1, // Ensure text can shrink
+    flexShrink: 1,
   },
   currentUserMessageText: {
-    color: "#FFFFFF",
+    color: theme.neutral50,
   },
   otherUserMessageText: {
-    color: "#1F2937",
+    color: theme.neutral900,
   },
   messageFooter: {
     flexDirection: "row",
@@ -2021,10 +2224,10 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 10,
-    color: "#9CA3AF",
+    color: theme.neutral400,
   },
   currentUserMessageTime: {
-    color: "#E0E0FF",
+    color: theme.neutral200,
   },
   messageStatus: {
     marginLeft: 4,
@@ -2033,150 +2236,135 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   inputAreaContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral50,
     borderTopWidth: 1,
-    borderTopColor: "#EAEEF7",
-    paddingTop: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 }, // Increased shadow
-    shadowOpacity: 0.15, // Increased opacity
-    shadowRadius: 5, // Increased radius
-    elevation: 25, // Increased elevation for Android
-    zIndex: 1000, // Higher z-index to ensure it's above everything
-    position: "absolute", // Absolute positioning
-    bottom: 0, // Position at the bottom
-    left: 0,
-    right: 0,
-    // Added minimum height to ensure consistent sizing
+    borderTopColor: theme.divider,
+    paddingTop: theme.spacingS,
     minHeight: 70,
+    ...theme.shadowMedium, // Keep shadow
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    padding: theme.spacingS,
+    paddingHorizontal: theme.spacingM,
+    backgroundColor: theme.neutral50,
   },
   attachButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F7FF",
+    backgroundColor: theme.neutral100,
   },
   messageInput: {
     flex: 1,
-    backgroundColor: "#F5F7FF",
+    backgroundColor: theme.neutral100,
     borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
     maxHeight: 120,
     fontSize: 16,
-    color: "#1F2937",
+    color: theme.neutral900,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: theme.divider,
     textAlignVertical: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
+    ...theme.shadowLight,
+    marginHorizontal: theme.spacingS,
   },
   sendButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: "#5B6EF5",
+    borderRadius: theme.radiusFull,
+    backgroundColor: theme.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    marginLeft: theme.spacingS,
+    ...theme.shadowLight,
   },
   sendButtonDisabled: {
-    backgroundColor: "#E5E7EB",
+    backgroundColor: theme.neutral300,
   },
   sendButtonPressed: {
-    backgroundColor: "#4A55A2",
+    backgroundColor: theme.secondary,
     transform: [{ scale: 0.95 }],
   },
   ministryAvatarImage: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
   },
   ministryAvatarPlaceholder: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radiusFull,
     justifyContent: "center",
     alignItems: "center",
   },
   ministryAvatarInitials: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontWeight: theme.fontBold,
+    color: theme.neutral50,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F9FAFC",
+    backgroundColor: theme.pageBg,
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: theme.spacingL,
     fontSize: 18,
-    color: "#6B7280",
-    fontWeight: "500",
+    color: theme.neutral600,
+    fontWeight: theme.fontMedium,
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "#F9FAFC",
+    padding: theme.spacingXL,
+    backgroundColor: theme.pageBg,
   },
   errorTitle: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#1F2937",
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: theme.fontBold,
+    color: theme.neutral900,
+    marginTop: theme.spacingL,
+    marginBottom: theme.spacingS,
   },
   errorText: {
     fontSize: 16,
-    color: "#6B7280",
+    color: theme.neutral600,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: theme.spacing2XL,
   },
   errorButton: {
-    backgroundColor: "#5B6EF5",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: theme.primary,
+    paddingHorizontal: theme.spacing2XL,
+    paddingVertical: theme.spacingM,
+    borderRadius: theme.radiusLarge,
+    ...theme.shadowMedium,
   },
   errorButtonText: {
-    color: "#FFFFFF",
+    color: theme.neutral50,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
   },
   // Style for the loading more indicator at the top
   loadMoreHeader: {
-    padding: 16,
+    padding: theme.spacingL,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    backgroundColor: "rgba(91, 110, 245, 0.1)",
-    borderRadius: 8,
-    margin: 8,
+    backgroundColor: `${theme.primary}10`,
+    borderRadius: theme.radiusMedium,
+    margin: theme.spacingS,
   },
   loadMoreText: {
-    marginLeft: 8,
+    marginLeft: theme.spacingS,
     fontSize: 14,
-    color: "#6B7280",
+    color: theme.neutral600,
   },
   ministryInfoPanel: {
     position: "absolute",
@@ -2184,91 +2372,89 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     width: "85%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral50,
     zIndex: 1000,
-    shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 10,
+    ...theme.shadowHeavy,
+  },
+  ministryInfoContainer: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
   },
   ministryInfoHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: theme.spacingL,
     paddingTop: Platform.OS === "ios" ? 50 : 16,
-    paddingBottom: 12,
+    paddingBottom: theme.spacingM,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAEEF7",
+    borderBottomColor: theme.divider,
   },
   closeInfoButton: {
-    padding: 8,
+    padding: theme.spacingS,
   },
   ministryInfoTitle: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: theme.spacingS,
     fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: theme.fontSemiBold,
+    color: theme.neutral900,
     textAlign: "center",
   },
   ministryInfoContent: {
     flex: 1,
-    padding: 24,
+    padding: theme.spacing2XL,
     alignItems: "center",
   },
   ministryInfoAvatar: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    borderRadius: theme.radiusFull,
+    marginBottom: theme.spacingL,
+    ...theme.shadowMedium,
   },
   ministryInfoName: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#1F2937",
+    fontWeight: theme.fontBold,
+    color: theme.neutral900,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: theme.spacingS,
   },
   ministryInfoMembers: {
     fontSize: 16,
-    color: "#6B7280",
-    marginBottom: 24,
+    color: theme.neutral600,
+    marginBottom: theme.spacing2XL,
   },
   ministryInfoDescriptionContainer: {
     width: "100%",
-    padding: 16,
-    backgroundColor: "#F5F7FF",
-    borderRadius: 12,
-    marginBottom: 32,
+    padding: theme.spacingL,
+    backgroundColor: theme.neutral100,
+    borderRadius: theme.radiusLarge,
+    marginBottom: theme.spacing3XL,
+    ...theme.shadowLight,
   },
   ministryInfoDescriptionTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#5B6EF5",
-    marginBottom: 8,
+    fontWeight: theme.fontSemiBold,
+    color: theme.primary,
+    marginBottom: theme.spacingS,
   },
   ministryInfoDescription: {
     fontSize: 15,
-    color: "#4B5563",
+    color: theme.neutral700,
     lineHeight: 22,
   },
   leaveMinistryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: "#FEE2E2",
-    borderRadius: 12,
+    paddingHorizontal: theme.spacing2XL,
+    paddingVertical: theme.spacingM,
+    backgroundColor: `${theme.error}20`,
+    borderRadius: theme.radiusLarge,
     borderWidth: 1,
-    borderColor: "#FECACA",
+    borderColor: `${theme.error}40`,
   },
   leaveMinistryButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#EF4444",
+    fontWeight: theme.fontSemiBold,
+    color: theme.error,
   },
 });
