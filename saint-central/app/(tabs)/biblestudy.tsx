@@ -14,7 +14,8 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
-  RefreshControl
+  RefreshControl,
+  ImageBackground
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
@@ -23,6 +24,8 @@ import {
   AntDesign,
   MaterialCommunityIcons,
   Feather,
+  Ionicons,
+  FontAwesome5
 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../supabaseClient';
@@ -46,10 +49,11 @@ export interface BibleStudy {
   time: string;
   image: string | null;
   church_id: string;
-  created_by: string; // Text type, not UUID
-  description: string;    
-  location?: string;    
+  created_by: string;
+  description: string;
+  location?: string;
   is_recurring?: boolean;
+  title?: string; // Added title field
 }
 
 // User church role interface
@@ -65,12 +69,18 @@ interface IconAndColor {
   color: string;
 }
 
+// Background colors
+const PARCHMENT_BG = '#F9F5F1'; // Light parchment/cream color
+const CARD_BG = '#FFFFFF';      // White for cards
+const SELECTED_TAB_BG = '#FFFFFF'; // White background for selected tab
+const UNSELECTED_TAB_BG = 'rgba(169, 150, 134, 0.15)'; // Light version of neutral400
+
 const BibleStudySchedulePage: React.FC = () => {
   // Configure status bar on component mount
   useEffect(() => {
     StatusBar.setBarStyle('dark-content');
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor(theme.pageBg);
+      StatusBar.setBackgroundColor(PARCHMENT_BG);
       StatusBar.setTranslucent(false);
     }
   }, []);
@@ -78,28 +88,6 @@ const BibleStudySchedulePage: React.FC = () => {
   const router = useRouter();
   const navigation = useNavigation<NavigationProp>();
   const scrollY = useRef(new Animated.Value(0)).current;
-  const headerHeight = 60;
-  const heroMaxHeight = 280;
-  const churchSelectorHeight = 70;
-
-  // Animated values for collapsible sections
-  const heroHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [heroMaxHeight, 0],
-    extrapolate: 'clamp',
-  });
-
-  const heroOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-
-  const churchSelectorOpacity = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
 
   // State variables
   const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>([]);
@@ -113,6 +101,7 @@ const BibleStudySchedulePage: React.FC = () => {
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const [filteredBibleStudies, setFilteredBibleStudies] = useState<BibleStudy[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTabs, setActiveTabs] = useState<'upcoming' | 'past'>('upcoming');
 
   // Fetch current user on mount
   useEffect(() => {
@@ -143,14 +132,24 @@ const BibleStudySchedulePage: React.FC = () => {
   useEffect(() => {
     const filtered = bibleStudies.filter((study: BibleStudy) => {
       const searchTerm = searchQuery.toLowerCase();
-      return (
+      const today = new Date();
+      const studyDate = new Date(study.date);
+      const isPast = studyDate < today;
+      
+      const matchesSearch = (
         (study.description?.toLowerCase() || '').includes(searchTerm) ||
         (study.location?.toLowerCase() || '').includes(searchTerm) ||
         (study.created_by?.toLowerCase() || '').includes(searchTerm)
       );
+      
+      // Filter by active tab
+      return matchesSearch && (
+        (activeTabs === 'upcoming' && !isPast) ||
+        (activeTabs === 'past' && isPast)
+      );
     });
     setFilteredBibleStudies(filtered);
-  }, [searchQuery, bibleStudies]);
+  }, [searchQuery, bibleStudies, activeTabs]);
 
   // Load Bible studies when church selection changes
   useEffect(() => {
@@ -256,7 +255,14 @@ const BibleStudySchedulePage: React.FC = () => {
         }));
         
         setBibleStudies(enhancedData);
-        setFilteredBibleStudies(enhancedData);
+        // Initial filtering based on active tab
+        const today = new Date();
+        const filtered = enhancedData.filter((study) => {
+          const studyDate = new Date(study.date);
+          const isPast = studyDate < today;
+          return activeTabs === 'upcoming' ? !isPast : isPast;
+        });
+        setFilteredBibleStudies(filtered);
         console.log(`Fetched ${enhancedData.length} Bible studies for church ${selectedChurchId}`);
       }
     } catch (error) {
@@ -293,7 +299,6 @@ const BibleStudySchedulePage: React.FC = () => {
     }
     
     console.log("Navigating to create Bible study page");
-    // Ensure we're routing to the CreateBibleStudyPage component
     router.push({
       pathname: "/createbiblestudypage",
       params: { church_id: selectedChurchId }
@@ -361,7 +366,6 @@ const BibleStudySchedulePage: React.FC = () => {
     // If it's a path without the full URL, construct the URL
     if (!url.startsWith('http')) {
       // This assumes Supabase storage URLs follow this pattern
-      // Update this URL structure based on your Supabase configuration
       const { data } = supabase.storage
         .from('bible-images')
         .getPublicUrl(url);
@@ -388,6 +392,14 @@ const BibleStudySchedulePage: React.FC = () => {
     return timeString;
   };
 
+  // Get date components for calendar-style display
+  const getDateComponents = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', { month: 'short' });
+    return { day, month };
+  };
+
   // Render search bar
   const renderSearchBar = (): React.ReactNode => (
     <View style={styles.searchContainer}>
@@ -410,622 +422,586 @@ const BibleStudySchedulePage: React.FC = () => {
     </View>
   );
 
+  // Add handleManualRefresh method
+  const handleManualRefresh = (): void => {
+    setLoading(true);
+    fetchBibleStudies().finally(() => {
+      setLoading(false);
+    });
+  };
+
   // Render Bible study card
   const renderBibleStudyCard = ({ item }: { item: BibleStudy }): React.ReactNode => {
     const { icon, color } = getBibleStudyIconAndColor(item);
+    const { day, month } = getDateComponents(item.date);
     const studyDate = new Date(item.date);
     const isPastStudy = studyDate < new Date();
     const isCreator = user && item.created_by === user.id;
     const canEdit = hasPermissionToCreate || isCreator;
     
     return (
-      <View
+      <TouchableOpacity
         key={item.id}
-        style={[
-          styles.bibleStudyCard, 
-          { borderLeftColor: color },
-          isPastStudy && styles.pastBibleStudyCard
-        ]}
+        style={styles.bibleStudyCard}
+        onPress={() => handleBibleStudyClick(item)}
+        activeOpacity={0.9}
       >
-        {/* Image at the top of the card */}
-        {item.image && (
-          <View style={styles.bibleStudyImageContainer}>
-            <Image
-              source={{ uri: getImageUrl(item.image) }}
-              style={styles.bibleStudyImage}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(45, 36, 31, 0.7)']}
-              style={styles.imageGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-          </View>
-        )}
+        {/* Date display */}
+        <View style={styles.dateContainer}>
+          <Text style={styles.dateMonth}>{month}</Text>
+          <Text style={styles.dateDay}>{day}</Text>
+        </View>
         
-        <View style={styles.bibleStudyContent}>
-          {/* Header is clickable for navigation */}
-          <TouchableOpacity 
-            style={styles.bibleStudyHeader}
-            onPress={() => handleBibleStudyClick(item)}
-          >
-            <View style={[styles.bibleStudyIconContainer, { backgroundColor: color }]}>
-              <Feather name={icon as any} size={20} color={theme.textWhite} />
+        <View style={styles.cardContent}>
+          {/* Title row */}
+          <View style={styles.titleRow}>
+            <View style={[styles.studyIconContainer, { backgroundColor: color }]}>
+              <Feather name={icon as any} size={20} color="#FFFFFF" />
             </View>
-            <View style={styles.bibleStudyTitleContainer}>
-              <Text style={styles.bibleStudyTitle} numberOfLines={1}>
-                {item.description || 'Bible Study'}
+            <View style={styles.titleContainer}>
+              <Text style={styles.studyTitle} numberOfLines={1}>
+                {item.title || item.description}
               </Text>
-              <View style={styles.bibleStudyTimeLocationContainer}>
-                <View style={styles.dateTimeRow}>
-                  <Feather name="calendar" size={14} color={theme.textMedium} style={styles.smallIcon} />
-                  <Text style={styles.bibleStudyDateTime}>
-                    {formatDate(item.date)} • {formatTime(item.time)}
-                  </Text>
-                </View>
-                <View style={styles.locationRow}>
-                  <Feather name="map-pin" size={14} color={theme.textMedium} style={styles.smallIcon} />
-                  <Text style={styles.bibleStudyLocation} numberOfLines={1} ellipsizeMode="tail">
-                    {item.location || "Church Main Hall"}
-                  </Text>
-                  <Text style={styles.creatorName}>
-                    • Created by {item.created_by || "Unknown"}
-                  </Text>
-                </View>
-              </View>
+              <Text style={styles.studyTime}>{formatTime(item.time)}</Text>
             </View>
-          </TouchableOpacity>
+          </View>
           
-          {/* Description */}
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.descriptionLabel}>About this study:</Text>
-            <Text style={styles.bibleStudyDescription} numberOfLines={4}>
-              {item.location || "Join us for a time of Bible study and fellowship. All are welcome to participate as we grow together in faith and knowledge."}
+          {/* Location */}
+          <View style={styles.locationRow}>
+            <Feather name="map-pin" size={14} color={theme.textMedium} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location || "Church Main Hall"}
             </Text>
           </View>
           
-          {/* Action Row - Edit button only */}
-          {canEdit && (
-            <View style={styles.bibleStudyActionRow}>
+          {/* Description */}
+          <Text style={styles.descriptionText} numberOfLines={2}>
+            {item.description || "Join us for Bible study as we explore the word of God together in community."}
+          </Text>
+          
+          {/* Footer - Created by and edit button */}
+          <View style={styles.cardFooter}>
+            <Text style={styles.createdByText}>Created by {item.created_by || "Unknown"}</Text>
+            
+            {canEdit && (
               <TouchableOpacity 
-                style={[styles.actionButton, styles.editActionButton]}
+                style={styles.editButton}
                 onPress={() => handleEditBibleStudy(item)}
               >
-                <Feather name="edit-2" size={16} color={theme.primary} />
-                <Text style={[styles.actionButtonText, styles.editActionText]}>Edit</Text>
+                <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
-            </View>
-          )}
+            )}
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Fixed Header */}
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Bible Study</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={() => setShowSearch(!showSearch)}
-            >
-              <Feather name={showSearch ? "x" : "search"} size={22} color={theme.textDark} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={onRefresh}
-            >
-              <Feather name="refresh-cw" size={22} color={theme.textDark} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Search Bar (conditionally shown) */}
-        {showSearch && renderSearchBar()}
-      </SafeAreaView>
+      <StatusBar barStyle="dark-content" backgroundColor={PARCHMENT_BG} />
       
-      {/* Main Scrollable Content */}
-      <Animated.ScrollView
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
         }
       >
-        {/* Collapsible Hero Section */}
-        <Animated.View
-          style={[
-            styles.heroSection,
-            { 
-              transform: [{ scaleY: scrollY.interpolate({
-                inputRange: [0, 100],
-                outputRange: [1, 0],
-                extrapolate: 'clamp'
-              })}],
-              opacity: scrollY.interpolate({
-                inputRange: [0, 80],
-                outputRange: [1, 0],
-                extrapolate: 'clamp'
-              }),
-              height: heroMaxHeight,
-              overflow: 'hidden'
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={theme.gradientWarm} // Warm gradient
-            style={styles.heroBackground}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.iconContainer}>
-              <Feather name="book-open" size={36} color={theme.textWhite} />
-            </View>
-            <Text style={styles.heroTitle}>Bible Study Schedule</Text>
-            <Text style={styles.heroSubtitle}>
-              Join us to study God's word and grow in faith together
-            </Text>
-            {hasPermissionToCreate && (
-              <TouchableOpacity
-                style={styles.addBibleStudyButton}
-                onPress={handleCreateBibleStudyClick}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addBibleStudyButtonText}>CREATE BIBLE STUDY</Text>
-                <AntDesign name="plus" size={18} color={theme.textWhite} />
-              </TouchableOpacity>
-            )}
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Collapsible Church Selector */}
-        {userChurches.length > 0 && (
-          <Animated.View style={[
-            styles.churchSelectorContainer,
-            { 
-              opacity: scrollY.interpolate({
-                inputRange: [0, 60],
-                outputRange: [1, 0],
-                extrapolate: 'clamp'
-              }),
-              transform: [{ scaleY: scrollY.interpolate({
-                inputRange: [0, 80],
-                outputRange: [1, 0],
-                extrapolate: 'clamp'
-              })}],
-              height: churchSelectorHeight,
-              overflow: 'hidden'
-            }
-          ]}>
-            <Text style={styles.selectorLabel}>My Churches:</Text>
-            <ScrollView 
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.churchSelector}
-            >
-              {userChurches.map(church => (
-                <TouchableOpacity
-                  key={church.id}
-                  style={[
-                    styles.churchOption,
-                    selectedChurchId === church.id && styles.churchOptionActive
-                  ]}
-                  onPress={() => setSelectedChurchId(church.id)}
-                >
-                  <Text style={[
-                    styles.churchOptionText,
-                    selectedChurchId === church.id && styles.churchOptionTextActive
-                  ]}>
-                    {church.name}
-                    {church.role === 'admin' || church.role === 'owner' ? 
-                      ` (${church.role})` : ''}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* Main Content Area */}
-        <View style={styles.mainContainer}>
-          {/* Bible Studies List */}
-          <View style={styles.listContainer}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-                <Text style={styles.loadingText}>Loading Bible studies...</Text>
-              </View>
-            ) : filteredBibleStudies.length === 0 ? (
-              <View style={styles.noBibleStudiesContainer}>
-                <Feather name="book-open" size={50} color={theme.textLight} />
-                <Text style={styles.noBibleStudiesText}>No Bible studies found</Text>
-                <Text style={styles.noBibleStudiesSubtext}>
-                  {searchQuery ? "Try a different search term" : 
-                   hasPermissionToCreate ? "Add your first Bible study by tapping the button above" :
-                   "There are no upcoming Bible studies for this church"}
-                </Text>
-              </View>
-            ) : (
-              <>
-                {filteredBibleStudies.map(item => renderBibleStudyCard({ item }))}
-              </>
-            )}
+        {/* Hero Section with Bible Icon and Verse */}
+        <View style={styles.heroSection}>
+          <View style={styles.bookIconContainer}>
+            <FontAwesome5 
+              name="bible" 
+              size={40}
+              color={theme.primary}
+            />
           </View>
           
-          {/* Add some bottom padding for better scrolling experience */}
-          <View style={{ height: 100 }} />
+          <Text style={styles.heroTitle}>Bible Study</Text>
+          <Text style={styles.heroVerse}>"Your word is a lamp to my feet and a light to my path."</Text>
+          <Text style={styles.verseReference}>Psalm 119:105</Text>
+          
+          {hasPermissionToCreate && (
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={handleCreateBibleStudyClick}
+            >
+              <Text style={styles.createButtonText}>START NEW STUDY</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </Animated.ScrollView>
+        
+        {/* Filter Tabs */}
+        <View style={styles.filterTabsContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.filterTab, 
+              activeTabs === 'upcoming' ? styles.filterTabActive : null
+            ]}
+            onPress={() => setActiveTabs('upcoming')}
+          >
+            <Text style={[
+              styles.filterTabText,
+              activeTabs === 'upcoming' ? styles.filterTabTextActive : null
+            ]}>
+              UPCOMING
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.filterTab, 
+              activeTabs === 'past' ? styles.filterTabActive : null
+            ]}
+            onPress={() => setActiveTabs('past')}
+          >
+            <Text style={[
+              styles.filterTabText,
+              activeTabs === 'past' ? styles.filterTabTextActive : null
+            ]}>
+              PAST
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Church Selection */}
+        {userChurches.length > 0 && (
+          <View style={styles.churchContainer}>
+            <View style={styles.churchCard}>
+              <Text style={styles.churchName}>{userChurches.find(c => c.id === selectedChurchId)?.name || 'Select a Church'}</Text>
+              
+              {/* Role badge */}
+              {userChurches.find(c => c.id === selectedChurchId)?.role && (
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleBadgeText}>
+                    {userChurches.find(c => c.id === selectedChurchId)?.role.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+            
+            {/* Church selector if multiple churches */}
+            {userChurches.length > 1 && (
+              <ScrollView 
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.churchSelector}
+                contentContainerStyle={styles.churchSelectorContent}
+              >
+                {userChurches.map(church => (
+                  <TouchableOpacity
+                    key={church.id}
+                    style={[
+                      styles.churchOption,
+                      selectedChurchId === church.id ? styles.churchOptionActive : null
+                    ]}
+                    onPress={() => setSelectedChurchId(church.id)}
+                  >
+                    <Text style={[
+                      styles.churchOptionText,
+                      selectedChurchId === church.id ? styles.churchOptionTextActive : null
+                    ]}>
+                      {church.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+        
+        {/* Search Bar - Only if needed */}
+        {showSearch && renderSearchBar()}
+        
+        {/* Bible Studies List */}
+        <View style={styles.bibleStudiesContainer}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={styles.loadingText}>Loading Bible studies...</Text>
+            </View>
+          ) : filteredBibleStudies.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <FontAwesome5 name="bible" size={50} color={theme.neutral300} />
+              <Text style={styles.emptyStateTitle}>No Bible studies found</Text>
+              <Text style={styles.emptyStateMessage}>
+                {searchQuery ? "Try a different search term" : 
+                  activeTabs === 'upcoming' ?
+                  (hasPermissionToCreate ? "Add your first Bible study by tapping the button above" :
+                  "There are no upcoming Bible studies for this church") :
+                  "No past Bible studies are available"}
+              </Text>
+            </View>
+          ) : (
+            filteredBibleStudies.map(item => renderBibleStudyCard({ item }))
+          )}
+        </View>
+      </ScrollView>
+      
+      {/* Add refresh button before search toggle button */}
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={handleManualRefresh}
+      >
+        <Feather name="refresh-cw" size={22} color="#FFFFFF" />
+      </TouchableOpacity>
+      
+      {/* Search toggle button */}
+      <TouchableOpacity
+        style={styles.searchToggleButton}
+        onPress={() => setShowSearch(!showSearch)}
+      >
+        <Feather name={showSearch ? "x" : "search"} size={22} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 };
 
-// Styles definition
+// Clean, minimalist styles with parchment theme
 const styles = StyleSheet.create({
-  recurringBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.primary,
-    borderRadius: theme.radiusMedium,
-    paddingHorizontal: theme.spacingS,
-    paddingVertical: 2,
-    marginLeft: theme.spacingS,
-  },
-  recurringIcon: {
-    marginRight: 2,
-  },
-  recurringText: {
-    color: theme.textWhite,
-    fontSize: 10,
-    fontWeight: theme.fontSemiBold,
-  },
   container: {
     flex: 1,
-    backgroundColor: theme.pageBg,
-  },
-  safeArea: {
-    backgroundColor: theme.pageBg,
-    zIndex: 1,
-  },
-  header: {
-    paddingVertical: theme.spacingL,
-    paddingHorizontal: theme.spacingXL,
-    backgroundColor: theme.pageBg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
+    backgroundColor: PARCHMENT_BG,
   },
   scrollView: {
     flex: 1,
   },
   scrollViewContent: {
-    paddingTop: 0,
-    paddingBottom: 80,
-  },
-  heroSection: {
-    marginHorizontal: theme.spacingXL,
-    marginVertical: theme.spacingL,
-    borderRadius: theme.radiusLarge,
-    overflow: 'hidden',
-    ...theme.shadowMedium,
-  },
-  mainContainer: {
-    backgroundColor: theme.pageBg,
-  },
-  // Header
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.pageBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: theme.spacingS,
-  },
-  // Search
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: theme.spacingXL,
-    marginTop: theme.spacingS,
-    marginBottom: theme.spacingM,
-    backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusMedium,
-    paddingHorizontal: theme.spacingM,
-    borderWidth: 1,
-    borderColor: theme.divider,
-  },
-  searchIcon: {
-    marginRight: theme.spacingS,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: theme.textDark,
-  },
-  clearSearchButton: {
-    padding: theme.spacingS,
-  },
-  // Hero Section
-  heroBackground: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 30,
     paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 40,
   },
-  iconContainer: {
+  
+  // Hero Section
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  bookIconContainer: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   heroTitle: {
+    fontSize: 32,
+    fontWeight: theme.fontBold,
+    color: theme.neutral900,
+    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  heroVerse: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: theme.neutral700,
+    textAlign: 'center',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    paddingHorizontal: 20,
+  },
+  verseReference: {
+    fontSize: 14,
+    color: theme.neutral600,
+    marginBottom: 30,
+  },
+  createButton: {
+    backgroundColor: theme.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 250,
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: theme.fontBold,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  
+  // Filter Tabs
+  filterTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: UNSELECTED_TAB_BG,
+    borderRadius: 30,
+    padding: 4,
+    marginBottom: 20,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 26,
+  },
+  filterTabActive: {
+    backgroundColor: SELECTED_TAB_BG,
+  },
+  filterTabText: {
+    fontWeight: theme.fontBold,
+    color: theme.neutral500,
+    letterSpacing: 1,
+    fontSize: 14,
+  },
+  filterTabTextActive: {
+    color: theme.neutral900,
+  },
+  
+  // Church Selection
+  churchContainer: {
+    marginBottom: 20,
+  },
+  churchCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    ...theme.shadowLight,
+  },
+  churchName: {
     fontSize: 24,
     fontWeight: theme.fontBold,
-    color: theme.textWhite,
-    textAlign: "center",
-    marginBottom: theme.spacingS,
+    color: theme.neutral900,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
-  heroSubtitle: {
-    fontSize: 15,
-    color: "rgba(255, 255, 255, 0.9)",
-    textAlign: "center",
-    marginBottom: theme.spacingXL,
-    maxWidth: 300,
-    lineHeight: 22,
+  roleBadge: {
+    backgroundColor: theme.accent1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 50,
   },
-  // Add Bible Study Button
-  addBibleStudyButton: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingVertical: theme.spacingM,
-    paddingHorizontal: theme.spacingXL,
-    borderRadius: theme.radiusFull,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  addBibleStudyButtonText: {
-    fontSize: 16,
-    color: theme.textWhite,
+  roleBadgeText: {
+    fontSize: 12,
     fontWeight: theme.fontBold,
-    marginRight: 10,
-  },
-  // Church selector styles
-  churchSelectorContainer: {
-    marginVertical: theme.spacingM,
-    paddingHorizontal: theme.spacingXL,
-  },
-  selectorLabel: {
-    fontSize: 15,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-    marginBottom: theme.spacingS,
+    color: theme.neutral800,
+    letterSpacing: 1,
   },
   churchSelector: {
-    flexDirection: 'row',
-    paddingVertical: 4,
+    marginTop: 10,
+  },
+  churchSelectorContent: {
+    paddingVertical: 10,
   },
   churchOption: {
-    paddingHorizontal: theme.spacingL,
-    paddingVertical: theme.spacingS,
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusFull,
-    marginRight: theme.spacingM,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 10,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: theme.divider,
   },
   churchOptionActive: {
-    backgroundColor: theme.primary,
-    borderColor: theme.primary,
+    backgroundColor: theme.accent1,
+    borderColor: theme.accent1,
   },
   churchOptionText: {
-    color: theme.textMedium,
+    color: theme.neutral600,
     fontWeight: theme.fontMedium,
   },
   churchOptionTextActive: {
-    color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
+    color: theme.neutral800,
+    fontWeight: theme.fontBold,
   },
-  // List View
-  listContainer: {
-    paddingHorizontal: theme.spacingXL,
-    paddingTop: theme.spacingM,
+  
+  // Search
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_BG,
+    borderRadius: 50,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    height: 50,
+    ...theme.shadowLight,
   },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: 50,
+    fontSize: 16,
+    color: theme.textDark,
+  },
+  clearSearchButton: {
+    padding: 8,
+  },
+  searchToggleButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadowMedium,
+  },
+  
+  // Bible Study Container
+  bibleStudiesContainer: {
+    marginBottom: 40,
+  },
+  
+  // Loading State
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 50,
+    paddingVertical: 60,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
+    marginTop: 16,
+    fontSize: 16,
     color: theme.textMedium,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
-  noBibleStudiesContainer: {
+  
+  // Empty State
+  emptyStateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusLarge,
-    padding: 30,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 40,
     marginVertical: 20,
     ...theme.shadowLight,
   },
-  noBibleStudiesText: {
-    fontSize: 18,
+  emptyStateTitle: {
+    fontSize: 20,
     fontWeight: theme.fontBold,
     color: theme.textDark,
     marginTop: 16,
     marginBottom: 8,
   },
-  noBibleStudiesSubtext: {
-    fontSize: 14,
+  emptyStateMessage: {
+    fontSize: 16,
     color: theme.textMedium,
     textAlign: 'center',
-    marginHorizontal: 20,
+    maxWidth: 250,
+    lineHeight: 22,
   },
-  // Bible Study Cards
+  
+  // Bible Study Card
   bibleStudyCard: {
-    backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusLarge,
-    marginBottom: 20,
-    ...theme.shadowMedium,
-    borderLeftWidth: 4,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    marginBottom: 16,
     overflow: 'hidden',
-  },
-  bibleStudyContent: {
-    padding: theme.spacingL,
-  },
-  pastBibleStudyCard: {
-    opacity: 0.8,
-  },
-  bibleStudyHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    ...theme.shadowLight,
   },
-  bibleStudyIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: theme.radiusMedium,
+  dateContainer: {
+    width: 60,
+    backgroundColor: theme.neutral100,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacingM,
+    paddingVertical: 14,
   },
-  bibleStudyTitleContainer: {
-    flex: 1,
-  },
-  bibleStudyTitle: {
-    fontSize: 18,
+  dateMonth: {
+    fontSize: 12,
+    color: theme.neutral600,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginBottom: 4,
-  },
-  bibleStudyTimeLocationContainer: {
-    flexDirection: 'column',
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
-  smallIcon: {
-    marginRight: 4,
+  dateDay: {
+    fontSize: 20,
+    color: theme.neutral800,
+    fontWeight: theme.fontBold,
   },
-  bibleStudyDateTime: {
+  cardContent: {
+    flex: 1,
+    padding: 16,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  studyIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  studyTitle: {
+    fontSize: 16,
+    fontWeight: theme.fontBold,
+    color: theme.neutral900,
+    marginBottom: 2,
+  },
+  studyTime: {
     fontSize: 14,
-    color: theme.textMedium,
+    color: theme.neutral600,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 10,
   },
-  bibleStudyLocation: {
-    fontSize: 14,
-    color: theme.textMedium,
-  },
-  creatorName: {
-    fontSize: 12,
-    color: theme.textLight,
-    marginLeft: 4,
-  },
-  creatorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  // Updated description styles
-  descriptionContainer: {
-    backgroundColor: theme.neutral100, // Warm light background
-    borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    marginTop: theme.spacingL,
-    marginBottom: theme.spacingM,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.primary,
-  },
-  descriptionLabel: {
-    fontSize: 14,
-    fontWeight: theme.fontSemiBold,
-    color: theme.primary,
-    marginBottom: 6,
-  },
-  bibleStudyDescription: {
-    fontSize: 16,
-    color: theme.textDark,
-    lineHeight: 24,
-  },
-  // Image styles
-  bibleStudyImageContainer: {
-    height: 180,
-    width: '100%',
-    position: 'relative',
-  },
-  bibleStudyImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 60,
-  },
-  // Bible Study Action Row
-  bibleStudyActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: theme.spacingL,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: theme.spacingM,
-    paddingHorizontal: theme.spacingL,
-    borderRadius: theme.radiusFull,
-    marginLeft: theme.spacingS,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: theme.fontSemiBold,
+  locationText: {
     marginLeft: 6,
+    fontSize: 14,
+    color: theme.neutral700,
   },
-  editActionButton: {
+  descriptionText: {
+    fontSize: 14,
+    color: theme.neutral600,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.neutral100,
+  },
+  createdByText: {
+    fontSize: 12,
+    color: theme.neutral500,
+  },
+  editButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     backgroundColor: theme.neutral100,
+    borderRadius: 50,
   },
-  editActionText: {
+  editButtonText: {
+    fontSize: 12,
     color: theme.primary,
-  }
+    fontWeight: theme.fontSemiBold,
+  },
+  refreshButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadowMedium,
+  },
 });
 
 export default BibleStudySchedulePage;

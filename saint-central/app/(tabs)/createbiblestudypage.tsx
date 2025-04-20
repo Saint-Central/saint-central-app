@@ -17,13 +17,19 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   AntDesign,
   Feather,
-  MaterialIcons
+  MaterialIcons,
+  FontAwesome5,
+  Ionicons
 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { LinearGradient } from 'expo-linear-gradient';
+import theme from '../../theme'; // Updated import path
+
+// Recurring type options
+export type RecurringType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 // Types
 interface BibleStudy {
@@ -36,6 +42,8 @@ interface BibleStudy {
   description: string;
   location?: string;
   is_recurring: boolean;
+  title: string;
+  recurring_type?: RecurringType; // Added recurring type field
 }
 
 interface UserChurch {
@@ -43,25 +51,6 @@ interface UserChurch {
   name: string;
   role: string;
 }
-
-// Modern color theme with spiritual tones - BLUE THEME FOR BIBLE STUDY
-const THEME = {
-  primary: "#2D3748",
-  secondary: "#4A5568",
-  light: "#A0AEC0",
-  background: "#F7FAFC",
-  card: "#FFFFFF",
-  accent1: "#EBF8FF",
-  border: "#E2E8F0",
-  buttonPrimary: "#3182CE",
-  buttonSecondary: "#2C5282",
-  buttonText: "#FFFFFF",
-  error: "#E53E3E",
-  success: "#38A169",
-  warning: "#DD6B20",
-  shadow: "rgba(0, 0, 0, 0.1)",
-  placeholder: "#CBD5E0"
-};
 
 const CreateBibleStudyPage: React.FC = () => {
   const router = useRouter();
@@ -87,7 +76,9 @@ const CreateBibleStudyPage: React.FC = () => {
     created_by: '',
     description: '',
     location: '',
-    is_recurring: false
+    is_recurring: false,
+    title: '',
+    recurring_type: 'none'
   });
   
   // Date and time picker state
@@ -206,7 +197,9 @@ const CreateBibleStudyPage: React.FC = () => {
           created_by: data.created_by,
           description: data.description || '',
           location: data.location || '',
-          is_recurring: data.is_recurring || false
+          is_recurring: data.is_recurring || false,
+          title: data.title || '',
+          recurring_type: data.recurring_type || 'none'
         });
       }
     } catch (error) {
@@ -218,11 +211,30 @@ const CreateBibleStudyPage: React.FC = () => {
   };
 
   // Update form field - fixed type to accept string, null, or boolean
-  const updateField = (field: keyof BibleStudy, value: string | null | boolean | number): void => {
+  const updateField = (field: keyof BibleStudy, value: string | null | boolean | number | RecurringType): void => {
     setFormData(prevData => ({
       ...prevData,
       [field]: value
     }));
+  };
+
+  // Handle recurring type selection
+  const handleRecurringTypeSelect = (type: RecurringType) => {
+    // If selecting "none", set is_recurring to false
+    if (type === 'none') {
+      setFormData(prevData => ({
+        ...prevData,
+        recurring_type: type,
+        is_recurring: false
+      }));
+    } else {
+      // For any other type, set is_recurring to true
+      setFormData(prevData => ({
+        ...prevData,
+        recurring_type: type,
+        is_recurring: true
+      }));
+    }
   };
 
   // Handle date selection
@@ -314,6 +326,11 @@ const CreateBibleStudyPage: React.FC = () => {
 
   // Improved form validation - checks all required fields
   const validateForm = (): boolean => {
+    if (!formData.title || formData.title.trim() === '') {
+      setErrorMessage('Please enter a title');
+      return false;
+    }
+    
     if (!formData.date) {
       setErrorMessage('Please select a date');
       return false;
@@ -374,10 +391,12 @@ const CreateBibleStudyPage: React.FC = () => {
             time: formData.time,
             image: formData.image,
             church_id: formData.church_id,
-            created_by: formData.created_by || 'Bible Study Leader', // Use user-entered text
+            created_by: formData.created_by || 'Bible Study Leader',
             description: formData.description,
             location: formData.location,
-            is_recurring: formData.is_recurring
+            is_recurring: formData.is_recurring,
+            title: formData.title,
+            recurring_type: formData.recurring_type
           })
           .eq('id', bibleStudyId);
         
@@ -389,7 +408,7 @@ const CreateBibleStudyPage: React.FC = () => {
         Alert.alert(
           'Success', 
           'Bible study updated successfully',
-          [{ text: 'OK', onPress: () => router.back() }]
+          [{ text: 'OK', onPress: () => router.push('/biblestudy') }]
         );
       } else {
         // Create new Bible study
@@ -400,10 +419,12 @@ const CreateBibleStudyPage: React.FC = () => {
             time: formData.time,
             image: formData.image,
             church_id: formData.church_id,
-            created_by: formData.created_by || 'Bible Study Leader', // Use user-entered text
+            created_by: formData.created_by || 'Bible Study Leader',
             description: formData.description,
             location: formData.location,
-            is_recurring: formData.is_recurring
+            is_recurring: formData.is_recurring,
+            title: formData.title,
+            recurring_type: formData.recurring_type
           }]);
         
         if (error) {
@@ -414,7 +435,7 @@ const CreateBibleStudyPage: React.FC = () => {
         Alert.alert(
           'Success', 
           'Bible study created successfully',
-          [{ text: 'OK', onPress: () => router.back() }]
+          [{ text: 'OK', onPress: () => router.push('/biblestudy') }]
         );
       }
     } catch (error) {
@@ -425,15 +446,15 @@ const CreateBibleStudyPage: React.FC = () => {
     }
   };
 
-  // Handle cancel - already properly implemented
+  // Handle cancel - updated to route back to biblestudy
   const handleCancel = (): void => {
-    router.back();
+    router.push('/biblestudy');
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -444,7 +465,7 @@ const CreateBibleStudyPage: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.scrollView}>
           <View style={styles.noPermissionContainer}>
-            <Feather name="alert-circle" size={60} color={THEME.error} />
+            <Feather name="alert-circle" size={60} color={theme.error} />
             <Text style={styles.noPermissionTitle}>Access Denied</Text>
             <Text style={styles.noPermissionText}>
               You do not have permission to create or edit Bible studies.
@@ -474,7 +495,7 @@ const CreateBibleStudyPage: React.FC = () => {
             style={styles.backButton}
             onPress={handleCancel}
           >
-            <AntDesign name="arrowleft" size={24} color={THEME.primary} />
+            <AntDesign name="arrowleft" size={24} color={theme.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {isEditMode ? 'Edit Bible Study' : 'New Bible Study'}
@@ -486,12 +507,12 @@ const CreateBibleStudyPage: React.FC = () => {
           {/* Form Header */}
           <View style={styles.formHeader}>
             <LinearGradient
-              colors={['#3182CE', '#2C5282']}
+              colors={theme.gradientWarm}
               style={styles.formHeaderGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Feather name="book-open" size={36} color="#FFFFFF" />
+              <Feather name="book-open" size={36} color={theme.textWhite} />
               <Text style={styles.formHeaderTitle}>
                 {isEditMode ? 'Update Bible Study Details' : 'Create New Bible Study'}
               </Text>
@@ -507,15 +528,36 @@ const CreateBibleStudyPage: React.FC = () => {
           
           {/* Form Fields */}
           <View style={styles.formCard}>
-            {/* Description (main field) */}
+            {/* Title (improved) */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Title*</Text>
+              <View style={styles.enhancedInputContainer}>
+                <FontAwesome5 name="bible" size={18} color={theme.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.enhancedTextInput}
+                  value={formData.title}
+                  onChangeText={(text) => updateField('title', text)}
+                  placeholder="e.g., Sunday Morning Bible Study"
+                  placeholderTextColor={theme.textLight}
+                  autoCapitalize="words"
+                />
+              </View>
+              <Text style={styles.helperText}>
+                A clear, descriptive title for your Bible study
+              </Text>
+            </View>
+            
+            {/* Description */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Description*</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, styles.textAreaInput]}
                 value={formData.description}
                 onChangeText={(text) => updateField('description', text)}
-                placeholder="e.g., Gospel of John Study"
-                placeholderTextColor={THEME.placeholder}
+                placeholder="Enter details about the Bible study content, themes, or format"
+                placeholderTextColor={theme.textLight}
+                multiline={true}
+                numberOfLines={4}
               />
             </View>
             
@@ -526,10 +568,10 @@ const CreateBibleStudyPage: React.FC = () => {
                 style={styles.dateTimeButton}
                 onPress={() => setShowDatePicker(true)}
               >
+                <Feather name="calendar" size={20} color={theme.secondary} style={styles.inputIcon} />
                 <Text style={styles.dateTimeText}>
                   {formData.date || 'Select Date'}
                 </Text>
-                <Feather name="calendar" size={20} color={THEME.secondary} />
               </TouchableOpacity>
               {showDatePicker && (
                 <DateTimePicker
@@ -548,10 +590,10 @@ const CreateBibleStudyPage: React.FC = () => {
                 style={styles.dateTimeButton}
                 onPress={() => setShowTimePicker(true)}
               >
+                <Feather name="clock" size={20} color={theme.secondary} style={styles.inputIcon} />
                 <Text style={styles.dateTimeText}>
                   {formData.time || 'Select Time'}
                 </Text>
-                <Feather name="clock" size={20} color={THEME.secondary} />
               </TouchableOpacity>
               {showTimePicker && (
                 <DateTimePicker
@@ -600,42 +642,34 @@ const CreateBibleStudyPage: React.FC = () => {
             {/* Location */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Location</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.location}
-                onChangeText={(text) => updateField('location', text)}
-                placeholder="e.g., Church Fellowship Hall"
-                placeholderTextColor={THEME.placeholder}
-              />
+              <View style={styles.enhancedInputContainer}>
+                <Feather name="map-pin" size={18} color={theme.secondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.enhancedTextInput}
+                  value={formData.location}
+                  onChangeText={(text) => updateField('location', text)}
+                  placeholder="e.g., Church Fellowship Hall"
+                  placeholderTextColor={theme.textLight}
+                />
+              </View>
             </View>
             
             {/* Creator - Allow custom input */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Creator</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.created_by}
-                onChangeText={(text) => updateField('created_by', text)}
-                placeholder="Enter creator name (e.g., Pastor Smith, Youth Group, etc.)"
-                placeholderTextColor={THEME.placeholder}
-              />
+              <View style={styles.enhancedInputContainer}>
+                <Feather name="user" size={18} color={theme.secondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.enhancedTextInput}
+                  value={formData.created_by}
+                  onChangeText={(text) => updateField('created_by', text)}
+                  placeholder="Enter creator name (e.g., Pastor Smith, Youth Group, etc.)"
+                  placeholderTextColor={theme.textLight}
+                />
+              </View>
               <Text style={styles.helperText}>
                 Enter who is leading or organizing this Bible study
               </Text>
-            </View>
-            
-            {/* More details (optional) */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Additional Details</Text>
-              <TextInput
-                style={[styles.textInput, styles.textAreaInput]}
-                value={formData.location}
-                onChangeText={(text) => updateField('location', text)}
-                placeholder="Enter location or additional details about the Bible study..."
-                placeholderTextColor={THEME.placeholder}
-                multiline={true}
-                numberOfLines={4}
-              />
             </View>
             
             {/* Image */}
@@ -648,7 +682,7 @@ const CreateBibleStudyPage: React.FC = () => {
               >
                 {uploadingImage ? (
                   <View style={styles.uploadingContainer}>
-                    <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                    <ActivityIndicator size="large" color={theme.primary} />
                     <Text style={styles.uploadingText}>Uploading image...</Text>
                   </View>
                 ) : formData.image ? (
@@ -663,37 +697,127 @@ const CreateBibleStudyPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Feather name="image" size={28} color={THEME.secondary} />
+                    <Feather name="image" size={28} color={theme.secondary} />
                     <Text style={styles.imagePickerText}>Select Image</Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
             
-            {/* Recurring Option */}
+            {/* Recurring Option - Enhanced with multiple choices */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Recurring Study</Text>
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>
-                  {formData.is_recurring ? 'This is a recurring Bible study' : 'One-time Bible study'}
-                </Text>
+              <Text style={styles.fieldLabel}>Recurring Schedule</Text>
+              
+              {/* Recurring options */}
+              <View style={styles.recurringOptionsContainer}>
                 <TouchableOpacity
                   style={[
-                    styles.toggleButton,
-                    formData.is_recurring ? styles.toggleButtonActive : {}
+                    styles.recurringOption,
+                    formData.recurring_type === 'none' && styles.recurringOptionActive
                   ]}
-                  onPress={() => updateField('is_recurring', !formData.is_recurring)}
+                  onPress={() => handleRecurringTypeSelect('none')}
                 >
-                  <View style={[
-                    styles.toggleThumb,
-                    formData.is_recurring ? styles.toggleThumbActive : {}
-                  ]} />
+                  <Ionicons 
+                    name="calendar-outline" 
+                    size={20} 
+                    color={formData.recurring_type === 'none' ? theme.textWhite : theme.textDark} 
+                  />
+                  <Text style={[
+                    styles.recurringOptionText,
+                    formData.recurring_type === 'none' && styles.recurringOptionTextActive
+                  ]}>
+                    One-time
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.recurringOption,
+                    formData.recurring_type === 'daily' && styles.recurringOptionActive
+                  ]}
+                  onPress={() => handleRecurringTypeSelect('daily')}
+                >
+                  <Ionicons 
+                    name="today-outline" 
+                    size={20} 
+                    color={formData.recurring_type === 'daily' ? theme.textWhite : theme.textDark} 
+                  />
+                  <Text style={[
+                    styles.recurringOptionText,
+                    formData.recurring_type === 'daily' && styles.recurringOptionTextActive
+                  ]}>
+                    Daily
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.recurringOption,
+                    formData.recurring_type === 'weekly' && styles.recurringOptionActive
+                  ]}
+                  onPress={() => handleRecurringTypeSelect('weekly')}
+                >
+                  <Ionicons 
+                    name="calendar" 
+                    size={20} 
+                    color={formData.recurring_type === 'weekly' ? theme.textWhite : theme.textDark} 
+                  />
+                  <Text style={[
+                    styles.recurringOptionText,
+                    formData.recurring_type === 'weekly' && styles.recurringOptionTextActive
+                  ]}>
+                    Weekly
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.recurringOption,
+                    formData.recurring_type === 'monthly' && styles.recurringOptionActive
+                  ]}
+                  onPress={() => handleRecurringTypeSelect('monthly')}
+                >
+                  <Ionicons 
+                    name="calendar-number-outline" 
+                    size={20} 
+                    color={formData.recurring_type === 'monthly' ? theme.textWhite : theme.textDark} 
+                  />
+                  <Text style={[
+                    styles.recurringOptionText,
+                    formData.recurring_type === 'monthly' && styles.recurringOptionTextActive
+                  ]}>
+                    Monthly
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.recurringOption,
+                    formData.recurring_type === 'yearly' && styles.recurringOptionActive
+                  ]}
+                  onPress={() => handleRecurringTypeSelect('yearly')}
+                >
+                  <Ionicons 
+                    name="calendar-clear" 
+                    size={20} 
+                    color={formData.recurring_type === 'yearly' ? theme.textWhite : theme.textDark}
+                  />
+                  <Text style={[
+                    styles.recurringOptionText,
+                    formData.recurring_type === 'yearly' && styles.recurringOptionTextActive
+                  ]}>
+                    Yearly
+                  </Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Help text based on selection */}
               <Text style={styles.helperText}>
-                {formData.is_recurring
-                  ? 'This study will repeat regularly at the same time and location.'
-                  : 'This is a one-time Bible study event.'}
+                {formData.recurring_type === 'none' && 'This is a one-time Bible study event.'}
+                {formData.recurring_type === 'daily' && 'This study will repeat every day at the same time and location.'}
+                {formData.recurring_type === 'weekly' && 'This study will repeat every week on this day at the same time and location.'}
+                {formData.recurring_type === 'monthly' && 'This study will repeat monthly on this date at the same time and location.'}
+                {formData.recurring_type === 'yearly' && 'This study will repeat yearly on this date at the same time and location.'}
               </Text>
             </View>
             
@@ -717,7 +841,7 @@ const CreateBibleStudyPage: React.FC = () => {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator size="small" color={THEME.buttonText} />
+                <ActivityIndicator size="small" color={theme.textWhite} />
               ) : (
                 <>
                   <Text style={styles.saveButtonText}>
@@ -726,7 +850,7 @@ const CreateBibleStudyPage: React.FC = () => {
                   <Feather
                     name={isEditMode ? 'check-circle' : 'plus-circle'}
                     size={18}
-                    color={THEME.buttonText}
+                    color={theme.textWhite}
                     style={styles.saveButtonIcon}
                   />
                 </>
@@ -742,7 +866,7 @@ const CreateBibleStudyPage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   keyboardAvoid: {
     flex: 1,
@@ -754,21 +878,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
-    backgroundColor: THEME.card,
+    borderBottomColor: theme.divider,
+    backgroundColor: theme.cardBg,
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: THEME.buttonPrimary,
+    color: theme.primary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: theme.fontSemiBold,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
   },
   headerRightPlaceholder: {
     width: 40,
@@ -783,13 +907,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 24,
-    borderRadius: 12,
+    borderRadius: theme.radiusMedium,
     overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadowMedium,
   },
   formHeaderGradient: {
     padding: 24,
@@ -797,8 +917,8 @@ const styles = StyleSheet.create({
   },
   formHeaderTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
     marginTop: 12,
     textAlign: 'center',
   },
@@ -806,25 +926,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 12,
-    backgroundColor: 'rgba(229, 62, 62, 0.1)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(188, 108, 100, 0.1)',
+    borderRadius: theme.radiusSmall,
     borderLeftWidth: 4,
-    borderLeftColor: THEME.error,
+    borderLeftColor: theme.error,
   },
   errorText: {
-    color: THEME.error,
+    color: theme.error,
     fontSize: 14,
   },
   formCard: {
     marginHorizontal: 16,
-    backgroundColor: THEME.card,
-    borderRadius: 12,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusMedium,
     padding: 16,
-    shadowColor: THEME.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...theme.shadowLight,
     marginBottom: 24,
   },
   fieldContainer: {
@@ -832,18 +948,38 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: THEME.primary,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
     marginBottom: 8,
   },
-  textInput: {
-    backgroundColor: THEME.background,
-    borderRadius: 8,
+  // Enhanced input styling
+  enhancedInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
+    paddingHorizontal: 12,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  enhancedTextInput: {
+    flex: 1,
     padding: 12,
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textDark,
+  },
+  // Original input styling
+  textInput: {
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
+    borderWidth: 1,
+    borderColor: theme.divider,
+    padding: 12,
+    fontSize: 16,
+    color: theme.textDark,
   },
   textAreaInput: {
     height: 120,
@@ -852,28 +988,29 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: THEME.background,
-    borderRadius: 8,
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
     padding: 12,
+    paddingLeft: 16,
   },
   dateTimeText: {
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textDark,
+    flex: 1,
   },
   singleChurchContainer: {
-    backgroundColor: THEME.accent1,
-    borderRadius: 8,
+    backgroundColor: theme.overlayLight,
+    borderRadius: theme.radiusSmall,
     padding: 12,
     borderWidth: 1,
-    borderColor: THEME.buttonPrimary,
+    borderColor: theme.primary,
   },
   singleChurchText: {
     fontSize: 16,
-    color: THEME.buttonPrimary,
-    fontWeight: '500',
+    color: theme.primary,
+    fontWeight: theme.fontMedium,
   },
   churchSelector: {
     flexDirection: 'row',
@@ -882,46 +1019,46 @@ const styles = StyleSheet.create({
   churchOption: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
     borderRadius: 20,
     marginRight: 10,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   churchOptionActive: {
-    backgroundColor: THEME.buttonPrimary,
-    borderColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   churchOptionText: {
-    color: THEME.secondary,
-    fontWeight: '500',
+    color: theme.textMedium,
+    fontWeight: theme.fontMedium,
     fontSize: 14,
   },
   churchOptionTextActive: {
-    color: THEME.buttonText,
-    fontWeight: '600',
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
   },
   creatorInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.accent1,
-    borderRadius: 8,
+    backgroundColor: theme.overlayLight,
+    borderRadius: theme.radiusSmall,
     borderWidth: 1,
-    borderColor: THEME.buttonPrimary,
+    borderColor: theme.primary,
     padding: 12,
   },
   creatorInfoText: {
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textDark,
     marginLeft: 10,
     flex: 1,
   },
   imagePickerButton: {
     height: 180,
-    backgroundColor: THEME.background,
-    borderRadius: 8,
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -929,7 +1066,7 @@ const styles = StyleSheet.create({
   imagePickerText: {
     marginTop: 8,
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textMedium,
   },
   previewImage: {
     width: '100%',
@@ -945,9 +1082,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   changeImageText: {
-    color: '#FFFFFF',
+    color: theme.textWhite,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: theme.fontMedium,
   },
   uploadingContainer: {
     flex: 1,
@@ -957,52 +1094,88 @@ const styles = StyleSheet.create({
   uploadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: THEME.buttonPrimary,
-    fontWeight: '500',
+    color: theme.primary,
+    fontWeight: theme.fontMedium,
   },
+  
+  // New recurring options styling
+  recurringOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginVertical: 8,
+    justifyContent: 'space-between',
+  },
+  recurringOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
+    borderWidth: 1,
+    borderColor: theme.divider,
+    padding: 12,
+    marginBottom: 8,
+    width: '48%',
+  },
+  recurringOptionActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  recurringOptionText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: theme.textDark,
+    fontWeight: theme.fontMedium,
+  },
+  recurringOptionTextActive: {
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
+  },
+  
+  // Old switch styling (kept for reference)
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: THEME.background,
-    borderRadius: 8,
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
     padding: 12,
   },
   switchLabel: {
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textDark,
     flex: 1,
   },
   toggleButton: {
     width: 50,
     height: 28,
     borderRadius: 14,
-    backgroundColor: THEME.border,
+    backgroundColor: theme.divider,
     padding: 2,
   },
   toggleButtonActive: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
   },
   toggleThumb: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBg,
   },
   toggleThumbActive: {
     transform: [{ translateX: 22 }],
   },
+  
   helperText: {
     fontSize: 14,
-    color: THEME.light,
+    color: theme.textLight,
     marginTop: 6,
     fontStyle: 'italic',
   },
   requiredNote: {
     fontSize: 12,
-    color: THEME.light,
+    color: theme.textLight,
     marginTop: 10,
     fontStyle: 'italic',
   },
@@ -1014,35 +1187,35 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: 14,
-    backgroundColor: THEME.background,
-    borderRadius: 8,
+    backgroundColor: theme.pageBg,
+    borderRadius: theme.radiusSmall,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
     marginRight: 8,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: THEME.secondary,
+    color: theme.textMedium,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: theme.fontSemiBold,
   },
   saveButton: {
     flex: 2,
     flexDirection: 'row',
     padding: 14,
-    backgroundColor: THEME.buttonPrimary,
-    borderRadius: 8,
+    backgroundColor: theme.primary,
+    borderRadius: theme.radiusSmall,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   saveButtonDisabled: {
-    backgroundColor: THEME.light,
+    backgroundColor: theme.textLight,
   },
   saveButtonText: {
-    color: THEME.buttonText,
+    color: theme.textWhite,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: theme.fontSemiBold,
   },
   saveButtonIcon: {
     marginLeft: 8,
@@ -1051,12 +1224,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textMedium,
   },
   noPermissionContainer: {
     padding: 24,
@@ -1066,14 +1239,14 @@ const styles = StyleSheet.create({
   },
   noPermissionTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: THEME.error,
+    fontWeight: theme.fontBold,
+    color: theme.error,
     marginTop: 16,
     marginBottom: 8,
   },
   noPermissionText: {
     fontSize: 16,
-    color: THEME.secondary,
+    color: theme.textMedium,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,
