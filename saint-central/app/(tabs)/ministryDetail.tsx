@@ -1923,7 +1923,7 @@ export default function MinistryDetails(): JSX.Element {
                 contentContainerStyle={[
                   styles.messagesList,
                   {
-                    paddingBottom: 200,
+                    paddingBottom: theme.spacingM, // Minimal paddingBottom
                   },
                 ]}
                 onScroll={scrollHandler}
@@ -1960,8 +1960,8 @@ export default function MinistryDetails(): JSX.Element {
           style={[
             styles.inputAreaContainer,
             {
-              // Conditional padding: minimal when keyboard open, larger when closed for tab bar
-              paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom, 10) + 60,
+              // Conditional padding: slightly reduced values
+              paddingBottom: keyboardHeight > 0 ? 5 : Math.max(insets.bottom, 10) + 50,
             },
           ]}
         >
@@ -2074,7 +2074,7 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingVertical: theme.spacingM,
-    paddingBottom: 100, // Larger padding to keep last message above input
+    paddingBottom: theme.spacingM, // Larger padding to keep last message above input
   },
   messageLoadingContainer: {
     flex: 1,
