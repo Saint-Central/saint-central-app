@@ -31,6 +31,7 @@ type RootStackParamList = {
   church_events: undefined;
   church_members: { church_id: string; church_name?: string };
   volunteerhomepage: undefined;
+  biblestudy: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -313,7 +314,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             color1={theme.gradientSecondary[0]}
             color2={theme.gradientSecondary[1]}
             isTablet={isTablet}
-            onPress={() => {}}
+            onPress={() => navigation.navigate("biblestudy")}
           />
 
           <ServiceCard
