@@ -81,9 +81,8 @@ const CreateBibleStudyPage: React.FC = () => {
     recurring_type: 'none'
   });
   
-  // Date and time picker state
+  // Date picker state - removed time picker state
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
   
   // Fetch current user on mount
   useEffect(() => {
@@ -246,22 +245,6 @@ const CreateBibleStudyPage: React.FC = () => {
     }
   };
 
-  // Handle time selection
-  const onTimeChange = (event: any, selectedTime?: Date): void => {
-    setShowTimePicker(false);
-    if (selectedTime) {
-      // Format time to AM/PM
-      const hours = selectedTime.getHours();
-      const minutes = selectedTime.getMinutes();
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      const formattedHours = hours % 12 || 12;
-      const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-      const formattedTime = `${formattedHours}:${formattedMinutes} ${ampm}`;
-      
-      updateField('time', formattedTime);
-    }
-  };
-
   // Handle image selection and upload to bible-images bucket
   const pickImage = async (): Promise<void> => {
     if (!user) {
@@ -337,7 +320,7 @@ const CreateBibleStudyPage: React.FC = () => {
     }
     
     if (!formData.time) {
-      setErrorMessage('Please select a time');
+      setErrorMessage('Please enter a time');
       return false;
     }
     
@@ -583,26 +566,22 @@ const CreateBibleStudyPage: React.FC = () => {
               )}
             </View>
             
-            {/* Time */}
+            {/* Time - UPDATED to use direct text input */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Time*</Text>
-              <TouchableOpacity
-                style={styles.dateTimeButton}
-                onPress={() => setShowTimePicker(true)}
-              >
+              <View style={styles.enhancedInputContainer}>
                 <Feather name="clock" size={20} color={theme.secondary} style={styles.inputIcon} />
-                <Text style={styles.dateTimeText}>
-                  {formData.time || 'Select Time'}
-                </Text>
-              </TouchableOpacity>
-              {showTimePicker && (
-                <DateTimePicker
-                  value={new Date()}
-                  mode="time"
-                  display="default"
-                  onChange={onTimeChange}
+                <TextInput
+                  style={styles.enhancedTextInput}
+                  value={formData.time}
+                  onChangeText={(text) => updateField('time', text)}
+                  placeholder="e.g., 10:00 AM"
+                  placeholderTextColor={theme.textLight}
                 />
-              )}
+              </View>
+              <Text style={styles.helperText}>
+                Enter time in your preferred format (e.g., 10:00 AM, 14:30, etc.)
+              </Text>
             </View>
             
             {/* Church Selection */}
