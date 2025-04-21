@@ -455,7 +455,7 @@ const YouthGroupSchedulePage: React.FC = () => {
         <View style={styles.cardContent}>
           {/* Title row */}
           <View style={styles.titleRow}>
-            <View style={[styles.groupIconContainer, { backgroundColor: color }]}>
+            <View style={[styles.groupIconContainer, { backgroundColor: theme.info }]}>
               <Feather name={icon as any} size={20} color="#FFFFFF" />
             </View>
             <View style={styles.titleContainer}>
@@ -520,7 +520,7 @@ const YouthGroupSchedulePage: React.FC = () => {
             <FontAwesome5 
               name="users" 
               size={40}
-              color={theme.primary}
+              color={theme.info}
             />
           </View>
           
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   roleBadge: {
-    backgroundColor: theme.accent1,
+    backgroundColor: theme.info,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 50,
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 12,
     fontWeight: theme.fontBold,
-    color: theme.neutral800,
+    color: theme.textWhite,
     letterSpacing: 1,
   },
   churchSelector: {
