@@ -325,7 +325,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             color1={theme.gradientInfo[0]}
             color2={theme.gradientInfo[1]}
             isTablet={isTablet}
-            onPress={() => navigation.navigate("youthgroup")}
+            onPress={() => navigation.navigate("YouthGroupSchedulePage")}
           />
 
           <ServiceCard
