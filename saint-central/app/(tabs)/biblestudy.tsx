@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   roleBadge: {
-    backgroundColor: theme.accent1,
+    backgroundColor: theme.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 50,
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 12,
     fontWeight: theme.fontBold,
-    color: theme.neutral800,
+    color: theme.textWhite,
     letterSpacing: 1,
   },
   churchSelector: {
