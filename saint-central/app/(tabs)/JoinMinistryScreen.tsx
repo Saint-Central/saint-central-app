@@ -25,7 +25,7 @@ interface Ministry {
 export default function JoinMinistryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const ministryId = typeof params.id === "string" ? parseInt(params.id) : 0;
+  const ministryId = typeof params.ministryId === "string" ? parseInt(params.ministryId) : 0;
 
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState<Ministry | null>(null);
@@ -71,7 +71,7 @@ export default function JoinMinistryScreen() {
       if (membershipData) {
         console.log("[DEBUG] Join Screen - Found active membership, redirecting to detail screen");
         router.replace({
-          pathname: "/(tabs)/ministryDetail",
+          pathname: "/(tabs)/ministry-chat",
           params: { id: ministryId },
         });
         return;
@@ -148,7 +148,7 @@ export default function JoinMinistryScreen() {
 
       // Navigate to ministry details
       router.replace({
-        pathname: "/(tabs)/ministryDetail",
+        pathname: "/(tabs)/ministry-chat",
         params: { id: ministryId },
       });
     } catch (error) {

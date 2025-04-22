@@ -26,6 +26,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import theme from "@/theme";
+import { NotificationSettings } from "../../components/NotificationSettings";
 
 interface UserProfile {
   id: string;
@@ -130,6 +131,7 @@ export default function MeScreen() {
   const [deleteConfirmModalVisible, setDeleteConfirmModalVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [denominationModalVisible, setDenominationModalVisible] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const router = useRouter();
 
   // Animation values
@@ -518,6 +520,10 @@ export default function MeScreen() {
     if (!editForm.denomination) return "";
     const selected = denominations.find((d) => d.id === editForm.denomination);
     return selected ? selected.name : editForm.denomination;
+  };
+
+  const toggleNotificationSettings = () => {
+    setShowNotificationSettings(!showNotificationSettings);
   };
 
   if (loading) {
@@ -970,6 +976,26 @@ export default function MeScreen() {
                   </View>
                 </View>
               </View>
+
+              {/* Settings Section */}
+              <View style={styles.settingsSection}>
+                <Text style={styles.sectionTitle}>Settings</Text>
+                <TouchableOpacity style={styles.settingItem} onPress={toggleNotificationSettings}>
+                  <Ionicons
+                    name="notifications-outline"
+                    size={22}
+                    color="#4A55A2"
+                    style={styles.settingIcon}
+                  />
+                  <View style={styles.settingTextContainer}>
+                    <Text style={styles.settingLabel}>Notification Settings</Text>
+                    <Text style={styles.settingDescription}>
+                      Manage your notification preferences
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
             </LinearGradient>
           </Animated.View>
         )}
@@ -1137,6 +1163,18 @@ export default function MeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Notification Settings Modal */}
+      {showNotificationSettings && (
+        <Modal
+          visible={showNotificationSettings}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={toggleNotificationSettings}
+        >
+          <NotificationSettings onClose={toggleNotificationSettings} />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -1768,5 +1806,33 @@ const styles = StyleSheet.create({
   },
   checkIcon: {
     marginLeft: theme.spacingS,
+  },
+  settingsSection: {
+    marginBottom: theme.spacingXL,
+  },
+  settingItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.neutral50,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
+    marginBottom: theme.spacingS,
+    borderWidth: 1,
+    borderColor: theme.divider,
+  },
+  settingIcon: {
+    marginRight: theme.spacingM,
+  },
+  settingTextContainer: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: theme.textMedium,
   },
 });

@@ -158,9 +158,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, "home">>();
   const [ministries, setMinistries] = useState<Ministry[]>([]);
-  const [sectionedMinistries, setSectionedMinistries] = useState<
-    MinistrySection[]
-  >([]);
+  const [sectionedMinistries, setSectionedMinistries] = useState<MinistrySection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [searchText, setSearchText] = useState<string>("");
@@ -204,8 +202,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       filtered = ministries.filter(
         (ministry) =>
           ministry.name.toLowerCase().includes(searchLower) ||
-          (ministry.description &&
-            ministry.description.toLowerCase().includes(searchLower))
+          (ministry.description && ministry.description.toLowerCase().includes(searchLower)),
       );
     }
 
@@ -350,10 +347,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       } else {
         console.log("Church member data:", churchMember);
         setUserChurchId(churchMember?.church_id);
-        setIsAdmin(
-          churchMember?.role &&
-            ADMIN_ROLES.includes(churchMember.role.toLowerCase())
-        );
+        setIsAdmin(churchMember?.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
       }
 
       // Fetch ministries that belong to the user's church
@@ -376,7 +370,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         .select("ministry_id")
         .in(
           "ministry_id",
-          ministriesData.map((m) => m.id)
+          ministriesData.map((m) => m.id),
         );
 
       if (countError) {
@@ -404,8 +398,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         console.log("User memberships:", membershipData);
       }
 
-      const memberMinistryIds =
-        membershipData?.map((item) => item.ministry_id) || [];
+      const memberMinistryIds = membershipData?.map((item) => item.ministry_id) || [];
       console.log("Member ministry IDs:", memberMinistryIds);
 
       // Process the ministries data with member counts and membership status
@@ -421,7 +414,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           id: m.id,
           name: m.name,
           is_member: m.is_member,
-        }))
+        })),
       );
 
       // Store ministries
@@ -438,12 +431,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   // Navigate to ministry detail screen
   const navigateToMinistryDetail = async (ministryId: number) => {
     try {
-      // Haptic feedback
-      if (Platform.OS === "ios") {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
-      // Get current user
+      // Get the current user
       const {
         data: { user },
         error: userError,
@@ -454,9 +442,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         return;
       }
 
-      console.log(
-        `[DEBUG] Checking membership - User ID: ${user.id}, Ministry ID: ${ministryId}`
-      );
+      console.log(`[DEBUG] Checking membership - User ID: ${user.id}, Ministry ID: ${ministryId}`);
 
       // Direct table query to check for member role
       const { data: membershipData, error: membershipError } = await supabase
@@ -471,18 +457,16 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
 
       // If there's a record with role = 'member', go directly to detail screen
       if (membershipData) {
-        console.log(
-          "[DEBUG] Found active membership, going to ministry detail"
-        );
+        console.log("[DEBUG] Found active membership, going to ministry detail");
         router.push({
-          pathname: "/(tabs)/ministryDetail",
-          params: { id: ministryId },
+          pathname: "/(tabs)/ministry-chat" as any,
+          params: { id: ministryId.toString() },
         });
       } else {
         console.log("[DEBUG] No active membership found, going to join screen");
         router.push({
           pathname: "/(tabs)/JoinMinistryScreen",
-          params: { id: ministryId },
+          params: { ministryId: ministryId.toString() },
         });
       }
     } catch (error) {
@@ -509,7 +493,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       Alert.alert(
         "Admin Access Required",
         "Only church admin and owner can create a new ministry.",
-        [{ text: "OK", style: "default" }]
+        [{ text: "OK", style: "default" }],
       );
       return;
     }
@@ -553,10 +537,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       }
 
       if (!userChurchId) {
-        Alert.alert(
-          "Error",
-          "You must be a member of a church to join a ministry"
-        );
+        Alert.alert("Error", "You must be a member of a church to join a ministry");
         return;
       }
 
@@ -628,77 +609,62 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
 
   // Delete a ministry
   const handleDeleteMinistry = async (ministryId: number) => {
-    Alert.alert(
-      "Delete Ministry",
-      "Are you sure you want to delete this ministry?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Haptic feedback
-              if (Platform.OS === "ios") {
-                Haptics.notificationAsync(
-                  Haptics.NotificationFeedbackType.Error
-                );
-              }
-
-              setLoading(true);
-
-              // First, delete all ministry members
-              const { error: membersError } = await supabase
-                .from("ministry_members")
-                .delete()
-                .eq("ministry_id", ministryId);
-
-              if (membersError) {
-                console.error("Error deleting ministry members:", membersError);
-                throw membersError;
-              }
-
-              // Then, delete any ministry messages
-              const { error: messagesError } = await supabase
-                .from("ministry_messages")
-                .delete()
-                .eq("ministry_id", ministryId);
-
-              if (messagesError) {
-                console.error(
-                  "Error deleting ministry messages:",
-                  messagesError
-                );
-                throw messagesError;
-              }
-
-              // Finally, delete the ministry itself
-              const { error } = await supabase
-                .from("ministries")
-                .delete()
-                .eq("id", ministryId);
-
-              if (error) {
-                console.error("Error deleting ministry:", error);
-                throw error;
-              }
-
-              // Refresh ministries list
-              fetchData();
-              Alert.alert("Success", "Ministry deleted successfully!");
-            } catch (error) {
-              console.error("Error deleting ministry:", error);
-              Alert.alert(
-                "Error",
-                "Failed to delete ministry. Please try again."
-              );
-            } finally {
-              setLoading(false);
+    Alert.alert("Delete Ministry", "Are you sure you want to delete this ministry?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            // Haptic feedback
+            if (Platform.OS === "ios") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             }
-          },
+
+            setLoading(true);
+
+            // First, delete all ministry members
+            const { error: membersError } = await supabase
+              .from("ministry_members")
+              .delete()
+              .eq("ministry_id", ministryId);
+
+            if (membersError) {
+              console.error("Error deleting ministry members:", membersError);
+              throw membersError;
+            }
+
+            // Then, delete any ministry messages
+            const { error: messagesError } = await supabase
+              .from("ministry_messages")
+              .delete()
+              .eq("ministry_id", ministryId);
+
+            if (messagesError) {
+              console.error("Error deleting ministry messages:", messagesError);
+              throw messagesError;
+            }
+
+            // Finally, delete the ministry itself
+            const { error } = await supabase.from("ministries").delete().eq("id", ministryId);
+
+            if (error) {
+              console.error("Error deleting ministry:", error);
+              throw error;
+            }
+
+            // Refresh ministries list
+            fetchData();
+            Alert.alert("Success", "Ministry deleted successfully!");
+          } catch (error) {
+            console.error("Error deleting ministry:", error);
+            Alert.alert("Error", "Failed to delete ministry. Please try again.");
+          } finally {
+            setLoading(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // Handle pull to refresh
@@ -740,10 +706,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     if (ministry.image_url) {
       return (
         <View style={styles.ministryAvatarImageContainer}>
-          <Image
-            source={{ uri: ministry.image_url }}
-            style={styles.ministryAvatarImage}
-          />
+          <Image source={{ uri: ministry.image_url }} style={styles.ministryAvatarImage} />
         </View>
       );
     }
@@ -776,8 +739,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   }) => {
     // Calculate animation delay based on index for staggered effect
     const itemAnimationDelay =
-      50 *
-      (index + (section.title === "My Ministries" ? 0 : section.data.length));
+      50 * (index + (section.title === "My Ministries" ? 0 : section.data.length));
 
     // Create animation for this specific item
     const itemFadeAnim = useRef(new Animated.Value(0)).current;
@@ -820,35 +782,27 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             }
 
             if (item.is_member) {
-              Alert.alert(
-                "Leave Ministry",
-                `Are you sure you want to leave ${item.name}?`,
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Leave",
-                    style: "destructive",
-                    onPress: () => handleLeaveMinistry(item.id),
-                  },
-                ]
-              );
+              Alert.alert("Leave Ministry", `Are you sure you want to leave ${item.name}?`, [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Leave",
+                  style: "destructive",
+                  onPress: () => handleLeaveMinistry(item.id),
+                },
+              ]);
             } else {
               handleJoinMinistry(item.id);
             }
           }}
         >
-          <View style={styles.ministryAvatar}>
-            {renderMinistryAvatar(item)}
-          </View>
+          <View style={styles.ministryAvatar}>{renderMinistryAvatar(item)}</View>
 
           <View style={styles.ministryContent}>
             <View style={styles.ministryHeaderRow}>
               <Text style={styles.ministryName} numberOfLines={1}>
                 {item.name}
               </Text>
-              <Text style={styles.ministryTimestamp}>
-                {formatTime(item.created_at)}
-              </Text>
+              <Text style={styles.ministryTimestamp}>{formatTime(item.created_at)}</Text>
             </View>
 
             <View style={styles.ministryDescriptionRow}>
@@ -859,9 +813,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
               <View style={styles.ministryMeta}>
                 {(item.member_count ?? 0) > 0 && (
                   <View style={styles.memberCountBadge}>
-                    <Text style={styles.memberCountText}>
-                      {item.member_count}
-                    </Text>
+                    <Text style={styles.memberCountText}>{item.member_count}</Text>
                   </View>
                 )}
 
@@ -885,18 +837,12 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   };
 
   // Render section header
-  const renderSectionHeader = ({
-    section,
-  }: {
-    section: SectionListData<Ministry>;
-  }) => (
+  const renderSectionHeader = ({ section }: { section: SectionListData<Ministry> }) => (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionHeaderText}>{section.title}</Text>
       {section.title === "My Ministries" && (
         <View style={styles.sectionHeaderBadge}>
-          <Text style={styles.sectionHeaderBadgeText}>
-            {section.data.length}
-          </Text>
+          <Text style={styles.sectionHeaderBadgeText}>{section.data.length}</Text>
         </View>
       )}
     </View>
@@ -956,10 +902,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={["#FFFFFF", "#F8FAFC"]}
-          style={styles.errorGradient}
-        >
+        <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.errorGradient}>
           <View style={styles.errorContainer}>
             <Animated.View
               style={[
@@ -1035,10 +978,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
                 ],
               }}
             >
-              <TouchableOpacity
-                style={styles.errorButton}
-                onPress={navigateToHome}
-              >
+              <TouchableOpacity style={styles.errorButton} onPress={navigateToHome}>
                 <LinearGradient
                   colors={[THEME.primary, THEME.primaryDark]}
                   style={styles.errorButtonGradient}
@@ -1057,11 +997,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Floating header effect */}
       <Animated.View
@@ -1098,11 +1034,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         ]}
       >
         <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={navigateToHome}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={navigateToHome} activeOpacity={0.7}>
             <View style={styles.backButtonContainer}>
               <Ionicons name="arrow-back" size={22} color={THEME.primary} />
             </View>
@@ -1171,11 +1103,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             onBlur={() => setIsSearchFocused(false)}
           />
           {searchText.length > 0 && (
-            <TouchableOpacity
-              onPress={clearSearch}
-              style={styles.clearButton}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity onPress={clearSearch} style={styles.clearButton} activeOpacity={0.7}>
               <View style={styles.clearButtonCircle}>
                 <Ionicons name="close" size={16} color="#FFFFFF" />
               </View>
@@ -1214,9 +1142,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           </View>
           <Text style={styles.emptyStateTitle}>No Ministries Found</Text>
           <Text style={styles.emptyStateSubtitle}>
-            {searchText
-              ? `No results found for "${searchText}"`
-              : "Add a ministry to get started"}
+            {searchText ? `No results found for "${searchText}"` : "Add a ministry to get started"}
           </Text>
 
           {!searchText && (
@@ -1231,15 +1157,8 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
                 end={{ x: 1, y: 1 }}
                 style={styles.emptyStateButtonGradient}
               >
-                <MaterialIcons
-                  name="add"
-                  size={18}
-                  color="#FFFFFF"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.emptyStateButtonText}>
-                  Add New Ministry
-                </Text>
+                <MaterialIcons name="add" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.emptyStateButtonText}>Add New Ministry</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -1272,10 +1191,9 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             renderSectionHeader={renderSectionHeader}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+              useNativeDriver: false,
+            })}
             scrollEventThrottle={16}
             ListFooterComponent={() => <View style={styles.listFooter} />}
             onRefresh={handleRefresh}
@@ -1328,11 +1246,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           },
         ]}
       >
-        <TouchableOpacity
-          style={styles.scrollTopButton}
-          onPress={scrollToTop}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.scrollTopButton} onPress={scrollToTop} activeOpacity={0.8}>
           <BlurView intensity={90} tint="light" style={styles.scrollTopBlur}>
             <Feather name="chevron-up" size={20} color={THEME.primary} />
           </BlurView>

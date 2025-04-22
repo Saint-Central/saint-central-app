@@ -442,8 +442,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
       // Pass id instead of ministryId to match what JoinMinistryScreen expects
       // @ts-ignore - Ignoring type checking for navigation
       navigation.navigate("JoinMinistryScreen", {
-        id: ministry.id,
-        churchId: church.id,
+        ministryId: ministry.id.toString(),
       });
     };
 
