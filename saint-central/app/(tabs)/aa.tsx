@@ -803,6 +803,12 @@ const MinistryChat = () => {
 
   // Handle scroll to bottom with improved animation
   const scrollToBottom = () => {
+    // Don't attempt to scroll if older messages are still loading
+    if (loadingMore) {
+      console.log("Skipping scroll to bottom while loading older messages");
+      return;
+    }
+
     if (flatListRef.current) {
       // Use smooth scrolling
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
