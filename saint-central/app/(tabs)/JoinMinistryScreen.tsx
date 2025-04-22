@@ -25,7 +25,7 @@ interface Ministry {
 export default function JoinMinistryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const ministryId = typeof params.id === "string" ? parseInt(params.id) : 0;
+  const ministryId = typeof params.ministryId === "string" ? parseInt(params.ministryId) : 0;
 
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState<Ministry | null>(null);
