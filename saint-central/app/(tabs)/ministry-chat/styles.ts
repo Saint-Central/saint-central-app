@@ -6,12 +6,20 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.pageBg,
   },
+  gradientBackground: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: -1,
+  },
   floatingHeader: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: Platform.OS === "ios" ? 90 : 60,
+    height: Platform.OS === "ios" ? 90 : 70,
     zIndex: 100,
     borderBottomWidth: 1,
     borderBottomColor: theme.divider,
@@ -25,7 +33,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: theme.spacingL,
     paddingTop: Platform.OS === "ios" ? 40 : 16,
     paddingBottom: 10,
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
     zIndex: 10,
     ...theme.shadowLight,
   },
@@ -36,6 +44,8 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: theme.neutral100,
+    ...theme.shadowLight,
+    transform: [{ scale: 1 }],
   },
   ministryTitleContainer: {
     flex: 1,
@@ -74,6 +84,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: theme.neutral100,
+    ...theme.shadowLight,
   },
   chatContainer: {
     flex: 1,
@@ -90,7 +101,7 @@ export const styles = StyleSheet.create({
   },
   messagesList: {
     paddingVertical: theme.spacingM,
-    paddingBottom: theme.spacingM, // Larger padding to keep last message above input
+    paddingBottom: theme.spacingXL, // Larger padding to keep last message above input
   },
   messageLoadingContainer: {
     flex: 1,
@@ -117,6 +128,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: theme.spacing2XL,
     ...theme.shadowMedium,
+    backgroundColor: `${theme.primary}20`,
   },
   emptyMessagesTitle: {
     fontSize: 22,
@@ -273,6 +285,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: theme.neutral100,
+    ...theme.shadowLight,
   },
   messageInput: {
     flex: 1,
@@ -472,6 +485,50 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
     color: theme.error,
+  },
+  // New UI elements
+  typingIndicator: {
+    position: "absolute",
+    top: 10,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typingBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: `${theme.primary}15`,
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingS,
+    borderRadius: theme.radiusLarge,
+    ...theme.shadowLight,
+    width: 150,
+  },
+  typingText: {
+    fontSize: 14,
+    color: theme.primary,
+    fontWeight: theme.fontMedium,
+    marginRight: theme.spacingS,
+  },
+  // All messages loaded indicator
+  allMessagesLoadedContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingL,
+    marginVertical: theme.spacingM,
+    backgroundColor: `${theme.success}10`,
+    borderRadius: theme.radiusMedium,
+    alignSelf: "center",
+  },
+  allMessagesLoadedText: {
+    fontSize: 14,
+    color: theme.success,
+    fontWeight: theme.fontMedium,
   },
   // Debug styles
   debugInfoContainer: {

@@ -10,7 +10,6 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageLoading, setMessageLoading] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-  const [allMessagesLoaded, setAllMessagesLoaded] = useState<boolean>(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState<string>("");
   const [recentlySentMessageIds, setRecentlySentMessageIds] = useState<Set<string | number>>(
@@ -18,6 +17,8 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
   );
   const [users, setUsers] = useState<{ [key: string]: User }>({});
   const [cacheLoaded, setCacheLoaded] = useState<boolean>(false);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [allMessagesLoaded, setAllMessagesLoaded] = useState<boolean>(false);
 
   // Refs to track loading state without causing dependency changes
   const messageLoadingRef = useRef(messageLoading);
@@ -39,7 +40,6 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
     setMessages([]);
     setMessageLoading(true); // Start loading
     setIsLoadingMore(false);
-    setAllMessagesLoaded(false);
     setOldestMessageTimestamp(null);
     setCacheLoaded(false);
     setUsers({});
@@ -267,16 +267,19 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
 
   // Fetch messages
   const fetchMessages = useCallback(
-    async (loadOlder: boolean = false) => {
+    async (loadOlder: boolean = false, isRefresh: boolean = false) => {
       const currentMinistryId = ministryId;
-      console.log(`Fetching messages for ministry ${currentMinistryId}, loadOlder: ${loadOlder}`);
+      const MESSAGE_FETCH_LIMIT = 20;
+      console.log(
+        `Fetching messages for ministry ${currentMinistryId}, loadOlder: ${loadOlder}, isRefresh: ${isRefresh}`,
+      );
 
       // Prevent duplicate loading using refs
       if (loadOlder && isLoadingMoreRef.current) {
         console.log("Already loading older messages (ref check), ignoring request");
         return;
       }
-      if (!loadOlder && messageLoadingRef.current) {
+      if (!loadOlder && !isRefresh && messageLoadingRef.current) {
         console.log("Already loading initial messages (ref check), ignoring request");
         return;
       }
@@ -288,7 +291,11 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
       } else {
         console.log(`Setting messageLoading to true for ministry ${currentMinistryId}`);
         setMessageLoading(true);
-        setAllMessagesLoaded(false); // Reset on initial load/refresh
+        if (isRefresh) {
+          // Don't reset allMessagesLoaded during refresh to preserve pagination state
+        } else {
+          setAllMessagesLoaded(false); // Reset on initial load
+        }
       }
 
       try {
@@ -296,19 +303,25 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
           console.log(`Using oldest timestamp for pagination: ${oldestMessageTimestamp}`);
         }
 
-        // Build query (simplified as user data join already included)
+        // Build query with count exact
         let query = supabase
           .from("ministry_messages")
-          .select("*, user:users(*)")
+          .select("*, user:users(*)", { count: "exact" })
           .eq("ministry_id", currentMinistryId)
           .order("sent_at", { ascending: false })
-          .limit(20);
+          .limit(MESSAGE_FETCH_LIMIT);
 
         if (loadOlder && oldestMessageTimestamp) {
           query = query.lt("sent_at", oldestMessageTimestamp);
         }
 
-        const { data: messagesData, error: messagesError } = await query;
+        const { data: messagesData, error: messagesError, count } = await query;
+
+        // On initial load (first page), capture the total count of messages
+        if (!loadOlder && !isRefresh && count != null) {
+          setTotalCount(count);
+          console.log(`Total message count for ministry ${ministryId}: ${count}`);
+        }
 
         // Check ministryId consistency after await
         if (ministryId !== currentMinistryId) {
@@ -316,7 +329,6 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
             `Ministry ID changed during fetch for ${currentMinistryId}, aborting state update.`,
           );
           // Reset loading state *if* it was set by this specific instance
-          // This check is tricky without request IDs, but resetting based on `loadOlder` is a heuristic.
           if (loadOlder) setIsLoadingMore(false);
           else setMessageLoading(false);
           return;
@@ -329,12 +341,19 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
           return;
         }
 
+        // For initial load, use Supabase count; for pagination, check fetched batch size
+        const initialAllLoaded = !loadOlder && count !== null && count <= MESSAGE_FETCH_LIMIT;
+        const paginationAllLoaded =
+          loadOlder && (!messagesData || messagesData.length < MESSAGE_FETCH_LIMIT);
+
         if (!messagesData || messagesData.length === 0) {
           console.log(
             `No messages found for ${currentMinistryId} (${loadOlder ? "older" : "initial"})`,
           );
+          // If loading older with no data, definitely end
           if (loadOlder) setAllMessagesLoaded(true);
-          // Always reset the corresponding loading flag
+          else if (!loadOlder) setAllMessagesLoaded(true);
+
           if (loadOlder) setIsLoadingMore(false);
           else setMessageLoading(false);
           return;
@@ -342,8 +361,8 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
 
         console.log(`Fetched ${messagesData.length} messages for ministry ${currentMinistryId}`);
 
-        // Process messages (includes user data from join)
-        const processedMessages = messagesData
+        // Process messages
+        const processedMessages = (messagesData || [])
           .map((msg) => ({
             ...msg,
             user: msg.user || {
@@ -356,46 +375,51 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
             },
             _status: "sent" as const,
           }))
-          .reverse(); // Chronological order
+          .reverse();
 
-        // Update oldest timestamp if necessary
+        // Find the oldest message from the fetched data
         if (messagesData.length > 0) {
-          const oldestTimestamp = messagesData[messagesData.length - 1].sent_at;
-          console.log(`Setting new oldest timestamp: ${oldestTimestamp}`);
-          setOldestMessageTimestamp(oldestTimestamp);
+          // Get the messages in chronological order (oldest first)
+          const chronologicalMessages = [...messagesData].sort(
+            (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime(),
+          );
+
+          const oldestTimestamp = chronologicalMessages[0].sent_at;
+
+          if (
+            !oldestMessageTimestamp ||
+            new Date(oldestTimestamp) > new Date(chronologicalMessages[0].sent_at)
+          ) {
+            console.log(`Setting new oldest timestamp: ${oldestTimestamp}`);
+            setOldestMessageTimestamp(oldestTimestamp);
+          } else {
+            console.log(
+              `Keeping existing oldest timestamp: ${oldestMessageTimestamp} (older than fetched: ${oldestTimestamp})`,
+            );
+          }
         }
 
-        // Update messages state using functional updates
-        if (loadOlder) {
-          setMessages((prevMessages) => {
-            const existingIds = new Set(prevMessages.map((m) => m.id));
-            const uniqueMessages = processedMessages.filter((msg) => !existingIds.has(msg.id));
-
-            console.log(`Adding ${uniqueMessages.length} unique older messages.`);
-            const newMessages = [...uniqueMessages, ...prevMessages];
-            updateMessagesCache(newMessages);
-
-            if (messagesData.length < 20) {
-              console.log("All older messages likely loaded.");
-              setAllMessagesLoaded(true);
-            }
-            setIsLoadingMore(false); // Reset loading state *after* update
-            return newMessages;
-          });
-        } else {
-          // Initial load/refresh: Replace messages
-          setMessages(() => {
-            console.log(`Setting ${processedMessages.length} initial messages.`);
-            updateMessagesCache(processedMessages);
-
-            if (processedMessages.length < 20) {
-              console.log("Initial fetch loaded less than limit, assuming all loaded.");
-              setAllMessagesLoaded(true);
-            }
-            setMessageLoading(false); // Reset loading state *after* update
-            return processedMessages;
-          });
-        }
+        // Merge messages (older pages prepend, refresh merges, initial replaces)
+        setMessages((prev) => {
+          let merged: Message[];
+          if (loadOlder) {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const older = processedMessages.filter((m) => !existingIds.has(m.id));
+            merged = [...older, ...prev];
+          } else if (isRefresh) {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMsgs = processedMessages.filter((m) => !existingIds.has(m.id));
+            const kept = prev.filter((m) => !processedMessages.some((pm) => pm.id === m.id));
+            merged = [...kept, ...processedMessages];
+          } else {
+            merged = processedMessages;
+          }
+          // Reset loading flags
+          setMessageLoading(false);
+          setIsLoadingMore(false);
+          // Return merged result
+          return merged;
+        });
       } catch (error) {
         console.error("Error during fetchMessages execution:", error);
         // Ensure loading state is reset if error occurred for current ministry context
@@ -409,6 +433,16 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
     // Loading state refs are used internally, not needed as dependencies.
     [ministryId, oldestMessageTimestamp, updateMessagesCache],
   );
+
+  // Side effect: mark allMessagesLoaded true when we've fetched at least totalCount
+  useEffect(() => {
+    if (totalCount > 0 && messages.length >= totalCount) {
+      console.log(`All ${totalCount} messages loaded.`);
+      setAllMessagesLoaded(true);
+    } else {
+      setAllMessagesLoaded(false);
+    }
+  }, [messages.length, totalCount]);
 
   // Initialization and ministry change effect
   useEffect(() => {
@@ -620,6 +654,9 @@ export const useMessages = (ministryId: number, currentUser: User | null) => {
     users,
     cacheLoaded,
     loadMessagesFromCache,
+    // Expose refs
+    messageLoadingRef,
+    isLoadingMoreRef,
   };
 };
 

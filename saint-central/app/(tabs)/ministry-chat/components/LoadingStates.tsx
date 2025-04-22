@@ -5,6 +5,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { styles } from "../styles";
 import theme from "../../../../theme";
+import { MotiView } from "moti";
 
 interface LoadingScreenProps {
   loadingIndicatorStyle: any;
@@ -12,26 +13,42 @@ interface LoadingScreenProps {
 
 export const LoadingScreen = ({ loadingIndicatorStyle }: LoadingScreenProps): JSX.Element => (
   <View style={styles.loadingContainer}>
-    <Animated.View style={loadingIndicatorStyle}>
-      <ActivityIndicator size="large" color={theme.primary} />
-    </Animated.View>
-    <Animated.Text entering={FadeIn.duration(400)} style={styles.loadingText}>
-      Loading ministry chat...
-    </Animated.Text>
+    <MotiView
+      from={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", delay: 100 }}
+    >
+      <Animated.View style={[loadingIndicatorStyle, { padding: 20 }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </Animated.View>
+    </MotiView>
+    <MotiView
+      from={{ opacity: 0, translateY: 10 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: "timing", delay: 300, duration: 400 }}
+    >
+      <Text style={styles.loadingText}>Loading ministry...</Text>
+    </MotiView>
   </View>
 );
 
 interface ErrorScreenProps {
-  error: Error | null;
-  fadeStyle: any;
+  error: string;
+  fadeStyle?: any;
   navigateBack: () => void;
 }
 
 export const ErrorScreen = ({ error, fadeStyle, navigateBack }: ErrorScreenProps): JSX.Element => (
-  <Animated.View style={[styles.errorContainer, fadeStyle]} entering={FadeIn.duration(500)}>
-    <Ionicons name="alert-circle-outline" size={48} color={theme.error} />
-    <Text style={styles.errorTitle}>Something went wrong</Text>
-    <Text style={styles.errorText}>{error?.message || "Could not load ministry information"}</Text>
+  <Animated.View style={[styles.errorContainer, fadeStyle]}>
+    <MotiView
+      from={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring" }}
+    >
+      <Ionicons name="alert-circle" size={60} color={theme.error} />
+    </MotiView>
+    <Text style={styles.errorTitle}>Uh oh!</Text>
+    <Text style={styles.errorText}>{error || "Something went wrong loading the ministry."}</Text>
     <TouchableOpacity style={styles.errorButton} onPress={navigateBack}>
       <Text style={styles.errorButtonText}>Go Back</Text>
     </TouchableOpacity>
@@ -39,13 +56,20 @@ export const ErrorScreen = ({ error, fadeStyle, navigateBack }: ErrorScreenProps
 );
 
 export const EmptyMessagesScreen = (): JSX.Element => (
-  <Animated.View style={styles.emptyMessagesContainer} entering={FadeIn.duration(600)}>
-    <LinearGradient colors={theme.gradientPrimary} style={styles.emptyMessagesIcon}>
-      <FontAwesome5 name="comment-dots" size={40} color={theme.neutral50} />
-    </LinearGradient>
-    <Text style={styles.emptyMessagesTitle}>No Messages Yet</Text>
-    <Text style={styles.emptyMessagesSubtitle}>Be the first to start a conversation!</Text>
-  </Animated.View>
+  <MotiView
+    style={styles.emptyMessagesContainer}
+    from={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ type: "spring", damping: 15 }}
+  >
+    <View style={styles.emptyMessagesIcon}>
+      <Ionicons name="chatbubble-ellipses-outline" size={40} color={theme.primary} />
+    </View>
+    <Text style={styles.emptyMessagesTitle}>No messages yet</Text>
+    <Text style={styles.emptyMessagesSubtitle}>
+      Be the first to start a conversation in this ministry chat!
+    </Text>
+  </MotiView>
 );
 
 interface MessageLoadingProps {
@@ -53,18 +77,39 @@ interface MessageLoadingProps {
 }
 
 export const MessageLoading = ({ loadingIndicatorStyle }: MessageLoadingProps): JSX.Element => (
-  <Animated.View
-    style={[styles.messageLoadingContainer, loadingIndicatorStyle]}
-    entering={FadeIn.duration(400)}
+  <MotiView
+    style={styles.messageLoadingContainer}
+    from={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ type: "timing", duration: 500 }}
   >
-    <ActivityIndicator size="large" color={theme.primary} />
+    <Animated.View style={[loadingIndicatorStyle, { padding: 20 }]}>
+      <ActivityIndicator size="large" color={theme.primary} />
+    </Animated.View>
     <Text style={styles.messageLoadingText}>Loading messages...</Text>
-  </Animated.View>
+  </MotiView>
 );
 
 export const LoadMoreHeader = (): JSX.Element => (
-  <View style={styles.loadMoreHeader}>
+  <MotiView
+    style={styles.loadMoreHeader}
+    from={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ type: "spring" }}
+  >
     <ActivityIndicator size="small" color={theme.primary} />
     <Text style={styles.loadMoreText}>Loading older messages...</Text>
-  </View>
+  </MotiView>
+);
+
+export const AllMessagesLoaded = (): JSX.Element => (
+  <MotiView
+    style={styles.allMessagesLoadedContainer}
+    from={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ type: "spring" }}
+  >
+    <Ionicons name="checkmark-circle" size={16} color={theme.success} style={{ marginRight: 6 }} />
+    <Text style={styles.allMessagesLoadedText}>All messages loaded</Text>
+  </MotiView>
 );

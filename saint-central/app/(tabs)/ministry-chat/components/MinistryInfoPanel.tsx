@@ -1,16 +1,9 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, {
-  useAnimatedStyle,
-  interpolate,
-  withSpring,
-  runOnJS,
-  FadeIn,
-  BounceIn,
-  SlideInRight,
-} from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { SharedValue, FadeIn } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import { MotiView } from "moti";
 import { styles } from "../styles";
 import { Ministry } from "../types";
 import theme from "../../../../theme";
@@ -18,11 +11,11 @@ import theme from "../../../../theme";
 interface MinistryInfoPanelProps {
   ministry: Ministry | null;
   isMember: boolean;
-  infoSlideAnim: Animated.SharedValue<number>;
+  infoSlideAnim: SharedValue<number>;
   SCREEN_WIDTH: number;
   infoSlideStyle: any;
   toggleMinistryInfo: () => void;
-  renderMinistryAvatar: () => React.ReactNode;
+  renderMinistryAvatar: () => JSX.Element;
   handleLeaveMinistry: () => void;
   visible: boolean;
 }
@@ -37,89 +30,95 @@ const MinistryInfoPanel = ({
   renderMinistryAvatar,
   handleLeaveMinistry,
   visible,
-}: MinistryInfoPanelProps): JSX.Element => {
-  // Gesture handler for swiping panel
-  const panGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      if (e.translationX > 0) {
-        const newValue = Math.max(0, 1 - e.translationX / SCREEN_WIDTH);
-        infoSlideAnim.value = newValue;
-      }
-    })
-    .onEnd((e) => {
-      if (e.translationX > SCREEN_WIDTH * 0.4) {
-        infoSlideAnim.value = withSpring(0);
-        runOnJS(toggleMinistryInfo)();
-      } else {
-        infoSlideAnim.value = withSpring(1);
-      }
-    });
+}: MinistryInfoPanelProps) => {
+  if (!ministry) return null;
+
+  const confirmLeaveMinistry = () => {
+    Alert.alert(
+      "Leave Ministry",
+      "Are you sure you want to leave this ministry? You will no longer receive messages or notifications.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: handleLeaveMinistry,
+        },
+      ],
+      { cancelable: true },
+    );
+  };
 
   return (
-    <Animated.View
-      style={[styles.ministryInfoPanel, infoSlideStyle, { display: visible ? "flex" : "none" }]}
-    >
-      <GestureDetector gesture={panGesture}>
-        <View style={styles.ministryInfoContainer}>
-          <View style={styles.ministryInfoHeader}>
-            <TouchableOpacity
-              style={styles.closeInfoButton}
-              onPress={toggleMinistryInfo}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close" size={24} color={theme.primary} />
-            </TouchableOpacity>
-            <Text style={styles.ministryInfoTitle}>Ministry Details</Text>
-          </View>
+    <Animated.View style={[styles.ministryInfoPanel, infoSlideStyle]}>
+      <View style={styles.ministryInfoContainer}>
+        {/* Header */}
+        <View style={styles.ministryInfoHeader}>
+          <TouchableOpacity style={styles.closeInfoButton} onPress={toggleMinistryInfo}>
+            <Ionicons name="close" size={24} color={theme.neutral700} />
+          </TouchableOpacity>
+          <Text style={styles.ministryInfoTitle}>Ministry Info</Text>
+          <View style={{ width: 30 }} />
+        </View>
 
+        {/* Content */}
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           <View style={styles.ministryInfoContent}>
-            <Animated.View
+            {/* Ministry avatar */}
+            <MotiView
               style={styles.ministryInfoAvatar}
-              entering={BounceIn.delay(100).duration(600)}
+              from={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", delay: 100 }}
             >
               {renderMinistryAvatar()}
-            </Animated.View>
+            </MotiView>
 
-            <Animated.Text
-              style={styles.ministryInfoName}
-              entering={FadeIn.delay(300).duration(500)}
+            {/* Ministry name and member count */}
+            <MotiView
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: "timing", delay: 200, duration: 300 }}
             >
-              {ministry?.name}
-            </Animated.Text>
-
-            <Animated.Text
-              style={styles.ministryInfoMembers}
-              entering={FadeIn.delay(400).duration(500)}
-            >
-              {ministry?.member_count || 0} {ministry?.member_count === 1 ? "member" : "members"}
-            </Animated.Text>
-
-            <Animated.View
-              style={styles.ministryInfoDescriptionContainer}
-              entering={SlideInRight.delay(500).duration(500).springify()}
-            >
-              <Text style={styles.ministryInfoDescriptionTitle}>About</Text>
-              <Text style={styles.ministryInfoDescription}>
-                {ministry?.description || "No description available."}
+              <Text style={styles.ministryInfoName}>{ministry.name}</Text>
+              <Text style={styles.ministryInfoMembers}>
+                {ministry.member_count || 0} {ministry.member_count === 1 ? "member" : "members"}
               </Text>
-            </Animated.View>
+            </MotiView>
 
+            {/* Ministry description */}
+            <MotiView
+              style={styles.ministryInfoDescriptionContainer}
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", delay: 300 }}
+            >
+              <Text style={styles.ministryInfoDescriptionTitle}>Description</Text>
+              <Text style={styles.ministryInfoDescription}>
+                {ministry.description || "No description available."}
+              </Text>
+            </MotiView>
+
+            {/* Leave ministry button */}
             {isMember && (
-              <Animated.View entering={FadeIn.delay(600).duration(500)}>
-                <TouchableOpacity
-                  style={styles.leaveMinistryButton}
-                  onPress={handleLeaveMinistry}
-                  activeOpacity={0.8}
-                >
+              <MotiView
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: "timing", delay: 400, duration: 300 }}
+              >
+                <TouchableOpacity style={styles.leaveMinistryButton} onPress={confirmLeaveMinistry}>
                   <Text style={styles.leaveMinistryButtonText}>Leave Ministry</Text>
                 </TouchableOpacity>
-              </Animated.View>
+              </MotiView>
             )}
           </View>
-        </View>
-      </GestureDetector>
+        </ScrollView>
+      </View>
     </Animated.View>
   );
 };
 
-export default MinistryInfoPanel;
+export default React.memo(MinistryInfoPanel);
