@@ -71,7 +71,7 @@ export default function JoinMinistryScreen() {
       if (membershipData) {
         console.log("[DEBUG] Join Screen - Found active membership, redirecting to detail screen");
         router.replace({
-          pathname: "/(tabs)/ministryDetail",
+          pathname: "/(tabs)/ministry-chat",
           params: { id: ministryId },
         });
         return;
@@ -148,7 +148,7 @@ export default function JoinMinistryScreen() {
 
       // Navigate to ministry details
       router.replace({
-        pathname: "/(tabs)/ministryDetail",
+        pathname: "/(tabs)/ministry-chat",
         params: { id: ministryId },
       });
     } catch (error) {

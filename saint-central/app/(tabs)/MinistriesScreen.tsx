@@ -459,7 +459,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       if (membershipData) {
         console.log("[DEBUG] Found active membership, going to ministry detail");
         router.push({
-          pathname: "/(tabs)/aa" as any,
+          pathname: "/(tabs)/ministry-chat" as any,
           params: { id: ministryId.toString() },
         });
       } else {
