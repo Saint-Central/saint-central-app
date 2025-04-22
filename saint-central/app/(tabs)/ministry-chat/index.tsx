@@ -37,6 +37,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 
 const { width, height } = Dimensions.get("window");
 
@@ -117,6 +119,7 @@ const MinistryChat = () => {
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
 
   // Pagination state for infinite scrolling
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -136,6 +139,120 @@ const MinistryChat = () => {
   const scrollY = useSharedValue(0);
   const sendButtonScale = useSharedValue(1);
   const typingIndicatorHeight = useSharedValue(0);
+
+  // Register for push notifications
+  useEffect(() => {
+    registerForPushNotifications();
+  }, []);
+
+  // Function to register for push notifications
+  const registerForPushNotifications = async () => {
+    try {
+      if (!Device.isDevice) {
+        console.log("Push notifications not available on emulator");
+        return;
+      }
+
+      // Request permission
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        console.log("Failed to get push token for push notification!");
+        return;
+      }
+
+      // Get Expo push token
+      const token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId: process.env.EXPO_PROJECT_ID, // Add your Expo project ID here
+        })
+      ).data;
+
+      console.log("Push token:", token);
+      setPushToken(token);
+
+      // Store token in Supabase if user is logged in
+      await savePushToken(token);
+
+      // Configure notification behavior
+      if (Platform.OS === "android") {
+        Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#FF231F7C",
+        });
+      }
+    } catch (error) {
+      console.error("Error registering for push notifications:", error);
+    }
+  };
+
+  // Function to save push token to Supabase
+  const savePushToken = async (token: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const now = new Date().toISOString();
+
+      // First check if token already exists for this user
+      const { data: existingToken, error: fetchError } = await supabase
+        .from("user_push_tokens")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("token", token)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error("Error checking existing token:", fetchError);
+        return;
+      }
+
+      if (existingToken) {
+        // Update existing token's last_used timestamp
+        const { error: updateError } = await supabase
+          .from("user_push_tokens")
+          .update({
+            last_used: now,
+          })
+          .eq("user_id", user.id)
+          .eq("token", token);
+
+        if (updateError) {
+          console.error("Error updating token:", updateError);
+        } else {
+          console.log("Push token updated successfully");
+        }
+      } else {
+        // Insert new token
+        const { error: insertError } = await supabase.from("user_push_tokens").insert({
+          user_id: user.id,
+          token: token,
+          device_type: Platform.OS,
+          created_at: now,
+          last_used: now,
+        });
+
+        if (insertError) {
+          console.error("Error inserting token:", insertError);
+        } else {
+          console.log("Push token saved successfully");
+        }
+      }
+    } catch (error) {
+      console.error("Error in savePushToken:", error);
+    }
+  };
 
   // Fix keyboard issues by improving the behavior
   useEffect(() => {
@@ -635,6 +752,7 @@ const MinistryChat = () => {
         message_text: msgText,
         sent_at: new Date().toISOString(),
         attachment_url: attachmentUrl,
+        push_sent: false, // Add this field to track notification status
       };
 
       // Reset typing status
@@ -649,9 +767,16 @@ const MinistryChat = () => {
       setIsTyping(false);
 
       // Save to Supabase - don't need to update local state as realtime will handle it
-      const { error } = await supabase.from("ministry_messages").insert(newMessage);
+      const { data: messageData, error } = await supabase
+        .from("ministry_messages")
+        .insert(newMessage)
+        .select("id")
+        .single();
 
       if (error) throw error;
+
+      // Trigger the edge function to send notifications
+      await triggerNotifications(messageData.id);
 
       // Real-time subscription will handle adding the message to the list
     } catch (error) {
@@ -662,6 +787,63 @@ const MinistryChat = () => {
       setMessageText(messageText);
     } finally {
       setSending(false);
+    }
+  };
+
+  // Function to trigger the notification edge function
+  const triggerNotifications = async (messageId: number) => {
+    try {
+      console.log(
+        `Invoking notifications function with messageId: ${messageId}, ministryId: ${ministryId}`,
+      );
+
+      // Try a different name for the function - based on what you've deployed
+      // Change "notifications" to the actual name of your deployed function, e.g. "ministry-notifications"
+      const { data, error } = await supabase.functions.invoke("ministry-notifications", {
+        body: {
+          messageId: messageId,
+          ministryId: ministryId,
+        },
+      });
+
+      if (error) {
+        console.error("Error triggering notifications:", error);
+
+        // Try to extract more detailed error information
+        if (error.message) {
+          console.error("Error message:", error.message);
+        }
+
+        if (error.context) {
+          console.error("Error context:", error.context);
+        }
+
+        // Don't show error to user, just log it
+        console.error("Full error object:", JSON.stringify(error));
+
+        // Continue without notifications - don't block the main flow
+        console.log("Continuing without sending notifications");
+      } else {
+        console.log("Notification result:", data);
+
+        // Check if there are any errors in the response data
+        if (data && data.errors && data.errors.length > 0) {
+          console.error("Function returned errors:", data.errors);
+        }
+
+        if (data && data.debug) {
+          console.log("Function debug info:", data.debug);
+        }
+      }
+    } catch (error) {
+      console.error("Exception in triggerNotifications:", error);
+
+      // Log additional details if available
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
     }
   };
 
@@ -1096,6 +1278,80 @@ const MinistryChat = () => {
       }, 300);
     }
   }, [initialMessagesLoaded, loading]);
+
+  // Setup notification handlers
+  useEffect(() => {
+    // Configure notification behavior
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+
+    // Set up notification received handler
+    const notificationReceivedListener = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log("Notification received:", notification);
+        // You could update the unread count or refresh messages here
+      },
+    );
+
+    // Set up notification response handler (when user taps notification)
+    const notificationResponseListener = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        console.log("Notification response:", response);
+        const data = response.notification.request.content.data;
+
+        // If the notification is for this ministry, refresh messages
+        if (data?.ministryId && data.ministryId === ministryId) {
+          fetchMessages();
+        }
+        // If it's for a different ministry, navigate there
+        else if (data?.ministryId && data.ministryId !== ministryId) {
+          (navigation as any).navigate("ministry-chat", { id: data.ministryId });
+        }
+      },
+    );
+
+    // Clean up notification listeners
+    return () => {
+      Notifications.removeNotificationSubscription(notificationReceivedListener);
+      Notifications.removeNotificationSubscription(notificationResponseListener);
+    };
+  }, [ministryId]);
+
+  // Check if app was opened from a notification
+  useEffect(() => {
+    checkLastNotificationResponse();
+  }, []);
+
+  // Function to check if app was opened from a notification
+  const checkLastNotificationResponse = async () => {
+    try {
+      const lastNotificationResponse = await Notifications.getLastNotificationResponseAsync();
+
+      if (lastNotificationResponse) {
+        const data = lastNotificationResponse.notification.request.content.data;
+        console.log("App opened from notification with data:", data);
+
+        // Handle based on notification data
+        if (data?.ministryId) {
+          // If we're already on this ministry chat, just refresh
+          if (data.ministryId === ministryId) {
+            fetchMessages();
+          }
+          // Otherwise navigate to the correct ministry chat
+          else {
+            (navigation as any).navigate("ministry-chat", { id: data.ministryId });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error checking last notification:", error);
+    }
+  };
 
   // Fixed keyExtractor to ensure unique keys
   return (
