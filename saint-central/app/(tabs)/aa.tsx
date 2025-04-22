@@ -1106,7 +1106,7 @@ const MinistryChat = () => {
               subscriptionRef.current.unsubscribe();
               console.log("Unsubscribed from channel due to back button");
             }
-            navigation.goBack();
+            (navigation as any).navigate("MinistriesScreen");
           }}
         >
           <Ionicons name="arrow-back" size={24} color={THEME.primary} />
