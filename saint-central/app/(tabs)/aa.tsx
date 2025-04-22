@@ -90,10 +90,18 @@ interface User {
   avatar_url?: string;
 }
 
+// Route params interface
+interface RouteParams {
+  id: string;
+  [key: string]: any;
+}
+
 const MinistryChat = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const ministryId = route.params?.id ? parseInt(route.params.id) : null;
+  const ministryId = (route.params as RouteParams)?.id
+    ? parseInt((route.params as RouteParams).id)
+    : null;
 
   const [ministry, setMinistry] = useState<Ministry | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -180,6 +188,15 @@ const MinistryChat = () => {
       navigation.goBack();
       return;
     }
+
+    // Reset pagination state when switching between chats
+    setMessages([]);
+    setLastMessageTimestamp(null);
+    setHasMoreMessages(true);
+    setInitialMessagesLoaded(false);
+    setLoading(true);
+    setUnreadMessages(0);
+    setIsScrolledUp(false);
 
     fetchMinistryDetails();
     fetchCurrentUser();
@@ -438,6 +455,8 @@ const MinistryChat = () => {
         setLoadingMore(true);
       }
 
+      console.log("Fetching messages, isInitial:", isInitial, "ministryId:", ministryId);
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -465,6 +484,7 @@ const MinistryChat = () => {
 
       // If not initial load and we have a last timestamp, use it for pagination
       if (!isInitial && lastMessageTimestamp) {
+        console.log("Using timestamp for pagination:", lastMessageTimestamp);
         query = query.lt("sent_at", lastMessageTimestamp);
       }
 
@@ -472,15 +492,21 @@ const MinistryChat = () => {
 
       if (error) throw error;
 
+      console.log(`Fetched ${data?.length || 0} messages`);
+
       if (data) {
         // Update pagination state
         if (data.length < MESSAGES_PER_PAGE) {
+          console.log("No more messages to fetch");
           setHasMoreMessages(false);
+        } else {
+          setHasMoreMessages(true);
         }
 
         // Set last message timestamp for next pagination if there's data
         if (data.length > 0) {
           const oldestMessage = data[data.length - 1];
+          console.log("Setting last timestamp:", oldestMessage.sent_at);
           setLastMessageTimestamp(oldestMessage.sent_at);
         }
 
@@ -510,6 +536,16 @@ const MinistryChat = () => {
         if (isInitial) {
           setMessages(messagesWithUsers);
           setInitialMessagesLoaded(true);
+
+          // Scroll to the most recent message when initially loaded
+          if (messagesWithUsers.length > 0) {
+            setTimeout(() => {
+              if (flatListRef.current) {
+                console.log("Scrolling to top after initial messages load");
+                flatListRef.current.scrollToOffset({ offset: 0, animated: false });
+              }
+            }, 100);
+          }
         } else {
           setMessages((prev) => [...prev, ...messagesWithUsers]);
         }
@@ -683,15 +719,11 @@ const MinistryChat = () => {
         contentType: `image/${fileExt}`,
         upsert: true,
         cacheControl: "3600",
-        duplex: "half",
-        onUploadProgress: (progress) => {
-          const calculatedProgress = 0.3 + (progress.percent || 0) * 0.6;
-          setUploadProgress(calculatedProgress);
-        },
-      });
+      } as any);
 
       if (error) throw error;
 
+      // Track progress manually
       setUploadProgress(0.9);
 
       // Get public URL with enhanced CDN options
@@ -700,8 +732,7 @@ const MinistryChat = () => {
           width: 800,
           height: 800,
           quality: 80,
-          format: "webp",
-          fit: "contain",
+          format: "origin",
         },
       });
 
@@ -756,7 +787,17 @@ const MinistryChat = () => {
   // Load more messages when reaching the end of the list
   const handleLoadMoreMessages = () => {
     if (!loadingMore && hasMoreMessages && initialMessagesLoaded) {
+      console.log("Loading more messages, lastTimestamp:", lastMessageTimestamp);
       fetchMessages(false);
+    } else {
+      console.log(
+        "Skipped loading more. loadingMore:",
+        loadingMore,
+        "hasMoreMessages:",
+        hasMoreMessages,
+        "initialMessagesLoaded:",
+        initialMessagesLoaded,
+      );
     }
   };
 
@@ -901,7 +942,8 @@ const MinistryChat = () => {
 
       // Apply this corrected value back to the item to ensure consistency
       if (isCurrentUser !== item.is_current_user) {
-        item.is_current_user = isCurrentUser;
+        // Ensure we're setting a boolean, not null
+        item.is_current_user = isCurrentUser === true;
       }
 
       const entering = item.animateIn ? SlideInRight.springify().mass(0.8) : FadeIn;
@@ -1036,6 +1078,19 @@ const MinistryChat = () => {
     );
   };
 
+  // Add this useEffect to scroll to the most recent message when messages first load
+  useEffect(() => {
+    if (initialMessagesLoaded && messages.length > 0 && !loading) {
+      // Short delay to ensure the list is rendered
+      setTimeout(() => {
+        if (flatListRef.current) {
+          console.log("Scrolling to most recent message on initial load");
+          flatListRef.current.scrollToOffset({ offset: 0, animated: false });
+        }
+      }, 300);
+    }
+  }, [initialMessagesLoaded, loading]);
+
   // Fixed keyExtractor to ensure unique keys
   return (
     <SafeAreaView style={styles.container}>
@@ -1111,10 +1166,22 @@ const MinistryChat = () => {
           ListFooterComponent={renderFooter}
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          removeClippedSubviews={false} // Prevent rendering issues
-          windowSize={10} // Increase window size for better performance
+          removeClippedSubviews={Platform.OS === "android"}
+          windowSize={21}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={30}
           onEndReached={handleLoadMoreMessages}
-          onEndReachedThreshold={0.2}
+          onEndReachedThreshold={0.5}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+          }}
+          initialNumToRender={15} // Render more items initially
+          onContentSizeChange={() => {
+            // Also try to scroll when content size changes
+            if (initialMessagesLoaded && !isScrolledUp && messages.length > 0) {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }
+          }}
         />
 
         {/* Typing indicator */}
