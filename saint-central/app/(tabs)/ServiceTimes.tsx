@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Modal, FlatList, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, Modal, FlatList, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/supabaseClient';
+import { useLocalSearchParams } from 'expo-router';
 
 // Define types
 interface ServiceTime {
   id: number;
   date: string;
   time: string;
-  church_id: string;
+  church_id: number;
+  created_by: string;
+  image?: string;
 }
 
 interface User {
@@ -24,9 +28,9 @@ const mockUser: User = {
 };
 
 const mockServiceTimes: ServiceTime[] = [
-  { id: 1, date: "Sunday", time: "9:00 AM", church_id: "church456" },
-  { id: 2, date: "Sunday", time: "11:00 AM", church_id: "church456" },
-  { id: 3, date: "Wednesday", time: "6:30 PM", church_id: "church456" }
+  { id: 1, date: "Sunday", time: "9:00 AM", church_id: 456, created_by: "user123" },
+  { id: 2, date: "Sunday", time: "11:00 AM", church_id: 456, created_by: "user123" },
+  { id: 3, date: "Wednesday", time: "6:30 PM", church_id: 456, created_by: "user123" }
 ];
 
 // Theme
@@ -98,16 +102,74 @@ const theme = {
 };
 
 const ChurchServiceTimesPage = () => {
-  const [serviceTimes, setServiceTimes] = useState<ServiceTime[]>(mockServiceTimes);
+  const { churchId } = useLocalSearchParams();
+  const [serviceTimes, setServiceTimes] = useState<ServiceTime[]>([]);
   const [currentService, setCurrentService] = useState<ServiceTime | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasEditPermission, setHasEditPermission] = useState(false);
   
-  // Check if user has permission to edit
-  const hasEditPermission = mockUser.role === "admin" || mockUser.role === "owner";
+  // Fetch service times and check permissions
+  useEffect(() => {
+    fetchServiceTimes();
+    checkPermissions();
+  }, [churchId]);
+
+  const fetchServiceTimes = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('service_times')
+        .select('*')
+        .eq('church_id', churchId)
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      setServiceTimes(data || []);
+    } catch (error) {
+      console.error('Error fetching service times:', error);
+      Alert.alert('Error', 'Failed to load service times');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const checkPermissions = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      if (!user) {
+        setHasEditPermission(false);
+        return;
+      }
+
+      // Check if user is admin or owner of the church
+      const { data, error } = await supabase
+        .from('church_members')
+        .select('role')
+        .eq('church_id', churchId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      setHasEditPermission(data?.role === 'admin' || data?.role === 'owner');
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+      setHasEditPermission(false);
+    }
+  };
   
   const handleAddNew = () => {
-    setCurrentService({ id: 0, date: "", time: "", church_id: mockUser.church_id });
+    setCurrentService({
+      date: "",
+      time: "",
+      church_id: Number(churchId),
+      created_by: "", // Will be set during save
+      image: ""
+    } as ServiceTime); // Type assertion to satisfy TypeScript
     setIsEditMode(false);
     setIsModalOpen(true);
   };
@@ -118,23 +180,51 @@ const ChurchServiceTimesPage = () => {
     setIsModalOpen(true);
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!currentService) return;
-    
-    if (isEditMode) {
-      // Update existing service time
-      setServiceTimes(serviceTimes.map(s => 
-        s.id === currentService.id ? currentService : s
-      ));
-    } else {
-      // Add new service time
-      const newService: ServiceTime = {
-        ...currentService,
-        id: Date.now() // Simple way to generate unique IDs for demo
-      };
-      setServiceTimes([...serviceTimes, newService]);
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to perform this action');
+        return;
+      }
+
+      if (isEditMode) {
+        // Update existing service time
+        const { error } = await supabase
+          .from('service_times')
+          .update({
+            date: currentService.date,
+            time: currentService.time,
+            image: currentService.image
+          })
+          .eq('id', currentService.id);
+
+        if (error) throw error;
+      } else {
+        // Add new service time - omit the id field to let Supabase generate it
+        const { error } = await supabase
+          .from('service_times')
+          .insert({
+            date: currentService.date,
+            time: currentService.time,
+            church_id: currentService.church_id,
+            created_by: user.id,
+            image: currentService.image
+          });
+
+        if (error) throw error;
+      }
+
+      // Refresh the list
+      await fetchServiceTimes();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error saving service time:', error);
+      Alert.alert('Error', 'Failed to save service time');
     }
-    setIsModalOpen(false);
   };
 
   // Render table header
