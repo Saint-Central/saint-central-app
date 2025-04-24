@@ -299,13 +299,18 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
           ]}
         >
           <ServiceCard
-            title="Sunday Mass"
+            title="Service Times"
             time="9:00 AM"
             icon={<FontAwesome5 name="pray" size={isTablet ? 24 : 20} color="#FFFFFF" />}
             color1={theme.gradientPrimary[0]}
             color2={theme.gradientPrimary[1]}
             isTablet={isTablet}
-            onPress={() => {}}
+            onPress={() =>
+              router.push({
+                pathname: "/ServiceTimes",
+                params: { churchId: church.id },
+              })
+            }
           />
 
           <ServiceCard
