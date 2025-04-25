@@ -31,6 +31,8 @@ type RootStackParamList = {
   church_events: undefined;
   church_members: { church_id: string; church_name?: string };
   volunteerhomepage: undefined;
+  biblestudy: undefined;
+  youthgroup: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -297,13 +299,18 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
           ]}
         >
           <ServiceCard
-            title="Sunday Mass"
+            title="Service Times"
             time="9:00 AM"
             icon={<FontAwesome5 name="pray" size={isTablet ? 24 : 20} color="#FFFFFF" />}
             color1={theme.gradientPrimary[0]}
             color2={theme.gradientPrimary[1]}
             isTablet={isTablet}
-            onPress={() => {}}
+            onPress={() =>
+              router.push({
+                pathname: "/ServiceTimes",
+                params: { churchId: church.id },
+              })
+            }
           />
 
           <ServiceCard
@@ -313,7 +320,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             color1={theme.gradientSecondary[0]}
             color2={theme.gradientSecondary[1]}
             isTablet={isTablet}
-            onPress={() => {}}
+            onPress={() => navigation.navigate("biblestudy")}
           />
 
           <ServiceCard
@@ -323,7 +330,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             color1={theme.gradientInfo[0]}
             color2={theme.gradientInfo[1]}
             isTablet={isTablet}
-            onPress={() => {}}
+            onPress={() => navigation.navigate("YouthGroupSchedulePage")}
           />
 
           <ServiceCard
@@ -441,6 +448,32 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             ]}
           >
             Browse our church ministries
+          </Text>
+        </ChurchActionButton>
+
+        <ChurchActionButton
+          icon={
+            <LinearGradient
+              colors={[theme.gradientInfo[0], theme.gradientInfo[1]]}
+              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="people" size={isTablet ? 22 : 18} color="#FFFFFF" />
+            </LinearGradient>
+          }
+          onPress={() => navigation.navigate("church_members", { church_id: church.id.toString(), church_name: church.name })}
+        >
+          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
+            Members
+          </Text>
+          <Text
+            style={[
+              styles.actionButtonDescription,
+              isTablet && styles.tabletActionButtonDescription,
+            ]}
+          >
+            View church members
           </Text>
         </ChurchActionButton>
       </Animated.View>
