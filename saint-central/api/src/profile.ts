@@ -12,6 +12,7 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Missing or invalid Authorization header" }), {
       status: 401,
+      headers: { "Content-Type": "application/json" },
     });
   }
 
@@ -20,16 +21,21 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     data: { user },
     error: authError,
   } = await supabase.auth.getUser(token);
+
   if (authError || !user) {
     return new Response(JSON.stringify({ error: "Invalid token or user not found" }), {
       status: 401,
+      headers: { "Content-Type": "application/json" },
     });
   }
 
   const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   return new Response(

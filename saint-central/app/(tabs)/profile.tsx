@@ -196,11 +196,14 @@ export default function MeScreen() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+      const res = await fetch("https://saint-central-app.colinmcherney.workers.dev/profile", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`, // Your current user's token
+        },
+      });
+
+      const data = await res.json();
+      const error = !res.ok ? { message: data.error || "Failed to fetch profile" } : null;
 
       if (error) {
         setError(error.message);
