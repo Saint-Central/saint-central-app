@@ -23,6 +23,7 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { supabase } from "../../supabaseClient";
 import Constants from "expo-constants";
+import theme from "../../theme"; // Import theme file
 
 // Type definitions based on the schema
 type ChurchMember = {
@@ -321,7 +322,7 @@ export default function ChurchMembersScreen() {
     return (
       <View style={styles.memberCard}>
         <LinearGradient
-          colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+          colors={theme.gradientLight}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.cardGradient}
@@ -335,7 +336,7 @@ export default function ChurchMembersScreen() {
               />
             ) : (
               <LinearGradient
-                colors={["#3A86FF", "#4361EE"]}
+                colors={theme.gradientPrimary}
                 style={styles.profileInitialsContainer}
               >
                 <Text style={styles.initialsText}>{getInitials()}</Text>
@@ -362,7 +363,7 @@ export default function ChurchMembersScreen() {
                 style={styles.actionButton}
                 onPress={() => handlePrivacySettings(item)}
               >
-                <FontAwesome5 name="user-shield" size={18} color="#4361EE" />
+                <FontAwesome5 name="user-shield" size={18} color={theme.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -371,7 +372,7 @@ export default function ChurchMembersScreen() {
           <View style={styles.memberDetails}>
             {(showEmail || isCurrentUser) && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="envelope" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="envelope" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   {showEmail 
                     ? item.user?.email || 'No email provided'
@@ -383,7 +384,7 @@ export default function ChurchMembersScreen() {
 
             {(showPhone || isCurrentUser) && item.user?.phone_number && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="phone" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="phone" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   {showPhone 
                     ? item.user.phone_number
@@ -394,7 +395,7 @@ export default function ChurchMembersScreen() {
             )}
             
             <View style={styles.detailRow}>
-              <FontAwesome5 name="calendar" size={14} color="#64748B" style={styles.icon} />
+              <FontAwesome5 name="calendar" size={14} color={theme.textMedium} style={styles.icon} />
               <Text style={styles.detailText}>
                 Member since: {formatDate(item.joined_at)}
               </Text>
@@ -422,7 +423,7 @@ export default function ChurchMembersScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Privacy Settings</Text>
               <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
-                <FontAwesome5 name="times" size={20} color="#64748B" />
+                <FontAwesome5 name="times" size={20} color={theme.textMedium} />
               </TouchableOpacity>
             </View>
 
@@ -443,8 +444,8 @@ export default function ChurchMembersScreen() {
                   onValueChange={(value) => 
                     setPrivacySettings(prev => ({ ...prev, hide_email: value }))
                   }
-                  trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
-                  thumbColor="#FFFFFF"
+                  trackColor={{ false: theme.neutral300, true: theme.primary }}
+                  thumbColor={theme.neutral50}
                 />
               </View>
 
@@ -460,8 +461,8 @@ export default function ChurchMembersScreen() {
                   onValueChange={(value) => 
                     setPrivacySettings(prev => ({ ...prev, hide_phone: value }))
                   }
-                  trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
-                  thumbColor="#FFFFFF"
+                  trackColor={{ false: theme.neutral300, true: theme.primary }}
+                  thumbColor={theme.neutral50}
                 />
               </View>
 
@@ -477,13 +478,13 @@ export default function ChurchMembersScreen() {
                   onValueChange={(value) => 
                     setPrivacySettings(prev => ({ ...prev, hide_name: value }))
                   }
-                  trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
-                  thumbColor="#FFFFFF"
+                  trackColor={{ false: theme.neutral300, true: theme.primary }}
+                  thumbColor={theme.neutral50}
                 />
               </View>
 
               <View style={styles.privacyNote}>
-                <FontAwesome5 name="info-circle" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="info-circle" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.noteText}>
                   These settings control who can see your information in the church directory
                 </Text>
@@ -503,7 +504,7 @@ export default function ChurchMembersScreen() {
                   disabled={updateLoading}
                 >
                   {updateLoading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.neutral50} />
                   ) : (
                     <Text style={styles.saveButtonText}>Save Settings</Text>
                   )}
@@ -523,7 +524,7 @@ export default function ChurchMembersScreen() {
     return (
       <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
-          <FontAwesome5 name="search" size={16} color="#64748B" style={styles.searchIcon} />
+          <FontAwesome5 name="search" size={16} color={theme.textMedium} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name, role..."
@@ -538,7 +539,7 @@ export default function ChurchMembersScreen() {
             style={styles.clearButton} 
             onPress={() => setSearchQuery("")}
           >
-            <FontAwesome5 name="times-circle" size={16} color="#64748B" />
+            <FontAwesome5 name="times-circle" size={16} color={theme.textMedium} />
           </TouchableOpacity>
         )}
       </View>
@@ -548,7 +549,7 @@ export default function ChurchMembersScreen() {
   if (loading && !refreshing) {
     return (
       <View style={[styles.loadingContainer, {paddingTop: Constants.statusBarHeight}]}>
-        <ActivityIndicator size="large" color="#4361EE" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -556,18 +557,18 @@ export default function ChurchMembersScreen() {
   return (
     <View style={styles.outerContainer}>
       {/* Status bar padding space */}
-      <View style={{height: Constants.statusBarHeight, backgroundColor: '#FFFFFF'}} />
+      <View style={{height: Constants.statusBarHeight, backgroundColor: theme.neutral50}} />
       
       {/* Header stays fixed at the top */}
       <View style={styles.header}>
         <View style={styles.headerMainContent}>
           <LinearGradient
-            colors={["#3A86FF", "#4361EE"]}
+            colors={theme.gradientPrimary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerIcon}
           >
-            <FontAwesome5 name="users" size={18} color="#FFFFFF" />
+            <FontAwesome5 name="users" size={18} color={theme.neutral50} />
           </LinearGradient>
           <Text style={styles.headerTitle}>{churchDisplayName} Members</Text>
         </View>
@@ -577,7 +578,7 @@ export default function ChurchMembersScreen() {
           <FontAwesome5 
             name={searchVisible ? "times" : "search"} 
             size={18} 
-            color="#4361EE" 
+            color={theme.primary} 
           />
         </TouchableOpacity>
       </View>
@@ -597,7 +598,7 @@ export default function ChurchMembersScreen() {
             <RefreshControl 
               refreshing={refreshing} 
               onRefresh={onRefresh} 
-              colors={["#4361EE"]} 
+              colors={[theme.primary]} 
             />
           }
           ListEmptyComponent={
@@ -605,7 +606,7 @@ export default function ChurchMembersScreen() {
               <FontAwesome5 
                 name={searchQuery ? "search" : "church"} 
                 size={50} 
-                color="#CBD5E1" 
+                color={theme.neutral300} 
               />
               <Text style={styles.emptyText}>
                 {searchQuery 
@@ -626,26 +627,22 @@ export default function ChurchMembersScreen() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral50,
   },
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: theme.pageBg,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingL,
+    backgroundColor: theme.neutral50,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderBottomColor: theme.divider,
+    ...theme.shadowLight,
   },
   headerMainContent: {
     flexDirection: "row",
@@ -654,151 +651,147 @@ const styles = StyleSheet.create({
   headerIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: theme.radiusMedium,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: theme.spacingM,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
   },
   searchButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    padding: theme.spacingS,
+    borderRadius: theme.radiusSmall,
+    backgroundColor: theme.neutral100,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: theme.divider,
   },
   searchBarContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: theme.neutral50,
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
+    borderBottomColor: theme.divider,
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    backgroundColor: theme.neutral100,
+    borderRadius: theme.radiusMedium,
+    paddingVertical: theme.spacingS,
+    paddingHorizontal: theme.spacingM,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: theme.divider,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: theme.spacingS,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#1E293B",
+    color: theme.textDark,
     padding: 0,
   },
   clearButton: {
-    padding: 10,
-    marginLeft: 4,
+    padding: theme.spacingM,
+    marginLeft: theme.spacingXS,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: theme.pageBg,
   },
   listContainer: {
-    padding: 16,
-    paddingBottom: 32, // Extra padding at the bottom
+    padding: theme.spacingL,
+    paddingBottom: theme.spacing2XL, // Extra padding at the bottom
   },
   memberCard: {
-    borderRadius: 16,
+    borderRadius: theme.radiusLarge,
     overflow: "hidden",
-    marginBottom: 16,
-    shadowColor: "#4361EE",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: theme.spacingL,
+    ...theme.shadowMedium,
   },
   cardGradient: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingL,
     borderWidth: 1,
-    borderColor: "rgba(203, 213, 225, 0.5)",
+    borderColor: theme.divider,
   },
   memberHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: theme.spacingM,
   },
   profileImage: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 14,
+    marginRight: theme.spacingL,
   },
   profileInitialsContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 14,
+    marginRight: theme.spacingL,
     justifyContent: "center",
     alignItems: "center",
   },
   initialsText: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
+    fontWeight: theme.fontSemiBold,
+    color: theme.neutral50,
   },
   memberInfo: {
     flex: 1,
   },
   memberName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 4,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+    marginBottom: theme.spacingXS,
   },
   currentUserText: {
     fontStyle: "italic",
-    color: "#64748B",
+    color: theme.textMedium,
   },
   roleBadge: {
-    backgroundColor: "#EEF2FF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: theme.overlayLight,
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingXS,
+    borderRadius: theme.radiusSmall,
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "rgba(79, 70, 229, 0.2)",
+    borderColor: `${theme.primary}30`,
   },
   roleText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#4F46E5",
+    fontWeight: theme.fontSemiBold,
+    color: theme.primary,
   },
   memberDetails: {
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: `${theme.neutral50}99`,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: theme.divider,
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: theme.spacingS,
   },
   icon: {
-    marginRight: 10,
+    marginRight: theme.spacingM,
   },
   detailText: {
     fontSize: 14,
-    color: "#334155",
+    color: theme.textDark,
   },
   emptyContainer: {
     alignItems: "center",
@@ -807,31 +800,24 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#64748B",
-    marginTop: 16,
+    color: theme.textMedium,
+    marginTop: theme.spacingL,
     textAlign: "center",
   },
   actionButton: {
-    padding: 10,
-    marginLeft: 5,
+    padding: theme.spacingM,
+    marginLeft: theme.spacingXS,
   },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: theme.overlay,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: theme.neutral50,
     margin: 20,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    borderRadius: theme.radiusLarge,
+    ...theme.shadowHeavy,
     maxHeight: "80%",
   },
   modalHeader: {
@@ -839,105 +825,105 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
-    padding: 16,
+    borderBottomColor: theme.divider,
+    padding: theme.spacingL,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
   },
   modalBody: {
-    padding: 16,
+    padding: theme.spacingL,
   },
   description: {
     fontSize: 14,
-    color: "#64748B",
-    marginBottom: 20,
+    color: theme.textMedium,
+    marginBottom: theme.spacingXL,
     lineHeight: 20,
   },
   settingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: theme.spacingM,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
+    borderBottomColor: theme.divider,
   },
   settingInfo: {
     flex: 1,
-    marginRight: 16,
+    marginRight: theme.spacingL,
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 4,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textDark,
+    marginBottom: theme.spacingXS,
   },
   settingDescription: {
     fontSize: 12,
-    color: "#64748B",
+    color: theme.textMedium,
   },
   privacyNote: {
     flexDirection: "row",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 20,
-    marginBottom: 20,
+    backgroundColor: theme.neutral100,
+    borderRadius: theme.radiusSmall,
+    padding: theme.spacingM,
+    marginTop: theme.spacingXL,
+    marginBottom: theme.spacingXL,
   },
   noteText: {
     fontSize: 12,
-    color: "#64748B",
+    color: theme.textMedium,
     flex: 1,
     lineHeight: 18,
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
-    marginBottom: 8,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textMedium,
+    marginBottom: theme.spacingS,
   },
   input: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: theme.neutral100,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingM,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
-    marginBottom: 16,
+    borderColor: theme.divider,
+    marginBottom: theme.spacingL,
     fontSize: 16,
   },
   modalActions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: theme.spacingXL,
   },
   cancelButton: {
-    backgroundColor: "#F1F5F9",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    backgroundColor: theme.neutral100,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL,
+    borderRadius: theme.radiusMedium,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: theme.divider,
     flex: 1,
-    marginRight: 8,
+    marginRight: theme.spacingS,
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#64748B",
-    fontWeight: "600",
+    color: theme.textMedium,
+    fontWeight: theme.fontSemiBold,
   },
   saveButton: {
-    backgroundColor: "#4361EE",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    backgroundColor: theme.primary,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL,
+    borderRadius: theme.radiusMedium,
     flex: 1,
-    marginLeft: 8,
+    marginLeft: theme.spacingS,
     alignItems: "center",
   },
   saveButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.neutral50,
+    fontWeight: theme.fontSemiBold,
   },
 });
