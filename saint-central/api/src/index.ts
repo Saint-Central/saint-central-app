@@ -1,4 +1,5 @@
-import { handleProfile } from "./profile";
+import { handleSelect } from "./select";
+import { securityMiddleware, createResponse } from "./security";
 
 export interface Env {
   SUPABASE_URL: string;
@@ -14,7 +15,7 @@ export default {
         status: 204,
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization",
           "Access-Control-Max-Age": "86400",
         },
@@ -23,16 +24,23 @@ export default {
 
     const url = new URL(request.url);
 
-    if (url.pathname === "/profile") {
-      return handleProfile(request, env);
-    }
+    try {
+      // Route requests to the universal select API
+      if (url.pathname === "/select") {
+        return handleSelect(request, env);
+      }
 
-    return new Response(JSON.stringify({ error: "Not Found" }), {
-      status: 404,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+      // Handle 404 for unmatched routes
+      return createResponse({ error: "Not Found", path: url.pathname }, 404);
+    } catch (error) {
+      console.error("Unhandled error:", error);
+      return createResponse(
+        {
+          error: "Internal Server Error",
+          message: error instanceof Error ? error.message : "An unexpected error occurred",
+        },
+        500,
+      );
+    }
   },
 };

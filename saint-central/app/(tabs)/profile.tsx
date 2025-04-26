@@ -196,25 +196,35 @@ export default function MeScreen() {
         return;
       }
 
-      const res = await fetch("https://saint-central-api.colinmcherney.workers.dev/profile", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`, // Your current user's token
+      // Using the new universal select API instead of the dedicated profile endpoint
+      const res = await fetch(
+        "https://saint-central-api.colinmcherney.workers.dev/select?table=users&columns=id,email,first_name,last_name,created_at,updated_at,profile_image,denomination&single=true",
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         },
-      });
+      );
 
-      const data = await res.json();
-      const error = !res.ok ? { message: data.error || "Failed to fetch profile" } : null;
+      const responseData = await res.json();
+      const error = !res.ok ? { message: responseData.error || "Failed to fetch profile" } : null;
 
       if (error) {
         setError(error.message);
-      } else if (data) {
-        setUserProfile(data);
+      } else if (responseData && responseData.data) {
+        // Note that the response structure has changed - data is nested inside a "data" property
+        const userData = responseData.data;
+
+        setUserProfile(userData);
         setEditForm({
-          first_name: data.first_name || "",
-          last_name: data.last_name || "",
-          profile_image: data.profile_image || "",
-          denomination: data.denomination || "",
+          first_name: userData.first_name || "",
+          last_name: userData.last_name || "",
+          profile_image: userData.profile_image || "",
+          denomination: userData.denomination || "",
         });
+      } else {
+        // Handle case where response is successful but doesn't contain the expected data
+        setError("Profile data not found");
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
