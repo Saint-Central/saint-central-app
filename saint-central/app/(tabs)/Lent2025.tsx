@@ -24,6 +24,7 @@ import { router } from "expo-router";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { supabase } from "../../supabaseClient";
 import { Feather, FontAwesome } from "@expo/vector-icons";
+import theme from "../../theme";
 
 // --------------------
 // Data Interfaces
@@ -103,17 +104,17 @@ interface LentEvent {
 const visibilityOptions = [
   {
     label: "Friends",
-    icon: <Feather name="users" size={16} color="#FFFFFF" />,
+    icon: <Feather name="users" size={16} color={theme.neutral50} />,
   },
   {
     label: "Certain Groups",
-    icon: <Feather name="grid" size={16} color="#FFFFFF" />,
+    icon: <Feather name="grid" size={16} color={theme.neutral50} />,
   },
   {
     label: "Friends & Groups",
-    icon: <FontAwesome name="globe" size={16} color="#FFFFFF" />,
+    icon: <FontAwesome name="globe" size={16} color={theme.neutral50} />,
   },
-  { label: "Just Me", icon: <Feather name="user" size={16} color="#FFFFFF" /> },
+  { label: "Just Me", icon: <Feather name="user" size={16} color={theme.neutral50} /> },
 ];
 
 // Helper: Convert the returned selected_groups field to a proper array.
@@ -135,6 +136,21 @@ const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
 };
 
 const lentGuideEvents: LentEvent[] = [
+  {
+    date: "2025-02-17",
+    title: "Daily Goals",
+    description: "Take time to reflect on your spiritual growth and set a personal intention for your daily goals.",
+  },
+  {
+    date: "2025-02-18",
+    title: "Silent Prayer",
+    description: "Dedicate 20 minutes to silent prayer or meditation. Find a quiet space, focus on your breathing, and invite God's presence. Consider using a guided prayer resource if needed.",
+  },
+  {
+    date: "2025-02-19",
+    title: "Group Discussion",
+    description: "Organize a group discussion with friends or family about the significance of daily goals. Share personal goals and support each other in your spiritual journeys.",
+  },
   {
     date: "March 5",
     title: "Ash Wednesday",
@@ -345,7 +361,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
       <View style={styles.expandedDayHeader}>
         <Text style={styles.expandedDayTitle}>{formattedDate}</Text>
         <TouchableOpacity style={styles.closeIconButton} onPress={onClose}>
-          <Feather name="x" size={24} color="#FFFFFF" />
+          <Feather name="x" size={24} color={theme.neutral50} />
         </TouchableOpacity>
       </View>
       <ScrollView
@@ -364,7 +380,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                 activeOpacity={0.7}
               >
                 <View style={styles.expandedDayGuideEventIcon}>
-                  <Feather name="calendar" size={14} color="#E9967A" />
+                  <Feather name="calendar" size={14} color={theme.tertiary} />
                 </View>
                 <View style={styles.expandedDayGuideEventContent}>
                   <Text style={styles.expandedDayGuideEventTitle}>{event.title}</Text>
@@ -397,7 +413,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                       <Feather
                         name={task.completed ? "check-square" : "square"}
                         size={20}
-                        color={task.completed ? "#16A34A" : "#9CA3AF"}
+                        color={task.completed ? theme.success : theme.neutral400}
                       />
                     </TouchableOpacity>
                   )}
@@ -425,7 +441,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                     )}
                     {task.group_info && (
                       <View style={styles.groupTag}>
-                        <Feather name="users" size={12} color="#FAC898" />
+                        <Feather name="users" size={12} color={theme.accent4} />
                         <Text style={styles.groupTagText}>
                           Shared group: {task.group_info.name}
                         </Text>
@@ -447,7 +463,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                         <Feather
                           name="heart"
                           size={16}
-                          color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
+                          color={task.liked_by_current_user ? theme.tertiary : theme.neutral400}
                         />
                         <Text
                           style={[
@@ -463,7 +479,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                         onPress={() => handleOpenComments(task)}
                         activeOpacity={0.7}
                       >
-                        <Feather name="message-square" size={16} color="#9CA3AF" />
+                        <Feather name="message-square" size={16} color={theme.neutral400} />
                         <Text style={styles.expandedDayTaskActionText}>
                           {task.comments_count || 0}
                         </Text>
@@ -477,7 +493,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                           }}
                           activeOpacity={0.7}
                         >
-                          <Feather name="trash-2" size={16} color="#FCA5A5" />
+                          <Feather name="trash-2" size={16} color={theme.error} />
                           <Text style={styles.expandedDayTaskDeleteText}>Delete</Text>
                         </TouchableOpacity>
                       )}
@@ -494,7 +510,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
         onPress={onAddTask}
         activeOpacity={0.8}
       >
-        <Feather name="plus" size={24} color="#FFFFFF" />
+        <Feather name="plus" size={24} color={theme.neutral50} />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -567,7 +583,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <Feather
               name={confirmStyle === "warning" ? "alert-triangle" : "check-circle"}
               size={28}
-              color={confirmStyle === "warning" ? "#FCA5A5" : "#10B981"}
+              color={confirmStyle === "warning" ? theme.error : theme.success}
             />
             <Text style={styles.deleteModalTitle}>{title}</Text>
           </View>
@@ -634,7 +650,7 @@ const renderTaskGroupCard = (
   const heartAnim = heartAnimations[task.id];
   const heartColor = heartAnim.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
+    outputRange: [theme.neutral400, theme.tertiary, theme.tertiary],
   });
 
   return (
@@ -649,7 +665,7 @@ const renderTaskGroupCard = (
             <Feather
               name={allCompleted ? "check-square" : "square"}
               size={20}
-              color={allCompleted ? "#16A34A" : "#9CA3AF"}
+              color={allCompleted ? theme.success : theme.neutral400}
             />
           </TouchableOpacity>
         ) : (
@@ -661,7 +677,7 @@ const renderTaskGroupCard = (
             <Feather
               name={task.completed ? "check-square" : "square"}
               size={20}
-              color={task.completed ? "#16A34A" : "#9CA3AF"}
+              color={task.completed ? theme.success : theme.neutral400}
             />
           </TouchableOpacity>
         )}
@@ -684,7 +700,7 @@ const renderTaskGroupCard = (
       )}
       {task.group_info && (
         <View style={styles.groupTag}>
-          <Feather name="users" size={12} color="#FAC898" />
+          <Feather name="users" size={12} color={theme.accent4} />
           <Text style={styles.groupTagText}>Shared group: {task.group_info.name}</Text>
         </View>
       )}
@@ -705,11 +721,11 @@ const renderTaskGroupCard = (
             <Feather
               name="heart"
               size={task.liked_by_current_user ? 18 : 16}
-              color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
+              color={task.liked_by_current_user ? theme.tertiary : theme.neutral400}
               style={styles.heartIconBase}
             />
             <Animated.View style={[styles.heartAnimation, { opacity: heartAnim }]}>
-              <Feather name="heart" size={18} color="#E9967A" />
+              <Feather name="heart" size={18} color={theme.tertiary} />
             </Animated.View>
           </Animated.View>
           <Animated.Text
@@ -729,7 +745,7 @@ const renderTaskGroupCard = (
           onPress={() => handleOpenComments(task)}
           activeOpacity={0.7}
         >
-          <Feather name="message-square" size={16} color="#9CA3AF" />
+          <Feather name="message-square" size={16} color={theme.neutral400} />
           <Text style={styles.commentButtonText}>{task.comments_count || 0}</Text>
         </TouchableOpacity>
         <View style={styles.taskActions}>
@@ -739,7 +755,7 @@ const renderTaskGroupCard = (
               onPress={() => showConfirmDelete(task.recurrence_id ? task.recurrence_id : "")}
               activeOpacity={0.7}
             >
-              <Feather name="trash-2" size={16} color="#FCA5A5" />
+              <Feather name="trash-2" size={16} color={theme.error} />
               <Text style={styles.deleteActionText}>Delete Group</Text>
             </TouchableOpacity>
           ) : (
@@ -748,7 +764,7 @@ const renderTaskGroupCard = (
               onPress={() => showConfirmDelete(task.id)}
               activeOpacity={0.7}
             >
-              <Feather name="trash-2" size={16} color="#FCA5A5" />
+              <Feather name="trash-2" size={16} color={theme.error} />
               <Text style={styles.deleteActionText}>Delete</Text>
             </TouchableOpacity>
           )}
@@ -949,7 +965,7 @@ const Lent2025: React.FC = () => {
   );
 
   const palette = useMemo(
-    () => ["#E9967A", "#FAC898", "#FF8C69", "#FFB347", "#FFA07A", "#F4A460", "#FFD700"],
+    () => [theme.tertiary, theme.accent4, theme.accent1, theme.accent2, theme.accent3, theme.secondary, theme.primary],
     [],
   );
 
@@ -1959,7 +1975,7 @@ const Lent2025: React.FC = () => {
       const heartAnim = heartAnimations[task.id];
       const heartColor = heartAnim.interpolate({
         inputRange: [0, 0.5, 1],
-        outputRange: ["#9CA3AF", "#FDA4AF", "#E9967A"],
+        outputRange: [theme.neutral400, theme.tertiary, theme.tertiary],
       });
 
       return (
@@ -1974,7 +1990,7 @@ const Lent2025: React.FC = () => {
                 <Feather
                   name={task.completed ? "check-square" : "square"}
                   size={20}
-                  color={task.completed ? "#16A34A" : "#9CA3AF"}
+                  color={task.completed ? theme.success : theme.neutral400}
                 />
               </TouchableOpacity>
             )}
@@ -1992,7 +2008,7 @@ const Lent2025: React.FC = () => {
           </Text>
           {task.group_info && (
             <View style={styles.groupTag}>
-              <Feather name="users" size={12} color="#FAC898" />
+              <Feather name="users" size={12} color={theme.accent4} />
               <Text style={styles.groupTagText}>Shared group: {task.group_info.name}</Text>
             </View>
           )}
@@ -2015,11 +2031,11 @@ const Lent2025: React.FC = () => {
                 <Feather
                   name="heart"
                   size={task.liked_by_current_user ? 18 : 16}
-                  color={task.liked_by_current_user ? "#E9967A" : "#9CA3AF"}
+                  color={task.liked_by_current_user ? theme.tertiary : theme.neutral400}
                   style={styles.heartIconBase}
                 />
                 <Animated.View style={[styles.heartAnimation, { opacity: heartAnim }]}>
-                  <Feather name="heart" size={18} color="#E9967A" />
+                  <Feather name="heart" size={18} color={theme.tertiary} />
                 </Animated.View>
               </Animated.View>
               <Animated.Text
@@ -2039,7 +2055,7 @@ const Lent2025: React.FC = () => {
               onPress={() => handleOpenComments(task)}
               activeOpacity={0.7}
             >
-              <Feather name="message-square" size={16} color="#9CA3AF" />
+              <Feather name="message-square" size={16} color={theme.neutral400} />
               <Text style={styles.commentButtonText}>{task.comments_count || 0}</Text>
             </TouchableOpacity>
             {isUserTask && (
@@ -2049,7 +2065,7 @@ const Lent2025: React.FC = () => {
                   onPress={() => handleEditTask(task)}
                   activeOpacity={0.7}
                 >
-                  <Feather name="edit" size={16} color="#FAC898" />
+                  <Feather name="edit" size={16} color={theme.accent4} />
                   <Text style={styles.editActionText}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -2057,7 +2073,7 @@ const Lent2025: React.FC = () => {
                   onPress={() => showConfirmDelete(task.id)}
                   activeOpacity={0.7}
                 >
-                  <Feather name="trash-2" size={16} color="#FCA5A5" />
+                  <Feather name="trash-2" size={16} color={theme.error} />
                   <Text style={styles.deleteActionText}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -2114,12 +2130,12 @@ const Lent2025: React.FC = () => {
           >
             <Text
               style={[styles.headerTitle, isIpad && { fontSize: 28 }]}
-            >{`Lent 2025 – ${getHeaderTitle()}`}</Text>
+            >{`Daily Goals 2025 – ${getHeaderTitle()}`}</Text>
             <View style={styles.headerFilterIndicator}>
               <Feather
                 name={showFilterDropdown ? "chevron-up" : "chevron-down"}
                 size={18}
-                color="#E9967A"
+                color={theme.tertiary}
               />
             </View>
           </TouchableOpacity>
@@ -2129,7 +2145,7 @@ const Lent2025: React.FC = () => {
               onPress={() => router.navigate("/home")}
               activeOpacity={0.7}
             >
-              <Feather name="home" size={20} color="#FFFFFF" />
+              <Feather name="home" size={20} color={theme.neutral50} />
               <Text style={styles.headerButtonText}>Home</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -2137,7 +2153,7 @@ const Lent2025: React.FC = () => {
               onPress={() => setShowTaskModal(true)}
               activeOpacity={0.7}
             >
-              <Feather name="plus-circle" size={20} color="#FFFFFF" />
+              <Feather name="plus-circle" size={20} color={theme.neutral50} />
               <Text style={styles.headerButtonText}>Add Task</Text>
             </TouchableOpacity>
           </View>
@@ -2232,7 +2248,7 @@ const Lent2025: React.FC = () => {
               style={styles.monthNavButton}
               activeOpacity={0.7}
             >
-              <Feather name="chevron-left" size={24} color="#FFFFFF" />
+              <Feather name="chevron-left" size={24} color={theme.neutral50} />
             </TouchableOpacity>
             <Text style={styles.monthTitle}>{`${getMonthName(currentMonth)} ${currentYear}`}</Text>
             <TouchableOpacity
@@ -2241,7 +2257,7 @@ const Lent2025: React.FC = () => {
               style={styles.monthNavButton}
               activeOpacity={0.7}
             >
-              <Feather name="chevron-right" size={24} color="#FFFFFF" />
+              <Feather name="chevron-right" size={24} color={theme.neutral50} />
             </TouchableOpacity>
           </View>
         )}
@@ -2356,7 +2372,7 @@ const Lent2025: React.FC = () => {
         {(isLoading || commentLoading) && (
           <View style={styles.loadingOverlay}>
             <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <ActivityIndicator size="large" color="#E9967A" />
+              <ActivityIndicator size="large" color={theme.tertiary} />
             </Animated.View>
             <Text style={styles.loadingText}>Loading...</Text>
           </View>
@@ -2398,7 +2414,7 @@ const Lent2025: React.FC = () => {
                   value={newTask.event}
                   onChangeText={(text) => setNewTask({ ...newTask, event: text })}
                   placeholder="Enter event..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.neutral400}
                   accessibilityLabel="Event name"
                 />
                 <Text style={styles.inputLabel}>Date</Text>
@@ -2444,8 +2460,8 @@ const Lent2025: React.FC = () => {
                         setNewTask({ ...newTask, date: `${y}-${m}-${d}` });
                       }
                     }}
-                    style={{ backgroundColor: "#000000" }}
-                    textColor="#FFFFFF"
+                    style={{ backgroundColor: theme.neutral900 }}
+                    textColor={theme.textWhite}
                     themeVariant="dark"
                   />
                 )}
@@ -2503,8 +2519,8 @@ const Lent2025: React.FC = () => {
                             setRecurrenceEndDate(`${y}-${m}-${d}`);
                           }
                         }}
-                        style={{ backgroundColor: "#000000" }}
-                        textColor="#FFFFFF"
+                        style={{ backgroundColor: theme.neutral900 }}
+                        textColor={theme.textWhite}
                         themeVariant="dark"
                       />
                     )}
@@ -2523,7 +2539,7 @@ const Lent2025: React.FC = () => {
                   <Feather
                     name={showVisibilityDropdownNew ? "chevron-up" : "chevron-down"}
                     size={18}
-                    color="#E9967A"
+                    color={theme.tertiary}
                   />
                 </TouchableOpacity>
                 {showVisibilityDropdownNew && (
@@ -2589,7 +2605,7 @@ const Lent2025: React.FC = () => {
                   value={newTask.description}
                   onChangeText={(text) => setNewTask({ ...newTask, description: text })}
                   placeholder="Enter description..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.neutral400}
                   multiline
                   numberOfLines={4}
                   accessibilityLabel="Event description"
@@ -2670,7 +2686,7 @@ const Lent2025: React.FC = () => {
                       } as LentTask)
                     }
                     placeholder="Enter event..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.neutral400}
                     accessibilityLabel="Event name"
                   />
                   <Text style={styles.inputLabel}>Date</Text>
@@ -2722,8 +2738,8 @@ const Lent2025: React.FC = () => {
                           } as LentTask);
                         }
                       }}
-                      style={{ backgroundColor: "#000000" }}
-                      textColor="#FFFFFF"
+                      style={{ backgroundColor: theme.neutral900 }}
+                      textColor={theme.textWhite}
                       themeVariant="dark"
                     />
                   )}
@@ -2745,7 +2761,7 @@ const Lent2025: React.FC = () => {
                     <Feather
                       name={showVisibilityDropdownEdit ? "chevron-up" : "chevron-down"}
                       size={18}
-                      color="#E9967A"
+                      color={theme.tertiary}
                     />
                   </TouchableOpacity>
                   {showVisibilityDropdownEdit && (
@@ -2822,7 +2838,7 @@ const Lent2025: React.FC = () => {
                       } as LentTask)
                     }
                     placeholder="Enter description..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.neutral400}
                     multiline
                     numberOfLines={4}
                     accessibilityLabel="Event description"
@@ -2893,13 +2909,13 @@ const Lent2025: React.FC = () => {
                       }}
                       activeOpacity={0.7}
                     >
-                      <Feather name="x" size={20} color="#FFFFFF" />
+                      <Feather name="x" size={20} color={theme.neutral50} />
                     </TouchableOpacity>
                   </View>
                   {commentLoading ? (
                     <View style={styles.commentLoadingContainer}>
                       <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                        <ActivityIndicator size="large" color="#E9967A" />
+                        <ActivityIndicator size="large" color={theme.tertiary} />
                       </Animated.View>
                       <Text style={styles.commentLoadingText}>Loading comments...</Text>
                     </View>
@@ -2936,7 +2952,7 @@ const Lent2025: React.FC = () => {
                                 onPress={() => showConfirmDeleteComment(item.id)}
                                 activeOpacity={0.7}
                               >
-                                <Feather name="trash-2" size={14} color="#FCA5A5" />
+                                <Feather name="trash-2" size={14} color={theme.error} />
                               </TouchableOpacity>
                             )}
                           </View>
@@ -2946,7 +2962,7 @@ const Lent2025: React.FC = () => {
                     />
                   ) : (
                     <View style={styles.emptyCommentsContainer}>
-                      <Feather name="message-circle" size={48} color="rgba(233, 150, 122, 0.2)" />
+                      <Feather name="message-circle" size={48} color={`${theme.tertiary}33`} />
                       <Text style={styles.emptyCommentsText}>
                         No comments yet. Be the first to add one!
                       </Text>
@@ -2958,7 +2974,7 @@ const Lent2025: React.FC = () => {
                       value={newComment}
                       onChangeText={setNewComment}
                       placeholder="Add a comment..."
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={theme.neutral400}
                       multiline
                     />
                     <TouchableOpacity
@@ -2970,7 +2986,7 @@ const Lent2025: React.FC = () => {
                       disabled={!newComment.trim()}
                       activeOpacity={0.7}
                     >
-                      <Feather name="send" size={16} color="#FFFFFF" />
+                      <Feather name="send" size={16} color={theme.neutral50} />
                     </TouchableOpacity>
                   </View>
                 </>
@@ -3117,7 +3133,7 @@ const Lent2025: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000000" },
+  container: { flex: 1, backgroundColor: theme.neutral900 },
   notification: {
     position: "absolute",
     top: Platform.OS === "ios" ? 50 : 20,
@@ -3127,20 +3143,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     zIndex: 100,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
-  errorNotification: { backgroundColor: "#DC2626" },
-  successNotification: { backgroundColor: "#16A34A" },
-  notificationText: { color: "white", fontWeight: "500", letterSpacing: 0.5 },
+  errorNotification: { backgroundColor: theme.error },
+  successNotification: { backgroundColor: theme.success },
+  notificationText: { color: theme.textWhite, fontWeight: "500", letterSpacing: 0.5 },
   header: {
     padding: 16,
     paddingTop: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(233, 150, 122, 0.2)",
+    borderBottomColor: `${theme.tertiary}33`,
   },
   headerTitleContainer: {
     flexDirection: "row",
@@ -3156,7 +3172,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     textAlign: "center",
     letterSpacing: 1,
   },
@@ -3164,15 +3180,15 @@ const styles = StyleSheet.create({
   headerButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    backgroundColor: `${theme.tertiary}26`,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderColor: `${theme.tertiary}4D`,
   },
   headerButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginLeft: 8,
     fontWeight: "400",
     letterSpacing: 0.5,
@@ -3182,25 +3198,25 @@ const styles = StyleSheet.create({
     left: 15,
     right: 15,
     zIndex: 100,
-    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    backgroundColor: `${theme.neutral900}F2`,
     borderRadius: 15,
     padding: 5,
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderColor: `${theme.tertiary}4D`,
   },
   filterOption: { paddingVertical: 14, paddingHorizontal: 15, borderRadius: 8 },
-  activeFilterOption: { backgroundColor: "rgba(233, 150, 122, 0.2)" },
+  activeFilterOption: { backgroundColor: `${theme.tertiary}33` },
   filterOptionText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 16,
     fontWeight: "400",
     textAlign: "center",
   },
-  activeFilterOptionText: { color: "#E9967A", fontWeight: "600" },
+  activeFilterOptionText: { color: theme.tertiary, fontWeight: "600" },
   viewSwitcher: {
     flexDirection: "row",
     justifyContent: "center",
@@ -3212,16 +3228,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginHorizontal: 8,
     borderRadius: 30,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: `${theme.neutral900}99`,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: `${theme.neutral100}1A`,
   },
   activeViewButton: {
-    backgroundColor: "#E9967A",
-    borderColor: "rgba(233, 150, 122, 0.6)",
+    backgroundColor: theme.primary,
+    borderColor: `${theme.tertiary}99`,
   },
-  viewButtonText: { color: "#FFFFFF", fontWeight: "400", letterSpacing: 0.5 },
-  activeViewText: { color: "#000000", fontWeight: "500", letterSpacing: 0.5 },
+  viewButtonText: { color: theme.textWhite, fontWeight: "400", letterSpacing: 0.5 },
+  activeViewText: { color: theme.neutral900, fontWeight: "500", letterSpacing: 0.5 },
   content: { flex: 1, paddingHorizontal: 16 },
   contentContainer: { paddingBottom: 80 },
   listContainer: { paddingBottom: 20 },
@@ -3229,28 +3245,28 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E9967A",
+    borderBottomColor: theme.tertiary,
     paddingBottom: 8,
     letterSpacing: 0.5,
   },
   emptyText: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: `${theme.neutral100}B3`,
     fontStyle: "italic",
     textAlign: "center",
     padding: 12,
     letterSpacing: 0.5,
   },
   taskCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: `${theme.neutral100}26`,
     borderRadius: 15,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    shadowColor: "#000",
+    borderColor: `${theme.neutral100}33`,
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -3261,32 +3277,32 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 18,
     fontWeight: "500",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 4,
     letterSpacing: 0.5,
   },
-  completedTaskTitle: { textDecorationLine: "line-through", color: "#9CA3AF" },
+  completedTaskTitle: { textDecorationLine: "line-through", color: theme.neutral400 },
   recurringTaskTitle: {},
   taskDate: {
     fontSize: 14,
-    color: "#FAC898",
+    color: theme.accent4,
     marginBottom: 8,
     letterSpacing: 0.5,
   },
   groupTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    backgroundColor: `${theme.accent4}33`,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 10,
     marginBottom: 8,
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "rgba(250, 200, 152, 0.3)",
+    borderColor: `${theme.accent4}4D`,
   },
   groupTagText: {
-    color: "#FAC898",
+    color: theme.accent4,
     fontSize: 12,
     marginLeft: 5,
     fontWeight: "600",
@@ -3294,23 +3310,23 @@ const styles = StyleSheet.create({
   visibilityTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    backgroundColor: `${theme.tertiary}26`,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 10,
     marginBottom: 8,
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderColor: `${theme.tertiary}4D`,
   },
   visibilityTagText: {
-    color: "#E9967A",
+    color: theme.tertiary,
     fontSize: 12,
     marginLeft: 5,
     fontWeight: "600",
   },
   taskDescription: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: `${theme.neutral100}CC`,
     marginBottom: 12,
     letterSpacing: 0.3,
     lineHeight: 20,
@@ -3321,7 +3337,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(233, 150, 122, 0.1)",
+    borderTopColor: `${theme.tertiary}1A`,
   },
   likeButton: {
     flexDirection: "row",
@@ -3331,7 +3347,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 20,
   },
-  likedButton: { backgroundColor: "rgba(233, 150, 122, 0.1)" },
+  likedButton: { backgroundColor: `${theme.tertiary}1A` },
   heartIconContainer: {
     width: 30,
     height: 30,
@@ -3341,7 +3357,7 @@ const styles = StyleSheet.create({
   },
   heartIconBase: { position: "absolute" },
   heartAnimation: { position: "absolute" },
-  likeButtonText: { color: "#9CA3AF", fontSize: 14, fontWeight: "400" },
+  likeButtonText: { color: theme.neutral400, fontSize: 14, fontWeight: "400" },
   commentButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -3349,7 +3365,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 4,
   },
-  commentButtonText: { color: "#9CA3AF", marginLeft: 4, fontSize: 14 },
+  commentButtonText: { color: theme.neutral400, marginLeft: 4, fontSize: 14 },
   taskActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -3361,8 +3377,8 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     padding: 4,
   },
-  editActionText: { color: "#FAC898", marginLeft: 4, letterSpacing: 0.3 },
-  deleteActionText: { color: "#FCA5A5", marginLeft: 4, letterSpacing: 0.3 },
+  editActionText: { color: theme.accent4, marginLeft: 4, letterSpacing: 0.3 },
+  deleteActionText: { color: theme.error, marginLeft: 4, letterSpacing: 0.3 },
   calendarContainer: { paddingBottom: 20, marginTop: 8 },
   stickyMonthHeader: {
     flexDirection: "row",
@@ -3370,7 +3386,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#000000",
+    backgroundColor: theme.neutral900,
     zIndex: 10,
     marginBottom: 10,
   },
@@ -3378,7 +3394,7 @@ const styles = StyleSheet.create({
   monthTitle: {
     fontSize: 22,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     letterSpacing: 1,
   },
   weekdayHeader: {
@@ -3387,10 +3403,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(233, 150, 122, 0.2)",
+    borderBottomColor: `${theme.tertiary}33`,
   },
   weekdayText: {
-    color: "#E9967A",
+    color: theme.tertiary,
     fontWeight: "500",
     textAlign: "center",
     letterSpacing: 0.5,
@@ -3419,7 +3435,7 @@ const styles = StyleSheet.create({
   dayCellInactive: { opacity: 0.4 },
   dayNumber: {
     fontSize: 17,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "400",
     letterSpacing: 0.3,
     textAlign: "center",
@@ -3428,10 +3444,10 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     borderRadius: 18,
   },
-  dayNumberInactive: { color: "rgba(255, 255, 255, 0.5)" },
+  dayNumberInactive: { color: `${theme.neutral100}80` },
   todayNumber: {
-    backgroundColor: "#E9967A",
-    color: "#000000",
+    backgroundColor: theme.tertiary,
+    color: theme.neutral900,
     fontWeight: "600",
     borderRadius: 18,
     overflow: "hidden",
@@ -3445,11 +3461,11 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   dayIndicator: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 1.5 },
-  taskIndicator: { backgroundColor: "#E9967A" },
-  guideIndicator: { backgroundColor: "#FAC898" },
+  taskIndicator: { backgroundColor: theme.tertiary },
+  guideIndicator: { backgroundColor: theme.accent4 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: `${theme.neutral900}B3`,
     justifyContent: "center",
   },
   modalScrollContent: {
@@ -3459,14 +3475,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalContent: {
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: `${theme.neutral900}CC`,
     borderRadius: 15,
     padding: 20,
     width: "100%",
     maxWidth: 500,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    shadowColor: "#000",
+    borderColor: `${theme.neutral100}33`,
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -3476,102 +3492,102 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 20,
     textAlign: "center",
     letterSpacing: 1,
   },
   inputLabel: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 16,
     fontWeight: "400",
     marginBottom: 6,
     letterSpacing: 0.5,
   },
   textInput: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     borderRadius: 15,
     padding: 14,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 16,
     letterSpacing: 0.5,
     fontSize: 16,
   },
   textAreaInput: { height: 120, textAlignVertical: "top" },
   dateButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     borderRadius: 15,
     padding: 14,
     marginBottom: 16,
   },
-  dateButtonText: { color: "#FFFFFF", letterSpacing: 0.5, fontSize: 16 },
+  dateButtonText: { color: theme.textWhite, letterSpacing: 0.5, fontSize: 16 },
   visibilityButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     borderRadius: 15,
     padding: 14,
     marginBottom: 16,
   },
   visibilityButtonContent: { flexDirection: "row", alignItems: "center" },
   visibilityButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginLeft: 10,
     letterSpacing: 0.5,
     fontSize: 16,
   },
   visibilityDropdown: {
-    backgroundColor: "rgba(41, 37, 36, 0.95)",
+    backgroundColor: `${theme.neutral700}F2`,
     borderRadius: 10,
     marginTop: -10,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     overflow: "hidden",
   },
   visibilityOption: { paddingVertical: 12, paddingHorizontal: 16 },
-  visibilityOptionSelected: { backgroundColor: "rgba(233, 150, 122, 0.2)" },
+  visibilityOptionSelected: { backgroundColor: `${theme.tertiary}33` },
   visibilityOptionContent: { flexDirection: "row", alignItems: "center" },
-  visibilityOptionText: { color: "#FFFFFF", marginLeft: 10, fontSize: 16 },
+  visibilityOptionText: { color: theme.textWhite, marginLeft: 10, fontSize: 16 },
   groupSelectorContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: `${theme.neutral100}0D`,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: `${theme.neutral100}1A`,
   },
   groupSelectorLabel: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 10,
   },
   groupSelectorList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   groupOption: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     marginBottom: 8,
     marginRight: 8,
   },
   groupOptionSelected: {
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
-    borderColor: "rgba(233, 150, 122, 0.4)",
+    backgroundColor: `${theme.tertiary}33`,
+    borderColor: `${theme.tertiary}66`,
   },
-  groupOptionText: { color: "#FFFFFF", fontSize: 14 },
+  groupOptionText: { color: theme.textWhite, fontSize: 14 },
   noGroupsText: {
-    color: "rgba(255, 255, 255, 0.6)",
+    color: `${theme.neutral100}99`,
     fontStyle: "italic",
     padding: 8,
   },
@@ -3587,26 +3603,26 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   cancelButtonText: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: `${theme.neutral100}B3`,
     letterSpacing: 0.5,
     fontSize: 16,
   },
   addButton: {
-    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    backgroundColor: `${theme.tertiary}26`,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderColor: `${theme.tertiary}4D`,
   },
   addButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "500",
     letterSpacing: 0.5,
     fontSize: 16,
   },
   commentModalContent: {
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: `${theme.neutral900}CC`,
     borderRadius: 15,
     margin: 16,
     height: "80%",
@@ -3614,8 +3630,8 @@ const styles = StyleSheet.create({
     maxWidth: 540,
     alignSelf: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    shadowColor: "#000",
+    borderColor: `${theme.neutral100}33`,
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -3630,20 +3646,20 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(233, 150, 122, 0.15)",
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderBottomColor: `${theme.tertiary}26`,
+    backgroundColor: `${theme.neutral900}CC`,
   },
   commentModalTitle: {
     fontSize: 18,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     flex: 1,
     letterSpacing: 1,
   },
   closeButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
   },
   commentsList: { flex: 1, width: "100%" },
   commentsListContent: {
@@ -3660,7 +3676,7 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   commentLoadingText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginTop: 12,
     fontSize: 16,
     letterSpacing: 0.5,
@@ -3672,7 +3688,7 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   emptyCommentsText: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: `${theme.neutral100}B3`,
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 12,
@@ -3680,12 +3696,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   commentItem: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: `${theme.neutral100}26`,
     borderRadius: 15,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    shadowColor: "#000",
+    borderColor: `${theme.neutral100}33`,
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -3702,27 +3718,27 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(233, 150, 122, 0.2)",
+    backgroundColor: `${theme.tertiary}33`,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
   },
   commentAvatarText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "300",
     fontSize: 14,
     letterSpacing: 0.5,
   },
-  commentAuthor: { color: "#FFFFFF", fontWeight: "500", letterSpacing: 0.5 },
+  commentAuthor: { color: theme.textWhite, fontWeight: "500", letterSpacing: 0.5 },
   commentTime: {
-    color: "rgba(255, 255, 255, 0.5)",
+    color: `${theme.neutral100}80`,
     fontSize: 12,
     letterSpacing: 0.3,
   },
   commentContent: {
-    color: "rgba(255, 255, 255, 0.9)",
+    color: `${theme.neutral100}E6`,
     lineHeight: 22,
     fontSize: 15,
     paddingHorizontal: 2,
@@ -3731,59 +3747,59 @@ const styles = StyleSheet.create({
   addCommentContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(233, 150, 122, 0.15)",
+    borderTopColor: `${theme.tertiary}26`,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: `${theme.neutral900}CC`,
   },
   commentInput: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     borderRadius: 30,
     padding: 12,
     paddingHorizontal: 16,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginRight: 10,
     maxHeight: 120,
     fontSize: 15,
     letterSpacing: 0.3,
   },
   sendCommentButton: {
-    backgroundColor: "#E9967A",
+    backgroundColor: theme.tertiary,
     width: 42,
     height: 42,
     borderRadius: 21,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
   },
-  disabledSendButton: { backgroundColor: "rgba(233, 150, 122, 0.3)" },
+  disabledSendButton: { backgroundColor: `${theme.tertiary}4D` },
   deleteCommentButton: {
     padding: 8,
     borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: `${theme.neutral900}66`,
   },
   deleteCommentText: {
-    color: "#FCA5A5",
+    color: theme.error,
     fontSize: 12,
     marginLeft: 4,
     letterSpacing: 0.3,
   },
   expandedDayContainer: {
-    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    backgroundColor: `${theme.neutral900}F2`,
     borderRadius: 20,
     width: "90%",
     maxHeight: "95%",
     minHeight: 500,
     padding: 16,
     alignSelf: "center",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -3794,40 +3810,40 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(233, 150, 122, 0.3)",
+    borderBottomColor: `${theme.tertiary}4D`,
     paddingBottom: 8,
     marginBottom: 12,
   },
-  expandedDayTitle: { fontSize: 24, fontWeight: "600", color: "#E9967A" },
+  expandedDayTitle: { fontSize: 24, fontWeight: "600", color: theme.tertiary },
   closeIconButton: { padding: 8 },
   expandedDayContent: { flex: 1, width: "100%" },
   expandedDaySection: { marginBottom: 20 },
   expandedDaySectionTitle: {
     fontSize: 20,
     fontWeight: "500",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 12,
   },
   expandedDayEmptyText: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: `${theme.neutral100}B3`,
     fontStyle: "italic",
     textAlign: "center",
     padding: 12,
   },
   expandedDayGuideEvent: {
     flexDirection: "row",
-    backgroundColor: "rgba(233, 150, 122, 0.1)",
+    backgroundColor: `${theme.tertiary}1A`,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.2)",
+    borderColor: `${theme.tertiary}33`,
   },
   expandedDayGuideEventIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -3836,34 +3852,34 @@ const styles = StyleSheet.create({
   expandedDayGuideEventTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 6,
   },
   expandedDayGuideEventDesc: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: `${theme.neutral100}CC`,
     fontSize: 14,
     lineHeight: 20,
   },
   expandedDayTask: {
     flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: `${theme.neutral100}1A`,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
   },
   expandedDayTaskUserIndicator: { width: 4, borderRadius: 2, marginRight: 10 },
   expandedDayTaskContent: { flex: 1 },
   expandedDayTaskTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 2,
   },
-  expandedDayTaskUser: { fontSize: 13, color: "#FAC898", marginBottom: 4 },
+  expandedDayTaskUser: { fontSize: 13, color: theme.accent4, marginBottom: 4 },
   expandedDayTaskDesc: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: `${theme.neutral100}CC`,
     marginBottom: 10,
     fontSize: 14,
     lineHeight: 20,
@@ -3871,7 +3887,7 @@ const styles = StyleSheet.create({
   expandedDayTaskActions: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: `${theme.neutral100}1A`,
     paddingTop: 10,
   },
   expandedDayTaskAction: {
@@ -3879,20 +3895,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 16,
   },
-  expandedDayTaskActionText: { color: "#9CA3AF", marginLeft: 4, fontSize: 13 },
-  expandedDayTaskActionTextActive: { color: "#E9967A" },
-  expandedDayTaskDeleteText: { color: "#FCA5A5", marginLeft: 4, fontSize: 13 },
+  expandedDayTaskActionText: { color: theme.neutral400, marginLeft: 4, fontSize: 13 },
+  expandedDayTaskActionTextActive: { color: theme.tertiary },
+  expandedDayTaskDeleteText: { color: theme.error, marginLeft: 4, fontSize: 13 },
   floatingAddTaskButton: {
     position: "absolute",
     bottom: 16,
     right: 16,
-    backgroundColor: "#E9967A",
+    backgroundColor: theme.tertiary,
     width: 50,
     height: 50,
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -3904,26 +3920,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: `${theme.neutral900}B3`,
     justifyContent: "center",
     alignItems: "center",
   },
   loadingText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 18,
     marginTop: 12,
     letterSpacing: 0.5,
   },
   guideEventModal: {
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: `${theme.neutral900}CC`,
     borderRadius: 15,
     padding: 20,
     width: "90%",
     maxWidth: 500,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: `${theme.neutral100}33`,
     alignSelf: "center",
-    shadowColor: "#000",
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -3932,12 +3948,12 @@ const styles = StyleSheet.create({
   guideEventModalTitle: {
     fontSize: 20,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 12,
     letterSpacing: 1,
   },
   guideEventModalDesc: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 16,
     lineHeight: 22,
     letterSpacing: 0.5,
@@ -3945,35 +3961,35 @@ const styles = StyleSheet.create({
   },
   guideEventCloseButton: {
     alignSelf: "flex-end",
-    backgroundColor: "rgba(233, 150, 122, 0.15)",
+    backgroundColor: `${theme.tertiary}26`,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: "rgba(233, 150, 122, 0.3)",
+    borderColor: `${theme.tertiary}4D`,
   },
   guideEventCloseText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "500",
     letterSpacing: 0.5,
     fontSize: 16,
   },
   recurringToggleButton: { alignSelf: "center", marginBottom: 16 },
   recurringToggleText: {
-    color: "#E9967A",
+    color: theme.tertiary,
     fontSize: 16,
     textDecorationLine: "underline",
   },
   deleteModalContent: {
-    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    backgroundColor: `${theme.neutral900}F2`,
     borderRadius: 15,
     padding: 20,
     width: "90%",
     maxWidth: 400,
     alignSelf: "center",
     borderWidth: 1,
-    borderColor: "rgba(252, 165, 165, 0.3)",
-    shadowColor: "#000",
+    borderColor: `${theme.error}4D`,
+    shadowColor: theme.neutral900,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -3984,18 +4000,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(252, 165, 165, 0.2)",
+    borderBottomColor: `${theme.error}33`,
     paddingBottom: 12,
   },
   deleteModalTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginLeft: 12,
     flex: 1,
   },
   deleteModalMessage: {
-    color: "rgba(255, 255, 255, 0.9)",
+    color: `${theme.neutral100}E6`,
     fontSize: 16,
     lineHeight: 24,
     marginBottom: 20,
@@ -4004,7 +4020,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: `${theme.neutral100}1A`,
     paddingTop: 16,
   },
   deleteModalCancelButton: {
@@ -4014,18 +4030,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   deleteModalCancelText: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: `${theme.neutral100}B3`,
     fontSize: 16,
     fontWeight: "500",
   },
   deleteModalConfirmButton: {
-    backgroundColor: "#DC2626",
+    backgroundColor: theme.error,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
-  deleteModalConfirmText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  successConfirmButton: { backgroundColor: "#10B981" },
+  deleteModalConfirmText: { color: theme.textWhite, fontSize: 16, fontWeight: "600" },
+  successConfirmButton: { backgroundColor: theme.success },
 });
 
 export default Lent2025;
