@@ -6,7 +6,13 @@ interface Env {
 }
 
 export async function handleProfile(request: Request, env: Env): Promise<Response> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    global: {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      },
+    },
+  });
 
   const authHeader = request.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
