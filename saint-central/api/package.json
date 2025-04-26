@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "dependencies": {
     "@cloudflare/workers-types": "github:cloudflare/workers-types",
-    "@supabase/supabase-js": "^2.49.1"
+    "@supabase/supabase-js": "^2.49.1",
+    "jwt-decode": "^4.0.0"
   }
 }
