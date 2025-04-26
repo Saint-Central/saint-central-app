@@ -1,10 +1,10 @@
 /**
  * Table Configuration
- * This file contains the configuration for all tables accessible via the Select API.
+ * This file contains the configuration for all tables accessible via the API.
  */
 
 /**
- * Tables that are allowed to be queried via the Select API
+ * Tables that are allowed to be queried via the API
  */
 export const ALLOWED_TABLES = [
   // User-related tables
@@ -36,8 +36,8 @@ export const TABLE_PERMISSIONS: Record<
     // Required role to access this table (if any)
     requiredRole?: string;
 
-    // If false, prevents any updates to this table (defaults to false)
-    allowUpdate?: boolean;
+    // Operations allowed on this table
+    operations?: ("select" | "insert" | "update" | "delete")[];
 
     // Description of the table for documentation
     description?: string;
@@ -57,7 +57,7 @@ export const TABLE_PERMISSIONS: Record<
       "phone_number",
       "denomination",
     ],
-    allowUpdate: true,
+    operations: ["select", "update"], // Replaced allowUpdate with operations array
     description: "User accounts and profile information",
   },
 };

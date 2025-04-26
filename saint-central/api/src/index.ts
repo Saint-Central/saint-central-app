@@ -1,5 +1,4 @@
-import { handleSelect } from "./select";
-import { handleUpdate } from "./update";
+import { handleDataRequest } from "./dataHandler";
 import { securityMiddleware, createResponse } from "./security";
 
 export interface Env {
@@ -16,7 +15,7 @@ export default {
         status: 204,
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization",
           "Access-Control-Max-Age": "86400",
         },
@@ -24,13 +23,29 @@ export default {
     }
 
     const url = new URL(request.url);
+    const pathParts = url.pathname.split("/");
 
     try {
-      // Route requests to the appropriate API
-      if (url.pathname === "/select") {
-        return handleSelect(request, env);
-      } else if (url.pathname === "/update") {
-        return handleUpdate(request, env);
+      // Check if path starts with /api
+      if (pathParts[1] === "api") {
+        return handleDataRequest(request, env);
+      }
+
+      // For backward compatibility with existing routes
+      if (url.pathname === "/select" || url.pathname === "/update") {
+        // Create a modified request with /api prefix
+        const newUrl = new URL(request.url);
+        newUrl.pathname = `/api${url.pathname}`;
+
+        // Clone the request with the new URL
+        const newRequest = new Request(newUrl.toString(), {
+          method: request.method,
+          headers: request.headers,
+          body: request.body,
+          redirect: request.redirect,
+        });
+
+        return handleDataRequest(newRequest, env);
       }
 
       // Handle 404 for unmatched routes

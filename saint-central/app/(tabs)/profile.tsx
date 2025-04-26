@@ -27,6 +27,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import theme from "@/theme";
 import { NotificationSettings } from "../../components/NotificationSettings";
+import saintcentral from "../../api/src/sdk";
 
 interface UserProfile {
   id: string;
@@ -196,41 +197,42 @@ export default function MeScreen() {
         return;
       }
 
-      // Using the new universal select API instead of the dedicated profile endpoint
-      const res = await fetch(
-        "https://saint-central-api.colinmcherney.workers.dev/select?table=users&columns=id,email,first_name,last_name,created_at,updated_at,profile_image,denomination&single=true",
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        },
-      );
+      // Using the SDK instead of direct fetch
+      try {
+        console.log("Fetching profile with SDK...");
 
-      const responseData = await res.json();
-      const error = !res.ok ? { message: responseData.error || "Failed to fetch profile" } : null;
+        const response = await saintcentral
+          .withAuth(session.access_token)
+          .from("users")
+          .select("id,email,first_name,last_name,created_at,updated_at,profile_image,denomination")
+          .single()
+          .get();
 
-      if (error) {
-        setError(error.message);
-      } else if (responseData && responseData.data) {
-        // Note that the response structure has changed - data is nested inside a "data" property
-        const userData = responseData.data;
+        console.log("SDK Response:", response);
 
-        setUserProfile(userData);
-        setEditForm({
-          first_name: userData.first_name || "",
-          last_name: userData.last_name || "",
-          profile_image: userData.profile_image || "",
-          denomination: userData.denomination || "",
-        });
-      } else {
-        // Handle case where response is successful but doesn't contain the expected data
-        setError("Profile data not found");
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || "Something went wrong");
-      } else {
-        setError("Something went wrong");
+        if (response.error) {
+          setError(response.error || "Failed to fetch profile");
+        } else if (response.data) {
+          const userData = response.data;
+
+          setUserProfile(userData);
+          setEditForm({
+            first_name: userData.first_name || "",
+            last_name: userData.last_name || "",
+            profile_image: userData.profile_image || "",
+            denomination: userData.denomination || "",
+          });
+        } else {
+          // Handle case where response doesn't contain expected data
+          setError("Profile data not found");
+        }
+      } catch (err) {
+        console.error("SDK Error:", err);
+        if (err instanceof Error) {
+          setError(err.message || "Something went wrong");
+        } else {
+          setError("Something went wrong");
+        }
       }
     } finally {
       setLoading(false);
@@ -307,26 +309,24 @@ export default function MeScreen() {
             profile_image: data.publicUrl,
           }));
 
-          // Update the profile using the new update API
-          const res = await fetch("https://saint-central-api.colinmcherney.workers.dev/update", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${session?.access_token}`,
-              "Content-Type": "application/json",
+          // Update the profile using the SDK instead of direct fetch
+          console.log("Updating profile with SDK...");
+          if (!session?.access_token) {
+            throw new Error("Access token is undefined");
+          }
+          const response = await saintcentral.withAuth(session.access_token).update(
+            "users",
+            {
+              profile_image: data.publicUrl,
+              updated_at: new Date().toISOString(),
             },
-            body: JSON.stringify({
-              table: "users",
-              data: {
-                profile_image: data.publicUrl,
-                updated_at: new Date().toISOString(),
-              },
-              single: true,
-            }),
-          });
+            { id: session?.user.id },
+          );
 
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || "Failed to update profile image");
+          console.log("Update response:", response);
+
+          if (response.error) {
+            throw new Error(response.error || "Failed to update profile image");
           }
 
           // Enable editing mode if not already in it
@@ -371,49 +371,36 @@ export default function MeScreen() {
 
       if (!session?.user) return;
 
-      // Using the new universal update API
-      const res = await fetch("https://saint-central-api.colinmcherney.workers.dev/update", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
+      console.log("Submitting update with SDK...");
+
+      // Using the SDK for update instead of direct fetch
+      const response = await saintcentral.withAuth(session.access_token).update(
+        "users",
+        {
+          first_name: editForm.first_name,
+          last_name: editForm.last_name,
+          profile_image: editForm.profile_image,
+          denomination: editForm.denomination,
+          updated_at: new Date().toISOString(),
         },
-        body: JSON.stringify({
-          table: "users",
-          data: {
-            first_name: editForm.first_name,
-            last_name: editForm.last_name,
-            profile_image: editForm.profile_image,
-            denomination: editForm.denomination,
-            updated_at: new Date().toISOString(),
-          },
-          returning: [
-            "id",
-            "email",
-            "first_name",
-            "last_name",
-            "created_at",
-            "updated_at",
-            "profile_image",
-            "denomination",
-          ],
-          single: true,
-        }),
-      });
+        { id: session.user.id },
+      );
 
-      const responseData = await res.json();
+      console.log("Update response:", response);
 
-      if (!res.ok) {
-        throw new Error(responseData.error || "Failed to update profile");
+      if (response.error) {
+        throw new Error(response.error || "Failed to update profile");
       }
 
-      if (responseData && responseData.data) {
-        setUserProfile(responseData.data);
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const updatedProfile = response.data[0]; // first updated row
+
+        setUserProfile(updatedProfile);
         setEditForm({
-          first_name: responseData.data.first_name || "",
-          last_name: responseData.data.last_name || "",
-          profile_image: responseData.data.profile_image || "",
-          denomination: responseData.data.denomination || "",
+          first_name: updatedProfile.first_name || "",
+          last_name: updatedProfile.last_name || "",
+          profile_image: updatedProfile.profile_image || "",
+          denomination: updatedProfile.denomination || "",
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -421,6 +408,7 @@ export default function MeScreen() {
 
       setIsEditing(false);
     } catch (err: unknown) {
+      console.error("Update error:", err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       if (err instanceof Error) {
