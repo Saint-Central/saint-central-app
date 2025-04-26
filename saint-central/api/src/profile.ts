@@ -3,19 +3,16 @@ import { createClient } from "@supabase/supabase-js";
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_ANON_KEY: string; // ADD THIS
 }
 
 export async function handleProfile(request: Request, env: Env): Promise<Response> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: {
-      persistSession: false,
-    },
-    global: {
-      headers: {
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      },
-    },
+  const supabasePublic = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false },
+  });
+
+  const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
   });
 
   const authHeader = request.headers.get("Authorization");
@@ -27,10 +24,12 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   }
 
   const token = authHeader.replace("Bearer ", "");
+
+  // ✅ Validate token using Public client (Anon Key)
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser(token);
+  } = await supabasePublic.auth.getUser(token);
 
   if (authError || !user) {
     return new Response(JSON.stringify({ error: "Invalid token or user not found" }), {
@@ -39,7 +38,8 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     });
   }
 
-  const { data, error } = await supabase
+  // ✅ Fetch sensitive data using Admin client (Service Role Key)
+  const { data, error } = await supabaseAdmin
     .from("users")
     .select("first_name, last_name, profile_image, denomination")
     .eq("id", user.id)
