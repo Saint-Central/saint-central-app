@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: theme.spacingL,
-    paddingBottom: theme.spacing2XL, // Extra padding at the bottom
+    paddingBottom: theme.spacing4XL + theme.spacingXL, // Increased bottom padding further
   },
   memberCard: {
     borderRadius: theme.radiusLarge,

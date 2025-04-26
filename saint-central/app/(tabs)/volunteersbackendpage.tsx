@@ -67,25 +67,25 @@ type RouteParams = {
 
 type VolunteerDetailsScreenRouteProp = RouteProp<{ params: RouteParams }, 'params'>;
 
-// Modern color theme with spiritual tones
+// Modern color theme with warm and cozy tones
 const THEME = {
-  primary: "#2D3748",        // Dark slate for text
-  secondary: "#4A5568",      // Medium slate for secondary text
-  light: "#A0AEC0",          // Light slate for tertiary text
-  background: "#F7FAFC",     // Light background
+  primary: "#A87C5F",        // Warm brown for text
+  secondary: "#6B5A50",      // Medium brown for secondary text
+  light: "#A99686",          // Light brown for tertiary text
+  background: "#F9F5F1",     // Light background with warm undertone
   card: "#FFFFFF",           // White cards
-  accent1: "#EBF4FF",        // Light blue accent
+  accent1: "#F2EBE4",        // Light warm accent
   accent2: "#E6FFFA",        // Light teal accent
   accent3: "#FEFCBF",        // Light yellow accent
   accent4: "#FEE2E2",        // Light red accent
-  border: "#E2E8F0",         // Light borders
-  buttonPrimary: "#6B46C1",  // Purple for primary buttons
-  buttonSecondary: "#4C51BF", // Indigo for secondary actions
+  border: "#E2D7CE",         // Light borders
+  buttonPrimary: "#C27F55",  // Terracotta for primary buttons
+  buttonSecondary: "#B97A65", // Dusty rust for secondary actions
   buttonText: "#FFFFFF",     // White text on buttons
-  error: "#E53E3E",          // Error red
-  success: "#38A169",        // Success green
-  warning: "#DD6B20",        // Warning orange
-  shadow: "rgba(0, 0, 0, 0.1)" // Shadow color
+  error: "#BC6C64",          // Dusty rose for errors
+  success: "#7D9B6A",        // Sage green for success
+  warning: "#C78D60",        // Warm amber for warnings
+  shadow: "rgba(45, 36, 31, 0.1)" // Shadow color
 };
 
 interface PrivacySettingsModalProps {
@@ -194,7 +194,7 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           // Switch is ON when hide_email is FALSE (showing email)
           value={!settings.hide_email}
           onValueChange={() => toggleSwitch('hide_email')}
-          trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+          trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -211,7 +211,7 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           // Switch is ON when hide_phone is FALSE (showing phone)
           value={!settings.hide_phone}
           onValueChange={() => toggleSwitch('hide_phone')}
-          trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+          trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -228,14 +228,14 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           // Switch is ON when hide_name is FALSE (showing name)
           value={!settings.hide_name}
           onValueChange={() => toggleSwitch('hide_name')}
-          trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+          trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
           thumbColor="#FFFFFF"
         />
       </View>
 
       <View style={styles.modalButtonContainer}>
         {loading ? (
-          <ActivityIndicator size="small" color="#4361EE" />
+          <ActivityIndicator size="small" color="#C27F55" />
         ) : (
           <>
             <Text 
@@ -658,7 +658,7 @@ export default function VolunteerDetailsPage() {
     return (
       <View style={styles.memberCard}>
         <LinearGradient
-          colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.1)"]}
+          colors={["rgba(168, 124, 95, 0.05)", "rgba(194, 127, 85, 0.1)"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.cardGradient}
@@ -672,7 +672,7 @@ export default function VolunteerDetailsPage() {
               />
             ) : (
               <LinearGradient
-                colors={["#3A86FF", "#4361EE"]}
+                colors={["#A87C5F", "#C27F55"]}
                 style={styles.profileInitialsContainer}
               >
                 <Text style={styles.initialsText}>{getInitials()}</Text>
@@ -699,7 +699,7 @@ export default function VolunteerDetailsPage() {
                 style={styles.actionButton}
                 onPress={() => handlePrivacySettings(item)}
               >
-                <FontAwesome5 name="user-shield" size={18} color="#4361EE" />
+                <FontAwesome5 name="user-shield" size={18} color="#C27F55" />
               </TouchableOpacity>
             )}
           </View>
@@ -708,7 +708,7 @@ export default function VolunteerDetailsPage() {
           <View style={styles.memberDetails}>
             {(showEmail || isCurrentUser) && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="envelope" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="envelope" size={14} color="#8A7668" style={styles.icon} />
                 <Text style={styles.detailText}>
                   {showEmail 
                     ? item.user?.email || 'No email provided'
@@ -720,7 +720,7 @@ export default function VolunteerDetailsPage() {
 
             {(showPhone || isCurrentUser) && item.user?.phone_number && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="phone" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="phone" size={14} color="#8A7668" style={styles.icon} />
                 <Text style={styles.detailText}>
                   {showPhone 
                     ? item.user.phone_number
@@ -752,7 +752,7 @@ export default function VolunteerDetailsPage() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Privacy Settings</Text>
               <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
-                <FontAwesome5 name="times" size={20} color="#64748B" />
+                <FontAwesome5 name="times" size={20} color="#8A7668" />
               </TouchableOpacity>
             </View>
 
@@ -778,7 +778,7 @@ export default function VolunteerDetailsPage() {
                       return newSettings;
                     });
                   }}
-                  trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+                  trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -800,7 +800,7 @@ export default function VolunteerDetailsPage() {
                       return newSettings;
                     });
                   }}
-                  trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+                  trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -822,13 +822,13 @@ export default function VolunteerDetailsPage() {
                       return newSettings;
                     });
                   }}
-                  trackColor={{ false: "#CBD5E1", true: "#4361EE" }}
+                  trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
                   thumbColor="#FFFFFF"
                 />
               </View>
 
               <View style={styles.privacyNote}>
-                <FontAwesome5 name="info-circle" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="info-circle" size={14} color="#8A7668" style={styles.icon} />
                 <Text style={styles.noteText}>
                   These settings apply to everyone viewing this volunteer opportunity, including admins. Only you will be able to see your own hidden information. When the switch is blue (ON), information is shown to others. When OFF, information is hidden.
                 </Text>
@@ -868,7 +868,7 @@ export default function VolunteerDetailsPage() {
     return (
       <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
-          <FontAwesome5 name="search" size={16} color="#64748B" style={styles.searchIcon} />
+          <FontAwesome5 name="search" size={16} color="#8A7668" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or email..."
@@ -883,7 +883,7 @@ export default function VolunteerDetailsPage() {
             style={styles.clearButton} 
             onPress={() => setSearchQuery("")}
           >
-            <FontAwesome5 name="times-circle" size={16} color="#64748B" />
+            <FontAwesome5 name="times-circle" size={16} color="#8A7668" />
           </TouchableOpacity>
         )}
       </View>
@@ -899,21 +899,21 @@ export default function VolunteerDetailsPage() {
       const title = (volunteer.description?.toLowerCase() || '');
       
       if (title.includes("bible") || title.includes("study")) {
-        return "#4299E1"; // Blue
+        return "#9B8557"; // Muted gold
       } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
-        return "#38B2AC"; // Teal
+        return "#B97A65"; // Muted rust
       } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
-        return "#ECC94B"; // Yellow
+        return "#C78D60"; // Warm amber
       } else if (title.includes("prayer") || title.includes("breakfast")) {
-        return "#F56565"; // Red
+        return "#D8846B"; // Soft coral
       } else if (title.includes("meeting") || title.includes("committee")) {
-        return "#9F7AEA"; // Purple
+        return "#A87C5F"; // Warm brown
       } else if (title.includes("music") || title.includes("choir") || title.includes("practice")) {
-        return "#ED8936"; // Orange
+        return "#C27F55"; // Soft terracotta
       } else if (title.includes("volunteer") || title.includes("serve") || title.includes("outreach")) {
-        return "#ED64A6"; // Pink
+        return "#BC6C64"; // Dusty rose
       }
-      return "#718096"; // Gray
+      return "#8A7668"; // Medium brown
     };
     
     return (
@@ -946,21 +946,21 @@ export default function VolunteerDetailsPage() {
             
             <View style={styles.detailsRow}>
               <View style={styles.detailItem}>
-                <FontAwesome5 name="clock" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="clock" size={14} color="#8A7668" style={styles.icon} />
                 <Text style={styles.detailText}>
                   {formatDate(volunteer.time)} • {formatTime(volunteer.time)}
                 </Text>
               </View>
               
               <View style={styles.detailItem}>
-                <FontAwesome5 name="map-marker-alt" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="map-marker-alt" size={14} color="#8A7668" style={styles.icon} />
                 <Text style={styles.detailText}>
                   {volunteer.location || 'Location TBD'}
                 </Text>
               </View>
               
               <View style={styles.detailItem}>
-                <FontAwesome5 name="user" size={14} color="#64748B" style={styles.icon} />
+                <FontAwesome5 name="user" size={14} color="#8A7668" style={styles.icon} />
                 <Text style={styles.detailText}>
                   Coordinator: {volunteer.host || 'TBD'}
                 </Text>
@@ -986,7 +986,7 @@ export default function VolunteerDetailsPage() {
             
             {currentUserEnrolled && (
               <View style={styles.enrolledBadge}>
-                <FontAwesome5 name="check-circle" size={16} color="#38A169" style={{ marginRight: 8 }} />
+                <FontAwesome5 name="check-circle" size={16} color="#7D9B6A" style={{ marginRight: 8 }} />
                 <Text style={styles.enrolledText}>You are signed up</Text>
               </View>
             )}
@@ -999,7 +999,7 @@ export default function VolunteerDetailsPage() {
   if (loading && !refreshing && !volunteer) {
     return (
       <View style={[styles.loadingContainer, {paddingTop: Constants.statusBarHeight}]}>
-        <ActivityIndicator size="large" color="#4361EE" />
+        <ActivityIndicator size="large" color="#C27F55" />
       </View>
     );
   }
@@ -1012,7 +1012,7 @@ export default function VolunteerDetailsPage() {
           style={styles.backButton} 
           onPress={() => router.push('/volunteerhomepage')}
         >
-          <FontAwesome5 name="arrow-left" size={18} color="#4361EE" />
+          <FontAwesome5 name="arrow-left" size={18} color="#C27F55" />
         </TouchableOpacity>
         <Text style={styles.headerText}>Volunteer Details</Text>
         <View style={styles.headerSpacer} />
@@ -1045,7 +1045,7 @@ export default function VolunteerDetailsPage() {
             <FontAwesome5 
               name={searchQuery ? "search" : "users"} 
               size={50} 
-              color="#CBD5E1" 
+              color="#E2D7CE" 
             />
             <Text style={styles.emptyText}>
               {searchQuery 
@@ -1059,7 +1059,7 @@ export default function VolunteerDetailsPage() {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh} 
-            colors={["#4361EE"]} 
+            colors={["#C27F55"]} 
           />
         }
       />
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
+    borderBottomColor: THEME.border,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -1101,14 +1101,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: THEME.primary,
   },
   searchButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: THEME.accent1,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: THEME.border,
   },
   loadingContainer: {
     flex: 1,
@@ -1166,7 +1166,7 @@ const styles = StyleSheet.create({
   volunteerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1E293B',
+    color: THEME.primary,
     marginBottom: 12,
   },
   detailsRow: {
@@ -1179,10 +1179,10 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 15,
-    color: '#4A5568',
+    color: THEME.secondary,
   },
   enrollButton: {
-    backgroundColor: "#4361EE",
+    backgroundColor: THEME.buttonPrimary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1203,9 +1203,9 @@ const styles = StyleSheet.create({
   enrolledBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0FFF4",
+    backgroundColor: "rgba(125, 155, 106, 0.1)",
     borderWidth: 1,
-    borderColor: "#C6F6D5",
+    borderColor: "rgba(125, 155, 106, 0.3)",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -1215,7 +1215,7 @@ const styles = StyleSheet.create({
   enrolledText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#38A169",
+    color: "#7D9B6A",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1228,7 +1228,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: THEME.primary,
   },
   searchBarContainer: {
     flexDirection: "row",
@@ -1237,18 +1237,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
+    borderBottomColor: THEME.border,
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: THEME.accent1,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: THEME.border,
   },
   searchIcon: {
     marginRight: 8,
@@ -1256,7 +1256,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#1E293B",
+    color: THEME.primary,
     padding: 0,
   },
   clearButton: {
@@ -1312,23 +1312,23 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1E293B",
+    color: THEME.primary,
     marginBottom: 4,
   },
   currentUserText: {
     fontStyle: "italic",
-    color: "#64748B",
+    color: THEME.light,
   },
   enrollmentDate: {
     fontSize: 13,
-    color: "#64748B",
+    color: THEME.light,
   },
   memberDetails: {
     backgroundColor: "rgba(255, 255, 255, 0.6)",
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: THEME.border,
   },
   detailRow: {
     flexDirection: "row",
@@ -1346,11 +1346,11 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: THEME.border,
   },
   emptyText: {
     fontSize: 16,
-    color: "#64748B",
+    color: THEME.light,
     marginTop: 16,
     textAlign: "center",
   },
@@ -1361,7 +1361,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: "rgba(45, 36, 31, 0.6)",
   },
   modalContent: {
     backgroundColor: "white",
@@ -1382,20 +1382,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
+    borderBottomColor: THEME.border,
     padding: 16,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: THEME.primary,
   },
   modalBody: {
     padding: 16,
   },
   description: {
     fontSize: 14,
-    color: "#64748B",
+    color: THEME.light,
     marginBottom: 20,
     lineHeight: 20,
   },
@@ -1405,7 +1405,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.8)",
+    borderBottomColor: THEME.border,
   },
   settingInfo: {
     flex: 1,
@@ -1414,16 +1414,16 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1E293B",
+    color: THEME.primary,
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 12,
-    color: "#64748B",
+    color: THEME.light,
   },
   privacyNote: {
     flexDirection: "row",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: THEME.accent1,
     borderRadius: 8,
     padding: 12,
     marginTop: 20,
@@ -1431,7 +1431,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 12,
-    color: "#64748B",
+    color: THEME.light,
     flex: 1,
     lineHeight: 18,
   },
@@ -1441,22 +1441,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   cancelButton: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: THEME.accent1,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: THEME.border,
     flex: 1,
     marginRight: 8,
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#64748B",
+    color: THEME.light,
     fontWeight: "600",
   },
   saveButton: {
-    backgroundColor: "#4361EE",
+    backgroundColor: THEME.buttonPrimary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
@@ -1476,7 +1476,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: THEME.primary,
   },
   headerSpacer: {
     flex: 1,
