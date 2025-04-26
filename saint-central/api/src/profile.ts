@@ -7,16 +7,19 @@ interface Env {
 
 export async function handleProfile(request: Request, env: Env): Promise<Response> {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      persistSession: false,
+    },
     global: {
       headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
         Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
       },
     },
   });
 
   const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Missing or invalid Authorization header" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -24,7 +27,6 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   }
 
   const token = authHeader.replace("Bearer ", "");
-
   const {
     data: { user },
     error: authError,
@@ -37,25 +39,21 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     });
   }
 
-  const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
+  const { data, error } = await supabase
+    .from("users")
+    .select("first_name, last_name, profile_image, denomination")
+    .eq("id", user.id)
+    .single();
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+      status: 403,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  return new Response(
-    JSON.stringify({
-      first_name: data.first_name || "",
-      last_name: data.last_name || "",
-      profile_image: data.profile_image || "",
-      denomination: data.denomination || "",
-    }),
-    {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    },
-  );
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
