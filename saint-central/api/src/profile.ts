@@ -9,14 +9,14 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     global: {
       headers: {
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
       },
     },
   });
 
   const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Missing or invalid Authorization header" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -25,7 +25,6 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
 
   const token = authHeader.replace("Bearer ", "");
 
-  // Validate user's token
   const {
     data: { user },
     error: authError,
@@ -38,7 +37,6 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     });
   }
 
-  // Fetch user data (this needs both Authorization + apikey headers!)
   const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
   if (error) {
