@@ -63,22 +63,9 @@ The API implements several security mechanisms:
 
 The API supports the following tables with their respective security settings:
 
-| Table                   | Security         | Description                                        |
-| ----------------------- | ---------------- | -------------------------------------------------- |
-| `users`                 | Self access only | User accounts and profile information              |
-| `profiles`              | Owner only       | Extended user profile information                  |
-| `friends`               | Special access   | User friendships and connections                   |
-| `culture_posts`         | Public read      | Public posts related to cultural topics            |
-| `faith_posts`           | Public read      | Public posts related to faith topics               |
-| `news_posts`            | Public read      | Public news and announcements                      |
-| `womens_ministry_posts` | Public read      | Public posts related to women's ministry           |
-| `comments`              | Owner only       | User comments on posts                             |
-| `likes`                 | Owner only       | User likes for posts and comments                  |
-| `intentions`            | Owner only       | Prayer intentions created by users                 |
-| `lent_tasks`            | Owner only       | Lent-related tasks and progress tracking           |
-| `products`              | Public read      | Product catalog accessible to all users            |
-| `orders`                | Owner only       | User orders with order details                     |
-| `admin_logs`            | Admin only       | Administrative logs accessible only to admin users |
+| Table   | Security         | Description                           |
+| ------- | ---------------- | ------------------------------------- |
+| `users` | Self access only | User accounts and profile information |
 
 ## Special Cases
 

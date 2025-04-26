@@ -59,22 +59,9 @@ The Update API implements several security mechanisms:
 
 The API supports updating the same tables as the Select API, with identical security settings:
 
-| Table                   | Security         | Update Allowed | Description                              |
-| ----------------------- | ---------------- | -------------- | ---------------------------------------- |
-| `users`                 | Self access only | Yes            | User accounts and profile information    |
-| `profiles`              | Owner only       | Yes            | Extended user profile information        |
-| `friends`               | Special access   | Yes            | User friendships and connections         |
-| `culture_posts`         | Public read      | Yes            | Public posts related to cultural topics  |
-| `faith_posts`           | Public read      | Yes            | Public posts related to faith topics     |
-| `news_posts`            | Public read      | Yes            | Public news and announcements            |
-| `womens_ministry_posts` | Public read      | Yes            | Public posts related to women's ministry |
-| `comments`              | Owner only       | Yes            | User comments on posts                   |
-| `likes`                 | Owner only       | Yes            | User likes for posts and comments        |
-| `intentions`            | Owner only       | Yes            | Prayer intentions created by users       |
-| `lent_tasks`            | Owner only       | Yes            | Lent-related tasks and progress tracking |
-| `products`              | Owner only       | No             | Product catalog (updates restricted)     |
-| `orders`                | Owner only       | Yes            | User orders with order details           |
-| `admin_logs`            | Admin only       | No             | Administrative logs (read-only)          |
+| Table   | Security         | Update Allowed | Description                           |
+| ------- | ---------------- | -------------- | ------------------------------------- |
+| `users` | Self access only | Yes            | User accounts and profile information |
 
 ## Special Cases
 
