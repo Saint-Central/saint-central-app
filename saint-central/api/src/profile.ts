@@ -6,7 +6,11 @@ interface Env {
 }
 
 export async function handleProfile(request: Request, env: Env): Promise<Response> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+  // Auth client for validating the user
+  const authClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Supabase client for querying the DB using service_role
+  const dbClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     global: {
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -26,7 +30,7 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser(token);
+  } = await authClient.auth.getUser(token);
 
   if (authError || !user) {
     return new Response(JSON.stringify({ error: "Invalid token or user not found" }), {
@@ -35,7 +39,8 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     });
   }
 
-  const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
+  // Now fetch the user profile with elevated access
+  const { data, error } = await dbClient.from("users").select("*").eq("id", user.id).single();
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
