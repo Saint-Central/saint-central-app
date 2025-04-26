@@ -350,7 +350,7 @@ const CreateVolunteerPage: React.FC = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4361EE" />
+          <ActivityIndicator size="large" color="#C27F55" />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
@@ -365,7 +365,7 @@ const CreateVolunteerPage: React.FC = () => {
             style={styles.backButton} 
             onPress={() => router.replace('/volunteerhomepage')}
           >
-            <FontAwesome5 name="arrow-left" size={18} color="#4361EE" />
+            <FontAwesome5 name="arrow-left" size={18} color="#C27F55" />
           </TouchableOpacity>
           <Text style={styles.headerText}>
             {isEditMode ? 'Edit Volunteer Opportunity' : 'Create New Volunteer Opportunity'}
@@ -381,14 +381,14 @@ const CreateVolunteerPage: React.FC = () => {
           <View style={styles.formContainer}>
             {errorMessage && (
               <View style={styles.errorContainer}>
-                <FontAwesome5 name="exclamation-circle" size={18} color="#E53E3E" style={{marginRight: 8}} />
+                <FontAwesome5 name="exclamation-circle" size={18} color="#BC6C64" style={{marginRight: 8}} />
                 <Text style={styles.errorText}>{errorMessage}</Text>
               </View>
             )}
             
             {successMessage && (
               <View style={styles.successContainer}>
-                <FontAwesome5 name="check-circle" size={18} color="#16A34A" style={{marginRight: 8}} />
+                <FontAwesome5 name="check-circle" size={18} color="#7D9B6A" style={{marginRight: 8}} />
                 <Text style={styles.successText}>{successMessage}</Text>
               </View>
             )}
@@ -404,7 +404,7 @@ const CreateVolunteerPage: React.FC = () => {
                   <Image source={{ uri: imageUri }} style={styles.imagePreview} />
                 ) : (
                   <View style={styles.uploadPlaceholder}>
-                    <FontAwesome5 name="image" size={32} color="#CBD5E0" />
+                    <FontAwesome5 name="image" size={32} color="#E2D7CE" />
                     <Text style={styles.imageUploadText}>
                       Upload Opportunity Image
                     </Text>
@@ -459,7 +459,7 @@ const CreateVolunteerPage: React.FC = () => {
                 value={formData.description}
                 onChangeText={(value) => handleChange('description', value)}
                 placeholder="Enter volunteer opportunity title or description"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor="#A99686"
               />
             </View>
 
@@ -471,7 +471,7 @@ const CreateVolunteerPage: React.FC = () => {
                   style={styles.dateTimeButton}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <FontAwesome5 name="calendar" size={16} color="#4361EE" style={styles.dateTimeIcon} />
+                  <FontAwesome5 name="calendar" size={16} color="#C27F55" style={styles.dateTimeIcon} />
                   <Text style={styles.dateTimeText}>
                     {formData.time.toLocaleDateString()}
                   </Text>
@@ -481,7 +481,7 @@ const CreateVolunteerPage: React.FC = () => {
                   style={styles.dateTimeButton}
                   onPress={() => setShowTimePicker(true)}
                 >
-                  <FontAwesome5 name="clock" size={16} color="#4361EE" style={styles.dateTimeIcon} />
+                  <FontAwesome5 name="clock" size={16} color="#C27F55" style={styles.dateTimeIcon} />
                   <Text style={styles.dateTimeText}>
                     {formData.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -515,7 +515,7 @@ const CreateVolunteerPage: React.FC = () => {
                 value={formData.location}
                 onChangeText={(value) => handleChange('location', value)}
                 placeholder="Enter opportunity location"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor="#A99686"
               />
             </View>
 
@@ -527,7 +527,7 @@ const CreateVolunteerPage: React.FC = () => {
                 value={formData.host}
                 onChangeText={(value) => handleChange('host', value)}
                 placeholder="Enter coordinator or contact person name"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor="#A99686"
               />
             </View>
 
@@ -560,7 +560,7 @@ const CreateVolunteerPage: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F9F5F1',
   },
   container: {
     flex: 1,
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E2D7CE',
     backgroundColor: '#FFFFFF',
   },
   backButton: {
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A202C',
+    color: '#A87C5F',
   },
   headerSpacer: {
     width: 36, // Same width as back button for balance
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#4A5568',
+    color: '#6B5A50',
   },
   formContainer: {
     padding: 16,
@@ -615,19 +615,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#DC2626',
+    color: '#BC6C64',
   },
   successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
+    backgroundColor: 'rgba(125, 155, 106, 0.1)',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   successText: {
     flex: 1,
-    color: '#16A34A',
+    color: '#7D9B6A',
   },
   formGroup: {
     marginBottom: 24,
@@ -636,17 +636,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#4A5568',
+    color: '#6B5A50',
   },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E2D7CE',
     padding: 14,
     borderRadius: 8,
     fontSize: 16,
-    color: '#1A202C',
-    shadowColor: '#000',
+    color: '#A87C5F',
+    shadowColor: 'rgba(45, 36, 31, 0.1)',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -657,21 +657,21 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   churchOption: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F2EBE4',
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E2D7CE',
   },
   churchOptionSelected: {
-    backgroundColor: '#4361EE',
-    borderColor: '#4361EE',
+    backgroundColor: '#C27F55',
+    borderColor: '#C27F55',
   },
   churchOptionText: {
-    color: '#4A5568',
+    color: '#6B5A50',
     fontWeight: '500',
   },
   churchOptionTextSelected: {
@@ -684,13 +684,13 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E2D7CE',
     padding: 14,
     borderRadius: 8,
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: 'rgba(45, 36, 31, 0.1)',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   dateTimeText: {
-    color: '#1A202C',
+    color: '#A87C5F',
     fontSize: 15,
   },
   imageUploadButton: {
@@ -708,10 +708,10 @@ const styles = StyleSheet.create({
     height: 200,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E2D7CE',
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: 'rgba(45, 36, 31, 0.1)',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F9F5F1',
   },
   imagePreview: {
     width: '100%',
@@ -729,13 +729,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   imageUploadText: {
-    color: '#4A5568',
+    color: '#6B5A50',
     fontWeight: '600',
     marginTop: 12,
     fontSize: 16,
   },
   imageHelpText: {
-    color: '#A0AEC0',
+    color: '#A99686',
     fontSize: 14,
     marginTop: 6,
   },
@@ -757,19 +757,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButton: {
-    backgroundColor: '#4361EE',
+    backgroundColor: '#C27F55',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2D3748',
+    shadowColor: 'rgba(45, 36, 31, 0.1)',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: '#A0AEC0',
+    backgroundColor: '#A99686',
   },
   submitButtonText: {
     color: '#FFFFFF',

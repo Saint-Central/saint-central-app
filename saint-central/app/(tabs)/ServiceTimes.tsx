@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.pageBg,
     padding: theme.spacingXL,
-    paddingTop: theme.spacing3XL, // Added more top padding to move everything down
+    paddingTop: theme.spacing3XL + 19.2, // Added 0.2 inches (19.2 pixels) to existing padding
   },
   card: {
     backgroundColor: theme.cardBg,

@@ -442,7 +442,7 @@ function EventsComponent() {
         return;
       }
 
-      const eventData: any = {
+      const eventData: Record<string, any> = {
         title: formTitle,
         excerpt: formExcerpt,
         time: formTime.toISOString(),
@@ -502,7 +502,7 @@ function EventsComponent() {
         return;
       }
 
-      const eventData: any = {
+      const eventData: Record<string, any> = {
         title: formTitle,
         excerpt: formExcerpt,
         time: formTime.toISOString(),
@@ -591,17 +591,21 @@ function EventsComponent() {
         aspect: [16, 9],
         quality: 0.7,
       });
+      
       if (result.canceled) {
         setFormImageLoading(false);
         return;
       }
+      
       const localUri = result.assets[0].uri;
       setFormImageUrl(localUri);
+      
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData.session) {
           throw new Error("Not authenticated");
         }
+        
         const fileName = `${Date.now()}.jpg`;
         const { error: uploadError } = await supabase.storage
           .from("event-images")
@@ -610,9 +614,11 @@ function EventsComponent() {
             type: "image/jpeg",
             name: fileName,
           } as any);
+          
         if (uploadError) {
           throw uploadError;
         }
+        
         const { data: urlData } = supabase.storage.from("event-images").getPublicUrl(fileName);
         if (urlData?.publicUrl) {
           setFormImageUrl(urlData.publicUrl);
@@ -666,12 +672,12 @@ function EventsComponent() {
           >
             <Image source={{ uri: event.image_url }} style={styles.eventImage} resizeMode="cover" />
             <View style={[styles.eventIconOverlay, { backgroundColor: color }]}>
-              <Feather name={icon} size={18} color={theme.textForeground} />
+              <Feather name={icon} size={18} color={theme.textWhite} />
             </View>
           </TouchableOpacity>
         ) : (
           <View style={[styles.eventIconContainer, { backgroundColor: color }]}>
-            <Feather name={icon} size={28} color={theme.textForeground} />
+            <Feather name={icon} size={28} color={theme.textWhite} />
           </View>
         )}
         <View style={styles.eventContent}>
@@ -694,14 +700,14 @@ function EventsComponent() {
           )}
           <View style={styles.eventActions}>
             <TouchableOpacity style={styles.eventActionButton} onPress={() => openEditModal(event)}>
-              <Feather name="edit-2" size={16} color={theme.textForegroundMuted} />
+              <Feather name="edit-2" size={16} color={theme.textMedium} />
               <Text style={styles.actionButtonText}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.eventActionButton}
               onPress={() => handleDeleteEvent(event.id)}
             >
-              <Feather name="trash-2" size={16} color={theme.backgroundDestructive} />
+              <Feather name="trash-2" size={16} color={theme.error} />
               <Text style={styles.actionButtonText}>Delete</Text>
             </TouchableOpacity>
           </View>
@@ -878,11 +884,11 @@ function EventsComponent() {
           {calendarView === "month" && (
             <View style={styles.monthNavigation}>
               <TouchableOpacity style={styles.monthNavArrow} onPress={() => changeMonth(-1)}>
-                <Feather name="chevron-left" size={24} color={theme.textForegroundMuted} />
+                <Feather name="chevron-left" size={24} color={theme.textMedium} />
               </TouchableOpacity>
               <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
               <TouchableOpacity style={styles.monthNavArrow} onPress={() => changeMonth(1)}>
-                <Feather name="chevron-right" size={24} color={theme.textForegroundMuted} />
+                <Feather name="chevron-right" size={24} color={theme.textMedium} />
               </TouchableOpacity>
             </View>
           )}
@@ -915,7 +921,7 @@ function EventsComponent() {
                 </View>
               ) : events.length === 0 ? (
                 <View style={styles.noEventsContainer}>
-                  <Feather name="calendar" size={50} color={theme.textForegroundSubtle} />
+                  <Feather name="calendar" size={50} color={theme.textLight} />
                   <Text style={styles.noEventsText}>No events found</Text>
                   <Text style={styles.noEventsSubtext}>
                     Add your first event by tapping the button below
@@ -943,13 +949,13 @@ function EventsComponent() {
             <View style={styles.dateDetailHeader}>
               <Text style={styles.dateDetailTitle}>{formatDate(selectedDate)}</Text>
               <TouchableOpacity style={styles.dateDetailCloseButton} onPress={closeDateDetail}>
-                <AntDesign name="close" size={24} color={theme.textForeground} />
+                <AntDesign name="close" size={24} color={theme.textDark} />
               </TouchableOpacity>
             </View>
             <View style={styles.dateDetailContent}>
               {selectedDayEvents.length === 0 ? (
                 <View style={styles.noEventsForDay}>
-                  <Feather name="calendar" size={50} color={theme.textForegroundSubtle} />
+                  <Feather name="calendar" size={50} color={theme.textLight} />
                   <Text style={styles.noEventsForDayText}>No events for this day</Text>
                   <TouchableOpacity
                     style={styles.addEventForDayButton}
@@ -1000,7 +1006,7 @@ function EventsComponent() {
                   onPress={() => setShowAddModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign name="close" size={22} color={theme.textForeground} />
+                  <AntDesign name="close" size={22} color={theme.textDark} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
@@ -1012,7 +1018,7 @@ function EventsComponent() {
                     value={formTitle}
                     onChangeText={setFormTitle}
                     placeholder="Enter event title"
-                    placeholderTextColor={theme.textForegroundSubtle}
+                    placeholderTextColor={theme.textLight}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1022,7 +1028,7 @@ function EventsComponent() {
                     value={formExcerpt}
                     onChangeText={setFormExcerpt}
                     placeholder="Event description"
-                    placeholderTextColor={theme.textForegroundSubtle}
+                    placeholderTextColor={theme.textLight}
                     multiline
                     numberOfLines={4}
                   />
@@ -1057,7 +1063,7 @@ function EventsComponent() {
                     value={formAuthorName}
                     onChangeText={setFormAuthorName}
                     placeholder="Event location"
-                    placeholderTextColor={theme.textForegroundSubtle}
+                    placeholderTextColor={theme.textLight}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1270,7 +1276,7 @@ function EventsComponent() {
                   onPress={() => setShowEditModal(false)}
                   activeOpacity={0.7}
                 >
-                  <AntDesign name="close" size={22} color={theme.textForeground} />
+                  <AntDesign name="close" size={22} color={theme.textDark} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalForm}>
@@ -1281,7 +1287,7 @@ function EventsComponent() {
                     value={formTitle}
                     onChangeText={setFormTitle}
                     placeholder="Enter event title"
-                    placeholderTextColor={theme.textForegroundSubtle}
+                    placeholderTextColor={theme.textLight}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1291,7 +1297,7 @@ function EventsComponent() {
                     value={formExcerpt}
                     onChangeText={setFormExcerpt}
                     placeholder="Event description"
-                    placeholderTextColor={theme.textForegroundSubtle}
+                    placeholderTextColor={theme.textLight}
                     multiline
                     numberOfLines={4}
                   />
@@ -1326,7 +1332,7 @@ function EventsComponent() {
                     value={formAuthorName}
                     onChangeText={setFormAuthorName}
                     placeholder="Event location"
-                    placeholderTextColor={theme.textForegroundSubtle}
+                    placeholderTextColor={theme.textLight}
                   />
                 </View>
                 <View style={styles.formGroup}>
@@ -1545,7 +1551,7 @@ function EventsComponent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.pageBg,
   },
   safeArea: {
     flex: 1,
@@ -1557,12 +1563,12 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.pageBg,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700",
-    color: theme.textForeground,
+    color: theme.textDark,
   },
   // View Selector
   viewSelector: {
@@ -1572,7 +1578,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 30,
     padding: 4,
-    shadowColor: theme.shadowLight,
+    shadowColor: theme.neutral300,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1590,10 +1596,10 @@ const styles = StyleSheet.create({
   viewOptionText: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
   },
   viewOptionTextActive: {
-    color: theme.buttonText,
+    color: theme.textWhite,
   },
   // Month Navigation
   monthNavigation: {
@@ -1609,15 +1615,15 @@ const styles = StyleSheet.create({
   monthText: {
     fontSize: 18,
     fontWeight: "600",
-    color: theme.textForeground,
+    color: theme.textDark,
   },
   // Calendar
   calendarContainer: {
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     marginHorizontal: 20,
     padding: 16,
-    shadowColor: theme.shadowLight,
+    shadowColor: theme.neutral300,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1635,7 +1641,7 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: 14,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     fontWeight: "600",
   },
   calendarGrid: {},
@@ -1672,18 +1678,18 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     fontSize: 16,
-    color: theme.textForeground,
+    color: theme.textDark,
     fontWeight: "500",
   },
   dayNumberOtherMonth: {
-    color: theme.textForegroundSubtle,
+    color: theme.textLight,
   },
   todayNumber: {
     color: theme.primary,
     fontWeight: "700",
   },
   selectedDayNumber: {
-    color: theme.buttonText,
+    color: theme.textWhite,
     fontWeight: "700",
   },
   eventIndicatorContainer: {
@@ -1706,7 +1712,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   multipleEventsText: {
-    color: theme.buttonText,
+    color: theme.textWhite,
     fontSize: 10,
     fontWeight: "700",
   },
@@ -1718,7 +1724,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
   },
   // List View
   listContainer: {
@@ -1732,11 +1738,11 @@ const styles = StyleSheet.create({
   noEventsContainer: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     padding: 30,
     marginVertical: 20,
-    shadowColor: theme.shadowLight,
+    shadowColor: theme.neutral300,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1745,13 +1751,13 @@ const styles = StyleSheet.create({
   noEventsText: {
     fontSize: 18,
     fontWeight: "700",
-    color: theme.textForeground,
+    color: theme.textDark,
     marginTop: 16,
     marginBottom: 8,
   },
   noEventsSubtext: {
     fontSize: 14,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     textAlign: "center",
   },
   eventsList: {
@@ -1760,11 +1766,11 @@ const styles = StyleSheet.create({
   // Event Cards
   eventCard: {
     flexDirection: "row",
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     marginVertical: 8,
     overflow: "hidden",
-    shadowColor: theme.shadowLight,
+    shadowColor: theme.neutral300,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1826,7 +1832,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: theme.textForeground,
+    color: theme.textDark,
     marginBottom: 4,
   },
   eventTimeLocationContainer: {
@@ -1834,16 +1840,16 @@ const styles = StyleSheet.create({
   },
   eventDateTime: {
     fontSize: 13,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     marginBottom: 2,
   },
   eventLocation: {
     fontSize: 13,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
   },
   eventDescription: {
     fontSize: 13,
-    color: theme.textForegroundSubtle,
+    color: theme.textLight,
     marginBottom: 8,
     lineHeight: 18,
   },
@@ -1859,7 +1865,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 14,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     marginLeft: 4,
   },
   eventCardDetail: {
@@ -1890,23 +1896,23 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: theme.neutral700,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.2)",
+    borderColor: theme.neutral800,
   },
   heroTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: theme.textForeground,
+    color: theme.textDark,
     textAlign: "center",
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 14,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     textAlign: "center",
     marginBottom: 16,
     maxWidth: 300,
@@ -1930,7 +1936,7 @@ const styles = StyleSheet.create({
   },
   addEventButtonText: {
     fontSize: 16,
-    color: theme.buttonText,
+    color: theme.textWhite,
     fontWeight: "700",
     marginRight: 10,
   },
@@ -1941,11 +1947,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: height * 0.7,
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.cardBg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 20,
-    shadowColor: theme.shadowLight,
+    shadowColor: theme.neutral300,
     shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -1955,7 +1961,7 @@ const styles = StyleSheet.create({
   dateDetailHandle: {
     width: 40,
     height: 5,
-    backgroundColor: theme.borderLight,
+    backgroundColor: theme.neutral300,
     borderRadius: 3,
     alignSelf: "center",
     marginTop: 10,
@@ -1968,18 +1974,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
+    borderBottomColor: theme.neutral300,
   },
   dateDetailTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: theme.textForeground,
+    color: theme.textDark,
   },
   dateDetailCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1994,7 +2000,7 @@ const styles = StyleSheet.create({
   },
   noEventsForDayText: {
     fontSize: 16,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     marginTop: 16,
     marginBottom: 24,
   },
@@ -2002,7 +2008,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 20,
@@ -2027,12 +2033,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.cardBg,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingBottom: 30,
     maxHeight: height * 0.9,
-    shadowColor: theme.shadowLight,
+    shadowColor: theme.neutral300,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -2041,7 +2047,7 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 5,
-    backgroundColor: theme.borderLight,
+    backgroundColor: theme.neutral300,
     borderRadius: 3,
     alignSelf: "center",
     marginTop: 10,
@@ -2054,18 +2060,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
+    borderBottomColor: theme.neutral300,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: theme.textForeground,
+    color: theme.textDark,
   },
   modalCloseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2079,17 +2085,17 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.textForeground,
+    color: theme.textDark,
     marginBottom: 8,
   },
   formInput: {
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     borderRadius: 12,
     padding: 16,
-    color: theme.textForeground,
+    color: theme.textDark,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: theme.borderLight,
+    borderColor: theme.neutral300,
   },
   textAreaInput: {
     minHeight: 120,
@@ -2098,14 +2104,14 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.borderLight,
+    borderColor: theme.neutral300,
   },
   dateTimeText: {
-    color: theme.textForeground,
+    color: theme.textDark,
     marginLeft: 10,
     fontSize: 16,
   },
@@ -2113,16 +2119,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.borderLight,
+    borderColor: theme.neutral300,
   },
   toggleLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.textForeground,
+    color: theme.textDark,
   },
   recurringContainer: {
     marginBottom: 20,
@@ -2136,11 +2142,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: theme.borderLight,
+    borderColor: theme.neutral300,
   },
   recurrenceTypeButtonSelected: {
     backgroundColor: theme.primary,
@@ -2148,11 +2154,11 @@ const styles = StyleSheet.create({
   },
   recurrenceTypeText: {
     fontSize: 14,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     fontWeight: "500",
   },
   recurrenceTypeTextSelected: {
-    color: theme.buttonText,
+    color: theme.textWhite,
     fontWeight: "600",
   },
   intervalRow: {
@@ -2161,25 +2167,25 @@ const styles = StyleSheet.create({
   },
   intervalLabel: {
     fontSize: 16,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
     marginRight: 8,
   },
   intervalInput: {
-    backgroundColor: theme.cardBackground,
+    backgroundColor: theme.cardBg,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     width: 60,
     borderWidth: 1,
-    borderColor: theme.borderLight,
+    borderColor: theme.neutral300,
     marginRight: 8,
     fontSize: 16,
-    color: theme.textForeground,
+    color: theme.textDark,
     textAlign: "center",
   },
   intervalText: {
     fontSize: 16,
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
   },
   daysRow: {
     flexDirection: "row",
@@ -2189,12 +2195,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 6,
     borderWidth: 1,
-    borderColor: theme.borderLight,
+    borderColor: theme.neutral300,
   },
   dayButtonSelected: {
     backgroundColor: theme.primary,
@@ -2203,10 +2209,10 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.textForegroundMuted,
+    color: theme.textMedium,
   },
   dayTextSelected: {
-    color: theme.buttonText,
+    color: theme.textWhite,
   },
   clearButton: {
     paddingVertical: 8,
@@ -2218,7 +2224,7 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: 14,
-    color: theme.backgroundDestructive,
+    color: theme.error,
     fontWeight: "500",
   },
   imagePickerButton: {
@@ -2226,7 +2232,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    backgroundColor: theme.backgroundBeige,
+    backgroundColor: theme.neutral100,
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: "dashed",
@@ -2270,7 +2276,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: theme.buttonText,
+    color: theme.textWhite,
   },
   // Image Viewer Modal Styles
   imageViewerContainer: {

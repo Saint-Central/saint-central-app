@@ -180,8 +180,8 @@ export default function ChurchSidebar({
                 </LinearGradient>
               </View>
               <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>Lent 2025</Text>
-                <Text style={styles.menuDescription}>Journey through the Lenten season</Text>
+                <Text style={styles.menuTitle}>Daily Goals</Text>
+                <Text style={styles.menuDescription}>Track your spiritual journey</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>

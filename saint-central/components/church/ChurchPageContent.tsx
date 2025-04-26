@@ -407,13 +407,13 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <FontAwesome5 name="donate" size={isTablet ? 22 : 18} color="#FFFFFF" />
+              <FontAwesome5 name="hands-helping" size={isTablet ? 22 : 18} color="#FFFFFF" />
             </LinearGradient>
           }
-          onPress={() => navigation.navigate("coursehomepage")}
+          onPress={() => navigation.navigate("volunteerhomepage")}
         >
           <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
-            Donate
+            Volunteering
           </Text>
           <Text
             style={[
@@ -421,7 +421,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
               isTablet && styles.tabletActionButtonDescription,
             ]}
           >
-            Support our ministries
+            Get involved in our ministries
           </Text>
         </ChurchActionButton>
 

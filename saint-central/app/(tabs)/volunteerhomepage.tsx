@@ -73,25 +73,25 @@ type Enrollment = {
   user_id: string;
 };
 
-// Modern color theme with spiritual tones - UPDATED WITH RED THEME
+// Modern color theme with warm and cozy tones
 const THEME = {
-  primary: "#2D3748",        // Dark slate for text
-  secondary: "#4A5568",      // Medium slate for secondary text
-  light: "#A0AEC0",          // Light slate for tertiary text
-  background: "#F7FAFC",     // Light background
+  primary: "#A87C5F",        // Warm brown for main text
+  secondary: "#6B5A50",      // Medium brown for secondary text
+  light: "#A99686",          // Light brown for tertiary text
+  background: "#F9F5F1",     // Light background with warm undertone
   card: "#FFFFFF",           // White cards
-  accent1: "#FEF2F2",        // Light red accent (updated)
+  accent1: "#F2EBE4",        // Light warm accent
   accent2: "#E6FFFA",        // Light teal accent
   accent3: "#FEFCBF",        // Light yellow accent
   accent4: "#FEE2E2",        // Light red accent
-  border: "#E2E8F0",         // Light borders
-  buttonPrimary: "#E53E3E",  // Red for primary buttons (was purple)
-  buttonSecondary: "#C53030", // Darker red for secondary actions (was indigo)
+  border: "#E2D7CE",         // Light borders
+  buttonPrimary: "#C27F55",  // Terracotta for primary buttons
+  buttonSecondary: "#B97A65", // Dusty rust for secondary actions
   buttonText: "#FFFFFF",     // White text on buttons
-  error: "#E53E3E",          // Error red
-  success: "#38A169",        // Success green
-  warning: "#DD6B20",        // Warning orange
-  shadow: "rgba(0, 0, 0, 0.1)" // Shadow color
+  error: "#BC6C64",          // Dusty rose for errors
+  success: "#7D9B6A",        // Sage green for success
+  warning: "#C78D60",        // Warm amber for warnings
+  shadow: "rgba(45, 36, 31, 0.1)" // Shadow color
 };
 
 const VolunteerHomePage: React.FC = () => {
@@ -491,21 +491,21 @@ const VolunteerHomePage: React.FC = () => {
     const title = (volunteer.description?.toLowerCase() || '');
     
     if (title.includes("bible") || title.includes("study")) {
-      return { icon: "book", color: "#4299E1" }; // Blue
+      return { icon: "book", color: "#9B8557" }; // Muted gold
     } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
-      return { icon: "home", color: "#38B2AC" }; // Teal
+      return { icon: "home", color: "#B97A65" }; // Muted rust
     } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
-      return { icon: "message-circle", color: "#ECC94B" }; // Yellow
+      return { icon: "message-circle", color: "#C78D60" }; // Warm amber
     } else if (title.includes("prayer") || title.includes("breakfast")) {
-      return { icon: "coffee", color: "#F56565" }; // Red
+      return { icon: "coffee", color: "#D8846B" }; // Soft coral
     } else if (title.includes("meeting") || title.includes("committee")) {
-      return { icon: "users", color: "#9F7AEA" }; // Purple
+      return { icon: "users", color: "#A87C5F" }; // Warm brown
     } else if (title.includes("music") || title.includes("choir") || title.includes("practice")) {
-      return { icon: "music", color: "#ED8936" }; // Orange
+      return { icon: "music", color: "#C27F55" }; // Soft terracotta
     } else if (title.includes("volunteer") || title.includes("serve") || title.includes("outreach")) {
-      return { icon: "heart", color: "#ED64A6" }; // Pink
+      return { icon: "heart", color: "#BC6C64" }; // Dusty rose
     }
-    return { icon: "calendar", color: "#718096" }; // Gray
+    return { icon: "calendar", color: "#8A7668" }; // Medium brown
   };
 
   // Helper function to handle null image URLs
@@ -750,7 +750,7 @@ const VolunteerHomePage: React.FC = () => {
           ]}
         >
           <LinearGradient
-            colors={['#E53E3E', '#C53030']} // Red gradient instead of purple
+            colors={['#A87C5F', '#C27F55']} // Warm brown to terracotta gradient
             style={styles.heroBackground}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -859,7 +859,7 @@ const VolunteerHomePage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.background,
   },
   safeArea: {
     backgroundColor: THEME.background,
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
     borderColor: THEME.border,
   },
   churchOptionActive: {
-    backgroundColor: THEME.buttonPrimary, // Red instead of purple
+    backgroundColor: THEME.buttonPrimary,
     borderColor: THEME.buttonPrimary,
   },
   churchOptionText: {
@@ -1138,18 +1138,18 @@ const styles = StyleSheet.create({
   },
   // Updated description styles
   descriptionContainer: {
-    backgroundColor: THEME.accent1, // Updated to light red background
+    backgroundColor: THEME.accent1,
     borderRadius: 12,
     padding: 12,
     marginTop: 16,
     marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: THEME.buttonPrimary, // Red instead of purple
+    borderLeftColor: THEME.buttonPrimary,
   },
   descriptionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: THEME.buttonPrimary, // Red instead of purple
+    color: THEME.buttonPrimary,
     marginBottom: 6,
   },
   volunteerDescription: {
@@ -1195,10 +1195,10 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   editActionButton: {
-    backgroundColor: THEME.accent1, // Updated to light red
+    backgroundColor: THEME.accent1,
   },
   editActionText: {
-    color: THEME.buttonPrimary, // Red instead of purple
+    color: THEME.buttonPrimary,
   },
   enrollActionButton: {
     backgroundColor: THEME.success,
