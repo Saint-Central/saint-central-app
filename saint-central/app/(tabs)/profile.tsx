@@ -196,7 +196,7 @@ export default function MeScreen() {
         return;
       }
 
-      const res = await fetch("https://saint-central-app.colinmcherney.workers.dev/profile", {
+      const res = await fetch("https://saint-central-api.colinmcherney.workers.dev/profile", {
         headers: {
           Authorization: `Bearer ${session.access_token}`, // Your current user's token
         },
