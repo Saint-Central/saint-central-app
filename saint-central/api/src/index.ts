@@ -1,4 +1,5 @@
 import { handleSelect } from "./select";
+import { handleUpdate } from "./update";
 import { securityMiddleware, createResponse } from "./security";
 
 export interface Env {
@@ -25,9 +26,11 @@ export default {
     const url = new URL(request.url);
 
     try {
-      // Route requests to the universal select API
+      // Route requests to the appropriate API
       if (url.pathname === "/select") {
         return handleSelect(request, env);
+      } else if (url.pathname === "/update") {
+        return handleUpdate(request, env);
       }
 
       // Handle 404 for unmatched routes

@@ -60,6 +60,9 @@ export const TABLE_PERMISSIONS: Record<
     // Required role to access this table (if any)
     requiredRole?: string;
 
+    // If false, prevents any updates to this table (defaults to false)
+    allowUpdate?: boolean;
+
     // Description of the table for documentation
     description?: string;
   }
@@ -78,71 +81,84 @@ export const TABLE_PERMISSIONS: Record<
       "phone_number",
       "denomination",
     ],
+    allowUpdate: true,
     description: "User accounts and profile information",
   },
 
   profiles: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "Extended user profile information",
   },
 
   products: {
     // Public table, anyone can read
     allowedColumns: ["id", "name", "description", "price", "category", "created_at"],
+    allowUpdate: false, // Only admins should update products
     description: "Product catalog accessible to all users",
   },
 
   orders: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "User orders with order details",
   },
 
   intentions: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "Prayer intentions created by users",
   },
 
   lent_tasks: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "Lent-related tasks and progress tracking",
   },
 
   culture_posts: {
     // Public, but can only edit your own
     ownerOnly: false,
+    allowUpdate: true,
     description: "Public posts related to cultural topics",
   },
 
   faith_posts: {
     // Public, but can only edit your own
     ownerOnly: false,
+    allowUpdate: true,
     description: "Public posts related to faith topics",
   },
 
   news_posts: {
     // Public, but can only edit your own
     ownerOnly: false,
+    allowUpdate: true,
     description: "Public news and announcements",
   },
 
   womens_ministry_posts: {
     // Public, but can only edit your own
     ownerOnly: false,
+    allowUpdate: true,
     description: "Public posts related to women's ministry",
   },
 
   comments: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "User comments on posts",
   },
 
   likes: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "User likes for posts and comments",
   },
 
   pending_posts: {
     ownerOnly: true,
+    allowUpdate: true,
     description: "Posts pending approval before publication",
   },
 
@@ -150,11 +166,13 @@ export const TABLE_PERMISSIONS: Record<
     ownerOnly: true,
     // Special case: friends can have user_id_1 or user_id_2
     ownerIdColumn: "special_friendship", // This is a marker for special handling
+    allowUpdate: true,
     description: "User friendships and connections",
   },
 
   admin_logs: {
     requiredRole: "admin",
+    allowUpdate: false, // Admin logs should never be updated
     description: "Administrative logs accessible only to admin users",
   },
 };

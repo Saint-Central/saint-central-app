@@ -307,14 +307,27 @@ export default function MeScreen() {
             profile_image: data.publicUrl,
           }));
 
-          // Save the updated profile immediately
-          await supabase
-            .from("users")
-            .update({
-              profile_image: data.publicUrl,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", session?.user.id);
+          // Update the profile using the new update API
+          const res = await fetch("https://saint-central-api.colinmcherney.workers.dev/update", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              table: "users",
+              data: {
+                profile_image: data.publicUrl,
+                updated_at: new Date().toISOString(),
+              },
+              single: true,
+            }),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Failed to update profile image");
+          }
 
           // Enable editing mode if not already in it
           if (!isEditing) {
@@ -358,27 +371,49 @@ export default function MeScreen() {
 
       if (!session?.user) return;
 
-      const { data, error } = await supabase
-        .from("users")
-        .update({
-          first_name: editForm.first_name,
-          last_name: editForm.last_name,
-          profile_image: editForm.profile_image,
-          denomination: editForm.denomination,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", session.user.id)
-        .select();
+      // Using the new universal update API
+      const res = await fetch("https://saint-central-api.colinmcherney.workers.dev/update", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          table: "users",
+          data: {
+            first_name: editForm.first_name,
+            last_name: editForm.last_name,
+            profile_image: editForm.profile_image,
+            denomination: editForm.denomination,
+            updated_at: new Date().toISOString(),
+          },
+          returning: [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "created_at",
+            "updated_at",
+            "profile_image",
+            "denomination",
+          ],
+          single: true,
+        }),
+      });
 
-      if (error) throw error;
+      const responseData = await res.json();
 
-      if (data && data.length > 0) {
-        setUserProfile(data[0]);
+      if (!res.ok) {
+        throw new Error(responseData.error || "Failed to update profile");
+      }
+
+      if (responseData && responseData.data) {
+        setUserProfile(responseData.data);
         setEditForm({
-          first_name: data[0].first_name || "",
-          last_name: data[0].last_name || "",
-          profile_image: data[0].profile_image || "",
-          denomination: data[0].denomination || "",
+          first_name: responseData.data.first_name || "",
+          last_name: responseData.data.last_name || "",
+          profile_image: responseData.data.profile_image || "",
+          denomination: responseData.data.denomination || "",
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
