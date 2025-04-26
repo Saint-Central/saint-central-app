@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "dependencies": {
+    "@cloudflare/workers-types": "github:cloudflare/workers-types",
     "@supabase/supabase-js": "^2.49.1"
   }
 }
