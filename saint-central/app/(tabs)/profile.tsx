@@ -211,7 +211,7 @@ export default function MeScreen() {
         console.log("SDK Response:", response);
 
         if (response.error) {
-          setError(response.error || "Failed to fetch profile");
+          setError(response.error.message || "Failed to fetch profile");
         } else if (response.data) {
           const userData = response.data;
 
@@ -326,7 +326,7 @@ export default function MeScreen() {
           console.log("Update response:", response);
 
           if (response.error) {
-            throw new Error(response.error || "Failed to update profile image");
+            throw new Error(response.error.message || "Failed to update profile image");
           }
 
           // Enable editing mode if not already in it
@@ -389,7 +389,7 @@ export default function MeScreen() {
       console.log("Update response:", response);
 
       if (response.error) {
-        throw new Error(response.error || "Failed to update profile");
+        throw new Error(response.error.message || "Failed to update profile");
       }
 
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {

@@ -1,8 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Modal, FlatList, StyleSheet, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/supabaseClient';
-import { useLocalSearchParams } from 'expo-router';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  FlatList,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "@/supabaseClient";
+import { useLocalSearchParams } from "expo-router";
+import saintcentral from "../../api/src/sdk";
 
 // Define types
 interface ServiceTime {
@@ -24,13 +34,13 @@ interface User {
 const mockUser: User = {
   id: "user123",
   role: "admin",
-  church_id: "church456"
+  church_id: "church456",
 };
 
 const mockServiceTimes: ServiceTime[] = [
   { id: 1, date: "Sunday", time: "9:00 AM", church_id: 456, created_by: "user123" },
   { id: 2, date: "Sunday", time: "11:00 AM", church_id: 456, created_by: "user123" },
-  { id: 3, date: "Wednesday", time: "6:30 PM", church_id: 456, created_by: "user123" }
+  { id: 3, date: "Wednesday", time: "6:30 PM", church_id: 456, created_by: "user123" },
 ];
 
 // Theme
@@ -101,6 +111,11 @@ const theme = {
   spacing4XL: 64,
 };
 
+const getSession = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token;
+};
+
 const ChurchServiceTimesPage = () => {
   const { churchId } = useLocalSearchParams();
   const [serviceTimes, setServiceTimes] = useState<ServiceTime[]>([]);
@@ -109,7 +124,7 @@ const ChurchServiceTimesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasEditPermission, setHasEditPermission] = useState(false);
-  
+
   // Fetch service times and check permissions
   useEffect(() => {
     fetchServiceTimes();
@@ -119,17 +134,19 @@ const ChurchServiceTimesPage = () => {
   const fetchServiceTimes = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('service_times')
-        .select('*')
-        .eq('church_id', churchId)
-        .order('date', { ascending: true });
+
+      const { data, error } = await saintcentral
+        .withAuth(getSession())
+        .from("service_times")
+        .select("*")
+        .where("church_id", churchId)
+        .get();
 
       if (error) throw error;
       setServiceTimes(data || []);
     } catch (error) {
-      console.error('Error fetching service times:', error);
-      Alert.alert('Error', 'Failed to load service times');
+      console.error("Error fetching service times:", error);
+      Alert.alert("Error", "Failed to load service times");
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +154,10 @@ const ChurchServiceTimesPage = () => {
 
   const checkPermissions = async () => {
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError) throw userError;
 
       if (!user) {
@@ -146,74 +166,81 @@ const ChurchServiceTimesPage = () => {
       }
 
       // Check if user is admin or owner of the church
-      const { data, error } = await supabase
-        .from('church_members')
-        .select('role')
-        .eq('church_id', churchId)
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await saintcentral
+        .withAuth(getSession())
+        .from("church_members")
+        .select("role")
+        .where("church_id", churchId)
+        .where("user_id", user.id)
+        .single()
+        .get();
 
       if (error) throw error;
 
-      setHasEditPermission(data?.role === 'admin' || data?.role === 'owner');
+      setHasEditPermission(data?.role === "admin" || data?.role === "owner");
     } catch (error) {
-      console.error('Error checking permissions:', error);
+      console.error("Error checking permissions:", error);
       setHasEditPermission(false);
     }
   };
-  
+
   const handleAddNew = () => {
     setCurrentService({
       date: "",
       time: "",
       church_id: Number(churchId),
       created_by: "", // Will be set during save
-      image: ""
+      image: "",
     } as ServiceTime); // Type assertion to satisfy TypeScript
     setIsEditMode(false);
     setIsModalOpen(true);
   };
-  
+
   const handleEdit = (service: ServiceTime) => {
-    setCurrentService({...service});
+    setCurrentService({ ...service });
     setIsEditMode(true);
     setIsModalOpen(true);
   };
-  
+
   const handleSave = async () => {
     if (!currentService) return;
 
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError) throw userError;
       if (!user) {
-        Alert.alert('Error', 'You must be logged in to perform this action');
+        Alert.alert("Error", "You must be logged in to perform this action");
         return;
       }
 
+      // Get session first
+      const session = await getSession();
+
       if (isEditMode) {
         // Update existing service time
-        const { error } = await supabase
-          .from('service_times')
+        const { error } = await saintcentral
+          .withAuth(session)
+          .from("service_times")
+          .where("id", currentService.id)
           .update({
             date: currentService.date,
             time: currentService.time,
-            image: currentService.image
-          })
-          .eq('id', currentService.id);
+            image: currentService.image,
+          });
 
         if (error) throw error;
       } else {
         // Add new service time - omit the id field to let Supabase generate it
-        const { error } = await supabase
-          .from('service_times')
-          .insert({
-            date: currentService.date,
-            time: currentService.time,
-            church_id: currentService.church_id,
-            created_by: user.id,
-            image: currentService.image
-          });
+        const { error } = await saintcentral.withAuth(session).from("service_times").insert({
+          date: currentService.date,
+          time: currentService.time,
+          church_id: currentService.church_id,
+          created_by: user.id,
+          image: currentService.image,
+        });
 
         if (error) throw error;
       }
@@ -222,8 +249,8 @@ const ChurchServiceTimesPage = () => {
       await fetchServiceTimes();
       setIsModalOpen(false);
     } catch (error) {
-      console.error('Error saving service time:', error);
-      Alert.alert('Error', 'Failed to save service time');
+      console.error("Error saving service time:", error);
+      Alert.alert("Error", "Failed to save service time");
     }
   };
 
@@ -251,10 +278,7 @@ const ChurchServiceTimesPage = () => {
       </View>
       {hasEditPermission && (
         <View style={styles.actionCell}>
-          <TouchableOpacity
-            onPress={() => handleEdit(item)}
-            style={styles.editButton}
-          >
+          <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
             <Ionicons name="create-outline" size={16} color={theme.primary} />
           </TouchableOpacity>
         </View>
@@ -275,24 +299,24 @@ const ChurchServiceTimesPage = () => {
         <View style={styles.header}>
           <Text style={styles.title}>Church Service Times</Text>
         </View>
-        
+
         <View style={styles.tableContainer}>
           {renderHeader()}
           <FlatList
             data={serviceTimes}
             renderItem={renderItem}
-            keyExtractor={item => item.id.toString()}
+            keyExtractor={(item) => item.id.toString()}
             ListEmptyComponent={renderEmptyComponent}
           />
         </View>
-        
+
         <Text style={styles.footerText}>
           Only church administrators and owners can edit service times.
         </Text>
-        
+
         {/* Add Service button moved below the table */}
         {hasEditPermission && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleAddNew}
             style={[styles.addButton, { backgroundColor: theme.primary }]}
           >
@@ -301,49 +325,46 @@ const ChurchServiceTimesPage = () => {
           </TouchableOpacity>
         )}
       </View>
-      
+
       {/* Add/Edit Modal */}
-      <Modal
-        visible={isModalOpen}
-        transparent={true}
-        animationType="fade"
-      >
+      <Modal visible={isModalOpen} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {isEditMode ? 'Edit Service Time' : 'Add New Service Time'}
+                {isEditMode ? "Edit Service Time" : "Add New Service Time"}
               </Text>
             </View>
-            
+
             <View style={styles.modalBody}>
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Day</Text>
-                <TextInput 
+                <TextInput
                   style={styles.input}
-                  value={currentService?.date || ''}
-                  onChangeText={(text) => currentService && setCurrentService({...currentService, date: text})}
+                  value={currentService?.date || ""}
+                  onChangeText={(text) =>
+                    currentService && setCurrentService({ ...currentService, date: text })
+                  }
                 />
               </View>
-              
+
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Time</Text>
-                <TextInput 
+                <TextInput
                   style={styles.input}
-                  value={currentService?.time || ''}
-                  onChangeText={(text) => currentService && setCurrentService({...currentService, time: text})}
+                  value={currentService?.time || ""}
+                  onChangeText={(text) =>
+                    currentService && setCurrentService({ ...currentService, time: text })
+                  }
                 />
               </View>
             </View>
-            
+
             <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={() => setIsModalOpen(false)}
-              >
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalOpen(false)}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: theme.primary }]}
                 onPress={handleSave}
               >
@@ -375,41 +396,41 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'center', // Center the title now that button is removed
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center", // Center the title now that button is removed
+    alignItems: "center",
     marginBottom: theme.spacingXL,
   },
   title: {
     color: theme.primary,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 24,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center', // Center the button content
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center", // Center the button content
     padding: theme.spacingS,
     paddingHorizontal: theme.spacingL,
     borderRadius: theme.radiusSmall,
     gap: theme.spacingXS,
     marginTop: theme.spacingXL, // Add space above the button
-    alignSelf: 'center', // Center the button horizontally
-    width: '60%', // Make button wider
+    alignSelf: "center", // Center the button horizontally
+    width: "60%", // Make button wider
   },
   buttonText: {
     color: theme.textWhite,
-    fontWeight: '500',
+    fontWeight: "500",
     marginLeft: 4,
   },
   tableContainer: {
     borderWidth: 1,
     borderColor: theme.divider,
     borderRadius: theme.radiusSmall,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   headerRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: theme.neutral100,
   },
   headerCell: {
@@ -419,16 +440,16 @@ const styles = StyleSheet.create({
   },
   headerText: {
     color: theme.textMedium,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   actionCell: {
     width: 60,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
+    justifyContent: "center",
+    alignItems: "flex-end",
     paddingRight: theme.spacingL,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderTopWidth: 1,
     borderTopColor: theme.divider,
   },
@@ -439,7 +460,7 @@ const styles = StyleSheet.create({
   },
   dayText: {
     color: theme.textDark,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   timeText: {
     color: theme.textDark,
@@ -449,14 +470,14 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     padding: theme.spacing2XL,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     color: theme.textMedium,
-    textAlign: 'center',
+    textAlign: "center",
   },
   footerText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: theme.spacingL,
     fontSize: 14,
     color: theme.textMedium,
@@ -464,14 +485,14 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: theme.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: theme.spacingL,
   },
   modalContent: {
     backgroundColor: theme.cardBg,
     borderRadius: theme.radiusLarge,
-    width: '90%',
+    width: "90%",
     maxWidth: 400,
   },
   modalHeader: {
@@ -482,7 +503,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: theme.primary,
-    fontWeight: '500',
+    fontWeight: "500",
     fontSize: 18,
   },
   modalBody: {
@@ -494,10 +515,10 @@ const styles = StyleSheet.create({
   inputLabel: {
     marginBottom: theme.spacingS,
     color: theme.textDark,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   input: {
-    width: '100%',
+    width: "100%",
     padding: theme.spacingM,
     borderWidth: 1,
     borderColor: theme.divider,
@@ -508,8 +529,8 @@ const styles = StyleSheet.create({
     padding: theme.spacingL,
     paddingHorizontal: theme.spacingXL,
     backgroundColor: theme.neutral50,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     gap: theme.spacingS,
     borderBottomLeftRadius: theme.radiusLarge,
     borderBottomRightRadius: theme.radiusLarge,
