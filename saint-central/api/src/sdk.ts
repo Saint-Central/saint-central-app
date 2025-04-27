@@ -39,11 +39,15 @@ interface JoinConfig {
 
 // Response and Parameter interfaces
 interface SaintCentralResponse<T = any> {
-  data: T;
+  data: T | null;
   count?: number;
   params?: any;
-  error?: string;
-  message?: string;
+  error: Error | null;
+  status: number;
+}
+
+interface Error {
+  message: string;
   details?: any;
 }
 
@@ -58,10 +62,25 @@ interface RangeParams {
   to: number;
 }
 
+interface ClientOptions {
+  baseUrl?: string;
+  headers?: Record<string, string>;
+  autoRefreshToken?: boolean;
+  persistSession?: boolean;
+  detectSessionInUrl?: boolean;
+}
+
+interface TransactionOptions {
+  isolationLevel?: "serializable" | "repeatable read" | "read committed" | "read uncommitted";
+}
+
 // Main SDK Class
 class SaintCentral<T = any> {
   private baseUrl: string;
   private headers: Record<string, string>;
+  private autoRefreshToken: boolean;
+  private persistSession: boolean;
+  private detectSessionInUrl: boolean;
 
   // Query builder state
   private _table: string | null = null;
@@ -75,12 +94,17 @@ class SaintCentral<T = any> {
   private _joins: JoinConfig[] = [];
   private _singleResult: boolean = false;
   private _countOption: boolean = false;
+  private _transactionId: string | null = null;
 
-  constructor(baseUrl: string = "") {
+  constructor(baseUrl: string = "", options: ClientOptions = {}) {
     this.baseUrl = baseUrl || "https://saint-central-api.colinmcherney.workers.dev";
     this.headers = {
       "Content-Type": "application/json",
+      ...options.headers,
     };
+    this.autoRefreshToken = options.autoRefreshToken ?? true;
+    this.persistSession = options.persistSession ?? true;
+    this.detectSessionInUrl = options.detectSessionInUrl ?? true;
     this._reset();
   }
 
@@ -98,8 +122,12 @@ class SaintCentral<T = any> {
    * Create a new instance with auth from a Supabase session or token
    */
   withAuth(session: any): SaintCentral<T> {
-    const copy = new SaintCentral<T>(this.baseUrl);
-    copy.headers = { ...this.headers };
+    const copy = new SaintCentral<T>(this.baseUrl, {
+      headers: { ...this.headers },
+      autoRefreshToken: this.autoRefreshToken,
+      persistSession: this.persistSession,
+      detectSessionInUrl: this.detectSessionInUrl,
+    });
 
     if (session) {
       // Extract token from Supabase session object
@@ -120,8 +148,12 @@ class SaintCentral<T = any> {
    * Create a new instance without any auth token
    */
   withoutAuth(): SaintCentral<T> {
-    const copy = new SaintCentral<T>(this.baseUrl);
-    copy.headers = { ...this.headers };
+    const copy = new SaintCentral<T>(this.baseUrl, {
+      headers: { ...this.headers },
+      autoRefreshToken: this.autoRefreshToken,
+      persistSession: this.persistSession,
+      detectSessionInUrl: this.detectSessionInUrl,
+    });
     delete copy.headers["Authorization"];
     return copy;
   }
@@ -276,6 +308,14 @@ class SaintCentral<T = any> {
   }
 
   /**
+   * Add overlaps filter (column && [values])
+   */
+  overlaps(column: string, values: any[]): SaintCentral<T> {
+    this._filters.push({ column, operator: "overlaps", value: values });
+    return this;
+  }
+
+  /**
    * Add text search filter
    */
   textSearch(column: string, query: string, options?: { config?: string }): SaintCentral<T> {
@@ -284,6 +324,14 @@ class SaintCentral<T = any> {
       operator: "textSearch",
       value: { query, ...options },
     });
+    return this;
+  }
+
+  /**
+   * Add a match filter for jsonb columns
+   */
+  match(column: string, value: Record<string, any>): SaintCentral<T> {
+    this._filters.push({ column, operator: "match", value });
     return this;
   }
 
@@ -312,6 +360,44 @@ class SaintCentral<T = any> {
     return this;
   }
 
+  /**
+   * Add an OR filter (Supabase compatible)
+   */
+  or(filters: string, options?: { foreignTable?: string }): SaintCentral<T> {
+    // Add as a special filter that will be processed by the backend
+    this._filters.push({
+      column: "or",
+      operator: "eq",
+      value: { filters, foreignTable: options?.foreignTable },
+    });
+    return this;
+  }
+
+  /**
+   * Add an AND filter (Supabase compatible)
+   */
+  and(filters: string, options?: { foreignTable?: string }): SaintCentral<T> {
+    // Add as a special filter that will be processed by the backend
+    this._filters.push({
+      column: "and",
+      operator: "eq",
+      value: { filters, foreignTable: options?.foreignTable },
+    });
+    return this;
+  }
+
+  /**
+   * Add a NOT filter (Supabase compatible)
+   */
+  not(column: string, operator: FilterOperator, value: any): SaintCentral<T> {
+    this._filters.push({
+      column: "not",
+      operator: "eq",
+      value: { column, operator, value },
+    });
+    return this;
+  }
+
   // ----- ORDER, PAGINATION & RANGE METHODS ----- //
 
   /**
@@ -327,6 +413,20 @@ class SaintCentral<T = any> {
       nullsFirst: options.nullsFirst,
     });
     return this;
+  }
+
+  /**
+   * Order ascending (Supabase compatible)
+   */
+  orderBy(column: string, options: { nullsFirst?: boolean } = {}): SaintCentral<T> {
+    return this.order(column, { ascending: true, nullsFirst: options.nullsFirst });
+  }
+
+  /**
+   * Order descending (Supabase compatible)
+   */
+  orderByDesc(column: string, options: { nullsFirst?: boolean } = {}): SaintCentral<T> {
+    return this.order(column, { ascending: false, nullsFirst: options.nullsFirst });
   }
 
   /**
@@ -412,6 +512,25 @@ class SaintCentral<T = any> {
     return this;
   }
 
+  /**
+   * Full outer join another table (Supabase compatible)
+   */
+  fullOuterJoin(
+    table: string,
+    config: { foreignKey: string; primaryKey: string; columns?: string[] },
+  ): SaintCentral<T> {
+    this._joins.push({
+      type: "full",
+      table,
+      on: {
+        foreignKey: config.foreignKey,
+        primaryKey: config.primaryKey,
+      },
+      columns: config.columns,
+    });
+    return this;
+  }
+
   // ----- RESULT MODIFIERS ----- //
 
   /**
@@ -423,6 +542,14 @@ class SaintCentral<T = any> {
   }
 
   /**
+   * Get first result (Supabase compatible)
+   */
+  maybeSingle<SingleResult = T>(): Promise<SaintCentralResponse<SingleResult | null>> {
+    this._singleResult = true;
+    return this.execute<SingleResult | null>();
+  }
+
+  /**
    * Get count of results (without fetching data)
    */
   count(): Promise<number> {
@@ -431,26 +558,96 @@ class SaintCentral<T = any> {
   }
 
   /**
-   * Execute a function with a transaction
+   * Start a transaction
    */
-  async transaction<R>(callback: (trx: SaintCentral<T>) => Promise<R>): Promise<R> {
-    const trx = new SaintCentral<T>(this.baseUrl);
-    trx.headers = { ...this.headers, "X-Transaction": "true" };
+  async begin(options?: TransactionOptions): Promise<SaintCentral<T>> {
+    const trx = new SaintCentral<T>(this.baseUrl, {
+      headers: { ...this.headers },
+      autoRefreshToken: this.autoRefreshToken,
+      persistSession: this.persistSession,
+      detectSessionInUrl: this.detectSessionInUrl,
+    });
 
     try {
       // Start transaction
-      await trx._request(`${this.baseUrl}/transaction/start`, "POST");
+      const result = await trx._request<{ transactionId: string }>(
+        `${this.baseUrl}/api/transaction/start`,
+        "POST",
+        {},
+      );
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
 
+      // Set transaction ID in headers
+      const transactionId = result.data?.transactionId;
+      if (!transactionId) {
+        throw new Error("Failed to get transaction ID");
+      }
+
+      trx.headers["X-Transaction-Id"] = transactionId;
+      trx._transactionId = transactionId;
+
+      return trx;
+    } catch (error) {
+      console.error("Error starting transaction:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Commit a transaction
+   */
+  async commit(): Promise<SaintCentralResponse<null>> {
+    if (!this._transactionId) {
+      throw new Error("No active transaction to commit");
+    }
+
+    try {
+      const result = await this._request<null>(`${this.baseUrl}/api/transaction/commit`, "POST");
+      this._transactionId = null;
+      return result;
+    } catch (error) {
+      console.error("Error committing transaction:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rollback a transaction
+   */
+  async rollback(): Promise<SaintCentralResponse<null>> {
+    if (!this._transactionId) {
+      throw new Error("No active transaction to rollback");
+    }
+
+    try {
+      const result = await this._request<null>(`${this.baseUrl}/api/transaction/rollback`, "POST");
+      this._transactionId = null;
+      return result;
+    } catch (error) {
+      console.error("Error rolling back transaction:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a function with a transaction
+   */
+  async transaction<R>(callback: (trx: SaintCentral<T>) => Promise<R>): Promise<R> {
+    const trx = await this.begin();
+
+    try {
       // Execute callback with transaction client
       const result = await callback(trx);
 
       // Commit transaction
-      await trx._request(`${this.baseUrl}/transaction/commit`, "POST");
+      await trx.commit();
 
       return result;
     } catch (error) {
       // Rollback transaction on error
-      await trx._request(`${this.baseUrl}/transaction/rollback`, "POST");
+      await trx.rollback();
       throw error;
     }
   }
@@ -520,7 +717,7 @@ class SaintCentral<T = any> {
       params.append("count", "true");
     }
 
-    const url = `${this.baseUrl}/select?${params.toString()}`;
+    const url = `${this.baseUrl}/api/select?${params.toString()}`;
     return this._request<GetResult>(url, "GET");
   }
 
@@ -556,7 +753,7 @@ class SaintCentral<T = any> {
     if (this._singleResult) payload.single = true;
     if (this._countOption) payload.count = true;
 
-    const url = `${this.baseUrl}/select`;
+    const url = `${this.baseUrl}/api/select`;
     return this._request<ExecResult>(url, "POST", payload);
   }
 
@@ -566,6 +763,7 @@ class SaintCentral<T = any> {
   async insert<InsertResult = T>(
     tableOrData: string | Record<string, any> | Record<string, any>[],
     data?: Record<string, any> | Record<string, any>[],
+    options?: { returning?: boolean | "minimal" | "representation" | string[] },
   ): Promise<SaintCentralResponse<InsertResult>> {
     let table: string;
     let insertData: Record<string, any> | Record<string, any>[];
@@ -582,7 +780,7 @@ class SaintCentral<T = any> {
     }
 
     this._reset();
-    const url = `${this.baseUrl}/insert`;
+    const url = `${this.baseUrl}/api/insert`;
     return this._request<InsertResult>(url, "POST", { table, data: insertData });
   }
 
@@ -592,7 +790,10 @@ class SaintCentral<T = any> {
   async upsert<UpsertResult = T>(
     tableOrData: string | Record<string, any> | Record<string, any>[],
     data?: Record<string, any> | Record<string, any>[],
-    options: { onConflict?: string[] } = {},
+    options: {
+      onConflict?: string | string[];
+      returning?: boolean | "minimal" | "representation" | string[];
+    } = {},
   ): Promise<SaintCentralResponse<UpsertResult>> {
     let table: string;
     let upsertData: Record<string, any> | Record<string, any>[];
@@ -608,12 +809,16 @@ class SaintCentral<T = any> {
       upsertData = tableOrData;
     }
 
+    // Convert onConflict string to array if needed
+    const onConflict =
+      typeof options.onConflict === "string" ? [options.onConflict] : options.onConflict;
+
     this._reset();
-    const url = `${this.baseUrl}/upsert`;
+    const url = `${this.baseUrl}/api/upsert`;
     return this._request<UpsertResult>(url, "POST", {
       table,
       data: upsertData,
-      onConflict: options.onConflict,
+      onConflict,
     });
   }
 
@@ -663,7 +868,7 @@ class SaintCentral<T = any> {
 
     const payload = { table, data: updateData, where: whereConditions };
     this._reset();
-    const url = `${this.baseUrl}/update`;
+    const url = `${this.baseUrl}/api/update`;
     return this._request<UpdateResult>(url, "POST", payload);
   }
 
@@ -700,7 +905,7 @@ class SaintCentral<T = any> {
       if (this._filters.length > 0) {
         whereConditions = {
           ...whereConditions,
-          _filters: this._filters,
+          filters: this._filters,
         };
       }
     }
@@ -711,7 +916,7 @@ class SaintCentral<T = any> {
     }
 
     this._reset();
-    const url = `${this.baseUrl}/delete`;
+    const url = `${this.baseUrl}/api/delete`;
     return this._request<DeleteResult>(url, "POST", { table, where: whereConditions });
   }
 
@@ -730,28 +935,65 @@ class SaintCentral<T = any> {
         body: method === "POST" && body ? JSON.stringify(body) : undefined,
       });
 
-      const result = (await response.json()) as SaintCentralResponse<R>;
+      const contentType = response.headers.get("content-type");
+      const isJson = contentType?.includes("application/json");
+
+      let result: any;
+      if (isJson) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        result = { data: text };
+      }
 
       if (!response.ok) {
         console.error(
           `[SaintCentral] Request failed (${response.status}):`,
           result.error || "Unknown error",
         );
-        throw new Error(result.error || "Unknown error");
+
+        return {
+          data: null,
+          error: {
+            message: result.error || result.message || "Unknown error",
+            details: result.details || result,
+          },
+          status: response.status,
+        };
       }
 
-      return result;
+      return {
+        data: result.data,
+        count: result.count,
+        params: result.params,
+        error: null,
+        status: response.status,
+      };
     } catch (error) {
       console.error("[SaintCentral] Request failed:", error);
-      throw error;
+      return {
+        data: null,
+        error: {
+          message: error instanceof Error ? error.message : "Network error",
+          details: error,
+        },
+        status: 500,
+      };
     } finally {
       this._reset();
     }
   }
 }
 
+/**
+ * Create a new client with options
+ */
+export function createClient(baseUrl?: string, options?: ClientOptions): SaintCentral {
+  return new SaintCentral(baseUrl, options);
+}
+
 // Create a singleton instance for easy usage
-const saintcentral = new SaintCentral("https://saint-central-api.colinmcherney.workers.dev");
+const saintcentral = createClient("https://saint-central-api.colinmcherney.workers.dev");
 
 export default saintcentral;
 export { SaintCentral };
@@ -765,4 +1007,7 @@ export type {
   JoinType,
   JoinConfig,
   RangeParams,
+  ClientOptions,
+  TransactionOptions,
+  Error,
 };

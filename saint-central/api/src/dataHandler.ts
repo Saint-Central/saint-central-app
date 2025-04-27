@@ -22,7 +22,10 @@ type FilterOperator =
   | "containedBy"
   | "overlaps"
   | "textSearch"
-  | "match";
+  | "match"
+  | "or"
+  | "and"
+  | "not";
 
 interface Filter {
   column: string;
@@ -1409,6 +1412,8 @@ function applyFilterToBuilder(
       return builder.contains(column, value);
     case "containedBy":
       return builder.containedBy(column, value);
+    case "overlaps":
+      return builder.overlaps(column, value);
     case "textSearch":
       if (typeof value === "object" && value.query) {
         const config = value.config ? { config: value.config } : {};
@@ -1416,6 +1421,34 @@ function applyFilterToBuilder(
       } else {
         return builder.textSearch(column, String(value));
       }
+    // Handle OR condition filter from SDK
+    case "or":
+      if (column === "or" && typeof value === "object") {
+        // Process OR filter from SDK
+        const { filters, foreignTable } = value;
+        // foreignTable is optional and passed through if provided
+        const options = foreignTable ? { foreignTable } : undefined;
+        return builder.or(filters, options);
+      }
+      return builder;
+    // Handle AND condition filter from SDK
+    case "and":
+      if (column === "and" && typeof value === "object") {
+        // Process AND filter from SDK
+        const { filters, foreignTable } = value;
+        // foreignTable is optional and passed through if provided
+        const options = foreignTable ? { foreignTable } : undefined;
+        return builder.and(filters, options);
+      }
+      return builder;
+    // Handle NOT condition filter from SDK
+    case "not":
+      if (column === "not" && typeof value === "object") {
+        // Process NOT filter from SDK
+        const { column: notColumn, operator: notOperator, value: notValue } = value;
+        return builder.not(notColumn, notOperator, notValue);
+      }
+      return builder;
     default:
       console.warn(`Unknown filter operator: ${operator}`);
       return builder;
