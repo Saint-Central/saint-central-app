@@ -12,7 +12,7 @@ import { BlurView } from "expo-blur";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ParamListBase, TabNavigationState } from "@react-navigation/native";
-import theme from "@/theme";
+import theme from "../../theme";
 
 interface TabBarProps {
   state: TabNavigationState<ParamListBase>;

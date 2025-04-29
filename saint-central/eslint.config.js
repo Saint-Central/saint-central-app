@@ -12,6 +12,16 @@ module.exports = [
         ...globals.browser,
         ...globals.node,
       },
+      parserOptions: {
+        project: "./tsconfig.json",
+      },
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          project: "./tsconfig.json",
+        },
+      },
     },
   },
 ];
