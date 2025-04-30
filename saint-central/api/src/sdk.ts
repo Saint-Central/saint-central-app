@@ -186,6 +186,88 @@ class SaintCentral<T = any> {
   }
 
   /**
+   * Parse a select string to identify joins in Supabase format (table(field1, field2))
+   * @private
+   */
+  private _parseSelectString(selectStr: string): {
+    mainColumns: string[];
+    joins: Array<{ table: string; columns: string[] }>;
+  } {
+    const result = {
+      mainColumns: [] as string[],
+      joins: [] as Array<{ table: string; columns: string[] }>,
+    };
+
+    let currentPos = 0;
+    let currentToken = "";
+    let parenthesesLevel = 0;
+    let inParentheses = false;
+    let currentJoinTable = "";
+
+    // Helper to add a column to the appropriate list
+    const addColumn = (col: string) => {
+      if (col.trim() === "") return;
+
+      if (!inParentheses) {
+        result.mainColumns.push(col.trim());
+      } else if (currentJoinTable) {
+        // We're inside a join table's column list
+        const join = result.joins.find((j) => j.table === currentJoinTable);
+        if (join) {
+          join.columns.push(col.trim());
+        }
+      }
+    };
+
+    while (currentPos < selectStr.length) {
+      const char = selectStr[currentPos];
+
+      if (char === "(") {
+        if (parenthesesLevel === 0) {
+          // Starting a join table's column list
+          inParentheses = true;
+          currentJoinTable = currentToken.trim();
+          result.joins.push({ table: currentJoinTable, columns: [] });
+          currentToken = "";
+        } else {
+          // Nested parentheses, add to current token
+          currentToken += char;
+        }
+        parenthesesLevel++;
+      } else if (char === ")") {
+        parenthesesLevel--;
+        if (parenthesesLevel === 0) {
+          // Ending a join table's column list
+          inParentheses = false;
+          currentJoinTable = "";
+        } else {
+          // Nested parentheses, add to current token
+          currentToken += char;
+        }
+      } else if (char === "," && parenthesesLevel === 0) {
+        // Column separator at top level
+        addColumn(currentToken);
+        currentToken = "";
+      } else if (char === "," && inParentheses) {
+        // Column separator inside a join
+        addColumn(currentToken);
+        currentToken = "";
+      } else {
+        currentToken += char;
+      }
+
+      currentPos++;
+    }
+
+    // Add the last token if there is one
+    if (currentToken.trim()) {
+      addColumn(currentToken);
+    }
+
+    return result;
+  }
+
+  /**
    * Select columns
    */
   select<SelectResult = T>(columnsOrTable: string | string[] = "*"): SaintCentral<SelectResult> {
@@ -195,12 +277,42 @@ class SaintCentral<T = any> {
       return this as unknown as SaintCentral<SelectResult>;
     }
 
+    // Handle the standard array case
     if (Array.isArray(columnsOrTable)) {
       this._columns = columnsOrTable;
-    } else if (typeof columnsOrTable === "string") {
-      this._columns =
-        columnsOrTable === "*" ? "*" : columnsOrTable.split(",").map((col) => col.trim());
+      return this as unknown as SaintCentral<SelectResult>;
     }
+
+    // Handle the star case
+    if (columnsOrTable === "*") {
+      this._columns = "*";
+      return this as unknown as SaintCentral<SelectResult>;
+    }
+
+    // Parse the string for Supabase-style joins
+    const parsed = this._parseSelectString(columnsOrTable);
+
+    // Set the main columns
+    this._columns = parsed.mainColumns.length > 0 ? parsed.mainColumns : "*";
+
+    // Set up joins for each join table found
+    parsed.joins.forEach((join) => {
+      // For Supabase compatibility, we'll assume joins are based on foreign keys
+      // using the format: '{foreignTable}_id'
+      const foreignKey = `${join.table}_id`;
+      const primaryKey = "id"; // Common primary key name
+
+      this._joins.push({
+        type: "inner", // Default to inner join
+        table: join.table,
+        on: {
+          foreignKey: foreignKey,
+          primaryKey: primaryKey,
+        },
+        columns: join.columns,
+      });
+    });
+
     return this as unknown as SaintCentral<SelectResult>;
   }
 
@@ -725,36 +837,7 @@ class SaintCentral<T = any> {
    * Execute SELECT query (POST)
    */
   async execute<ExecResult = T>(): Promise<SaintCentralResponse<ExecResult>> {
-    if (!this._table) {
-      throw new Error("No table specified");
-    }
-
-    const payload: any = {
-      table: this._table,
-      columns: this._columns,
-    };
-
-    if (Object.keys(this._whereConditions).length > 0) {
-      payload.where = this._whereConditions;
-    }
-
-    if (this._filters.length > 0) {
-      payload.filters = this._filters;
-    }
-
-    if (this._orderBy.length > 0) {
-      payload.order = this._orderBy.length === 1 ? this._orderBy[0] : this._orderBy;
-    }
-
-    if (this._limitVal !== null) payload.limit = this._limitVal;
-    if (this._offsetVal !== null) payload.offset = this._offsetVal;
-    if (this._range !== null) payload.range = this._range;
-    if (this._joins.length > 0) payload.join = this._joins;
-    if (this._singleResult) payload.single = true;
-    if (this._countOption) payload.count = true;
-
-    const url = `${this.baseUrl}/api/select`;
-    return this._request<ExecResult>(url, "POST", payload);
+    return this.get<ExecResult>();
   }
 
   /**

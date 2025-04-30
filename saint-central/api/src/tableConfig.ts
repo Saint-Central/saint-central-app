@@ -11,6 +11,7 @@ export const ALLOWED_TABLES = [
   "users",
   "service_times",
   "church_members",
+  "churches",
 ];
 
 /**
@@ -73,5 +74,11 @@ export const TABLE_PERMISSIONS: Record<
     allowedColumns: ["id", "user_id", "church_id", "role"],
     operations: ["select", "insert", "update", "delete"],
     description: "Church members and their roles",
+  },
+  churches: {
+    ownerOnly: false,
+    allowedColumns: ["id", "name"],
+    operations: ["select", "insert", "update", "delete"],
+    description: "Church information and details",
   },
 };
