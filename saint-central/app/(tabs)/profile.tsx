@@ -27,7 +27,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import theme from "@/theme";
 import { NotificationSettings } from "../../components/NotificationSettings";
-import saintcentral from "../../api/src/sdk";
+import saintcentral from "../../api/src/client/sdk";
 
 interface UserProfile {
   id: string;

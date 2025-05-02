@@ -6,6 +6,7 @@
   "dependencies": {
     "@cloudflare/workers-types": "github:cloudflare/workers-types",
     "@supabase/supabase-js": "^2.49.1",
+    "crypto": "^1.0.1",
     "jwt-decode": "^4.0.0"
   }
 }

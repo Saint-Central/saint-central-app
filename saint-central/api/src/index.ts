@@ -1,5 +1,5 @@
-import { handleDataRequest } from "./dataHandler";
-import { securityMiddleware, createResponse } from "./security";
+import { handleDataRequest } from "./server/dataHandler";
+import { securityMiddleware, createResponse } from "./server/security";
 
 export interface Env {
   SUPABASE_URL: string;

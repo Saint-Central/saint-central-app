@@ -31,7 +31,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../supabaseClient";
 import { User } from "@supabase/supabase-js";
 import theme from "../../theme"; // Import the theme file
-import saintcentral from "@/api/src/sdk";
+import saintcentral from "@/api/src/client/sdk";
 
 const { width, height } = Dimensions.get("window");
 

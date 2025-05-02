@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/supabaseClient";
 import { useLocalSearchParams } from "expo-router";
-import saintcentral from "../../api/src/sdk";
+import saintcentral from "../../api/src/client/sdk";
 
 // Define types
 interface ServiceTime {

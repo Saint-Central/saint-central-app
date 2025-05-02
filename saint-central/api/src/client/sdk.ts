@@ -3,6 +3,17 @@
  * Inspired by the Supabase client library with added security features
  */
 
+import {
+  sanitizeInput,
+  validateInput,
+  signRequest,
+  hashString,
+  SECURITY_CONSTANTS,
+  maskSensitiveData,
+  encryptData,
+  decryptData,
+} from "../shared/securityUtils";
+
 // Filter Types
 type FilterOperator =
   | "eq"
@@ -49,6 +60,7 @@ interface SaintCentralResponse<T = any> {
 interface Error {
   message: string;
   details?: any;
+  code?: string;
 }
 
 interface OrderParams {
@@ -68,10 +80,28 @@ interface ClientOptions {
   autoRefreshToken?: boolean;
   persistSession?: boolean;
   detectSessionInUrl?: boolean;
+  securityOptions?: SecurityOptions;
+}
+
+interface SecurityOptions {
+  enableCsrfProtection?: boolean;
+  enableRequestSigning?: boolean;
+  signatureSecret?: string;
+  validateInputs?: boolean;
+  maxBatchSize?: number;
+  enableEncryption?: boolean;
+  encryptionKey?: string;
 }
 
 interface TransactionOptions {
   isolationLevel?: "serializable" | "repeatable read" | "read committed" | "read uncommitted";
+}
+
+// Token storage interface
+interface StoredToken {
+  value: string;
+  expiresAt: number;
+  refreshToken?: string;
 }
 
 // Main SDK Class
@@ -81,6 +111,12 @@ class SaintCentral<T = any> {
   private autoRefreshToken: boolean;
   private persistSession: boolean;
   private detectSessionInUrl: boolean;
+  private securityOptions: SecurityOptions;
+  private csrfToken: string | null = null;
+
+  // User session info
+  private refreshTokenTimer: ReturnType<typeof setTimeout> | null = null;
+  private currentTokenExpiry: number | null = null;
 
   // Query builder state
   private _table: string | null = null;
@@ -105,17 +141,167 @@ class SaintCentral<T = any> {
     this.autoRefreshToken = options.autoRefreshToken ?? true;
     this.persistSession = options.persistSession ?? true;
     this.detectSessionInUrl = options.detectSessionInUrl ?? true;
+    this.securityOptions = {
+      enableCsrfProtection: options.securityOptions?.enableCsrfProtection ?? true,
+      enableRequestSigning: options.securityOptions?.enableRequestSigning ?? false,
+      signatureSecret: options.securityOptions?.signatureSecret,
+      validateInputs: options.securityOptions?.validateInputs ?? true,
+      maxBatchSize: options.securityOptions?.maxBatchSize ?? 1000,
+      enableEncryption: options.securityOptions?.enableEncryption ?? false,
+      encryptionKey: options.securityOptions?.encryptionKey,
+    };
     this._reset();
+
+    // Setup CSRF token if protection is enabled
+    if (this.securityOptions.enableCsrfProtection) {
+      this._setupCsrfProtection();
+    }
+
+    // Setup token refresh mechanism
+    if (this.autoRefreshToken) {
+      this._setupTokenRefresh();
+    }
+  }
+
+  /**
+   * Configure CSRF protection
+   */
+  private _setupCsrfProtection(): void {
+    // Only run in browser environment
+    if (typeof window !== "undefined" && window.fetch) {
+      // Listen for CSRF token in responses
+      const originalFetch = window.fetch;
+      window.fetch = async (input, init) => {
+        const response = await originalFetch(input, init);
+
+        // Check if response has CSRF token header
+        const csrfToken = response.headers.get(SECURITY_CONSTANTS.CSRF.headerName);
+        if (csrfToken) {
+          this.csrfToken = csrfToken;
+        }
+
+        return response;
+      };
+    }
+  }
+
+  /**
+   * Setup automatic token refresh before expiration
+   */
+  private _setupTokenRefresh(): void {
+    if (this.refreshTokenTimer) {
+      clearTimeout(this.refreshTokenTimer);
+      this.refreshTokenTimer = null;
+    }
+
+    // If we have a token expiry time, schedule refresh
+    if (this.currentTokenExpiry) {
+      const timeUntilExpiry = this.currentTokenExpiry - Date.now();
+      const refreshTime = Math.max(0, timeUntilExpiry - 5 * 60 * 1000); // 5 minutes before expiry
+
+      this.refreshTokenTimer = setTimeout(() => {
+        this._refreshToken();
+      }, refreshTime);
+    }
+  }
+
+  /**
+   * Refresh the auth token
+   */
+  private async _refreshToken(): Promise<boolean> {
+    try {
+      if (!this.headers.Authorization) return false;
+
+      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...this.headers,
+        },
+        credentials: "include", // For cookies
+      });
+
+      if (!response.ok) return false;
+
+      const result = (await response.json()) as {
+        access_token?: string;
+        expires_at?: string;
+      };
+
+      if (result && result.access_token) {
+        // Update token
+        this.headers.Authorization = `Bearer ${result.access_token}`;
+
+        // Schedule next refresh
+        if (result.expires_at) {
+          this.currentTokenExpiry = new Date(result.expires_at).getTime();
+          this._setupTokenRefresh();
+        }
+
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Failed to refresh token:", error);
+      return false;
+    }
   }
 
   /**
    * Set authentication token for this instance
    */
-  auth(token: string): SaintCentral<T> {
+  auth(token: string, options: { expiresIn?: number } = {}): SaintCentral<T> {
     if (token) {
       this.headers["Authorization"] = `Bearer ${token}`;
+
+      // Setup token expiry for refresh
+      if (options.expiresIn) {
+        this.currentTokenExpiry = Date.now() + options.expiresIn * 1000;
+        if (this.autoRefreshToken) {
+          this._setupTokenRefresh();
+        }
+      }
     }
     return this;
+  }
+
+  /**
+   * Logout - clears tokens and blacklists the current token
+   */
+  async logout(): Promise<boolean> {
+    try {
+      // Get current token
+      const authHeader = this.headers["Authorization"];
+      const token = authHeader?.replace("Bearer ", "");
+
+      if (token) {
+        // Blacklist the token server-side
+        await fetch(`${this.baseUrl}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...this.headers,
+          },
+          credentials: "include",
+        });
+      }
+
+      // Clear local token data
+      delete this.headers["Authorization"];
+      this.currentTokenExpiry = null;
+
+      // Clear token refresh
+      if (this.refreshTokenTimer) {
+        clearTimeout(this.refreshTokenTimer);
+        this.refreshTokenTimer = null;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Logout failed:", error);
+      return false;
+    }
   }
 
   /**
@@ -127,6 +313,7 @@ class SaintCentral<T = any> {
       autoRefreshToken: this.autoRefreshToken,
       persistSession: this.persistSession,
       detectSessionInUrl: this.detectSessionInUrl,
+      securityOptions: { ...this.securityOptions },
     });
 
     if (session) {
@@ -138,6 +325,15 @@ class SaintCentral<T = any> {
 
       if (token) {
         copy.headers["Authorization"] = `Bearer ${token}`;
+
+        // Setup token expiry for refresh
+        const expiresAt = session.expires_at || session.data?.session?.expires_at;
+        if (expiresAt) {
+          copy.currentTokenExpiry = new Date(expiresAt).getTime();
+          if (copy.autoRefreshToken) {
+            copy._setupTokenRefresh();
+          }
+        }
       }
     }
 
@@ -153,6 +349,7 @@ class SaintCentral<T = any> {
       autoRefreshToken: this.autoRefreshToken,
       persistSession: this.persistSession,
       detectSessionInUrl: this.detectSessionInUrl,
+      securityOptions: { ...this.securityOptions },
     });
     delete copy.headers["Authorization"];
     return copy;
@@ -180,6 +377,14 @@ class SaintCentral<T = any> {
    * Start a query from a table
    */
   from<TableResult = any>(table: string): SaintCentral<TableResult> {
+    // Security: Validate and sanitize table name input if enabled
+    if (this.securityOptions.validateInputs) {
+      if (!validateInput(table, /^[a-zA-Z0-9_]+$/, 100)) {
+        throw new Error("Invalid table name format");
+      }
+      table = sanitizeInput(table);
+    }
+
     this._reset();
     this._table = table;
     return this as unknown as SaintCentral<TableResult>;
@@ -1004,7 +1209,56 @@ class SaintCentral<T = any> {
   }
 
   /**
-   * Internal request method
+   * Validate and sanitize column names for security
+   */
+  private _validateColumnName(column: string): string {
+    if (this.securityOptions.validateInputs) {
+      if (!validateInput(column, /^[a-zA-Z0-9_\.]+$/, 100)) {
+        throw new Error(`Invalid column name format: ${column}`);
+      }
+      return sanitizeInput(column);
+    }
+    return column;
+  }
+
+  /**
+   * Validate values to prevent injection attacks
+   */
+  private _validateValue(value: any): any {
+    if (!this.securityOptions.validateInputs) return value;
+
+    if (typeof value === "string") {
+      // For strings, sanitize and check length
+      if (value.length > 10000) {
+        throw new Error("Value exceeds maximum allowed length");
+      }
+      return sanitizeInput(value);
+    } else if (Array.isArray(value)) {
+      // For arrays, validate each element and check size
+      if (value.length > (this.securityOptions.maxBatchSize || 1000)) {
+        throw new Error(
+          `Array exceeds maximum allowed size of ${this.securityOptions.maxBatchSize || 1000}`,
+        );
+      }
+      return value.map((item) => this._validateValue(item));
+    } else if (value && typeof value === "object") {
+      // For objects, validate each property
+      const result: Record<string, any> = {};
+      for (const key in value) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          const sanitizedKey = this._validateColumnName(key);
+          result[sanitizedKey] = this._validateValue(value[key]);
+        }
+      }
+      return result;
+    }
+
+    // For other types, return as is
+    return value;
+  }
+
+  /**
+   * Internal request method with enhanced security
    */
   private async _request<R>(
     url: string,
@@ -1012,11 +1266,45 @@ class SaintCentral<T = any> {
     body?: Record<string, any>,
   ): Promise<SaintCentralResponse<R>> {
     try {
+      // Apply input validation if enabled
+      if (this.securityOptions.validateInputs && body) {
+        body = this._validateValue(body);
+      }
+
+      // Prepare headers
+      const headers = { ...this.headers };
+
+      // Add CSRF token if protection is enabled and we have a token
+      if (this.securityOptions.enableCsrfProtection && this.csrfToken) {
+        headers[SECURITY_CONSTANTS.CSRF.headerName] = this.csrfToken;
+      }
+
+      // Add request signing if enabled
+      if (this.securityOptions.enableRequestSigning && this.securityOptions.signatureSecret) {
+        const timestamp = Date.now();
+        headers["X-Request-Timestamp"] = timestamp.toString();
+
+        // Handle the async signRequest function
+        headers["X-Request-Signature"] = await signRequest(
+          body || "",
+          this.securityOptions.signatureSecret,
+          timestamp,
+        );
+      }
+
+      // Make the request
       const response = await fetch(url, {
         method,
-        headers: this.headers,
+        headers,
         body: method === "POST" && body ? JSON.stringify(body) : undefined,
+        credentials: this.securityOptions.enableCsrfProtection ? "include" : "same-origin",
       });
+
+      // Update CSRF token if present in response
+      const newCsrfToken = response.headers.get(SECURITY_CONSTANTS.CSRF.headerName);
+      if (newCsrfToken) {
+        this.csrfToken = newCsrfToken;
+      }
 
       const contentType = response.headers.get("content-type");
       const isJson = contentType?.includes("application/json");
@@ -1030,16 +1318,33 @@ class SaintCentral<T = any> {
       }
 
       if (!response.ok) {
-        console.error(
-          `[SaintCentral] Request failed (${response.status}):`,
-          result.error || "Unknown error",
-        );
+        // Enhanced error handling
+        const errorDetails = {
+          message: result.error || result.message || "Unknown error",
+          details: result.details || result,
+          code: result.code,
+          status: response.status,
+          url,
+          method,
+        };
+
+        console.error(`[SaintCentral] Request failed (${response.status}):`, errorDetails);
+
+        // Handle specific error codes
+        if (response.status === 401) {
+          // Token expired, try to refresh if enabled
+          if (this.autoRefreshToken && (await this._refreshToken())) {
+            // Retry the request with fresh token
+            return this._request<R>(url, method, body);
+          }
+        }
 
         return {
           data: null,
           error: {
-            message: result.error || result.message || "Unknown error",
-            details: result.details || result,
+            message: errorDetails.message,
+            details: errorDetails.details,
+            code: errorDetails.code,
           },
           status: response.status,
         };
@@ -1059,6 +1364,7 @@ class SaintCentral<T = any> {
         error: {
           message: error instanceof Error ? error.message : "Network error",
           details: error,
+          code: "CLIENT_ERROR",
         },
         status: 500,
       };
@@ -1071,12 +1377,52 @@ class SaintCentral<T = any> {
 /**
  * Create a new client with options
  */
-export function createClient(baseUrl?: string, options?: ClientOptions): SaintCentral {
-  return new SaintCentral(baseUrl, options);
+export function createClient(
+  baseUrl?: string,
+  options: ClientOptions & {
+    enableCsrfProtection?: boolean;
+    enableRequestSigning?: boolean;
+    signatureSecret?: string;
+    validateInputs?: boolean;
+  } = {},
+): SaintCentral {
+  // Extract security options
+  const securityOptions: SecurityOptions = {
+    enableCsrfProtection: options.enableCsrfProtection ?? true,
+    enableRequestSigning: options.enableRequestSigning ?? false,
+    signatureSecret: options.signatureSecret,
+    validateInputs: options.validateInputs ?? true,
+    maxBatchSize: 1000,
+    enableEncryption: false,
+    encryptionKey: undefined,
+  };
+
+  // Apply any additional security options from the securityOptions property if it exists
+  if (options.securityOptions) {
+    if (options.securityOptions.enableEncryption !== undefined) {
+      securityOptions.enableEncryption = options.securityOptions.enableEncryption;
+    }
+    if (options.securityOptions.encryptionKey !== undefined) {
+      securityOptions.encryptionKey = options.securityOptions.encryptionKey;
+    }
+    if (options.securityOptions.maxBatchSize !== undefined) {
+      securityOptions.maxBatchSize = options.securityOptions.maxBatchSize;
+    }
+  }
+
+  const fullOptions: ClientOptions = {
+    ...options,
+    securityOptions,
+  };
+
+  return new SaintCentral(baseUrl, fullOptions);
 }
 
-// Create a singleton instance for easy usage
-const saintcentral = createClient("https://saint-central-api.colinmcherney.workers.dev");
+// Create a singleton instance for easy usage with default security options
+const saintcentral = createClient("https://saint-central-api.colinmcherney.workers.dev", {
+  enableCsrfProtection: true,
+  validateInputs: true,
+});
 
 export default saintcentral;
 export { SaintCentral };
@@ -1091,6 +1437,7 @@ export type {
   JoinConfig,
   RangeParams,
   ClientOptions,
+  SecurityOptions,
   TransactionOptions,
   Error,
 };

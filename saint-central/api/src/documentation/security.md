@@ -1,116 +1,207 @@
-# API Security Middleware
+# SaintCentral SDK Security Documentation
 
-This security middleware provides a centralized solution for implementing authentication, validation, and rate limiting across your API endpoints.
+## Overview
 
-## Features
+This document provides a comprehensive overview of the security features implemented in the SaintCentral SDK. Our security implementation follows industry best practices and provides defense-in-depth strategies to protect your application and data.
 
-- **Authentication validation** - Verifies JWT tokens against Supabase Auth
-- **User ID validation** - Ensures access is restricted to authenticated users
-- **Rate limiting** - Implements configurable rate limits based on:
-  - IP address
-  - Authentication token
-- **Customizable configurations** - Each endpoint can have its own security settings
-- **CORS handling** - Automatically handles CORS preflight requests
+## Key Security Features
 
-## Usage
+### Authentication & Authorization
 
-### Basic Usage
+- **JWT Token Management**
+
+  - Secure token storage with encryption
+  - Automatic token refresh mechanism
+  - Token blacklisting for revoked tokens
+  - Proper token validation with signature verification
+
+- **API Key Rotation**
+
+  - Support for seamless API key rotation
+  - Grace period for previous keys during rotation
+  - Secure key validation mechanisms
+
+- **Permissions Model**
+  - Fine-grained permission validation
+  - Role-based access control support
+
+### Protection Against Common Vulnerabilities
+
+- **Cross-Site Request Forgery (CSRF) Protection**
+
+  - CSRF token generation and validation
+  - Token rotation on each request
+  - Secure cookie handling with proper flags
+
+- **Cross-Site Scripting (XSS) Protection**
+
+  - Content escaping for different contexts (HTML, JavaScript, CSS, URLs)
+  - Content Security Policy (CSP) implementation
+  - Secure cookie flags (HttpOnly, Secure, SameSite)
+
+- **SQL Injection Prevention**
+
+  - Parameter validation and sanitization
+  - Type checking for all inputs
+  - Maximum length enforcement
+
+- **Rate Limiting & Brute Force Protection**
+  - IP-based rate limiting
+  - Token-based rate limiting
+  - Login attempt tracking and temporary blocking
+  - Exponential backoff for repeated failed attempts
+
+### Data Protection
+
+- **Sensitive Data Handling**
+
+  - Data masking in logs and error messages
+  - Automatic detection of sensitive fields
+  - Secure logging practices
+
+- **Secure Transport**
+
+  - HTTPS enforcement
+  - HTTP Strict Transport Security (HSTS)
+  - Certificate validation
+
+- **Request Integrity**
+  - Request signing to prevent tampering
+  - Timestamp validation to prevent replay attacks
+  - Payload validation
+
+### Advanced Security Features
+
+- **Attack Detection**
+
+  - Request pattern analysis to detect automated attacks
+  - Behavioral analysis to detect suspicious activity
+  - Penetration testing detection
+
+- **Security Hardening**
+
+  - Browser security feature detection
+  - Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+  - Feature Policy enforcement
+
+- **Secure Storage**
+  - Encrypted local storage for tokens
+  - Session management with secure defaults
+  - Storage availability detection
+
+## Security Modules
+
+### 1. Core Security (`security.ts`)
+
+Primary security module providing fundamental security features:
+
+- Rate limiting
+- CSRF protection
+- Token blacklisting
+- Request signing
+- Input validation
+- API key rotation
+- Security constants
+
+### 2. SDK Security (`sdkSecurity.ts`)
+
+Client-side security features for the SDK:
+
+- Secure token storage
+- Request pattern analysis
+- Secure fetch wrapper
+- Sensitive data masking
+- Permission validation
+- Secure logging
+- Browser security detection
+
+## Implementation Example
+
+Here's a basic example of creating a client with enhanced security:
 
 ```typescript
-import { securityMiddleware, createResponse } from "./security";
+import { createClient } from "./sdk";
 
-export async function handleMyEndpoint(request: Request, env: Env): Promise<Response> {
-  try {
-    // Apply default security settings (auth required + default rate limits)
-    const { isAuthorized, userId, error } = await securityMiddleware(request, env);
-
-    // Return error from security middleware if any
-    if (!isAuthorized || error) {
-      return error || createResponse({ error: "Unauthorized" }, 401);
-    }
-
-    // Your endpoint logic here, using the validated userId
-    // ...
-  } catch (error) {
-    return createResponse({ error: "Internal server error", message: String(error) }, 500);
-  }
-}
-```
-
-### Configuration Options
-
-The security middleware accepts the following configuration options:
-
-```typescript
-{
-  // Whether authentication is required (default: true)
-  requireAuth?: boolean,
-
-  // Whether to apply rate limiting by IP address (default: true)
-  rateLimitByIp?: boolean,
-
-  // Whether to apply rate limiting by token (default: true)
-  rateLimitByToken?: boolean,
-
-  // Custom rate limit settings (overrides defaults)
-  customRateLimit?: {
-    maxRequests: number,  // Maximum number of requests allowed
-    windowMs: number      // Time window in milliseconds
-  }
-}
-```
-
-### Public Endpoint Example
-
-```typescript
-// Apply IP-based rate limiting but no authentication
-const { isAuthorized, error } = await securityMiddleware(request, env, {
-  requireAuth: false,
-  rateLimitByIp: true,
-  rateLimitByToken: false,
-  customRateLimit: {
-    maxRequests: 100,
-    windowMs: 60000, // 1 minute
+// Create a client with enhanced security
+const client = createClient("https://api.example.com", {
+  // Enable security features
+  securityOptions: {
+    enableCsrfProtection: true,
+    enableRequestSigning: true,
+    signatureSecret: "your-signing-secret",
+    validateInputs: true,
+    maxBatchSize: 500,
+    enableEncryption: true,
+    encryptionKey: "your-encryption-key",
   },
 });
+
+// Use the secure client
+const response = await client.from("users").select("id, name, email").eq("active", true).get();
 ```
 
-### Sensitive Endpoint Example
+## Security Best Practices for SDK Usage
 
-```typescript
-// Apply strict rate limiting for sensitive operations
-const { isAuthorized, userId, error } = await securityMiddleware(request, env, {
-  requireAuth: true,
-  rateLimitByIp: true,
-  rateLimitByToken: true,
-  customRateLimit: {
-    maxRequests: 10,
-    windowMs: 60000, // 1 minute
-  },
-});
-```
+1. **Always use HTTPS**
 
-## Default Rate Limits
+   - Never send sensitive data over unencrypted connections
+   - Enable strict HTTPS with proper certificate validation
 
-The default rate limits (if not overridden) are:
+2. **Implement Proper Authentication**
 
-- 60 requests per minute
-- 5-minute blocking period after exceeding the limit
+   - Use the built-in auth mechanisms
+   - Implement proper logout procedures
+   - Rotate refresh tokens periodically
 
-The configuration structure for rate limits is:
+3. **Input Validation**
 
-```typescript
-{
-  maxRequests: number, // Maximum requests allowed in the time window
-  windowMs: number,    // Time window in milliseconds
-  blockDuration: number // How long to block after exceeding limit (optional)
-}
-```
+   - Always validate user input before sending to the API
+   - Use the SDK's validation features for additional protection
 
-## Security Considerations
+4. **Handle Errors Securely**
 
-1. **Memory-based rate limiting**: The current implementation uses an in-memory cache for rate limiting. In a distributed environment, consider using a shared cache like Redis.
+   - Don't expose sensitive information in error messages
+   - Use the SecureLogger to mask sensitive data
 
-2. **Token hashing**: Tokens are hashed before being used as keys in the rate limiting cache to avoid storing sensitive data.
+5. **Keep the SDK Updated**
 
-3. **Headers**: The middleware uses Cloudflare-specific headers (`CF-Connecting-IP`) for IP detection. Adjust as needed for your environment.
+   - Regularly update to the latest version for security patches
+   - Monitor security advisories for dependencies
+
+6. **Secure Token Storage**
+
+   - Use the SecureTokenStorage for client-side storage
+   - Implement server-side session validation
+
+7. **Minimize Attack Surface**
+   - Only request the permissions and data you need
+   - Follow the principle of least privilege
+
+## Security Headers
+
+The SDK automatically applies the following security headers:
+
+| Header                    | Purpose                                      |
+| ------------------------- | -------------------------------------------- |
+| Content-Security-Policy   | Prevents XSS and data injection attacks      |
+| X-Content-Type-Options    | Prevents MIME type sniffing                  |
+| X-Frame-Options           | Prevents clickjacking                        |
+| X-XSS-Protection          | Additional XSS protection for older browsers |
+| Strict-Transport-Security | Enforces HTTPS usage                         |
+| Referrer-Policy           | Controls referrer information                |
+| Feature-Policy            | Restricts browser features                   |
+| Cache-Control             | Prevents sensitive data caching              |
+
+## Security Reporting
+
+If you discover a security vulnerability, please report it by sending an email to security@example.com. Please do not disclose security vulnerabilities publicly until they have been addressed.
+
+## Future Security Enhancements
+
+We are continuously improving our security features. Upcoming enhancements include:
+
+- Full support for WebCrypto API for client-side encryption
+- Multi-factor authentication support
+- Device fingerprinting for suspicious login detection
+- Enhanced audit logging capabilities
+- Anomaly detection using machine learning

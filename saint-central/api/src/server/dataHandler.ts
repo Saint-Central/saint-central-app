@@ -1,7 +1,11 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Env } from "./index";
-import { securityMiddleware, createResponse } from "./security";
-import { ALLOWED_TABLES, TABLE_PERMISSIONS } from "./tableConfig";
+import { Env } from "../index";
+import { securityMiddleware, createResponse, validateInput, sanitizeInput } from "./security";
+import {
+  validateInput as validateClientInput,
+  sanitizeInput as sanitizeClientInput,
+} from "../shared/securityUtils";
+import { ALLOWED_TABLES, TABLE_PERMISSIONS } from "../shared/tableConfig";
 
 // Type definitions for operation type
 type OperationType = "select" | "insert" | "update" | "delete" | "upsert";
