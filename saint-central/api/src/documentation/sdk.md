@@ -5,513 +5,827 @@
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Authentication](#authentication)
-- [Basic CRUD Operations](#basic-crud-operations)
-- [Advanced Filtering](#advanced-filtering)
-- [Joins and Relationships](#joins-and-relationships)
-- [Pagination and Ordering](#pagination-and-ordering)
-- [Transactions](#transactions)
+- [Data Operations](#data-operations)
+  - [Select](#select)
+  - [Insert](#insert)
+  - [Update](#update)
+  - [Delete](#delete)
+  - [Filtering Data](#filtering-data)
+- [Storage Operations](#storage-operations)
+  - [Getting Public URLs](#getting-public-urls)
+  - [Uploading Files](#uploading-files)
+  - [Downloading Files](#downloading-files)
+  - [Managing Files](#managing-files)
 - [Error Handling](#error-handling)
-- [Type Safety](#type-safety)
-- [Security Features](#security-features)
-- [API Reference](#api-reference)
+- [Advanced Usage](#advanced-usage)
+- [TypeScript Support](#typescript-support)
 
 ## Introduction
 
-SaintCentral SDK is a TypeScript client library for interacting with your Supabase-powered backend through a secure API layer. It provides a similar experience to the Supabase client library but with enhanced security features and comprehensive filtering capabilities.
+The SaintCentral SDK provides a secure client-side interface to interact with your SaintCentral backend services. It's designed to be simple to use while providing robust security features to protect your data.
 
-The SDK allows you to:
+The SDK acts as a secure intermediary between your client applications and your Supabase database, ensuring that all database operations go through your controlled API endpoints with proper authentication and authorization.
 
-- Perform CRUD operations (Create, Read, Update, Delete)
-- Execute complex queries with advanced filtering
-- Manage database transactions
-- Work with table relationships
-- Maintain strong type safety
+### Key Features
+
+- **Enhanced Security**: Prevents direct access to your database
+- **Simplified API**: Clean, intuitive interface for common operations
+- **Authentication Management**: Built-in token handling
+- **Data Operations**: CRUD operations with filtering
+- **Storage Operations**: Upload, download, and manage files
+- **Type Safety**: Full TypeScript support
 
 ## Installation
 
+Install the SaintCentral SDK using npm or yarn:
+
 ```bash
 # Using npm
-npm install @saintcentral/sdk
+npm install saintcentral
 
 # Using yarn
-yarn add @saintcentral/sdk
+yarn add saintcentral
 ```
 
-To import and initialize the SDK:
+Then import it in your project:
 
-```typescript
-import saintcentral, { SaintCentral } from "@saintcentral/sdk";
+```javascript
+// ESM import
+import saintcentral from "saintcentral";
 
-// Initialize with default API endpoint
-const client = saintcentral;
-
-// Or specify a custom API endpoint
-const customClient = new SaintCentral("https://your-api-endpoint.com");
+// CommonJS require
+const saintcentral = require("saintcentral");
 ```
 
 ## Authentication
 
-Authentication is required for most operations. The SDK supports multiple authentication methods:
+The SaintCentral SDK requires authentication for most operations. You can use the `withAuth` method to provide an authentication token:
 
-### Using Bearer Token
+```javascript
+// Authenticate with a token (usually from a login response)
+const authenticatedClient = saintcentral.withAuth(token);
 
-```typescript
-// Directly with token
-const client = saintcentral.auth("your-jwt-token");
-
-// Or using an existing client
-const authenticatedClient = client.auth("your-jwt-token");
+// You can now use this client for authenticated operations
+const response = await authenticatedClient.from("users").select("*").get();
 ```
 
-### Using Supabase Session
+### Authentication with Session
 
-```typescript
-import { createClient } from "@supabase/supabase-js";
+A common pattern is to use a session from your authentication provider:
 
-// Initialize Supabase client
-const supabase = createClient("your-supabase-url", "your-supabase-anon-key");
-
-// Get session
+```javascript
+// Get the session from your auth provider (like Supabase)
 const {
   data: { session },
 } = await supabase.auth.getSession();
 
-// Authenticate with session
-const client = saintcentral.withAuth(session);
+// Use the access token with the SaintCentral SDK
+if (session) {
+  const response = await saintcentral
+    .withAuth(session.access_token)
+    .from("users")
+    .select("id, email, first_name, last_name")
+    .get();
+
+  console.log(response.data);
+}
 ```
 
-### Public Access (No Authentication)
+## Data Operations
 
-```typescript
-const publicClient = saintcentral.withoutAuth();
-```
+The SDK provides a fluent interface for data operations, making it easy to build and execute queries.
 
-## Basic CRUD Operations
+### Select
 
-### SELECT (Read)
+Retrieve data from your database with the `select` method:
 
-```typescript
-// Get all records from a table
-const { data: users } = await client.from("users").select().get();
+```javascript
+// Basic select - get all records from a table
+const response = await saintcentral.withAuth(token).from("users").select("*").get();
 
-// Get specific columns
-const { data: profiles } = await client
-  .from("users")
-  .select(["id", "first_name", "last_name"])
+// Select specific columns
+const response = await saintcentral
+  .withAuth(token)
+  .from("posts")
+  .select("id, title, content, created_at")
   .get();
 
-// Alternative syntax for columns
-const { data: profiles } = await client.from("users").select("id,first_name,last_name").get();
-
 // Get a single record
-const { data: user } = await client.from("users").select().eq("id", "123").single().get();
+const response = await saintcentral
+  .withAuth(token)
+  .from("users")
+  .select("id, email, first_name, last_name")
+  .single()
+  .get();
 ```
 
-### INSERT (Create)
+### Insert
 
-```typescript
+Create new records with the `insert` method:
+
+```javascript
 // Insert a single record
-const { data: newUser } = await client.from("users").insert({
-  email: "user@example.com",
-  first_name: "John",
-  last_name: "Doe",
+const response = await saintcentral.withAuth(token).insert("posts", {
+  title: "My First Post",
+  content: "Hello, world!",
+  user_id: "123",
 });
 
 // Insert multiple records
-const { data: newUsers } = await client.from("users").insert([
-  { email: "user1@example.com", first_name: "John", last_name: "Doe" },
-  { email: "user2@example.com", first_name: "Jane", last_name: "Smith" },
+const response = await saintcentral.withAuth(token).insert("comments", [
+  { post_id: 1, user_id: "123", text: "Great post!" },
+  { post_id: 1, user_id: "456", text: "Thanks for sharing!" },
 ]);
 ```
 
-### UPDATE
+### Update
 
-```typescript
+Modify existing records with the `update` method:
+
+```javascript
 // Update a record
-const { data: updatedUser } = await client
-  .from("users")
-  .update({ first_name: "Jane" })
-  .eq("id", "123")
-  .execute();
+const response = await saintcentral.withAuth(token).update(
+  "users",
+  {
+    first_name: "John",
+    last_name: "Doe",
+    updated_at: new Date().toISOString(),
+  },
+  { id: userId },
+);
 
-// Alternative syntax
-const { data: updatedUser } = await client.update("users", { first_name: "Jane" }, { id: "123" });
+// Update multiple records that match a condition
+const response = await saintcentral
+  .withAuth(token)
+  .update("posts", { status: "archived" }, { user_id: userId, status: "draft" });
 ```
 
-### DELETE
+### Delete
 
-```typescript
-// Delete a record
-const { data: deletedUser } = await client.from("users").delete().eq("id", "123").execute();
+Remove records with the `delete` method:
 
-// Alternative syntax
-const { data: deletedUser } = await client.delete("users", { id: "123" });
+```javascript
+// Delete a specific record
+const response = await saintcentral.withAuth(token).delete("posts", { id: postId });
+
+// Delete multiple records that match a condition
+const response = await saintcentral.withAuth(token).delete("comments", { post_id: postId });
 ```
 
-### UPSERT (Insert or Update)
+### Filtering Data
 
-```typescript
-// Upsert a record
-const { data: upsertedUser } = await client
-  .from("users")
-  .upsert({ id: "123", email: "user@example.com", first_name: "Updated" }, { onConflict: ["id"] });
-```
+The SDK supports various filtering methods to narrow down your queries:
 
-## Advanced Filtering
-
-SaintCentral SDK provides a rich set of filter methods that mirror Supabase's capabilities:
-
-### Equality Filters
-
-```typescript
-// Equal to (=)
-client.from("users").eq("status", "active");
-
-// Not equal to (!=)
-client.from("users").neq("status", "inactive");
-```
-
-### Comparison Filters
-
-```typescript
-// Greater than (>)
-client.from("products").gt("price", 100);
-
-// Greater than or equal to (>=)
-client.from("products").gte("price", 100);
-
-// Less than (<)
-client.from("products").lt("price", 200);
-
-// Less than or equal to (<=)
-client.from("products").lte("price", 200);
-```
-
-### Text Filters
-
-```typescript
-// LIKE (case-sensitive)
-client.from("users").like("email", "%@gmail.com");
-
-// ILIKE (case-insensitive)
-client.from("users").ilike("first_name", "jo%");
-```
-
-### Range Filters
-
-```typescript
-// IN (values in array)
-client.from("users").in("id", ["123", "456", "789"]);
-
-// IS (for null checks)
-client.from("users").is("phone_number", null);
-```
-
-### Array Filters
-
-```typescript
-// Contains (array contains values)
-client.from("products").contains("tags", ["premium", "featured"]);
-
-// Contained By (array is contained by values)
-client.from("products").containedBy("categories", ["electronics", "gadgets", "accessories"]);
-```
-
-### Full-text Search
-
-```typescript
-// Text search
-client.from("posts").textSearch("content", "javascript frameworks", { config: "english" });
-```
-
-### Combining Filters
-
-```typescript
-// Multiple filters (AND)
-client
-  .from("users")
-  .eq("status", "active")
-  .gte("created_at", "2023-01-01")
-  .lt("created_at", "2023-12-31");
-
-// Custom filter
-client.from("users").filter("login_count", "gt", 5).filter("last_login", "gte", "2023-01-01");
-```
-
-## Joins and Relationships
-
-SaintCentral SDK supports various types of joins to query related data:
-
-### Basic Join
-
-```typescript
-// Inner join (default)
-const { data } = await client
-  .from("users")
-  .select(["id", "first_name", "last_name"])
-  .join("posts", {
-    foreignKey: "user_id",
-    primaryKey: "id",
-    columns: ["id", "title", "content"],
-  })
-  .get();
-```
-
-### Join Types
-
-```typescript
-// Left join
-const { data } = await client
-  .from("users")
-  .select(["id", "first_name", "last_name"])
-  .leftJoin("posts", {
-    foreignKey: "user_id",
-    primaryKey: "id",
-    columns: ["id", "title"],
-  })
-  .get();
-
-// Right join
-const { data } = await client
+```javascript
+// Filter with equality
+const response = await saintcentral
+  .withAuth(token)
   .from("posts")
-  .select(["id", "title"])
-  .rightJoin("users", {
-    foreignKey: "user_id",
-    primaryKey: "id",
-    columns: ["id", "first_name", "last_name"],
-  })
+  .select("*")
+  .eq("status", "published")
   .get();
-```
 
-## Pagination and Ordering
-
-### Limit and Offset
-
-```typescript
-// Basic pagination
-const { data: page1 } = await client.from("posts").select().limit(10).offset(0).get();
-
-const { data: page2 } = await client.from("posts").select().limit(10).offset(10).get();
-```
-
-### Range-based Pagination
-
-```typescript
-// More efficient range-based pagination
-const { data } = await client
+// Combine multiple filters
+const response = await saintcentral
+  .withAuth(token)
   .from("posts")
-  .select()
-  .range(0, 9) // First 10 results (inclusive range)
+  .select("*")
+  .eq("status", "published")
+  .gt("created_at", "2023-01-01")
   .get();
-```
 
-### Ordering Results
-
-```typescript
-// Single column ordering
-const { data } = await client
+// Order results
+const response = await saintcentral
+  .withAuth(token)
   .from("posts")
-  .select()
+  .select("*")
   .order("created_at", { ascending: false })
   .get();
 
-// Multiple column ordering
-const { data } = await client
-  .from("users")
-  .select()
-  .order("last_name", { ascending: true })
-  .order("first_name", { ascending: true })
-  .get();
-
-// Ordering with null handling
-const { data } = await client
-  .from("tasks")
-  .select()
-  .order("completed_at", { ascending: false, nullsFirst: false })
+// Pagination
+const response = await saintcentral
+  .withAuth(token)
+  .from("posts")
+  .select("*")
+  .range(0, 9) // First 10 records
   .get();
 ```
 
-### Count
+## Storage Operations
 
-```typescript
-// Get count of records
-const count = await client.from("users").count();
+The SDK provides methods for working with files in storage buckets.
 
-// Count with filters
-const activeUserCount = await client.from("users").eq("status", "active").count();
+### Getting Public URLs
+
+Generate public URLs for files in public buckets:
+
+```javascript
+// Get a public URL for a file
+const publicUrl = saintcentral.storage.from("profile-images").getPublicUrl(`${userId}/profile.jpg`);
+
+console.log("Public URL:", publicUrl);
+
+// Use the URL in an image component
+const ImageComponent = () => <img src={publicUrl} alt="Profile" />;
 ```
 
-## Transactions
+### Uploading Files
 
-Use transactions to execute multiple operations as a single unit:
+Upload files to storage buckets:
 
-```typescript
-try {
-  // Execute multiple operations in a transaction
-  const result = await client.transaction(async (trx) => {
-    // Create a user
-    const { data: user } = await trx.from("users").insert({
-      email: "user@example.com",
-      first_name: "John",
-      last_name: "Doe",
-    });
-
-    // Create a profile for the user
-    const { data: profile } = await trx.from("profiles").insert({
-      user_id: user[0].id,
-      bio: "New user bio",
-    });
-
-    return { user, profile };
+```javascript
+// Basic file upload
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("documents")
+  .upload("reports/quarterly.pdf", fileData, {
+    contentType: "application/pdf",
+    upsert: true,
   });
 
-  console.log("Transaction completed successfully:", result);
-} catch (error) {
-  console.error("Transaction failed:", error);
-  // All changes will be rolled back automatically
+// Upload an image file
+const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
+const fileName = `profile-${Date.now()}.${fileExt}`;
+const filePath = `${userId}/${fileName}`;
+
+// Upload using base64 data (common in React Native)
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("profile-images")
+  .upload(filePath, base64Data, {
+    contentType: `image/${fileExt}`,
+    upsert: true,
+  });
+```
+
+### Downloading Files
+
+Download files from storage buckets:
+
+```javascript
+// Download a file
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("documents")
+  .download("reports/quarterly.pdf");
+
+if (!error) {
+  // data contains the file blob
+  // In a browser, you can create a download link:
+  const url = URL.createObjectURL(data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "quarterly-report.pdf";
+  a.click();
+  URL.revokeObjectURL(url);
 }
+
+// Download an image with transformations
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("images")
+  .download("photos/landscape.jpg", {
+    transform: {
+      width: 800,
+      height: 600,
+      quality: 80,
+    },
+  });
+```
+
+### Managing Files
+
+Perform other operations on files:
+
+```javascript
+// List files in a directory
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("documents")
+  .list("reports");
+
+// Move a file
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("documents")
+  .move("old-path/file.pdf", "new-path/file.pdf");
+
+// Copy a file
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("documents")
+  .copy("original/file.pdf", "backup/file.pdf");
+
+// Delete files
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .storage.from("documents")
+  .remove(["file1.pdf", "file2.pdf"]);
 ```
 
 ## Error Handling
 
-The SDK provides consistent error handling patterns:
+All SDK methods return a standardized response object that includes data and error properties, making it easy to handle errors:
 
-```typescript
+```javascript
+// Basic error handling
+const response = await saintcentral.withAuth(token).from("users").select("*").get();
+
+if (response.error) {
+  console.error("Error fetching users:", response.error.message);
+  // Handle the error appropriately
+} else {
+  // Process the data
+  const users = response.data;
+}
+
+// Using try/catch for more comprehensive error handling
 try {
-  const { data, error } = await client.from("users").select().get();
+  const response = await saintcentral.withAuth(token).from("users").select("*").get();
 
-  if (error) {
-    console.error("Error fetching users:", error.message);
-    return;
+  if (response.error) {
+    throw new Error(response.error.message);
   }
 
-  // Process data
-  console.log("Users:", data);
-} catch (e) {
-  console.error("Unexpected error:", e);
+  // Process the successful response
+  const users = response.data;
+} catch (err) {
+  console.error("Error in API call:", err);
+  // Show user-friendly error message
+  Alert.alert("Error", "Failed to load users. Please try again later.");
 }
 ```
 
-## Type Safety
+## Advanced Usage
 
-SaintCentral SDK provides strong TypeScript support:
+### Transactions
+
+For operations that need to be performed as a unit:
+
+```javascript
+// Start a transaction
+const transaction = saintcentral.withAuth(token).transaction();
+
+try {
+  // Add operations to the transaction
+  transaction.insert("orders", { user_id: userId, total: 100 });
+  transaction.update("inventory", { quantity: 5 }, { product_id: 123 });
+
+  // Commit the transaction
+  const { data, error } = await transaction.commit();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  console.log("Transaction successful:", data);
+} catch (err) {
+  console.error("Transaction failed:", err);
+}
+```
+
+### Custom Queries
+
+For more complex database operations:
+
+```javascript
+// Execute a custom query
+const { data, error } = await saintcentral
+  .withAuth(token)
+  .rpc("calculate_user_stats", { user_id: userId });
+
+// Execute a raw SQL query (if supported by your API)
+const { data, error } = await saintcentral.withAuth(token).query(`
+    SELECT users.id, COUNT(posts.id) as post_count
+    FROM users
+    LEFT JOIN posts ON users.id = posts.user_id
+    GROUP BY users.id
+  `);
+```
+
+### Realtime Subscriptions
+
+Subscribe to realtime changes if supported by your API:
+
+```javascript
+// Subscribe to changes on a table
+const subscription = saintcentral
+  .withAuth(token)
+  .from("messages")
+  .on("INSERT", (payload) => {
+    console.log("New message:", payload.new);
+    // Update UI with new message
+  })
+  .subscribe();
+
+// Later, unsubscribe when no longer needed
+subscription.unsubscribe();
+```
+
+## TypeScript Support
+
+The SDK includes TypeScript declarations to provide type safety:
 
 ```typescript
-// Define your table types
+// Define types for your data models
 interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  created_at: string;
+  first_name?: string;
+  last_name?: string;
+  created_at?: string;
+  updated_at?: string;
+  profile_image?: string;
+  denomination?: string;
 }
 
-interface Post {
-  id: string;
-  title: string;
-  content: string;
-  user_id: string;
-  created_at: string;
-}
+// Use with TypeScript
+const fetchUsers = async (token: string): Promise<User[]> => {
+  const response = await saintcentral.withAuth(token).from<User>("users").select("*").get();
 
-// Use type-safe queries
-const { data: users } = await client.from<User>("users").select().get<User[]>();
+  if (response.error) {
+    throw new Error(response.error.message);
+  }
 
-// TypeScript knows these properties exist
-if (users) {
-  const names = users.map((user) => `${user.first_name} ${user.last_name}`);
-}
+  return response.data || [];
+};
 
-// Type-safe joins
-const { data: userPosts } = await client
-  .from<User>("users")
-  .select(["id", "first_name", "last_name"])
-  .join<Post>("posts", {
-    foreignKey: "user_id",
-    primaryKey: "id",
-    columns: ["id", "title", "content"],
-  })
-  .get();
+// Type-safe usage with specific fields
+const fetchUserProfiles = async (token: string) => {
+  const response = await saintcentral
+    .withAuth(token)
+    .from<User>("users")
+    .select("id, first_name, last_name, profile_image")
+    .get();
+
+  return response;
+};
 ```
 
-## Security Features
+## Complete Examples
 
-SaintCentral SDK includes several security features:
+### User Profile Management
 
-### Automatic Owner-Only Restrictions
+```javascript
+// Fetch user profile
+const fetchUserProfile = async (session) => {
+  try {
+    if (!session?.access_token) {
+      throw new Error("No authentication token available");
+    }
 
-Configured tables with `ownerOnly: true` automatically restrict data access to the authenticated user's own records.
+    const response = await saintcentral
+      .withAuth(session.access_token)
+      .from("users")
+      .select("id, email, first_name, last_name, profile_image, denomination")
+      .single()
+      .get();
 
-### Column-Level Permissions
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
 
-Tables can be configured with `allowedColumns` to restrict which fields users can access.
+    return response.data;
+  } catch (err) {
+    console.error("Error fetching profile:", err);
+    throw err;
+  }
+};
 
-### Role-Based Access Control
+// Update user profile
+const updateUserProfile = async (session, profileData) => {
+  try {
+    if (!session?.access_token) {
+      throw new Error("No authentication token available");
+    }
 
-The backend enforces role-based permissions when configured with `requiredRole`.
+    const response = await saintcentral.withAuth(session.access_token).update(
+      "users",
+      {
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        denomination: profileData.denomination,
+        updated_at: new Date().toISOString(),
+      },
+      { id: session.user.id },
+    );
 
-### Self-Table Restrictions
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
 
-Special case for tables like "users" where the ID field matches the user's own ID.
+    return response.data[0]; // First updated record
+  } catch (err) {
+    console.error("Error updating profile:", err);
+    throw err;
+  }
+};
 
-## API Reference
+// Upload a profile image
+const uploadProfileImage = async (session, imageUri) => {
+  try {
+    if (!session?.access_token) {
+      throw new Error("No authentication token available");
+    }
 
-### Client Methods
+    // Get file extension
+    const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
+    const fileName = `profile-${Date.now()}.${fileExt}`;
+    const filePath = `${session.user.id}/${fileName}`;
 
-| Method                  | Description                                         |
-| ----------------------- | --------------------------------------------------- |
-| `auth(token)`           | Set authentication token                            |
-| `withAuth(session)`     | Create authenticated instance from Supabase session |
-| `withoutAuth()`         | Create instance without authentication              |
-| `from(table)`           | Start a query for the specified table               |
-| `transaction(callback)` | Execute operations in a transaction                 |
+    // Convert image to base64 (this part depends on your platform)
+    const base64Data = await convertImageToBase64(imageUri);
 
-### Query Builder Methods
+    // Upload the image
+    const { error: uploadError } = await saintcentral
+      .withAuth(session.access_token)
+      .storage.from("profile-images")
+      .upload(filePath, base64Data, {
+        contentType: `image/${fileExt}`,
+        upsert: true,
+      });
 
-| Method                   | Description                      |
-| ------------------------ | -------------------------------- |
-| `select(columns?)`       | Select columns (string or array) |
-| `get()`                  | Execute SELECT query (GET)       |
-| `execute()`              | Execute SELECT query (POST)      |
-| `insert(data)`           | Insert data                      |
-| `upsert(data, options?)` | Insert or update data            |
-| `update(data)`           | Update data                      |
-| `delete()`               | Delete data                      |
-| `single()`               | Return a single result           |
-| `count()`                | Count matching records           |
+    if (uploadError) {
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
 
-### Filter Methods
+    // Get the public URL
+    const publicUrl = saintcentral.storage.from("profile-images").getPublicUrl(filePath);
 
-| Method                                | Description                      |
-| ------------------------------------- | -------------------------------- |
-| `eq(column, value)`                   | Equal to                         |
-| `neq(column, value)`                  | Not equal to                     |
-| `gt(column, value)`                   | Greater than                     |
-| `gte(column, value)`                  | Greater than or equal            |
-| `lt(column, value)`                   | Less than                        |
-| `lte(column, value)`                  | Less than or equal               |
-| `like(column, value)`                 | LIKE pattern (case-sensitive)    |
-| `ilike(column, value)`                | ILIKE pattern (case-insensitive) |
-| `is(column, value)`                   | IS comparison (for null)         |
-| `in(column, values)`                  | IN values                        |
-| `contains(column, values)`            | Array contains                   |
-| `containedBy(column, values)`         | Array is contained by            |
-| `textSearch(column, query, options?)` | Full-text search                 |
-| `filter(column, operator, value)`     | Custom filter                    |
+    // Update user profile with the new image URL
+    const response = await saintcentral.withAuth(session.access_token).update(
+      "users",
+      {
+        profile_image: publicUrl,
+        updated_at: new Date().toISOString(),
+      },
+      { id: session.user.id },
+    );
 
-### Join Methods
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
 
-| Method                     | Description |
-| -------------------------- | ----------- |
-| `join(table, config)`      | Inner join  |
-| `leftJoin(table, config)`  | Left join   |
-| `rightJoin(table, config)` | Right join  |
+    return {
+      imageUrl: publicUrl,
+      profile: response.data[0],
+    };
+  } catch (err) {
+    console.error("Error uploading profile image:", err);
+    throw err;
+  }
+};
+```
 
-### Pagination and Ordering
+### Blog Post Management
 
-| Method                    | Description            |
-| ------------------------- | ---------------------- |
-| `limit(value)`            | Limit results          |
-| `offset(value)`           | Offset results         |
-| `range(from, to)`         | Range-based pagination |
-| `order(column, options?)` | Order results          |
+```javascript
+// Fetch posts with pagination
+const fetchPosts = async (token, page = 1, pageSize = 10) => {
+  try {
+    const offset = (page - 1) * pageSize;
+
+    const response = await saintcentral
+      .withAuth(token)
+      .from("posts")
+      .select("id, title, content, created_at, user_id")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1)
+      .get();
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    // Also get the total count
+    const countResponse = await saintcentral
+      .withAuth(token)
+      .from("posts")
+      .select("id")
+      .count()
+      .get();
+
+    return {
+      posts: response.data,
+      totalCount: countResponse.count,
+      page,
+      pageSize,
+      totalPages: Math.ceil(countResponse.count / pageSize),
+    };
+  } catch (err) {
+    console.error("Error fetching posts:", err);
+    throw err;
+  }
+};
+
+// Create a new post
+const createPost = async (token, postData) => {
+  try {
+    const response = await saintcentral.withAuth(token).insert("posts", {
+      title: postData.title,
+      content: postData.content,
+      user_id: postData.userId,
+      created_at: new Date().toISOString(),
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    return response.data[0];
+  } catch (err) {
+    console.error("Error creating post:", err);
+    throw err;
+  }
+};
+
+// Upload an image for a post
+const uploadPostImage = async (token, postId, imageUri) => {
+  try {
+    // Get file extension
+    const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
+    const fileName = `post-${postId}-${Date.now()}.${fileExt}`;
+    const filePath = `posts/${postId}/${fileName}`;
+
+    // Convert image to base64 (this part depends on your platform)
+    const base64Data = await convertImageToBase64(imageUri);
+
+    // Upload the image
+    const { error: uploadError } = await saintcentral
+      .withAuth(token)
+      .storage.from("post-images")
+      .upload(filePath, base64Data, {
+        contentType: `image/${fileExt}`,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
+
+    // Get the public URL
+    const publicUrl = saintcentral.storage.from("post-images").getPublicUrl(filePath);
+
+    // Update the post with the image URL
+    const response = await saintcentral.withAuth(token).update(
+      "posts",
+      {
+        image_url: publicUrl,
+        updated_at: new Date().toISOString(),
+      },
+      { id: postId },
+    );
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    return {
+      imageUrl: publicUrl,
+      post: response.data[0],
+    };
+  } catch (err) {
+    console.error("Error uploading post image:", err);
+    throw err;
+  }
+};
+```
+
+### React Component Example
+
+```jsx
+import React, { useState, useEffect } from "react";
+import { View, Text, Image, ActivityIndicator, FlatList, StyleSheet } from "react-native";
+import saintcentral from "saintcentral";
+import { useAuth } from "./AuthContext"; // Your auth context
+
+const UserList = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { session } = useAuth();
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!session) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await saintcentral
+          .withAuth(session.access_token)
+          .from("users")
+          .select("id, first_name, last_name, profile_image")
+          .get();
+
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+
+        setUsers(response.data || []);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [session]);
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3A86FF" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.error}>Error: {error}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={users}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <View style={styles.userCard}>
+          {item.profile_image ? (
+            <Image source={{ uri: item.profile_image }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>
+                {`${item.first_name?.[0] || ""}${item.last_name?.[0] || ""}`}
+              </Text>
+            </View>
+          )}
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>
+              {item.first_name} {item.last_name}
+            </Text>
+            <Text style={styles.userId}>ID: {item.id}</Text>
+          </View>
+        </View>
+      )}
+    />
+  );
+};
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  error: {
+    color: "red",
+    fontSize: 16,
+  },
+  userCard: {
+    flexDirection: "row",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#3A86FF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  userInfo: {
+    marginLeft: 15,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  userId: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
+  },
+});
+
+export default UserList;
+```

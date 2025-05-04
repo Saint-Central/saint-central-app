@@ -1,83 +1,188 @@
 # SaintCentral Table Configuration
 
-## Overview
-
-The `tableConfig` module defines the configuration for all database tables accessible through the SaintCentral API. It implements an access control system that enforces permissions at the API level, ensuring data security and integrity. This documentation explains how to configure and use the table permission system.
+This document provides guidance on configuring database tables for the SaintCentral API, including permissions, access controls, and security best practices.
 
 ## Table of Contents
 
-1. [Core Components](#core-components)
-2. [Permission Settings](#permission-settings)
-3. [Special Permission Cases](#special-permission-cases)
-4. [How Permissions Are Applied](#how-permissions-are-applied)
-5. [Adding New Tables](#adding-new-tables)
-6. [Example Configurations](#example-configurations)
+- [Introduction](#introduction)
+- [Table Configuration Structure](#table-configuration-structure)
+- [Allowed Tables](#allowed-tables)
+- [Table Permissions](#table-permissions)
+- [Owner-Based Access Control](#owner-based-access-control)
+- [Column Restrictions](#column-restrictions)
+- [Operation Restrictions](#operation-restrictions)
+- [Forced Conditions](#forced-conditions)
+- [Role-Based Access](#role-based-access)
+- [Configuration Examples](#configuration-examples)
+- [Best Practices](#best-practices)
 
-## Core Components
+## Introduction
 
-The `tableConfig` module consists of two main exports:
+SaintCentral uses a configuration-based approach to define which database tables can be accessed through the API and what operations can be performed on them. This configuration system is the first layer of defense in your data security strategy, working alongside Row Level Security (RLS) policies in Supabase.
 
-### ALLOWED_TABLES
+The table configuration system serves several key purposes:
 
-A simple array of strings that lists all table names that can be accessed through the API:
+1. **Access Control**: Define which tables can be accessed via the API
+2. **Operation Control**: Limit which operations (select, insert, update, delete) are allowed on each table
+3. **Data Isolation**: Implement owner-based access control to ensure users can only access their own data
+4. **Field Restriction**: Control which columns can be accessed on each table
+5. **Conditional Access**: Enforce specific query conditions that must be applied
 
-```typescript
+## Table Configuration Structure
+
+Table configurations are defined in the `tableConfig.ts` file, which contains two main exports:
+
+1. `ALLOWED_TABLES`: An array of table names that can be accessed via the API
+2. `TABLE_PERMISSIONS`: A map of tables to their permission settings
+
+## Allowed Tables
+
+The `ALLOWED_TABLES` array defines which tables can be accessed through the API:
+
+```javascript
 export const ALLOWED_TABLES = [
   // User-related tables
   "users",
-  // Add other tables here
+  "service_times",
+  "church_members",
+  "churches",
+  // Add other tables as needed
 ];
 ```
 
-Any table not listed in this array cannot be accessed via the API, regardless of other permissions.
+Any table not included in this list cannot be accessed via the API, regardless of database permissions.
 
-### TABLE_PERMISSIONS
+## Table Permissions
 
-A detailed configuration object that defines specific permissions for each table:
+The `TABLE_PERMISSIONS` object defines detailed permission settings for each table:
 
-```typescript
+```javascript
 export const TABLE_PERMISSIONS: Record<
   string,
   {
+    // If true, user can only access their own data
     ownerOnly?: boolean;
+
+    // The column name that identifies the owner (defaults to "user_id")
     ownerIdColumn?: string;
+
+    // For special cases like the users table where the user's own ID is in the "id" field
     selfTable?: boolean;
+
+    // If provided, restricts which columns can be selected
     allowedColumns?: string[];
+
+    // If provided, enforces specific conditions that must be applied
     forceConditions?: Record<string, any>;
+
+    // Required role to access this table (if any)
     requiredRole?: string;
+
+    // Operations allowed on this table
     operations?: ("select" | "insert" | "update" | "delete")[];
+
+    // Description of the table for documentation
     description?: string;
   }
 > = {
-  // Table configurations here
+  // Table configurations go here
 };
 ```
 
-## Permission Settings
+## Owner-Based Access Control
 
-Each table can have the following permission settings:
+Owner-based access control restricts users to only accessing their own data. This is configured using the `ownerOnly` and `ownerIdColumn` properties:
 
-| Setting           | Type     | Default        | Description                                                                    |
-| ----------------- | -------- | -------------- | ------------------------------------------------------------------------------ |
-| `ownerOnly`       | boolean  | `false`        | When `true`, users can only access their own data                              |
-| `ownerIdColumn`   | string   | `"user_id"`    | The column name that identifies the data owner                                 |
-| `selfTable`       | boolean  | `false`        | For special cases like the users table where the owner's ID is the primary key |
-| `allowedColumns`  | string[] | all columns    | Restricts which columns can be selected/updated                                |
-| `forceConditions` | object   | none           | Conditions that are always applied to queries                                  |
-| `requiredRole`    | string   | none           | Role required to access this table (e.g., "admin")                             |
-| `operations`      | array    | all operations | Allowed operations: "select", "insert", "update", "delete"                     |
-| `description`     | string   | none           | Human-readable description of the table's purpose                              |
-
-## Special Permission Cases
-
-### User Table (Self Table)
-
-The `users` table uses the `selfTable: true` setting because the user's identity is stored in the primary key field (`id`) rather than a separate foreign key like `user_id`:
-
-```typescript
-users: {
+```javascript
+"posts": {
   ownerOnly: true,
-  selfTable: true,
+  ownerIdColumn: "author_id", // Default is "user_id" if not specified
+  // Other settings...
+}
+```
+
+When `ownerOnly` is set to `true`, the API automatically adds a filter condition to ensure users can only access their own data.
+
+### Self Tables
+
+Some tables, like the `users` table, are special because the user's ID is stored in the primary key field rather than a foreign key. For these tables, use the `selfTable` property:
+
+```javascript
+"users": {
+  ownerOnly: true,
+  selfTable: true, // User's ID is in the "id" field
+  // Other settings...
+}
+```
+
+## Column Restrictions
+
+You can restrict which columns can be accessed on each table using the `allowedColumns` property:
+
+```javascript
+"users": {
+  allowedColumns: [
+    "id",
+    "email",
+    "first_name",
+    "last_name",
+    "profile_image",
+  ],
+  // Other settings...
+}
+```
+
+When `allowedColumns` is specified, attempts to access other columns will be rejected, even if the database would allow it.
+
+## Operation Restrictions
+
+Control which operations (select, insert, update, delete) are allowed on each table using the `operations` property:
+
+```javascript
+"audit_logs": {
+  operations: ["select", "insert"], // Only allow select and insert
+  // Other settings...
+}
+```
+
+If `operations` is not specified, all operations are allowed (subject to other permission checks).
+
+## Forced Conditions
+
+You can enforce specific query conditions that must be applied for all operations on a table using the `forceConditions` property:
+
+```javascript
+"posts": {
+  forceConditions: {
+    "status": "published" // Only allow access to published posts
+  },
+  // Other settings...
+}
+```
+
+These conditions are automatically added to all queries, regardless of the conditions specified by the client.
+
+## Role-Based Access
+
+Control access based on user roles using the `requiredRole` property:
+
+```javascript
+"admin_settings": {
+  requiredRole: "admin", // Only users with admin role can access
+  // Other settings...
+}
+```
+
+When `requiredRole` is specified, only users with that role will be granted access to the table.
+
+## Configuration Examples
+
+### User Table Example
+
+```javascript
+"users": {
+  ownerOnly: true,
+  selfTable: true, // User's ID is in the "id" field
   allowedColumns: [
     "id",
     "email",
@@ -94,110 +199,89 @@ users: {
 }
 ```
 
-With these settings:
+### Posts Table Example
 
-- Users can only access their own profile (`ownerOnly: true`)
-- The system knows to filter by the `id` column instead of `user_id` (`selfTable: true`)
-- Only the listed columns are accessible
-- Only select and update operations are allowed (insert and delete are prohibited)
-
-### Friendship Tables (Bidirectional Relationships)
-
-For tables that represent bidirectional relationships (like friendships), a special configuration can be used:
-
-```typescript
-friends: {
-  ownerOnly: true,
-  ownerIdColumn: "special_friendship",
-  operations: ["select", "insert", "delete"],
-  description: "User friendships"
-}
-```
-
-When `ownerIdColumn` is set to `"special_friendship"`, the system automatically checks for the user's ID in either the `user_id_1` or `user_id_2` columns, allowing access to friendship records where the user appears on either side of the relationship.
-
-## How Permissions Are Applied
-
-When a request is made through the SaintCentral SDK, the following checks are applied in order:
-
-1. **Table Access**: Is the table in the `ALLOWED_TABLES` list?
-2. **Operation Permission**: Is the requested operation (select/insert/update/delete) allowed for this table?
-3. **Authentication**: For protected tables, is the user authenticated?
-4. **Role Check**: If `requiredRole` is set, does the user have this role?
-5. **Owner Filter**: If `ownerOnly` is true, queries are automatically filtered to show only the user's data
-6. **Column Access**: If `allowedColumns` is set, other columns cannot be accessed
-7. **Forced Conditions**: If `forceConditions` is set, these conditions are always applied to any query
-
-## Adding New Tables
-
-To add a new table to the system:
-
-1. Add the table name to the `ALLOWED_TABLES` array
-2. Add a configuration entry to the `TABLE_PERMISSIONS` object
-
-Example for adding a "posts" table:
-
-```typescript
-// In ALLOWED_TABLES array
-"posts",
-
-// In TABLE_PERMISSIONS object
-posts: {
+```javascript
+"posts": {
   ownerOnly: true, // Users can only access their own posts
+  ownerIdColumn: "author_id", // Column containing the user ID
   allowedColumns: [
     "id",
-    "user_id",
     "title",
     "content",
     "created_at",
     "updated_at",
-    "status"
+    "author_id",
+    "status",
+    "image_url",
   ],
-  operations: ["select", "insert", "update", "delete"], // All operations allowed
-  description: "User blog posts"
+  operations: ["select", "insert", "update", "delete"],
+  description: "Blog posts created by users",
 }
 ```
 
-## Example Configurations
+### Public Content Table Example
 
-### Public Read-Only Table
-
-```typescript
-products: {
-  ownerOnly: false, // Anyone can access
+```javascript
+"news_articles": {
+  ownerOnly: false, // Everyone can access all news articles
+  allowedColumns: [
+    "id",
+    "title",
+    "content",
+    "published_at",
+    "author_name",
+    "image_url",
+  ],
+  forceConditions: {
+    "status": "published", // Only published articles are accessible
+  },
   operations: ["select"], // Read-only
-  description: "Product catalog"
+  description: "Public news articles",
 }
 ```
 
-### Admin-Only Table
+### Admin-Only Table Example
 
-```typescript
-site_settings: {
+```javascript
+"system_settings": {
+  ownerOnly: false,
   requiredRole: "admin", // Only admins can access
-  operations: ["select", "update"], // Read and update only
-  description: "Site configuration settings"
+  operations: ["select", "update"],
+  description: "System-wide settings",
 }
 ```
 
-### Table With Forced Conditions
+## Best Practices
 
-```typescript
-articles: {
-  ownerOnly: false, // Anyone can access
-  forceConditions: { status: "published" }, // Only published articles are accessible
-  operations: ["select"],
-  description: "Published articles"
-}
-```
+Follow these best practices when configuring tables:
 
-### User Content With Moderation
+### Principle of Least Privilege
 
-```typescript
-comments: {
-  ownerOnly: true, // Users can only see their own comments
-  allowedColumns: ["id", "user_id", "post_id", "content", "created_at", "status"],
-  operations: ["select", "insert", "update"], // No delete
-  description: "User comments on posts"
-}
-```
+- ✅ Only allow the minimum required tables in `ALLOWED_TABLES`
+- ✅ Only expose the necessary columns in `allowedColumns`
+- ✅ Only permit required operations in `operations`
+- ✅ Use `ownerOnly: true` whenever possible
+- ❌ Don't allow access to sensitive system tables
+
+### Data Isolation
+
+- ✅ Use `ownerOnly: true` with a proper `ownerIdColumn`
+- ✅ Implement `forceConditions` to further restrict access
+- ✅ Use `requiredRole` for role-based permissions
+- ❌ Don't rely solely on client-side filtering
+
+### Defensive Configuration
+
+- ✅ Always specify `allowedColumns` to prevent data leakage
+- ✅ Always specify `operations` to prevent unwanted modifications
+- ✅ Add descriptive `description` for documentation
+- ✅ Prefer denying access by default, then explicitly allowing it
+- ❌ Don't assume defaults will be secure
+
+### Layered Security
+
+- ✅ Combine table configuration with Supabase RLS policies
+- ✅ Implement additional validation in your API handlers
+- ✅ Review configurations when data models change
+- ❌ Don't rely on a single layer of security
