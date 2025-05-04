@@ -1,10 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Env } from "../index";
 import { securityMiddleware, createResponse, validateInput } from "./security";
-import {
-  validateInput as validateClientInput,
-  sanitizeInput as sanitizeClientInput,
-} from "../shared/securityUtils";
 import { ALLOWED_TABLES, TABLE_PERMISSIONS } from "../shared/tableConfig";
 
 // Type definitions for operation type
@@ -155,25 +151,25 @@ export async function handleDataRequest(request: Request, env: Env): Promise<Res
     // Route to the appropriate handler
     switch (action) {
       case "select":
-        return handleSelect(request, env);
+        return handleSelect(request, env, security.userId);
 
       case "insert":
-        return handleInsert(request, env);
+        return handleInsert(request, env, security.userId);
 
       case "update":
-        return handleUpdate(request, env);
+        return handleUpdate(request, env, security.userId);
 
       case "delete":
-        return handleDelete(request, env);
+        return handleDelete(request, env, security.userId);
 
       case "upsert":
-        return handleUpsert(request, env);
+        return handleUpsert(request, env, security.userId);
 
       case "count":
-        return handleCount(request, env);
+        return handleCount(request, env, security.userId);
 
       case "query":
-        return handleRawQuery(request, env);
+        return handleRawQuery(request, env, security.userId);
 
       default:
         return createResponse({ error: "Unknown data action" }, 400);
@@ -191,9 +187,109 @@ export async function handleDataRequest(request: Request, env: Env): Promise<Res
 }
 
 /**
+ * Validate table permissions for a given operation
+ */
+function validateTablePermissions(
+  table: string,
+  operation: OperationType,
+  userId?: string,
+): { isValid: boolean; error?: string } {
+  // Check if table is in the allowed tables list
+  if (!ALLOWED_TABLES.includes(table)) {
+    return {
+      isValid: false,
+      error: `Table '${table}' is not accessible via API`,
+    };
+  }
+
+  // Get table permissions configuration
+  const tableConfig = TABLE_PERMISSIONS[table];
+  if (!tableConfig) {
+    return {
+      isValid: false,
+      error: `No permission configuration found for table '${table}'`,
+    };
+  }
+
+  // Check if operation is allowed for this table
+  if (tableConfig.operations && !tableConfig.operations.includes(operation as any)) {
+    return {
+      isValid: false,
+      error: `Operation '${operation}' is not allowed on table '${table}'`,
+    };
+  }
+
+  // Check if owner-only and user id is present
+  if (tableConfig.ownerOnly && !userId) {
+    return {
+      isValid: false,
+      error: "Authentication required for accessing this table",
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Apply permission filters to a query based on table config
+ */
+function applyPermissionFilters(query: any, table: string, userId?: string): any {
+  const tableConfig = TABLE_PERMISSIONS[table];
+
+  // If no config or not owner-only, return unmodified query
+  if (!tableConfig) return query;
+
+  // Apply owner-only restriction if configured
+  if (tableConfig.ownerOnly && userId) {
+    if (tableConfig.selfTable) {
+      // For tables like 'users' where the user's ID is in the 'id' column
+      query = query.eq("id", userId);
+    } else {
+      // For normal tables with a user_id or custom owner column
+      const ownerColumn = tableConfig.ownerIdColumn || "user_id";
+      query = query.eq(ownerColumn, userId);
+    }
+  }
+
+  // Apply forced conditions if present
+  if (tableConfig.forceConditions) {
+    Object.entries(tableConfig.forceConditions).forEach(([column, value]) => {
+      query = query.eq(column, value);
+    });
+  }
+
+  return query;
+}
+
+/**
+ * Filter columns based on table permissions
+ */
+function filterAllowedColumns(table: string, columns: string | string[]): string | string[] {
+  const tableConfig = TABLE_PERMISSIONS[table];
+
+  // If no allowed columns specified, return original
+  if (!tableConfig || !tableConfig.allowedColumns) return columns;
+
+  // For '*' case, return all allowed columns
+  if (columns === "*") {
+    return tableConfig.allowedColumns;
+  }
+
+  // For array of columns, filter to only allowed ones
+  if (Array.isArray(columns)) {
+    return columns.filter((col) => tableConfig.allowedColumns!.includes(col));
+  }
+
+  // For comma-separated string of columns
+  const columnsList = columns.split(",").map((c) => c.trim());
+  const filteredColumns = columnsList.filter((col) => tableConfig.allowedColumns!.includes(col));
+  return filteredColumns.join(",");
+}
+
+/**
  * Handle select operations
  */
-async function handleSelect(request: Request, env: Env): Promise<Response> {
+async function handleSelect(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -214,11 +310,28 @@ async function handleSelect(request: Request, env: Env): Promise<Response> {
       return createResponse({ error: tableValidation.error }, 400);
     }
 
+    // Validate table permissions
+    const permissionCheck = validateTablePermissions(tableValidation.value, "select", userId);
+    if (!permissionCheck.isValid) {
+      return createResponse({ error: permissionCheck.error }, 403);
+    }
+
     // Initialize Supabase client
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
+    // Filter columns based on allowed columns
+    let columns: string | string[] = filterAllowedColumns(
+      tableValidation.value,
+      params.select || "*",
+    );
+
     // Start building the query
-    let query = supabase.from(tableValidation.value).select(params.select || "*");
+    let query = supabase
+      .from(tableValidation.value)
+      .select(typeof columns === "string" ? columns : columns.join(","));
+
+    // Apply permission filters (e.g., owner-only restrictions)
+    query = applyPermissionFilters(query, tableValidation.value, userId);
 
     // Apply filters if specified
     if (params.filter) {
@@ -273,7 +386,7 @@ async function handleSelect(request: Request, env: Env): Promise<Response> {
 /**
  * Handle insert operations
  */
-async function handleInsert(request: Request, env: Env): Promise<Response> {
+async function handleInsert(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "POST") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -288,8 +401,29 @@ async function handleInsert(request: Request, env: Env): Promise<Response> {
       return createResponse({ error: tableValidation.error }, 400);
     }
 
+    // Validate table permissions
+    const permissionCheck = validateTablePermissions(tableValidation.value, "insert", userId);
+    if (!permissionCheck.isValid) {
+      return createResponse({ error: permissionCheck.error }, 403);
+    }
+
     if (!params.values || (Array.isArray(params.values) && params.values.length === 0)) {
       return createResponse({ error: "Values to insert are required" }, 400);
+    }
+
+    // Add owner ID for owner-only tables if applicable
+    const tableConfig = TABLE_PERMISSIONS[tableValidation.value];
+    const values = Array.isArray(params.values) ? params.values : [params.values];
+
+    if (tableConfig && tableConfig.ownerOnly && userId) {
+      const ownerColumn = tableConfig.ownerIdColumn || "user_id";
+
+      // Add owner ID to each record
+      values.forEach((record: Record<string, any>) => {
+        if (!record[ownerColumn]) {
+          record[ownerColumn] = userId;
+        }
+      });
     }
 
     // Initialize Supabase client
@@ -307,7 +441,7 @@ async function handleInsert(request: Request, env: Env): Promise<Response> {
     // Execute the insert - only pass options if they're supported by the client
     const { data, error, count } = await supabase
       .from(tableValidation.value)
-      .insert(params.values, options);
+      .insert(values, options);
 
     if (error) {
       return createResponse({ error: error.message }, 400);
@@ -323,7 +457,7 @@ async function handleInsert(request: Request, env: Env): Promise<Response> {
 /**
  * Handle update operations
  */
-async function handleUpdate(request: Request, env: Env): Promise<Response> {
+async function handleUpdate(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "POST" && request.method !== "PUT" && request.method !== "PATCH") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -336,6 +470,12 @@ async function handleUpdate(request: Request, env: Env): Promise<Response> {
 
     if (!tableValidation.isValid) {
       return createResponse({ error: tableValidation.error }, 400);
+    }
+
+    // Validate table permissions
+    const permissionCheck = validateTablePermissions(tableValidation.value, "update", userId);
+    if (!permissionCheck.isValid) {
+      return createResponse({ error: permissionCheck.error }, 403);
     }
 
     if (!params.values) {
@@ -356,6 +496,9 @@ async function handleUpdate(request: Request, env: Env): Promise<Response> {
 
     // Start building the query
     let query = supabase.from(tableValidation.value).update(params.values, options);
+
+    // Apply permission filters (e.g., owner-only restrictions)
+    query = applyPermissionFilters(query, tableValidation.value, userId);
 
     // Apply filters if specified (required for update)
     if (!params.filter) {
@@ -385,7 +528,7 @@ async function handleUpdate(request: Request, env: Env): Promise<Response> {
 /**
  * Handle delete operations
  */
-async function handleDelete(request: Request, env: Env): Promise<Response> {
+async function handleDelete(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "DELETE" && request.method !== "POST") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -406,6 +549,12 @@ async function handleDelete(request: Request, env: Env): Promise<Response> {
       return createResponse({ error: tableValidation.error }, 400);
     }
 
+    // Validate table permissions
+    const permissionCheck = validateTablePermissions(tableValidation.value, "delete", userId);
+    if (!permissionCheck.isValid) {
+      return createResponse({ error: permissionCheck.error }, 403);
+    }
+
     // Initialize Supabase client
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -420,6 +569,9 @@ async function handleDelete(request: Request, env: Env): Promise<Response> {
 
     // Start building the query
     let query = supabase.from(tableValidation.value).delete(options);
+
+    // Apply permission filters (e.g., owner-only restrictions)
+    query = applyPermissionFilters(query, tableValidation.value, userId);
 
     // Apply filters if specified (required for delete)
     if (!params.filter) {
@@ -449,7 +601,7 @@ async function handleDelete(request: Request, env: Env): Promise<Response> {
 /**
  * Handle upsert operations
  */
-async function handleUpsert(request: Request, env: Env): Promise<Response> {
+async function handleUpsert(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "POST") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -464,8 +616,35 @@ async function handleUpsert(request: Request, env: Env): Promise<Response> {
       return createResponse({ error: tableValidation.error }, 400);
     }
 
+    // Validate table permissions - need both insert and update permissions
+    const insertCheck = validateTablePermissions(tableValidation.value, "insert", userId);
+    const updateCheck = validateTablePermissions(tableValidation.value, "update", userId);
+
+    if (!insertCheck.isValid) {
+      return createResponse({ error: insertCheck.error }, 403);
+    }
+
+    if (!updateCheck.isValid) {
+      return createResponse({ error: updateCheck.error }, 403);
+    }
+
     if (!params.values || (Array.isArray(params.values) && params.values.length === 0)) {
       return createResponse({ error: "Values to upsert are required" }, 400);
+    }
+
+    // Add owner ID for owner-only tables if applicable
+    const tableConfig = TABLE_PERMISSIONS[tableValidation.value];
+    const values = Array.isArray(params.values) ? params.values : [params.values];
+
+    if (tableConfig && tableConfig.ownerOnly && userId) {
+      const ownerColumn = tableConfig.ownerIdColumn || "user_id";
+
+      // Add owner ID to each record
+      values.forEach((record: Record<string, any>) => {
+        if (!record[ownerColumn]) {
+          record[ownerColumn] = userId;
+        }
+      });
     }
 
     // Initialize Supabase client
@@ -493,7 +672,7 @@ async function handleUpsert(request: Request, env: Env): Promise<Response> {
     // Execute the upsert
     const { data, error, count } = await supabase
       .from(tableValidation.value)
-      .upsert(params.values, options);
+      .upsert(values, options);
 
     if (error) {
       return createResponse({ error: error.message }, 400);
@@ -509,7 +688,7 @@ async function handleUpsert(request: Request, env: Env): Promise<Response> {
 /**
  * Handle count operations
  */
-async function handleCount(request: Request, env: Env): Promise<Response> {
+async function handleCount(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -530,11 +709,20 @@ async function handleCount(request: Request, env: Env): Promise<Response> {
       return createResponse({ error: tableValidation.error }, 400);
     }
 
+    // Validate table permissions
+    const permissionCheck = validateTablePermissions(tableValidation.value, "select", userId);
+    if (!permissionCheck.isValid) {
+      return createResponse({ error: permissionCheck.error }, 403);
+    }
+
     // Initialize Supabase client
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
     // Start building the query with count option
     let query = supabase.from(tableValidation.value).select("*", { count: "exact", head: true });
+
+    // Apply permission filters (e.g., owner-only restrictions)
+    query = applyPermissionFilters(query, tableValidation.value, userId);
 
     // Apply filters if specified
     if (params.filter) {
@@ -562,7 +750,7 @@ async function handleCount(request: Request, env: Env): Promise<Response> {
 /**
  * Handle raw query operations (with security restrictions)
  */
-async function handleRawQuery(request: Request, env: Env): Promise<Response> {
+async function handleRawQuery(request: Request, env: Env, userId?: string): Promise<Response> {
   if (request.method !== "POST") {
     return createResponse({ error: "Method not allowed" }, 405);
   }
@@ -573,6 +761,11 @@ async function handleRawQuery(request: Request, env: Env): Promise<Response> {
     // Validate required parameters
     if (!params.query) {
       return createResponse({ error: "SQL query is required" }, 400);
+    }
+
+    // Always require userId for raw SQL queries for security
+    if (!userId) {
+      return createResponse({ error: "Authentication required for raw queries" }, 401);
     }
 
     // Basic SQL injection protection
@@ -599,6 +792,21 @@ async function handleRawQuery(request: Request, env: Env): Promise<Response> {
           { error: "The query contains potentially dangerous operations" },
           403,
         );
+      }
+    }
+
+    // Additional check: make sure the query only accesses allowed tables
+    for (const table of ALLOWED_TABLES) {
+      const tablePattern = new RegExp(`\\b${table}\\b`, "i");
+      if (tablePattern.test(query)) {
+        // For each table found in the query, validate permissions
+        const permCheck = validateTablePermissions(table, "select", userId);
+        if (!permCheck.isValid) {
+          return createResponse(
+            { error: `Unauthorized access to table '${table}' in raw query` },
+            403,
+          );
+        }
       }
     }
 
