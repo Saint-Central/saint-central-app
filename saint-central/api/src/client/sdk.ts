@@ -379,7 +379,8 @@ class SaintCentral<T = any> {
   from<TableResult = any>(table: string): SaintCentral<TableResult> {
     // Security: Validate and sanitize table name input if enabled
     if (this.securityOptions.validateInputs) {
-      if (!validateInput(table, /^[a-zA-Z0-9_]+$/, 100)) {
+      const validation = validateInput(table, /^[a-zA-Z0-9_]+$/, { maxLength: 100 });
+      if (!validation.isValid) {
         throw new Error("Invalid table name format");
       }
       table = sanitizeInput(table);
@@ -1213,7 +1214,8 @@ class SaintCentral<T = any> {
    */
   private _validateColumnName(column: string): string {
     if (this.securityOptions.validateInputs) {
-      if (!validateInput(column, /^[a-zA-Z0-9_\.]+$/, 100)) {
+      const validation = validateInput(column, /^[a-zA-Z0-9_\.]+$/, { maxLength: 100 });
+      if (!validation.isValid) {
         throw new Error(`Invalid column name format: ${column}`);
       }
       return sanitizeInput(column);

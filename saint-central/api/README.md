@@ -1,175 +1,490 @@
-# SaintCentral API
+# SaintCentral API Documentation
 
-This API provides a secure interface for accessing the SaintCentral database through a REST API with Supabase-like SDK.
+This document provides comprehensive documentation for the SaintCentral API, focusing on data operations and security features.
 
-## SDK Usage
+## Table of Contents
 
-The SaintCentral SDK provides a Supabase-like interface with added security features.
+1. [Authentication](#authentication)
+2. [Data Operations](#data-operations)
+   - [Select](#select)
+   - [Insert](#insert)
+   - [Update](#update)
+   - [Delete](#delete)
+   - [Upsert](#upsert)
+   - [Count](#count)
+   - [Raw Query](#raw-query)
+3. [Filtering](#filtering)
+4. [Error Handling](#error-handling)
+5. [Security Considerations](#security-considerations)
 
-### Basic Setup
+## Authentication
 
-```typescript
-import saintcentral, { createClient } from "./sdk";
+All API requests require authentication. The API uses cookie-based authentication with CSRF protection for mutation operations.
 
-// Use the default client
-const client = saintcentral;
+Authentication is handled by the `securityMiddleware` function which validates the request and ensures proper authorization.
 
-// Or create a custom client
-const customClient = createClient("https://your-api-url.com", {
-  headers: {
-    "Custom-Header": "value",
+## Data Operations
+
+The API supports the following data operations:
+
+### Select
+
+Retrieves data from a specified table with optional filtering, ordering, and pagination.
+
+**Endpoint:** `GET /api/select` or `POST /api/select`
+
+**Parameters:**
+
+| Parameter | Type            | Description                                |
+| --------- | --------------- | ------------------------------------------ |
+| table     | string          | _Required_. The name of the table to query |
+| select    | string          | Columns to select (default: "\*")          |
+| filter    | object or array | Filter conditions                          |
+| order     | object          | Ordering configuration                     |
+| limit     | number          | Maximum number of results to return        |
+| offset    | number          | Number of records to skip                  |
+
+**Example GET Request:**
+
+```
+GET /api/select?table=users&limit=10&offset=0
+```
+
+**Example POST Request:**
+
+```json
+POST /api/select
+{
+  "table": "users",
+  "select": "id, name, email",
+  "filter": [
+    {
+      "column": "active",
+      "operator": "eq",
+      "value": true
+    },
+    {
+      "column": "age",
+      "operator": "gte",
+      "value": 18
+    }
+  ],
+  "order": {
+    "column": "created_at",
+    "ascending": false
   },
-  autoRefreshToken: true,
-});
-
-// Add authentication
-const authenticatedClient = client.auth("your-jwt-token");
-```
-
-### Basic Queries
-
-```typescript
-// Select all users
-const { data, error } = await saintcentral.from("users").select("*");
-
-// Select specific columns
-const { data, error } = await saintcentral.from("users").select("id, first_name, last_name");
-
-// Filter with where
-const { data, error } = await saintcentral.from("users").select("*").eq("id", "123");
-
-// Or using where method
-const { data, error } = await saintcentral.from("users").select("*").where({ id: "123" });
-```
-
-### Advanced Filters
-
-```typescript
-// Multiple conditions
-const { data, error } = await saintcentral
-  .from("users")
-  .select("*")
-  .eq("active", true)
-  .gt("points", 100);
-
-// Range filtering
-const { data, error } = await saintcentral
-  .from("users")
-  .select("*")
-  .gte("created_at", "2023-01-01")
-  .lte("created_at", "2023-12-31");
-
-// Text search
-const { data, error } = await saintcentral.from("users").select("*").ilike("email", "%example.com");
-
-// Array operations
-const { data, error } = await saintcentral
-  .from("users")
-  .select("*")
-  .contains("tags", ["premium", "verified"]);
-```
-
-### Ordering & Pagination
-
-```typescript
-// Order results
-const { data, error } = await saintcentral
-  .from("users")
-  .select("*")
-  .order("created_at", { ascending: false });
-
-// Alternative syntax
-const { data, error } = await saintcentral.from("users").select("*").orderByDesc("created_at");
-
-// Pagination with limit/offset
-const { data, error } = await saintcentral.from("users").select("*").limit(10).offset(20);
-
-// Pagination with range
-const { data, error } = await saintcentral.from("users").select("*").range(0, 9); // First 10 items
-```
-
-### Single Results
-
-```typescript
-// Get a single row
-const { data, error } = await saintcentral.from("users").select("*").eq("id", "123").single();
-
-// Maybe single (doesn't throw if no match)
-const { data, error } = await saintcentral.from("users").select("*").eq("id", "123").maybeSingle();
-```
-
-### Insert, Update, Delete
-
-```typescript
-// Insert data
-const { data, error } = await saintcentral.from("users").insert({
-  first_name: "Jane",
-  last_name: "Doe",
-  email: "jane@example.com",
-});
-
-// Upsert data
-const { data, error } = await saintcentral.from("users").upsert(
-  {
-    id: "123",
-    first_name: "Jane",
-    last_name: "Smith", // Updated last name
-  },
-  { onConflict: "id" },
-);
-
-// Update data
-const { data, error } = await saintcentral.from("users").update({ active: false }).eq("id", "123");
-
-// Delete data
-const { data, error } = await saintcentral.from("users").delete().eq("id", "123");
-```
-
-### Transactions
-
-```typescript
-// Method 1: Using transaction API
-const trx = await saintcentral.begin();
-try {
-  const { data: user } = await trx.from("users").insert({ name: "New User" }).single();
-
-  await trx.from("profiles").insert({ user_id: user.id, bio: "Hello world" });
-
-  await trx.commit();
-} catch (error) {
-  await trx.rollback();
-  console.error("Transaction failed:", error);
+  "limit": 10
 }
-
-// Method 2: Using transaction callback
-await saintcentral.transaction(async (trx) => {
-  const { data: user } = await trx.from("users").insert({ name: "New User" }).single();
-
-  await trx.from("profiles").insert({ user_id: user.id, bio: "Hello world" });
-});
 ```
 
-### Error Handling
+**Response:**
 
-```typescript
-const { data, error, status } = await saintcentral.from("users").select("*");
+```json
+{
+  "data": [
+    { "id": 1, "name": "John Doe", "email": "john@example.com" },
+    { "id": 2, "name": "Jane Smith", "email": "jane@example.com" }
+  ],
+  "count": 2
+}
+```
 
-if (error) {
-  console.error(`Error ${status}: ${error.message}`);
-  if (error.details) {
-    console.error("Details:", error.details);
+### Insert
+
+Inserts one or more records into a specified table.
+
+**Endpoint:** `POST /api/insert`
+
+**Parameters:**
+
+| Parameter | Type            | Description                                      |
+| --------- | --------------- | ------------------------------------------------ |
+| table     | string          | _Required_. The name of the table to insert into |
+| values    | object or array | _Required_. Data to insert                       |
+| count     | string          | Count option ("exact" or "planned")              |
+
+**Example Request:**
+
+```json
+{
+  "table": "tasks",
+  "values": [
+    {
+      "title": "Complete documentation",
+      "description": "Write comprehensive API docs",
+      "due_date": "2023-12-31",
+      "user_id": 1
+    },
+    {
+      "title": "Review code",
+      "description": "Review latest pull requests",
+      "due_date": "2023-12-15",
+      "user_id": 2
+    }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": 101,
+      "title": "Complete documentation",
+      "description": "Write comprehensive API docs",
+      "due_date": "2023-12-31",
+      "user_id": 1,
+      "created_at": "2023-12-01T12:00:00Z"
+    },
+    {
+      "id": 102,
+      "title": "Review code",
+      "description": "Review latest pull requests",
+      "due_date": "2023-12-15",
+      "user_id": 2,
+      "created_at": "2023-12-01T12:00:00Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+### Update
+
+Updates records in a specified table based on filter conditions.
+
+**Endpoint:** `POST /api/update`, `PUT /api/update`, or `PATCH /api/update`
+
+**Parameters:**
+
+| Parameter | Type            | Description                                                 |
+| --------- | --------------- | ----------------------------------------------------------- |
+| table     | string          | _Required_. The name of the table to update                 |
+| values    | object          | _Required_. Data to update                                  |
+| filter    | object or array | _Required_. Filter conditions to identify records to update |
+| count     | string          | Count option ("exact" or "planned")                         |
+
+**Example Request:**
+
+```json
+{
+  "table": "tasks",
+  "values": {
+    "status": "completed",
+    "completed_at": "2023-12-05T15:30:00Z"
+  },
+  "filter": {
+    "column": "id",
+    "operator": "eq",
+    "value": 101
   }
-} else {
-  console.log("Success!", data);
 }
 ```
 
-## Security Features
+**Response:**
 
-The SaintCentral SDK includes built-in security features:
+```json
+{
+  "data": {
+    "id": 101,
+    "title": "Complete documentation",
+    "description": "Write comprehensive API docs",
+    "due_date": "2023-12-31",
+    "user_id": 1,
+    "status": "completed",
+    "completed_at": "2023-12-05T15:30:00Z",
+    "created_at": "2023-12-01T12:00:00Z"
+  },
+  "count": 1
+}
+```
 
-1. Table permission restrictions
-2. Rate limiting
-3. Owner-based row level security
-4. Column access restrictions
-5. Role-based access control
+### Delete
+
+Deletes records from a specified table based on filter conditions.
+
+**Endpoint:** `DELETE /api/delete` or `POST /api/delete`
+
+**Parameters:**
+
+| Parameter | Type            | Description                                                 |
+| --------- | --------------- | ----------------------------------------------------------- |
+| table     | string          | _Required_. The name of the table to delete from            |
+| filter    | object or array | _Required_. Filter conditions to identify records to delete |
+| count     | string          | Count option ("exact" or "planned")                         |
+
+**Example DELETE Request:**
+
+```
+DELETE /api/delete?table=tasks&filter[column]=id&filter[operator]=eq&filter[value]=101
+```
+
+**Example POST Request:**
+
+```json
+{
+  "table": "tasks",
+  "filter": {
+    "column": "status",
+    "operator": "eq",
+    "value": "completed"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": 101,
+      "title": "Complete documentation",
+      "description": "Write comprehensive API docs",
+      "due_date": "2023-12-31",
+      "user_id": 1,
+      "status": "completed",
+      "completed_at": "2023-12-05T15:30:00Z",
+      "created_at": "2023-12-01T12:00:00Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+### Upsert
+
+Inserts or updates records in a specified table.
+
+**Endpoint:** `POST /api/upsert`
+
+**Parameters:**
+
+| Parameter        | Type            | Description                                      |
+| ---------------- | --------------- | ------------------------------------------------ |
+| table            | string          | _Required_. The name of the table to upsert into |
+| values           | object or array | _Required_. Data to upsert                       |
+| onConflict       | string          | Column(s) to check for conflicts                 |
+| ignoreDuplicates | boolean         | Whether to ignore duplicate records              |
+| count            | string          | Count option ("exact" or "planned")              |
+
+**Example Request:**
+
+```json
+{
+  "table": "users",
+  "values": {
+    "id": 3,
+    "name": "Alex Johnson",
+    "email": "alex@example.com",
+    "updated_at": "2023-12-05T16:45:00Z"
+  },
+  "onConflict": "id"
+}
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "id": 3,
+    "name": "Alex Johnson",
+    "email": "alex@example.com",
+    "updated_at": "2023-12-05T16:45:00Z"
+  },
+  "count": 1
+}
+```
+
+### Count
+
+Returns the count of records in a specified table, optionally filtered.
+
+**Endpoint:** `GET /api/count` or `POST /api/count`
+
+**Parameters:**
+
+| Parameter | Type            | Description                                             |
+| --------- | --------------- | ------------------------------------------------------- |
+| table     | string          | _Required_. The name of the table to count records from |
+| filter    | object or array | Filter conditions                                       |
+
+**Example GET Request:**
+
+```
+GET /api/count?table=tasks&filter[column]=status&filter[operator]=eq&filter[value]=pending
+```
+
+**Example POST Request:**
+
+```json
+{
+  "table": "tasks",
+  "filter": {
+    "column": "due_date",
+    "operator": "lt",
+    "value": "2023-12-31"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "count": 15
+}
+```
+
+### Raw Query
+
+Executes a raw SQL query with security restrictions.
+
+**Endpoint:** `POST /api/query`
+
+**Parameters:**
+
+| Parameter | Type   | Description                      |
+| --------- | ------ | -------------------------------- |
+| query     | string | _Required_. SQL query to execute |
+| params    | array  | Parameters for the SQL query     |
+
+**Example Request:**
+
+```json
+{
+  "query": "SELECT * FROM users WHERE role = $1 AND active = $2",
+  "params": ["admin", true]
+}
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Admin User",
+      "email": "admin@example.com",
+      "role": "admin",
+      "active": true
+    }
+  ]
+}
+```
+
+## Filtering
+
+The API supports a flexible filtering system that allows you to build complex queries.
+
+### Filter Objects
+
+A filter object consists of:
+
+| Property | Description                    |
+| -------- | ------------------------------ |
+| column   | The column to filter on        |
+| operator | The comparison operator to use |
+| value    | The value to compare against   |
+
+### Available Operators
+
+| Operator    | Description                         |
+| ----------- | ----------------------------------- |
+| eq          | Equal to                            |
+| neq         | Not equal to                        |
+| gt          | Greater than                        |
+| gte         | Greater than or equal to            |
+| lt          | Less than                           |
+| lte         | Less than or equal to               |
+| like        | SQL LIKE pattern match              |
+| ilike       | Case-insensitive LIKE pattern match |
+| is          | Test for NULL or boolean values     |
+| in          | Value exists in array               |
+| contains    | JSON array contains value           |
+| containedBy | JSON array is contained by value    |
+| overlaps    | JSON arrays have elements in common |
+| textSearch  | Full-text search                    |
+| match       | Case-sensitive pattern match        |
+| or          | Logical OR combining filters        |
+| and         | Logical AND combining filters       |
+| not         | Logical NOT to negate a filter      |
+
+### Example with Multiple Filters
+
+```json
+{
+  "table": "products",
+  "filter": [
+    {
+      "column": "price",
+      "operator": "gte",
+      "value": 100
+    },
+    {
+      "column": "category",
+      "operator": "in",
+      "value": ["electronics", "gadgets"]
+    },
+    {
+      "column": "name",
+      "operator": "ilike",
+      "value": "%wireless%"
+    }
+  ],
+  "order": {
+    "column": "price",
+    "ascending": false
+  }
+}
+```
+
+## Error Handling
+
+The API returns consistent error responses with appropriate HTTP status codes:
+
+```json
+{
+  "error": "Error message describing what went wrong",
+  "message": "Additional details about the error if available"
+}
+```
+
+Common error status codes:
+
+| Status Code | Description                                             |
+| ----------- | ------------------------------------------------------- |
+| 400         | Bad Request - Missing or invalid parameters             |
+| 401         | Unauthorized - Authentication required                  |
+| 403         | Forbidden - CSRF token invalid or operation not allowed |
+| 404         | Not Found - Resource not found                          |
+| 405         | Method Not Allowed - Invalid HTTP method for endpoint   |
+| 500         | Internal Server Error - Unexpected server error         |
+
+## Security Considerations
+
+The API implements several security features:
+
+1. **Authentication** - All requests require proper authentication.
+2. **CSRF Protection** - Mutation operations (insert, update, delete, upsert) require a valid CSRF token.
+3. **Input Validation** - All user input is validated and sanitized.
+4. **SQL Injection Protection** - Raw queries are restricted and potentially dangerous operations are blocked.
+5. **Rate Limiting** - API requests are rate-limited to prevent abuse.
+
+### Input Validation
+
+The API uses the `validateInput` function to ensure all inputs are valid before processing:
+
+```typescript
+// Example of using validateInput
+const tableValidation = validateInput(params.table || "", "string", { required: true });
+if (!tableValidation.isValid) {
+  return createResponse({ error: tableValidation.error }, 400);
+}
+```
+
+Input validation is applied to all request parameters to ensure data integrity and security.

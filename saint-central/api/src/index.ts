@@ -1,5 +1,8 @@
 import { handleDataRequest } from "./server/dataHandler";
+import { handleRealtimeConnection } from "./server/realtime";
 import { securityMiddleware, createResponse } from "./server/security";
+import { handleAuthRequest } from "./server/authHandler";
+import { handleStorageRequest } from "./server/storageHandler";
 
 export interface Env {
   SUPABASE_URL: string;
@@ -26,9 +29,24 @@ export default {
     const pathParts = url.pathname.split("/");
 
     try {
+      // Handle WebSocket connection for realtime functionality
+      if (pathParts[1] === "realtime") {
+        return handleRealtimeConnection(request, env);
+      }
+
       // Check if path starts with /api
       if (pathParts[1] === "api") {
         return handleDataRequest(request, env);
+      }
+
+      // Handle auth endpoints
+      if (pathParts[1] === "auth") {
+        return handleAuthRequest(request, env);
+      }
+
+      // Handle storage endpoints
+      if (pathParts[1] === "storage") {
+        return handleStorageRequest(request, env);
       }
 
       // For backward compatibility with existing routes

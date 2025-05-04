@@ -38,15 +38,84 @@ export function sanitizeInput(input: string): string {
  */
 export function validateInput(
   input: string,
-  pattern: RegExp | string,
-  maxLength: number = 1000,
-): boolean {
-  // Check length
-  if (!input || input.length > maxLength) return false;
+  type: string | RegExp,
+  options: {
+    maxLength?: number;
+    required?: boolean;
+    customPattern?: RegExp;
+  } = {},
+): { isValid: boolean; value: string; error?: string } {
+  const { maxLength = 1000, required = false, customPattern } = options;
 
-  // Check against pattern
-  const regex = typeof pattern === "string" ? new RegExp(pattern) : pattern;
-  return regex.test(input);
+  // Check if required but not provided
+  if (required && (!input || input.trim() === "")) {
+    return { isValid: false, value: input, error: "This field is required" };
+  }
+
+  // If not required and empty, it's valid
+  if (!required && (!input || input.trim() === "")) {
+    return { isValid: true, value: input };
+  }
+
+  // Check length
+  if (input.length > maxLength) {
+    return {
+      isValid: false,
+      value: input,
+      error: `Input exceeds maximum length of ${maxLength} characters`,
+    };
+  }
+
+  // Validate based on type
+  let pattern: RegExp;
+
+  if (typeof type === "string") {
+    switch (type) {
+      case "email":
+        pattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        break;
+      case "password":
+        // At least 8 chars, 1 uppercase, 1 lowercase, 1 number
+        pattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        break;
+      case "name":
+        pattern = /^[a-zA-Z\s'-]{2,}$/;
+        break;
+      case "phone":
+        pattern = /^\+?[0-9()-\s]{10,15}$/;
+        break;
+      case "url":
+        pattern =
+          /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_+.~#?&//=]*)$/;
+        break;
+      case "date":
+        pattern = /^\d{4}-\d{2}-\d{2}$/;
+        break;
+      case "token":
+        // Any non-empty string for tokens
+        pattern = /^.+$/;
+        break;
+      default:
+        // Default to allow any non-empty string
+        pattern = /^.+$/;
+    }
+  } else {
+    // Use the RegExp directly
+    pattern = type;
+  }
+
+  // Use custom pattern if provided
+  if (customPattern) {
+    pattern = customPattern;
+  }
+
+  const isValid = pattern.test(input);
+
+  return {
+    isValid,
+    value: input,
+    error: isValid ? undefined : `Invalid ${typeof type === "string" ? type : "input"} format`,
+  };
 }
 
 /**
