@@ -12,6 +12,8 @@ import {
   maskSensitiveData,
   SECURITY_CONSTANTS,
   generateSecureToken,
+  encryptData,
+  decryptData,
 } from "../shared/securityUtils";
 
 // Constants specific to this module
@@ -64,7 +66,7 @@ export class SecureTokenStorage {
   /**
    * Store a token securely
    */
-  storeToken(token: string, expiresAt: number, refreshToken?: string): boolean {
+  async storeToken(token: string, expiresAt: number, refreshToken?: string): Promise<boolean> {
     try {
       if (!this._isStorageAvailable()) return false;
 
@@ -75,7 +77,7 @@ export class SecureTokenStorage {
       };
 
       const tokenJson = JSON.stringify(tokenData);
-      const secureTokenData = this._encrypt(tokenJson);
+      const secureTokenData = await this._encrypt(tokenJson);
 
       if (this.useLocalStorage) {
         localStorage.setItem(this.storageKey, secureTokenData);
@@ -93,7 +95,7 @@ export class SecureTokenStorage {
   /**
    * Retrieve a stored token
    */
-  getToken(): StoredToken | null {
+  async getToken(): Promise<StoredToken | null> {
     try {
       if (!this._isStorageAvailable()) return null;
 
@@ -102,7 +104,7 @@ export class SecureTokenStorage {
 
       if (!secureTokenData) return null;
 
-      const tokenJson = this._decrypt(secureTokenData);
+      const tokenJson = await this._decrypt(secureTokenData);
       const tokenData = JSON.parse(tokenJson) as StoredToken;
 
       // Check if token is expired
@@ -149,51 +151,19 @@ export class SecureTokenStorage {
   }
 
   /**
-   * Encrypt data
+   * Encrypt data using Web Crypto API
    */
-  private _encrypt(data: string): string {
+  private async _encrypt(data: string): Promise<string> {
     if (!this.encryptionKey) return data;
-
-    try {
-      // Simple XOR-based encryption for demonstration
-      // In production, use a proper encryption library
-      const result = [];
-      for (let i = 0; i < data.length; i++) {
-        result.push(
-          String.fromCharCode(
-            data.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length),
-          ),
-        );
-      }
-      return btoa(result.join(""));
-    } catch (e) {
-      console.error("Encryption error:", e);
-      return data;
-    }
+    return await encryptData(data, this.encryptionKey);
   }
 
   /**
-   * Decrypt data
+   * Decrypt data using Web Crypto API
    */
-  private _decrypt(encryptedData: string): string {
+  private async _decrypt(encryptedData: string): Promise<string> {
     if (!this.encryptionKey) return encryptedData;
-
-    try {
-      const decodedData = atob(encryptedData);
-      const result = [];
-      for (let i = 0; i < decodedData.length; i++) {
-        result.push(
-          String.fromCharCode(
-            decodedData.charCodeAt(i) ^
-              this.encryptionKey.charCodeAt(i % this.encryptionKey.length),
-          ),
-        );
-      }
-      return result.join("");
-    } catch (e) {
-      console.error("Decryption error:", e);
-      return encryptedData;
-    }
+    return await decryptData(encryptedData, this.encryptionKey);
   }
 }
 
