@@ -50,39 +50,71 @@ yarn add saintcentral
 Then import it in your project:
 
 ```javascript
-// ESM import
+// ESM import - single import for all SDK functionality
 import saintcentral from "saintcentral";
+
+// Now you can access all components through this single import:
+// - saintcentral.auth - Authentication methods
+// - saintcentral.realtime - Realtime subscriptions
+// - saintcentral.storage - File storage operations
+// - saintcentral.createClient() - Create a custom client
+// - saintcentral.client - Default authenticated client
 
 // CommonJS require
 const saintcentral = require("saintcentral");
 ```
 
-## Authentication
-
-The SaintCentral SDK requires authentication for most operations. You can use the `withAuth` method to provide an authentication token:
+If you need individual components (not recommended), they are also exported:
 
 ```javascript
-// Authenticate with a token (usually from a login response)
-const authenticatedClient = saintcentral.withAuth(token);
-
-// You can now use this client for authenticated operations
-const response = await authenticatedClient.from("users").select("*").get();
+// All functionality is also available through a single import
+import { auth, realtime, storage, createClient } from "saintcentral";
 ```
 
-### Authentication with Session
+## Authentication
 
-A common pattern is to use a session from your authentication provider:
+The SaintCentral SDK requires authentication for most operations. All authentication methods are accessible through the main `saintcentral` import:
 
 ```javascript
-// Get the session from your auth provider (like Supabase)
-const {
-  data: { session },
-} = await supabase.auth.getSession();
+// Import the SDK
+import saintcentral from "saintcentral";
 
-// Use the access token with the SaintCentral SDK
+// Use authentication methods directly
+const { user, session, error } = await saintcentral.auth.signIn({
+  email: "user@example.com",
+  password: "securepassword",
+});
+
+// After authentication, you can use the client for authenticated operations
 if (session) {
-  const response = await saintcentral
-    .withAuth(session.access_token)
+  const response = await saintcentral.client
+    .from("users")
+    .select("id, email, first_name, last_name")
+    .get();
+
+  console.log(response.data);
+}
+```
+
+### Authentication with Custom Client
+
+You can also create a custom authenticated client:
+
+```javascript
+// Import the SDK
+import saintcentral from "saintcentral";
+
+// Get the session from your auth flow
+const { session } = await saintcentral.auth.signIn({
+  email: "user@example.com",
+  password: "securepassword",
+});
+
+// Use the access token with a custom client
+if (session) {
+  const customClient = saintcentral.createClient().withAuth(session.access_token);
+
+  const response = await customClient
     .from("users")
     .select("id, email, first_name, last_name")
     .get();
@@ -100,19 +132,20 @@ The SDK provides a fluent interface for data operations, making it easy to build
 Retrieve data from your database with the `select` method:
 
 ```javascript
+// Import the SDK
+import saintcentral from "saintcentral";
+
 // Basic select - get all records from a table
-const response = await saintcentral.withAuth(token).from("users").select("*").get();
+const response = await saintcentral.client.from("users").select("*").get();
 
 // Select specific columns
-const response = await saintcentral
-  .withAuth(token)
+const response = await saintcentral.client
   .from("posts")
   .select("id, title, content, created_at")
   .get();
 
 // Get a single record
-const response = await saintcentral
-  .withAuth(token)
+const response = await saintcentral.client
   .from("users")
   .select("id, email, first_name, last_name")
   .single()
@@ -124,15 +157,18 @@ const response = await saintcentral
 Create new records with the `insert` method:
 
 ```javascript
+// Import the SDK (if not already imported)
+import saintcentral from "saintcentral";
+
 // Insert a single record
-const response = await saintcentral.withAuth(token).insert("posts", {
+const response = await saintcentral.client.insert("posts", {
   title: "My First Post",
   content: "Hello, world!",
   user_id: "123",
 });
 
 // Insert multiple records
-const response = await saintcentral.withAuth(token).insert("comments", [
+const response = await saintcentral.client.insert("comments", [
   { post_id: 1, user_id: "123", text: "Great post!" },
   { post_id: 1, user_id: "456", text: "Thanks for sharing!" },
 ]);
@@ -144,7 +180,7 @@ Modify existing records with the `update` method:
 
 ```javascript
 // Update a record
-const response = await saintcentral.withAuth(token).update(
+const response = await saintcentral.client.update(
   "users",
   {
     first_name: "John",
@@ -155,9 +191,11 @@ const response = await saintcentral.withAuth(token).update(
 );
 
 // Update multiple records that match a condition
-const response = await saintcentral
-  .withAuth(token)
-  .update("posts", { status: "archived" }, { user_id: userId, status: "draft" });
+const response = await saintcentral.client.update(
+  "posts",
+  { status: "archived" },
+  { user_id: userId, status: "draft" },
+);
 ```
 
 ### Delete
@@ -166,10 +204,10 @@ Remove records with the `delete` method:
 
 ```javascript
 // Delete a specific record
-const response = await saintcentral.withAuth(token).delete("posts", { id: postId });
+const response = await saintcentral.client.delete("posts", { id: postId });
 
 // Delete multiple records that match a condition
-const response = await saintcentral.withAuth(token).delete("comments", { post_id: postId });
+const response = await saintcentral.client.delete("comments", { post_id: postId });
 ```
 
 ### Filtering Data
@@ -178,16 +216,14 @@ The SDK supports various filtering methods to narrow down your queries:
 
 ```javascript
 // Filter with equality
-const response = await saintcentral
-  .withAuth(token)
+const response = await saintcentral.client
   .from("posts")
   .select("*")
   .eq("status", "published")
   .get();
 
 // Combine multiple filters
-const response = await saintcentral
-  .withAuth(token)
+const response = await saintcentral.client
   .from("posts")
   .select("*")
   .eq("status", "published")
@@ -195,132 +231,132 @@ const response = await saintcentral
   .get();
 
 // Order results
-const response = await saintcentral
-  .withAuth(token)
+const response = await saintcentral.client
   .from("posts")
   .select("*")
   .order("created_at", { ascending: false })
-  .get();
-
-// Pagination
-const response = await saintcentral
-  .withAuth(token)
-  .from("posts")
-  .select("*")
-  .range(0, 9) // First 10 records
   .get();
 ```
 
 ## Storage Operations
 
-The SDK provides methods for working with files in storage buckets.
+The SDK provides a convenient interface for file storage operations.
+
+```javascript
+// Import the SDK
+import saintcentral from "saintcentral";
+
+// Access the storage module
+const { storage } = saintcentral;
+
+// List all buckets
+const { data: buckets, error } = await storage.listBuckets();
+
+// Work with a specific bucket
+const avatarBucket = storage.bucket("avatars");
+```
 
 ### Getting Public URLs
 
-Generate public URLs for files in public buckets:
-
 ```javascript
 // Get a public URL for a file
-const publicUrl = saintcentral.storage.from("profile-images").getPublicUrl(`${userId}/profile.jpg`);
+const publicUrl = saintcentral.storage.bucket("public").getPublicUrl("path/to/file.jpg");
 
-console.log("Public URL:", publicUrl);
-
-// Use the URL in an image component
-const ImageComponent = () => <img src={publicUrl} alt="Profile" />;
+// Generate a signed URL that expires after a set time
+const { data: signedUrl } = await saintcentral.storage
+  .bucket("private")
+  .createSignedUrl("sensitive-file.pdf", 60); // Expires in 60 seconds
 ```
 
 ### Uploading Files
 
-Upload files to storage buckets:
-
 ```javascript
-// Basic file upload
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("documents")
-  .upload("reports/quarterly.pdf", fileData, {
-    contentType: "application/pdf",
+// Upload a file
+const { data, error } = await saintcentral.storage
+  .bucket("avatars")
+  .upload("user-profile.jpg", fileBlob, {
+    contentType: "image/jpeg",
     upsert: true,
   });
 
-// Upload an image file
-const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
-const fileName = `profile-${Date.now()}.${fileExt}`;
-const filePath = `${userId}/${fileName}`;
+// Upload from a form input
+const fileInput = document.getElementById("file-input");
+const file = fileInput.files[0];
 
-// Upload using base64 data (common in React Native)
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("profile-images")
-  .upload(filePath, base64Data, {
-    contentType: `image/${fileExt}`,
-    upsert: true,
-  });
+const { data, error } = await saintcentral.storage
+  .bucket("documents")
+  .upload(`${Date.now()}-${file.name}`, file);
 ```
 
 ### Downloading Files
 
-Download files from storage buckets:
-
 ```javascript
 // Download a file
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("documents")
-  .download("reports/quarterly.pdf");
+const { data, error } = await saintcentral.storage.bucket("documents").download("report.pdf");
 
-if (!error) {
-  // data contains the file blob
-  // In a browser, you can create a download link:
-  const url = URL.createObjectURL(data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "quarterly-report.pdf";
-  a.click();
-  URL.revokeObjectURL(url);
+// Create an object URL for browser viewing
+const { data, error } = await saintcentral.storage.bucket("images").download("photo.jpg");
+
+if (data) {
+  const objectUrl = URL.createObjectURL(data);
+  image.src = objectUrl;
 }
-
-// Download an image with transformations
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("images")
-  .download("photos/landscape.jpg", {
-    transform: {
-      width: 800,
-      height: 600,
-      quality: 80,
-    },
-  });
 ```
 
 ### Managing Files
 
-Perform other operations on files:
-
 ```javascript
-// List files in a directory
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("documents")
-  .list("reports");
+// List files in a bucket
+const { data, error } = await saintcentral.storage.bucket("documents").list("reports/", {
+  limit: 100,
+  offset: 0,
+  sortBy: { column: "name", order: "asc" },
+});
 
-// Move a file
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("documents")
-  .move("old-path/file.pdf", "new-path/file.pdf");
+// Delete a file
+const { error } = await saintcentral.storage
+  .bucket("temp")
+  .remove(["old-file1.txt", "old-file2.txt"]);
 
 // Copy a file
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("documents")
-  .copy("original/file.pdf", "backup/file.pdf");
+const { data, error } = await saintcentral.storage
+  .bucket("backups")
+  .copy("file-v1.txt", "file-v2.txt");
+```
 
-// Delete files
-const { data, error } = await saintcentral
-  .withAuth(token)
-  .storage.from("documents")
-  .remove(["file1.pdf", "file2.pdf"]);
+## Realtime Subscriptions
+
+Subscribe to realtime changes in your database:
+
+```javascript
+// Import the SDK
+import saintcentral from "saintcentral";
+
+// Access the realtime module
+const { realtime } = saintcentral;
+
+// Subscribe to all changes in a table
+const channel = realtime
+  .channel("public:posts")
+  .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, (payload) => {
+    console.log("Change received!", payload);
+  })
+  .subscribe();
+
+// Subscribe to specific changes
+const channel = realtime
+  .channel("posts_channel")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "posts", filter: "status=eq.published" },
+    (payload) => {
+      console.log("New published post!", payload);
+    },
+  )
+  .subscribe();
+
+// Later, unsubscribe from the channel
+channel.unsubscribe();
 ```
 
 ## Error Handling

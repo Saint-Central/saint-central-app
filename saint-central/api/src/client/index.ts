@@ -20,10 +20,22 @@ const saintcentral = {
 };
 
 // Re-export types
-export type { User, Session, RealtimeChannel, PresenceState, SaintCentral };
+export type {
+  User,
+  Session,
+  RealtimeChannel,
+  PresenceState,
+  SaintCentral,
+  Auth,
+  RealtimeClient,
+  StorageClient,
+  BucketClient,
+  SecureTokenStorage,
+  SecureLogger,
+};
 
-// Re-export classes
-export { Auth, RealtimeClient, StorageClient, BucketClient, SecureTokenStorage, SecureLogger };
+// Re-export all individual components for those who need them
+export { auth, realtime, storage, createClient };
 
 // Export the default instance
 export default saintcentral;
