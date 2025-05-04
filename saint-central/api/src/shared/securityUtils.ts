@@ -208,40 +208,125 @@ export function escapeUrl(url: string): string {
 }
 
 /**
- * Encrypts sensitive data when storage is enabled
- * Simple XOR-based encryption for example purposes
- * In production, use WebCrypto API for better security
+ * Encrypts sensitive data using Web Crypto API
+ * @param data - The string data to encrypt
+ * @param key - The encryption key
+ * @returns - Base64 encoded encrypted string
  */
-export function encryptData(data: string, key?: string): string {
+export async function encryptData(data: string, key?: string): Promise<string> {
+  // If no key is provided, return data unencrypted (maintain same behavior as original)
   if (!key) return data;
 
   try {
-    const result = [];
-    for (let i = 0; i < data.length; i++) {
-      result.push(String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
-    }
-    return btoa(result.join(""));
-  } catch (e) {
-    console.error("Encryption error:", e);
+    // Convert the input data to bytes
+    const encoder = new TextEncoder();
+    const dataBytes = encoder.encode(data);
+
+    // Create a consistent key using PBKDF2 (Password-Based Key Derivation)
+    const keyMaterial = await self.crypto.subtle.importKey(
+      "raw",
+      encoder.encode(key),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits", "deriveKey"],
+    );
+
+    // Derive a proper encryption key using a salt and iterations
+    const encryptionKey = await self.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode("saintcentral-salt"), // Use a consistent salt
+        iterations: 100000, // Higher is more secure but slower
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 }, // AES-GCM is an authenticated encryption algorithm
+      false,
+      ["encrypt"],
+    );
+
+    // Generate a random initialization vector (IV)
+    const iv = self.crypto.getRandomValues(new Uint8Array(12)); // 12 bytes for AES-GCM
+
+    // Encrypt the data
+    const encryptedBuffer = await self.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      encryptionKey,
+      dataBytes,
+    );
+
+    // Combine IV and encrypted data into a single array
+    const resultArray = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+    resultArray.set(iv, 0);
+    resultArray.set(new Uint8Array(encryptedBuffer), iv.length);
+
+    // Convert to Base64 string
+    return btoa(String.fromCharCode(...Array.from(resultArray)));
+  } catch (err) {
+    console.error("Encryption error:", err);
+    // Maintain the same error handling as the original
     return data;
   }
 }
 
 /**
- * Decrypts encrypted data
+ * Decrypts encrypted data using Web Crypto API
+ * @param encryptedData - Base64 encoded encrypted string
+ * @param key - The encryption key
+ * @returns - Decrypted string
  */
-export function decryptData(encryptedData: string, key?: string): string {
+export async function decryptData(encryptedData: string, key?: string): Promise<string> {
+  // If no key is provided, return data as-is (maintain same behavior as original)
   if (!key) return encryptedData;
 
   try {
-    const decodedData = atob(encryptedData);
-    const result = [];
-    for (let i = 0; i < decodedData.length; i++) {
-      result.push(String.fromCharCode(decodedData.charCodeAt(i) ^ key.charCodeAt(i % key.length)));
-    }
-    return result.join("");
-  } catch (e) {
-    console.error("Decryption error:", e);
+    // Convert the Base64 string back to bytes
+    const encryptedBytes = new Uint8Array(
+      atob(encryptedData)
+        .split("")
+        .map((char) => char.charCodeAt(0)),
+    );
+
+    // Extract the IV and the encrypted data
+    const iv = encryptedBytes.slice(0, 12);
+    const encryptedBuffer = encryptedBytes.slice(12);
+
+    // Recreate the key using the same derivation method used in encryption
+    const encoder = new TextEncoder();
+    const keyMaterial = await self.crypto.subtle.importKey(
+      "raw",
+      encoder.encode(key),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits", "deriveKey"],
+    );
+
+    const decryptionKey = await self.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode("saintcentral-salt"), // Same salt as in encryption
+        iterations: 100000, // Same iterations as in encryption
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["decrypt"],
+    );
+
+    // Decrypt the data
+    const decryptedBuffer = await self.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      decryptionKey,
+      encryptedBuffer,
+    );
+
+    // Convert decrypted data back to string
+    const decoder = new TextDecoder();
+    return decoder.decode(decryptedBuffer);
+  } catch (err) {
+    console.error("Decryption error:", err);
+    // Maintain the same error handling as the original
     return encryptedData;
   }
 }
