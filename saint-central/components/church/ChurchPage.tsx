@@ -11,7 +11,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
