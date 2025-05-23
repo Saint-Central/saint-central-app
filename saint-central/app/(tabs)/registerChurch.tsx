@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: theme.spacingTopBar,
+    marginTop: theme.topBarHeight,
     marginHorizontal: 20,
     marginBottom: 20,
   },

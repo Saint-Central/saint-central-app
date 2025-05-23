@@ -2,10 +2,10 @@
 const globals = require("globals");
 const expoConfig = require("eslint-config-expo/flat");
 const eslintConfigPrettier = require("eslint-config-prettier/flat");
+const tseslint = require("typescript-eslint");
 
-module.exports = [
+module.exports = tseslint.config([
   ...expoConfig,
-  eslintConfigPrettier,
   {
     languageOptions: {
       globals: {
@@ -14,4 +14,5 @@ module.exports = [
       },
     },
   },
-];
+  eslintConfigPrettier,
+]);
