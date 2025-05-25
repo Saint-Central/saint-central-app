@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StyleProp,
   ViewStyle,
+  View,
 } from "react-native";
 
 type Props = {
@@ -25,14 +26,14 @@ export default function Button({ children, onPressIn, onPressOut, onPress, style
       onPressOut={onPressOut}
       onPress={onPress}
     >
-      <LinearGradient
-        colors={[theme.primaryGradientStart, theme.primaryGradientEnd]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      <View
+        // colors={[theme.primaryGradientStart, theme.primaryGradientEnd]}
+        // start={{ x: 0, y: 0 }}
+        // end={{ x: 1, y: 0 }}
         style={[styles.primaryButton, style]}
       >
         {children}
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }

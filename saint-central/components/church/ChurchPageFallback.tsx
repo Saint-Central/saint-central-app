@@ -13,14 +13,11 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withSequence,
   withDelay,
 } from "react-native-reanimated";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import theme from "@/theme";
 import DecoratedHeader from "@/components/ui/DecoratedHeader";
-import Button from "@/components/ui/Button";
 import { useRouter } from "expo-router";
 
 type Props = {

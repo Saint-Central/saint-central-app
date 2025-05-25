@@ -14,7 +14,6 @@ import {
   Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Church, ChurchMember } from "@/types/church";
 import { ChurchActionButton } from "./ChurchActionButton";
 import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
@@ -36,12 +35,14 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type Props = {
-  church: Church;
   userData: { username: string; profileImage: string };
-  member?: ChurchMember | null;
 };
 
-export default function ChurchPageContent({ church, member }: Props) {
+export default function ChurchPageContent({ userData }: Props) {
+  const {
+    data: { church, member },
+  } = useChurchContext();
+
   const navigation = useNavigation<NavigationProp>();
   const router = useRouter();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
