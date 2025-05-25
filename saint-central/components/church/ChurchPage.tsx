@@ -21,7 +21,7 @@ import Animated, {
   Extrapolate,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Church, ChurchEvent, ChurchMember } from "@/types/church";
+import { Church, ChurchEvent } from "@/types/church";
 import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
 import ChurchSidebar from "@/components/church/ChurchSidebar";
@@ -31,11 +31,11 @@ import { useRouter } from "expo-router";
 import Error from "@/components/ui/Error";
 import useScreen from "@/hooks/useScreen";
 import { Course } from "@/types/course";
+import Button from "@/components/ui/Button";
+import { useChurchContext } from "@/contexts/church";
 
 type Props = {
-  church: Church;
   userData: { username: string; profileImage: string };
-  member?: ChurchMember | null;
 };
 
 const TABS = ["Home", "Events", "Courses", "Community"];
@@ -50,7 +50,7 @@ const springConfig = {
   overshootClamping: false,
 };
 
-export default function ChurchPage({ church, member, userData }: Props) {
+export default function ChurchPage({ userData }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>(TABS[0]);
 
@@ -68,6 +68,10 @@ export default function ChurchPage({ church, member, userData }: Props) {
   const scrollY = useSharedValue(0);
   const sidebarAnim = useSharedValue(0);
   const appearAnim = useSharedValue(0);
+
+  const {
+    data: { church },
+  } = useChurchContext();
 
   // Function to fetch events from Supabase - MODIFIED to load all events
   const fetchEvents = useCallback(async () => {
@@ -95,7 +99,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
     } finally {
       setIsEventsLoading(false);
     }
-  }, [church.id]);
+  }, [church?.id]);
 
   // Function to fetch ministries from Supabase
   const fetchMinistries = useCallback(async () => {
@@ -123,7 +127,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
     } finally {
       setIsMinistriesLoading(false);
     }
-  }, [church.id]);
+  }, [church?.id]);
 
   useEffect(() => {
     if (church?.id) {
@@ -237,7 +241,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
             <View style={styles.headerSpacer} />
 
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {church.name}
+              {church?.name}
             </Text>
 
             <View style={styles.headerSpacer} />
@@ -256,7 +260,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
           onScroll={scrollHandler}
         >
           {/* Church Page Header */}
-          <ChurchPageHeader church={church} userData={userData} onPressMenu={toggleSidebar} />
+          <ChurchPageHeader userData={userData} onPressMenu={toggleSidebar} />
 
           {/* Tabs navigation */}
           <View style={[styles.tabsContainer, isTablet && styles.tabletTabsContainer]}>
@@ -284,9 +288,7 @@ export default function ChurchPage({ church, member, userData }: Props) {
 
           {/* Dynamic content based on active tab */}
           <View style={[styles.tabContent, isTablet && styles.tabletTabContent]}>
-            {activeTab === "Home" && (
-              <ChurchPageContent church={church} member={member} userData={userData} />
-            )}
+            {activeTab === "Home" && <ChurchPageContent userData={userData} />}
 
             {activeTab === "Events" && (
               <EventsTab
@@ -390,7 +392,7 @@ const CoursesTab = ({
     return <Error />;
   }
 
-  if (courses.length) {
+  if (!courses.length) {
     return (
       <View style={styles.stateContainer}>
         <View style={styles.emptyIconContainer}>

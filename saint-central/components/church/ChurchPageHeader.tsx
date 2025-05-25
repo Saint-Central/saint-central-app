@@ -6,29 +6,25 @@ import {
   Image,
   StyleSheet,
   GestureResponderEvent,
-  Platform,
   useWindowDimensions,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { Church } from "@/types/church";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import theme from "@/theme";
 import { supabase } from "@/supabaseClient";
+import { useChurchContext } from "@/contexts/church";
 
 type Props = {
-  church: Church;
   userData: { username: string; profileImage: string };
   onPressMenu: ((event: GestureResponderEvent) => void) | undefined;
 };
 
-export default function ChurchPageHeader({ church, userData, onPressMenu }: Props) {
+export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
+  const {
+    data: { church },
+  } = useChurchContext();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isTablet = width > 768;

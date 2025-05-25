@@ -2,8 +2,8 @@ import { Church, ChurchMember } from "@/types/church";
 import { createContext, useContext } from "react";
 
 export type ChurchContextData = {
-  church?: Church;
-  member?: ChurchMember;
+  church: Church;
+  member: ChurchMember;
 };
 
 export type ChurchContextValue = {
