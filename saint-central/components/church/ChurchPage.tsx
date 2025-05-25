@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
-  useWindowDimensions,
   Image,
   ActivityIndicator,
 } from "react-native";
@@ -18,50 +17,20 @@ import Animated, {
   useAnimatedScrollHandler,
   withSpring,
   withTiming,
-  withSequence,
-  withDelay,
   interpolate,
   Extrapolate,
-  useDerivedValue,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Church, ChurchMember } from "@/types/church";
+import { Church, ChurchEvent, ChurchMember } from "@/types/church";
 import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
 import ChurchSidebar from "@/components/church/ChurchSidebar";
 import theme from "@/theme";
 import { supabase } from "../../supabaseClient";
-import { useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-
-// Define interfaces for our database models
-interface Ministry {
-  id: number;
-  image_url: string;
-  church_id: number;
-  name: string;
-  description: string;
-  created_at: string;
-  is_system_generated: boolean;
-}
-
-interface ChurchEvent {
-  id: number;
-  time: string;
-  created_by: string;
-  title: string;
-  image_url: string;
-  excerpt: string;
-  video_link: string | null;
-  author_name: string;
-  is_recurring: boolean;
-  recurrence_type: string | null;
-  recurrence_interval: number | null;
-  recurrence_end_date: string | null;
-  recurrence_days_of_week: number[] | null;
-  church_id: number;
-  event_location: string;
-}
+import Error from "@/components/ui/Error";
+import useScreen from "@/hooks/useScreen";
+import { Course } from "@/types/course";
 
 type Props = {
   church: Church;
@@ -69,7 +38,7 @@ type Props = {
   member?: ChurchMember | null;
 };
 
-const TABS = ["Home", "Events", "Ministries", "Community"];
+const TABS = ["Home", "Events", "Courses", "Community"];
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
@@ -82,47 +51,31 @@ const springConfig = {
 };
 
 export default function ChurchPage({ church, member, userData }: Props) {
-  const navigation = useNavigation();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>(TABS[0]);
 
   // Add state for events and ministries
   const [events, setEvents] = useState<ChurchEvent[]>([]);
-  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [isEventsLoading, setIsEventsLoading] = useState<boolean>(false);
   const [isMinistriesLoading, setIsMinistriesLoading] = useState<boolean>(false);
-  const [eventsError, setEventsError] = useState<string | null>(null);
-  const [ministriesError, setMinistriesError] = useState<string | null>(null);
+  const [eventsError, setEventsError] = useState<string>("");
+  const [ministriesError, setMinistriesError] = useState<string>("");
 
-  // Get screen dimensions for responsiveness
-  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
-  const isTablet = SCREEN_WIDTH > 768;
+  const { SCREEN_WIDTH, isTablet } = useScreen();
 
   // Shared values for animations
   const scrollY = useSharedValue(0);
   const sidebarAnim = useSharedValue(0);
   const appearAnim = useSharedValue(0);
 
-  // Page tab animations
-  const tabAnimations = useRef(TABS.map(() => useSharedValue(0))).current;
-  const tabScrollX = useSharedValue(0);
-
-  // Fetch events and ministries on mount
-  useEffect(() => {
-    if (church?.id) {
-      fetchEvents();
-      fetchMinistries();
-    }
-  }, [church?.id]);
-
   // Function to fetch events from Supabase - MODIFIED to load all events
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     if (!church?.id) return;
 
     try {
       setIsEventsLoading(true);
-      setEventsError(null);
+      setEventsError("");
 
       // Modified query to load all events without date filtering
       const { data, error } = await supabase
@@ -142,35 +95,42 @@ export default function ChurchPage({ church, member, userData }: Props) {
     } finally {
       setIsEventsLoading(false);
     }
-  };
+  }, [church.id]);
 
   // Function to fetch ministries from Supabase
-  const fetchMinistries = async () => {
+  const fetchMinistries = useCallback(async () => {
     if (!church?.id) return;
 
     try {
       setIsMinistriesLoading(true);
-      setMinistriesError(null);
+      setMinistriesError("");
 
       // Use Supabase client to fetch ministries
       const { data, error } = await supabase
-        .from("ministries")
+        .from("courses")
         .select("*")
         .eq("church_id", church.id)
-        .order("name");
+        .order("time");
 
       if (error) {
         throw error;
       }
 
-      setMinistries(data || []);
+      setCourses(data || []);
     } catch (error) {
       console.error("Error fetching ministries:", error);
       setMinistriesError("Failed to load ministries. Please try again later.");
     } finally {
       setIsMinistriesLoading(false);
     }
-  };
+  }, [church.id]);
+
+  useEffect(() => {
+    if (church?.id) {
+      fetchEvents();
+      fetchMinistries();
+    }
+  }, [church?.id, fetchEvents, fetchMinistries]);
 
   // Animate page elements on mount
   useEffect(() => {
@@ -180,24 +140,12 @@ export default function ChurchPage({ church, member, userData }: Props) {
       stiffness: 300,
       mass: 1,
     });
-
-    // Animate tabs with staggered delay
-    tabAnimations.forEach((anim, index) => {
-      anim.value = withDelay(
-        50 * index,
-        withSpring(1, {
-          damping: 24,
-          stiffness: 250,
-          mass: 1,
-        }),
-      );
-    });
-  }, []);
+  }, [appearAnim]);
 
   // Handle sidebar animation
   useEffect(() => {
     sidebarAnim.value = withTiming(sidebarOpen ? 1 : 0, { duration: 200 });
-  }, [sidebarOpen]);
+  }, [sidebarAnim, sidebarOpen]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -249,383 +197,6 @@ export default function ChurchPage({ church, member, userData }: Props) {
   // Tab handling
   const handleTabPress = (tabIndex: number) => {
     setActiveTab(TABS[tabIndex]);
-
-    // Animate the pressed tab with sequence
-    tabAnimations[tabIndex].value = withSequence(
-      withTiming(0.95, { duration: 80 }),
-      withSpring(1, {
-        damping: 10,
-        stiffness: 300,
-        mass: 1,
-      }),
-    );
-  };
-
-  // Generate tab indicator position
-  const tabIndicatorPosition = useDerivedValue(() => {
-    return interpolate(
-      tabScrollX.value,
-      TABS.map((_, i) => i * SCREEN_WIDTH),
-      TABS.map((_, i) => i * (SCREEN_WIDTH / TABS.length)),
-      Extrapolate.CLAMP,
-    );
-  });
-
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  // Format time for display
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  // Component for Event Card - MODERN DESIGN
-  const EventCard = ({ event }: { event: ChurchEvent }) => {
-    const pressAnim = useSharedValue(1);
-
-    const handlePressIn = () => {
-      pressAnim.value = withSpring(0.98, springConfig);
-    };
-
-    const handlePressOut = () => {
-      pressAnim.value = withSpring(1, springConfig);
-    };
-
-    const animatedStyle = useAnimatedStyle(() => {
-      return {
-        transform: [{ scale: pressAnim.value }],
-      };
-    });
-
-    const navigateToEventDetails = () => {
-      // Use Expo Router instead of React Navigation
-      router.push({
-        pathname: "/church_events",
-        params: {
-          id: event.id,
-          churchId: church.id,
-        },
-      });
-    };
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={navigateToEventDetails}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={styles.eventCardWrapper}
-      >
-        <Animated.View
-          style={[styles.eventCard, isTablet && styles.tabletEventCard, animatedStyle]}
-        >
-          <View style={styles.eventCardContent}>
-            <View style={styles.eventImageContainer}>
-              {event.image_url ? (
-                <Image
-                  source={{ uri: event.image_url }}
-                  style={isTablet ? styles.tabletEventImage : styles.eventImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <LinearGradient
-                  colors={[theme.neutral100, theme.neutral200]}
-                  style={isTablet ? styles.tabletEventImage : styles.eventImage}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <FontAwesome5 name="calendar-alt" size={28} color={theme.neutral400} />
-                </LinearGradient>
-              )}
-            </View>
-
-            <View style={styles.eventDetailsContainer}>
-              <View style={styles.eventHeader}>
-                <Text style={styles.eventTitle} numberOfLines={1}>
-                  {event.title}
-                </Text>
-
-                {event.is_recurring && (
-                  <LinearGradient
-                    colors={[theme.primary, theme.primary]}
-                    style={styles.recurringBadge}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Ionicons name="repeat" size={12} color="#FFFFFF" />
-                    <Text style={styles.recurringText}>Recurring</Text>
-                  </LinearGradient>
-                )}
-              </View>
-
-              <View style={styles.eventMetaContainer}>
-                <View style={styles.eventMetaItem}>
-                  <Ionicons name="calendar-outline" size={16} color={theme.primary} />
-                  <Text style={styles.eventMetaText}>{formatDate(event.time)}</Text>
-                </View>
-
-                <View style={styles.eventMetaItem}>
-                  <Ionicons name="time-outline" size={16} color={theme.primary} />
-                  <Text style={styles.eventMetaText}>{formatTime(event.time)}</Text>
-                </View>
-              </View>
-
-              {event.event_location && (
-                <View style={styles.eventLocationContainer}>
-                  <Ionicons name="location-outline" size={16} color={theme.textMedium} />
-                  <Text style={styles.eventLocation} numberOfLines={1}>
-                    {event.event_location}
-                  </Text>
-                </View>
-              )}
-
-              {event.excerpt && (
-                <Text style={styles.eventExcerpt} numberOfLines={2}>
-                  {event.excerpt}
-                </Text>
-              )}
-
-              <View style={styles.eventFooter}>
-                <TouchableOpacity style={styles.viewDetailsButton} onPress={navigateToEventDetails}>
-                  <LinearGradient
-                    colors={[theme.primary, theme.primary]}
-                    style={styles.viewDetailsGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.viewDetailsText}>View Details</Text>
-                    <View style={styles.arrowContainer}>
-                      <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
-
-  // Component for Ministry Card - MODERN DESIGN
-  const MinistryCard = ({ ministry }: { ministry: Ministry }) => {
-    const pressAnim = useSharedValue(1);
-
-    const handlePressIn = () => {
-      pressAnim.value = withSpring(0.98, springConfig);
-    };
-
-    const handlePressOut = () => {
-      pressAnim.value = withSpring(1, springConfig);
-    };
-
-    const animatedStyle = useAnimatedStyle(() => {
-      return {
-        transform: [{ scale: pressAnim.value }],
-      };
-    });
-
-    const navigateToJoinMinistry = () => {
-      // MODIFIED: Navigate to JoinMinistryScreen instead of MinistriesScreen
-      // Pass id instead of ministryId to match what JoinMinistryScreen expects
-      // @ts-ignore - Ignoring type checking for navigation
-      navigation.navigate("JoinMinistryScreen", {
-        ministryId: ministry.id.toString(),
-      });
-    };
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={navigateToJoinMinistry}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={styles.ministryCardWrapper}
-      >
-        <Animated.View
-          style={[styles.ministryCard, isTablet && styles.tabletMinistryCard, animatedStyle]}
-        >
-          <View style={styles.ministryCardContent}>
-            <View style={styles.ministryImageContainer}>
-              {ministry.image_url ? (
-                <Image
-                  source={{ uri: ministry.image_url }}
-                  style={isTablet ? styles.tabletMinistryImage : styles.ministryImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <LinearGradient
-                  colors={[theme.neutral100, theme.neutral200]}
-                  style={isTablet ? styles.tabletMinistryImage : styles.ministryImage}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <FontAwesome5 name="church" size={28} color={theme.neutral400} />
-                </LinearGradient>
-              )}
-            </View>
-
-            <View style={styles.ministryDetailsContainer}>
-              <Text style={styles.ministryTitle} numberOfLines={2}>
-                {ministry.name}
-              </Text>
-
-              {ministry.description && (
-                <Text style={styles.ministryDescription} numberOfLines={isTablet ? 3 : 2}>
-                  {ministry.description}
-                </Text>
-              )}
-
-              <View style={styles.ministryFooter}>
-                <TouchableOpacity style={styles.joinButton} onPress={navigateToJoinMinistry}>
-                  <LinearGradient
-                    colors={[theme.secondary, theme.secondary]}
-                    style={styles.joinButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.joinButtonText}>Join Ministry</Text>
-                    <View style={styles.arrowContainer}>
-                      <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
-
-  // Events Tab Content
-  const EventsTab = () => {
-    if (isEventsLoading) {
-      return (
-        <View style={styles.stateContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.stateText}>Loading events...</Text>
-        </View>
-      );
-    }
-
-    if (eventsError) {
-      return (
-        <View style={styles.stateContainer}>
-          <View style={styles.errorIconContainer}>
-            <Ionicons name="alert-circle" size={36} color={theme.error} />
-          </View>
-          <Text style={styles.errorText}>{eventsError}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchEvents}>
-            <LinearGradient
-              colors={[theme.primary, theme.primary]}
-              style={styles.retryButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (events.length === 0) {
-      return (
-        <View style={styles.stateContainer}>
-          <View style={styles.emptyIconContainer}>
-            <FontAwesome5 name="calendar-alt" size={36} color={theme.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>No Events Found</Text>
-          <Text style={styles.emptyText}>There are no upcoming events scheduled at this time.</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.eventsContainer}>
-        <View style={styles.sectionHeaderContainer}>
-          <Text style={styles.sectionTitle}>All Events</Text>
-          <View style={styles.sectionHeaderLine} />
-        </View>
-        <View style={styles.eventsGrid}>
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  // Ministries Tab Content
-  const MinistriesTab = () => {
-    if (isMinistriesLoading) {
-      return (
-        <View style={styles.stateContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.stateText}>Loading ministries...</Text>
-        </View>
-      );
-    }
-
-    if (ministriesError) {
-      return (
-        <View style={styles.stateContainer}>
-          <View style={styles.errorIconContainer}>
-            <Ionicons name="alert-circle" size={36} color={theme.error} />
-          </View>
-          <Text style={styles.errorText}>{ministriesError}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchMinistries}>
-            <LinearGradient
-              colors={[theme.primary, theme.primary]}
-              style={styles.retryButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (ministries.length === 0) {
-      return (
-        <View style={styles.stateContainer}>
-          <View style={styles.emptyIconContainer}>
-            <FontAwesome5 name="church" size={36} color={theme.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>No Ministries Found</Text>
-          <Text style={styles.emptyText}>There are no ministries available at this time.</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.ministriesContainer}>
-        <View style={styles.sectionHeaderContainer}>
-          <Text style={styles.sectionTitle}>Our Ministries</Text>
-          <View style={styles.sectionHeaderLine} />
-        </View>
-        <View style={styles.ministriesGrid}>
-          {ministries.map((ministry) => (
-            <MinistryCard key={ministry.id} ministry={ministry} />
-          ))}
-        </View>
-      </View>
-    );
   };
 
   return (
@@ -696,21 +267,15 @@ export default function ChurchPage({ church, member, userData }: Props) {
                 onPress={() => handleTabPress(index)}
                 activeOpacity={0.7}
               >
-                <Animated.View
-                  style={useAnimatedStyle(() => ({
-                    transform: [{ scale: tabAnimations[index].value }],
-                  }))}
+                <Text
+                  style={[
+                    styles.tabText,
+                    isTablet && styles.tabletTabText,
+                    activeTab === tab && styles.activeTabText,
+                  ]}
                 >
-                  <Text
-                    style={[
-                      styles.tabText,
-                      isTablet && styles.tabletTabText,
-                      activeTab === tab && styles.activeTabText,
-                    ]}
-                  >
-                    {tab}
-                  </Text>
-                </Animated.View>
+                  {tab}
+                </Text>
 
                 {activeTab === tab && <View style={styles.activeTabIndicator} />}
               </TouchableOpacity>
@@ -723,9 +288,18 @@ export default function ChurchPage({ church, member, userData }: Props) {
               <ChurchPageContent church={church} member={member} userData={userData} />
             )}
 
-            {activeTab === "Events" && <EventsTab />}
+            {activeTab === "Events" && (
+              <EventsTab
+                events={events}
+                church={church}
+                loading={isEventsLoading}
+                error={eventsError}
+              />
+            )}
 
-            {activeTab === "Ministries" && <MinistriesTab />}
+            {activeTab === "Courses" && (
+              <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
+            )}
 
             {activeTab === "Community" && (
               <View style={styles.comingSoonContainer}>
@@ -742,6 +316,340 @@ export default function ChurchPage({ church, member, userData }: Props) {
     </SafeAreaView>
   );
 }
+// Events Tab Content
+const EventsTab = ({
+  events,
+  church,
+  loading,
+  error,
+}: {
+  events: ChurchEvent[];
+  church: Church;
+  loading: boolean;
+  error: string;
+}) => {
+  if (loading) {
+    return (
+      <View style={styles.stateContainer}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={styles.stateText}>Loading events...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return <Error />;
+  }
+
+  if (events.length === 0) {
+    return (
+      <View style={styles.stateContainer}>
+        <View style={styles.emptyIconContainer}>
+          <FontAwesome5 name="calendar-alt" size={36} color={theme.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>No Events Found</Text>
+        <Text style={styles.emptyText}>There are no upcoming events scheduled at this time.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.eventsContainer}>
+      <View style={styles.sectionHeaderContainer}>
+        <Text style={styles.sectionTitle}>All Events</Text>
+        <View style={styles.sectionHeaderLine} />
+      </View>
+      <View style={styles.eventsGrid}>
+        {events.map((event) => (
+          <EventCard key={event.id} event={event} church={church} />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const CoursesTab = ({
+  courses,
+  loading,
+  error,
+}: {
+  courses: Course[];
+  loading: boolean;
+  error: string;
+}) => {
+  if (loading) {
+    return (
+      <View style={styles.stateContainer}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={styles.stateText}>Loading ministries...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return <Error />;
+  }
+
+  if (courses.length) {
+    return (
+      <View style={styles.stateContainer}>
+        <View style={styles.emptyIconContainer}>
+          <FontAwesome5 name="church" size={36} color={theme.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>No Courses Found</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.coursesContainer}>
+      <View style={styles.sectionHeaderContainer}>
+        <Text style={styles.sectionTitle}>Our Courses</Text>
+        <View style={styles.sectionHeaderLine} />
+      </View>
+      <View style={styles.ministriesGrid}>
+        {courses.map((course) => (
+          <CourseCard key={course.id} course={course} />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) => {
+  const router = useRouter();
+  const { isTablet } = useScreen();
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // Format time for display
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const pressAnim = useSharedValue(1);
+
+  const handlePressIn = () => {
+    pressAnim.value = withSpring(0.98, springConfig);
+  };
+
+  const handlePressOut = () => {
+    pressAnim.value = withSpring(1, springConfig);
+  };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pressAnim.value }],
+    };
+  });
+
+  const navigateToEventDetails = () => {
+    router.push({
+      pathname: "/church_events",
+      params: {
+        id: event.id,
+        churchId: church.id,
+      },
+    });
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={navigateToEventDetails}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={styles.eventCardWrapper}
+    >
+      <Animated.View style={[styles.eventCard, isTablet && styles.tabletEventCard, animatedStyle]}>
+        <View style={styles.eventCardContent}>
+          <View style={styles.eventImageContainer}>
+            {event.image_url ? (
+              <Image
+                source={{ uri: event.image_url }}
+                style={isTablet ? styles.tabletEventImage : styles.eventImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={[theme.neutral100, theme.neutral200]}
+                style={isTablet ? styles.tabletEventImage : styles.eventImage}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <FontAwesome5 name="calendar-alt" size={28} color={theme.neutral400} />
+              </LinearGradient>
+            )}
+          </View>
+
+          <View style={styles.eventDetailsContainer}>
+            <View style={styles.eventHeader}>
+              <Text style={styles.eventTitle} numberOfLines={1}>
+                {event.title}
+              </Text>
+
+              {event.is_recurring && (
+                <LinearGradient
+                  colors={[theme.primary, theme.primary]}
+                  style={styles.recurringBadge}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Ionicons name="repeat" size={12} color="#FFFFFF" />
+                  <Text style={styles.recurringText}>Recurring</Text>
+                </LinearGradient>
+              )}
+            </View>
+
+            <View style={styles.eventMetaContainer}>
+              <View style={styles.eventMetaItem}>
+                <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+                <Text style={styles.eventMetaText}>{formatDate(event.time)}</Text>
+              </View>
+
+              <View style={styles.eventMetaItem}>
+                <Ionicons name="time-outline" size={16} color={theme.primary} />
+                <Text style={styles.eventMetaText}>{formatTime(event.time)}</Text>
+              </View>
+            </View>
+
+            {event.event_location && (
+              <View style={styles.eventLocationContainer}>
+                <Ionicons name="location-outline" size={16} color={theme.textMedium} />
+                <Text style={styles.eventLocation} numberOfLines={1}>
+                  {event.event_location}
+                </Text>
+              </View>
+            )}
+
+            {event.excerpt && (
+              <Text style={styles.eventExcerpt} numberOfLines={2}>
+                {event.excerpt}
+              </Text>
+            )}
+
+            <View style={styles.eventFooter}>
+              <TouchableOpacity style={styles.viewDetailsButton} onPress={navigateToEventDetails}>
+                <LinearGradient
+                  colors={[theme.primary, theme.primary]}
+                  style={styles.viewDetailsGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <View style={styles.arrowContainer}>
+                    <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const CourseCard = ({ course }: { course: Course }) => {
+  const { isTablet } = useScreen();
+  const pressAnim = useSharedValue(1);
+
+  const handlePressIn = () => {
+    pressAnim.value = withSpring(0.98, springConfig);
+  };
+
+  const handlePressOut = () => {
+    pressAnim.value = withSpring(1, springConfig);
+  };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pressAnim.value }],
+    };
+  });
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={() => {
+        console.log(course);
+      }}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={styles.courseCardContainer}
+    >
+      <Animated.View
+        style={[styles.courseCard, isTablet && styles.tabletCourseCard, animatedStyle]}
+      >
+        <View style={styles.courseCardContent}>
+          <View style={styles.courseImageContainer}>
+            {course.image_url ? (
+              <Image
+                source={{ uri: course.image_url }}
+                style={isTablet ? styles.tabletCourseImage : styles.courseImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={[theme.neutral100, theme.neutral200]}
+                style={isTablet ? styles.tabletCourseImage : styles.courseImage}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <FontAwesome5 name="church" size={28} color={theme.neutral400} />
+              </LinearGradient>
+            )}
+          </View>
+
+          <View style={styles.courseDetailsContainer}>
+            <Text style={styles.courseTitle} numberOfLines={2}>
+              Course title here boi
+            </Text>
+
+            {course.description && (
+              <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
+                {course.description}
+              </Text>
+            )}
+
+            <View style={styles.courseFooter}>
+              <TouchableOpacity
+                style={styles.joinButton}
+                onPress={() => {
+                  console.log("joined", { course });
+                }}
+              >
+                <LinearGradient
+                  colors={[theme.secondary, theme.secondary]}
+                  style={styles.joinButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Text style={styles.joinButtonText}>Join Ministry</Text>
+                  <View style={styles.arrowContainer}>
+                    <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -863,10 +771,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     height: 3,
-    width: 20,
+    width: "70%",
     backgroundColor: theme.primary,
     borderRadius: theme.radiusFull,
-    left: "50%",
     marginLeft: -10,
   },
   tabContent: {
@@ -903,7 +810,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontMedium,
     color: theme.error,
     textAlign: "center",
-    marginBottom: theme.spacingL,
   },
   emptyIconContainer: {
     width: 80,
@@ -1123,17 +1029,17 @@ const styles = StyleSheet.create({
   },
 
   // MODERN MINISTRIES STYLING
-  ministriesContainer: {
+  coursesContainer: {
     paddingVertical: theme.spacingL,
   },
   ministriesGrid: {
     flexDirection: "column",
     gap: 16,
   },
-  ministryCardWrapper: {
+  courseCardContainer: {
     marginBottom: 8,
   },
-  ministryCard: {
+  courseCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: theme.radiusMedium,
     overflow: "hidden",
@@ -1141,49 +1047,49 @@ const styles = StyleSheet.create({
     borderColor: theme.neutral200,
     ...theme.shadowLight,
   },
-  ministryCardContent: {
+  courseCardContent: {
     flexDirection: "row",
     height: 140,
   },
-  tabletMinistryCard: {
+  tabletCourseCard: {
     height: 160,
   },
-  ministryImageContainer: {
+  courseImageContainer: {
     width: "30%",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
   },
-  ministryImage: {
+  courseImage: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
   },
-  tabletMinistryImage: {
+  tabletCourseImage: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
   },
-  ministryDetailsContainer: {
+  courseDetailsContainer: {
     flex: 1,
     padding: theme.spacingM,
     justifyContent: "space-between",
   },
-  ministryTitle: {
+  courseTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
     color: theme.textDark,
     marginBottom: 8,
   },
-  ministryDescription: {
+  courseDescription: {
     fontSize: 13,
     color: theme.textMedium,
     lineHeight: 18,
     marginBottom: 8,
   },
-  ministryFooter: {
+  courseFooter: {
     alignItems: "flex-start",
   },
   joinButton: {

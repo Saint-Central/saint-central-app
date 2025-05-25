@@ -141,7 +141,7 @@ const FeedScreen: React.FC = () => {
               <Text style={styles.menuItemText}>Lent 2025</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigateToScreen("/rosary/screens/RosaryHome")}
             >
@@ -149,7 +149,7 @@ const FeedScreen: React.FC = () => {
                 <Feather name="circle" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.menuItemText}>Rosary</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigateToScreen("/events")}>
               <View style={[styles.menuIconContainer, { backgroundColor: "#F5A623" }]}>

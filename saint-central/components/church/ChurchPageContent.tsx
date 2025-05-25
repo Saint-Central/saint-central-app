@@ -1,4 +1,4 @@
-import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import React, { useState, useRef, useEffect } from "react";
 import {
   ActivityIndicator,
@@ -10,10 +10,8 @@ import {
   Text,
   Alert,
   Animated,
-  Platform,
   useWindowDimensions,
   Modal,
-  Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Church, ChurchMember } from "@/types/church";
@@ -43,7 +41,7 @@ type Props = {
   member?: ChurchMember | null;
 };
 
-export default function ChurchPageContent({ church, member, userData }: Props) {
+export default function ChurchPageContent({ church, member }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const router = useRouter();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
@@ -330,7 +328,7 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
             color1={theme.gradientInfo[0]}
             color2={theme.gradientInfo[1]}
             isTablet={isTablet}
-            onPress={() => navigation.navigate("YouthGroupSchedulePage")}
+            onPress={() => navigation.navigate("youthgroup")}
           />
 
           <ServiceCard
@@ -462,7 +460,12 @@ export default function ChurchPageContent({ church, member, userData }: Props) {
               <Ionicons name="people" size={isTablet ? 22 : 18} color="#FFFFFF" />
             </LinearGradient>
           }
-          onPress={() => navigation.navigate("church_members", { church_id: church.id.toString(), church_name: church.name })}
+          onPress={() =>
+            navigation.navigate("church_members", {
+              church_id: church.id.toString(),
+              church_name: church.name,
+            })
+          }
         >
           <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
             Members

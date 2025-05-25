@@ -52,7 +52,7 @@ export default function ChurchPageLayout({ userData }: Props) {
         mass: 1,
       });
     }
-  }, [loading, error]);
+  }, [loading, error, fadeAnim, scaleAnim]);
 
   // Create animated style
   const animatedStyle = useAnimatedStyle(() => {
@@ -84,9 +84,7 @@ export default function ChurchPageLayout({ userData }: Props) {
         if (!churchData || churchData.length === 0) {
           console.error(`No church found with ID ${churchId}`);
           // Check what churches exist in the database
-          const { data: allChurches, error: allChurchesError } = await supabase
-            .from("churches")
-            .select("id, name");
+          const { error: allChurchesError } = await supabase.from("churches").select("id, name");
 
           if (allChurchesError) {
             console.error("Error checking churches table:", allChurchesError);
