@@ -30,6 +30,7 @@ import {
   AntDesign,
 } from "@expo/vector-icons";
 import theme from "@/theme";
+import { Href, useRouter } from "expo-router";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export default function ChurchSidebar({
   profileImage,
 }: SidebarProps): JSX.Element {
   const navigation = useNavigation();
+  const router = useRouter();
   const [visibilityFlag, setVisibilityFlag] = useState(false);
   const animationProgress = useSharedValue(0);
 
@@ -102,11 +104,11 @@ export default function ChurchSidebar({
   }, [isOpen, animationProgress]);
 
   // Navigate to different sections
-  const navigateTo = (screen: string) => {
+  const navigateTo = (screen: Href) => {
     onClose();
     // Add delay to make sure sidebar is closed before navigation
     setTimeout(() => {
-      navigation.navigate(screen as never);
+      router.navigate(screen);
     }, 300);
   };
 
@@ -166,11 +168,10 @@ export default function ChurchSidebar({
               </View>
             </ImageBackground>
           </View>
-
           {/* Menu Items */}
           <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false}>
             {/* Lent 2025 Section */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("Lent2025")}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("/Lent2025")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
                   colors={[theme.secondary, theme.accent2]}
@@ -187,7 +188,7 @@ export default function ChurchSidebar({
             </TouchableOpacity>
 
             {/* Rosary Section */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigateTo("rosary/screens/RosaryHome")}
             >
@@ -204,10 +205,10 @@ export default function ChurchSidebar({
                 <Text style={styles.menuDescription}>Prayers and meditations</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             {/* Events Section */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("events")}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("/events")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
                   colors={[theme.info, theme.accent1]}
@@ -224,7 +225,7 @@ export default function ChurchSidebar({
             </TouchableOpacity>
 
             {/* Donations Section */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("donate")}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("/donate")}>
               <View style={styles.menuIconContainer}>
                 <LinearGradient
                   colors={[theme.success, theme.accent3]}
@@ -246,7 +247,7 @@ export default function ChurchSidebar({
             {/* Additional Menu Items */}
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateTo("MinistriesScreen")}
+              onPress={() => navigateTo("/MinistriesScreen")}
             >
               <View style={styles.menuIconContainer}>
                 <FontAwesome5 name="church" size={20} color={theme.textMedium} />
@@ -256,18 +257,8 @@ export default function ChurchSidebar({
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("courses")}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="book-outline" size={20} color={theme.textMedium} />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>Courses</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("schedule")}>
+            {/* Mass Schedule Section */}
+            {/* <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("schedule")}>
               <View style={styles.menuIconContainer}>
                 <MaterialCommunityIcons name="calendar-clock" size={20} color={theme.textMedium} />
               </View>
@@ -275,27 +266,7 @@ export default function ChurchSidebar({
                 <Text style={styles.menuTitle}>Mass Schedule</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("community")}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="people" size={20} color={theme.textMedium} />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>Community</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("settings")}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="settings-outline" size={20} color={theme.textMedium} />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>Settings</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </ScrollView>
 
           {/* Footer */}

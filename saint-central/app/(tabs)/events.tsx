@@ -591,21 +591,21 @@ function EventsComponent() {
         aspect: [16, 9],
         quality: 0.7,
       });
-      
+
       if (result.canceled) {
         setFormImageLoading(false);
         return;
       }
-      
+
       const localUri = result.assets[0].uri;
       setFormImageUrl(localUri);
-      
+
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData.session) {
           throw new Error("Not authenticated");
         }
-        
+
         const fileName = `${Date.now()}.jpg`;
         const { error: uploadError } = await supabase.storage
           .from("event-images")
@@ -614,11 +614,11 @@ function EventsComponent() {
             type: "image/jpeg",
             name: fileName,
           } as any);
-          
+
         if (uploadError) {
           throw uploadError;
         }
-        
+
         const { data: urlData } = supabase.storage.from("event-images").getPublicUrl(fileName);
         if (urlData?.publicUrl) {
           setFormImageUrl(urlData.publicUrl);
@@ -816,12 +816,7 @@ function EventsComponent() {
         </View>
 
         {/* Animated Hero Section with "CREATE EVENT" button (isolated from the shorter file) */}
-        <Animated.View
-          style={[
-            styles.heroSection,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
+        <View style={styles.heroSection}>
           <View style={styles.iconContainer}>
             <AntDesign name="calendar" size={36} color="#FFFFFF" />
           </View>
@@ -838,7 +833,7 @@ function EventsComponent() {
             <Text style={styles.addEventButtonText}>CREATE EVENT</Text>
             <AntDesign name="plus" size={18} color="#FFFFFF" />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
         {/* Main Scrollable Content */}
         <Animated.ScrollView
