@@ -99,13 +99,10 @@ export default function ChurchSearchScreen(): JSX.Element {
       // Log to debug
 
       const { data, error: fetchError } = await supabase.from("churches").select("*").order("name");
-
       if (fetchError) {
         console.error("Supabase error:", fetchError);
         throw fetchError;
       }
-
-      console.log("Churches data:", data ? `Found ${data.length} churches` : "No data");
 
       if (data && data.length > 0) {
         setChurches(data);
