@@ -303,7 +303,7 @@ export default function ChurchPage({ userData }: Props) {
               <View style={{ alignItems: "center" }}>
                 <Button
                   onPress={() => {
-                    router.push("/home/create-course");
+                    router.push("/create-course");
                   }}
                   size="md"
                   style={{ width: "65%" }}
