@@ -300,21 +300,24 @@ export default function ChurchPage({ userData }: Props) {
             )}
 
             {activeTab === "Courses" && (
-              <Button
-                onPress={() => {
-                  router.push("/home/create-course");
-                }}
-              >
-                <Text
-                  style={{
-                    color: "#FFFFFF",
-                    fontWeight: theme.fontSemiBold,
-                    fontSize: 12,
+              <View style={{ alignItems: "center" }}>
+                <Button
+                  onPress={() => {
+                    router.push("/home/create-course");
                   }}
+                  size="md"
+                  style={{ width: "65%" }}
                 >
-                  Hi
-                </Text>
-              </Button>
+                  <Text
+                    style={{
+                      color: theme.textWhite,
+                      fontWeight: theme.fontSemiBold,
+                    }}
+                  >
+                    Create Course (Admin)
+                  </Text>
+                </Button>
+              </View>
             )}
             {activeTab === "Courses" && (
               <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
@@ -634,33 +637,20 @@ const CourseCard = ({ course }: { course: Course }) => {
 
           <View style={styles.courseDetailsContainer}>
             <Text style={styles.courseTitle} numberOfLines={2}>
-              Course title here boi
+              Course title
             </Text>
-
             {course.description && (
               <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
                 {course.description}
               </Text>
             )}
-
             <View style={styles.courseFooter}>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log("joined", { course });
-                }}
-              >
-                <LinearGradient
-                  colors={[theme.secondary, theme.secondary]}
-                  style={styles.joinButtonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.joinButtonText}>Join Ministry</Text>
-                  <View style={styles.arrowContainer}>
-                    <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
+              <Button size="xs">
+                <Text style={styles.joinButtonText}>Join Course</Text>
+                <View style={styles.arrowContainer}>
+                  <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                </View>
+              </Button>
             </View>
           </View>
         </View>
