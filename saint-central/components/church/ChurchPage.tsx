@@ -33,6 +33,7 @@ import useScreen from "@/hooks/useScreen";
 import { Course } from "@/types/course";
 import Button from "@/components/ui/Button";
 import { useChurchContext } from "@/contexts/church";
+import { isAdminOrOwner } from "@/data/user";
 
 type Props = {
   userData: { username: string; profileImage: string };
@@ -70,7 +71,7 @@ export default function ChurchPage({ userData }: Props) {
   const appearAnim = useSharedValue(0);
 
   const {
-    data: { church },
+    data: { church, member },
   } = useChurchContext();
 
   // Function to fetch events from Supabase - MODIFIED to load all events
@@ -299,11 +300,18 @@ export default function ChurchPage({ userData }: Props) {
               />
             )}
 
-            {activeTab === "Courses" && (
+            {activeTab === "Courses" && isAdminOrOwner(member) && (
               <View style={{ alignItems: "center" }}>
                 <Button
                   onPress={() => {
-                    router.push("/create-course");
+                    router.push({
+                      pathname: "/create-course",
+                      params: {
+                        churchId: member.church_id,
+                        userId: member.user_id,
+                        role: member.role,
+                      },
+                    });
                   }}
                   size="md"
                   style={{ width: "65%" }}

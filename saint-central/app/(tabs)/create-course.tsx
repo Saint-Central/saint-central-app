@@ -1,41 +1,56 @@
 import theme from "@/theme";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import {Text, StyleSheet, SafeAreaView, TextInput, View, TouchableOpacity} from "react-native"
+import { Text, StyleSheet, SafeAreaView, TextInput, View, TouchableOpacity } from "react-native";
 
 const CreateCourse = () => {
+  const router = useRouter();
+  const { churchId, userId, role } = useLocalSearchParams<{
+    churchId?: string;
+    userId?: string;
+    role?: string;
+  }>();
+
+  if (!churchId || !userId || !role || (role !== "admin" && role !== "owner")) {
+    if (!router.canGoBack()) {
+      router.back();
+    } else {
+      router.navigate("/home");
+    }
+  }
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.wrapper}>
-      <Text style={styles.title}>Create Course</Text>
-      <View style={styles.section}>
-       <Text style={styles.subheader}>Course Information</Text>
-       <TextInput
-         style={styles.input}
-         placeholder="Course Title"
-         placeholderTextColor={theme.textLight}
-       />
-       <TextInput
-         style={[styles.input, styles.textArea]}
-         placeholder="Course Description"
-         placeholderTextColor={theme.textLight}
-         multiline
-         numberOfLines={4}
-       />
-     </View>
-      
-      <View style={styles.section}>
-        <Text style={styles.subheader}>Create Registration Form</Text>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Add Section</Text>
-          </TouchableOpacity>
+        <Text style={styles.title}>Create Course</Text>
+        <View style={styles.section}>
+          <Text style={styles.subheader}>Course Information</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Course Title"
+            placeholderTextColor={theme.textLight}
+          />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Course Description"
+            placeholderTextColor={theme.textLight}
+            multiline
+            numberOfLines={4}
+          />
         </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={[styles.button, styles.finishButton]}>
-            <Text style={styles.buttonText}>Finish</Text>
-          </TouchableOpacity>
+
+        <View style={styles.section}>
+          <Text style={styles.subheader}>Create Registration Form</Text>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.button}>
+              <Text style={styles.buttonText}>Add Section</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={[styles.button, styles.finishButton]}>
+              <Text style={styles.buttonText}>Finish</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
       </View>
     </SafeAreaView>
   );
@@ -71,7 +86,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: "#E0E0E0",
     borderRadius: 8,
     padding: 12,
     marginBottom: 15,
@@ -79,11 +94,11 @@ const styles = StyleSheet.create({
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: 10,
   },
   button: {
@@ -91,13 +106,13 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   finishButton: {
     backgroundColor: theme.success,
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
     fontWeight: theme.fontBold,
   },

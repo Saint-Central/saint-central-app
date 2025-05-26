@@ -70,6 +70,7 @@ export default function ChurchSearchScreen(): JSX.Element {
 
   // Fetch churches data on component mount
   useEffect(() => {
+    console.log("running ----");
     fetchChurches();
   }, []);
 
