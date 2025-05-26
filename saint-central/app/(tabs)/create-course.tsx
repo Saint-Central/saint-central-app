@@ -1,7 +1,20 @@
+import Button from "@/components/ui/Button";
 import theme from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { Text, StyleSheet, SafeAreaView, TextInput, View, TouchableOpacity } from "react-native";
+import { Text, StyleSheet, SafeAreaView, TextInput, View } from "react-native";
+
+type CourseField = {
+  type: "TEXT";
+  title: string;
+  value?: string;
+};
+
+type CourseForm = {
+  title: string;
+  description: string;
+  fields: CourseField[];
+};
 
 const CreateCourse = () => {
   const router = useRouter();
@@ -18,6 +31,7 @@ const CreateCourse = () => {
       router.navigate("/home");
     }
   }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.wrapper}>
@@ -40,16 +54,14 @@ const CreateCourse = () => {
 
         <View style={styles.section}>
           <Text style={styles.subheader}>Create Registration Form</Text>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.button}>
-              <Text style={styles.buttonText}>Add Section</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={[styles.button, styles.finishButton]}>
-              <Text style={styles.buttonText}>Finish</Text>
-            </TouchableOpacity>
-          </View>
+          <Button>
+            <Text style={{ color: theme.textWhite, fontWeight: theme.fontSemiBold }}>
+              Add Section
+            </Text>
+          </Button>
+          <Button style={{ backgroundColor: theme.success }}>
+            <Text style={{ color: theme.textWhite, fontWeight: theme.fontSemiBold }}>Finish</Text>
+          </Button>
         </View>
       </View>
     </SafeAreaView>

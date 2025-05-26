@@ -32,7 +32,7 @@ export default function Button({
 }: Props) {
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.55}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       onPress={onPress}
@@ -42,6 +42,7 @@ export default function Button({
     </TouchableOpacity>
   );
 }
+
 const sizeStyles: Record<Size, ViewStyle> = {
   xs: {
     height: 24,
