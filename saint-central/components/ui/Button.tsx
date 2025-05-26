@@ -6,11 +6,10 @@ import {
   StyleSheet,
   StyleProp,
   ViewStyle,
-  View,
 } from "react-native";
 
 type Variant = "outline";
-type Size = "sm" | "md" | "lg";
+type Size = "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 
 type Props = {
   children?: ReactNode;
@@ -33,39 +32,45 @@ export default function Button({
 }: Props) {
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.55}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       onPress={onPress}
+      style={[styles.shared, getSizeStyles(size), styles[variant ?? "primary"], style]}
     >
-      <View style={[styles.shared, getSizeStyles(size), styles[variant ?? "primary"], style]}>
-        {children}
-      </View>
+      {children}
     </TouchableOpacity>
   );
 }
+
 const sizeStyles: Record<Size, ViewStyle> = {
+  xs: {
+    height: 24,
+  },
   sm: {
     height: 32,
   },
   md: { height: 46 },
   lg: { height: 56 },
+  xl: { height: 64 },
+  "2xl": { height: 76 },
+  "3xl": { height: 92 },
 };
 
 const getSizeStyles = (size: Size) => {
-  return StyleSheet.create({ view: sizeStyles[size] });
+  return StyleSheet.create({ view: sizeStyles[size] }).view;
 };
 
 const styles = StyleSheet.create({
   shared: {
-    height: 56,
     borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingInline: 10,
   },
   primary: {
     backgroundColor: theme.secondary,
   },
-  outline: {},
+  outline: { borderWidth: 1, borderColor: theme.neutral300, backgroundColor: theme.neutral50 },
 });
