@@ -5,6 +5,7 @@ import {Text, StyleSheet, SafeAreaView, TextInput, View, TouchableOpacity} from 
 const CreateCourse = () => {
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.wrapper}>
       <Text style={styles.title}>Create Course</Text>
       <View style={styles.section}>
        <Text style={styles.subheader}>Course Information</Text>
@@ -35,7 +36,7 @@ const CreateCourse = () => {
           </TouchableOpacity>
         </View>
       </View>
-
+      </View>
     </SafeAreaView>
   );
 };
@@ -45,12 +46,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     padding: 20,
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  wrapper: {
+    flex: 1,
+    maxWidth: "90%",
   },
   title: {
     fontSize: 24,
     fontWeight: theme.fontBold,
     color: theme.textDark,
     marginBottom: 20,
+    textAlign: "center",
   },
   section: {
     marginBottom: 30,
