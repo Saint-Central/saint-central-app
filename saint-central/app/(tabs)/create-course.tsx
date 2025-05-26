@@ -1,11 +1,12 @@
+import theme from "@/theme";
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { Text, StyleSheet, SafeAreaView } from "react-native";
 
 const CreateCourse = () => {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Create Course</Text>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -18,9 +19,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: theme.fontBold,
+    color: theme.textDark,
   },
+  subheader: {},
 });
 
 export default CreateCourse;
