@@ -27,7 +27,7 @@ import ChurchPageHeader from "@/components/church/ChurchPageHeader";
 import ChurchSidebar from "@/components/church/ChurchSidebar";
 import theme from "@/theme";
 import { supabase } from "../../supabaseClient";
-import { useRouter } from "expo-router";
+import { router, useRouter } from "expo-router";
 import Error from "@/components/ui/Error";
 import useScreen from "@/hooks/useScreen";
 import { Course } from "@/types/course";
@@ -299,6 +299,23 @@ export default function ChurchPage({ userData }: Props) {
               />
             )}
 
+            {activeTab === "Courses" && (
+              <Button
+                onPress={() => {
+                  router.push("/home/create-course");
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: theme.fontSemiBold,
+                    fontSize: 12,
+                  }}
+                >
+                  Hi
+                </Text>
+              </Button>
+            )}
             {activeTab === "Courses" && (
               <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
             )}
@@ -628,7 +645,6 @@ const CourseCard = ({ course }: { course: Course }) => {
 
             <View style={styles.courseFooter}>
               <TouchableOpacity
-                style={styles.joinButton}
                 onPress={() => {
                   console.log("joined", { course });
                 }}
@@ -1093,10 +1109,6 @@ const styles = StyleSheet.create({
   },
   courseFooter: {
     alignItems: "flex-start",
-  },
-  joinButton: {
-    overflow: "hidden",
-    borderRadius: theme.radiusMedium,
   },
   joinButtonGradient: {
     paddingHorizontal: 12,

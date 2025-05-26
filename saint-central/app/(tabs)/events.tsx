@@ -648,7 +648,7 @@ function EventsComponent() {
     } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
       return { icon: "message-circle", color: theme.accent3 };
     } else if (title.includes("prayer") || title.includes("breakfast")) {
-      return { icon: "coffee", color: theme.accent4 };
+      return { icon: "coffee", color: theme.secondary };
     }
     return { icon: "calendar", color: theme.accent1 };
   };

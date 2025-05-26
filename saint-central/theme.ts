@@ -11,7 +11,6 @@ export default {
   accent1: "#9B8557", // Muted gold
   accent2: "#B97A65", // Muted rust
   accent3: "#7D9B6A", // Sage green
-  accent4: "#C78D60", // Warm amber
 
   // Neutrals
   neutral900: "#2D241F", // Almost black with warm undertone

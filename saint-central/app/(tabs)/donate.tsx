@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: theme.spacingXL,
-    backgroundColor: theme.accent4,
+    backgroundColor: theme.secondary,
     ...theme.shadowMedium,
   },
   buttonText: {
@@ -301,10 +301,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacingXL,
     borderRadius: theme.radiusFull,
     borderWidth: 1,
-    borderColor: theme.accent4,
+    borderColor: theme.secondary,
   },
   infoButtonText: {
-    color: theme.accent4,
+    color: theme.secondary,
     fontSize: 14,
     fontWeight: theme.fontMedium,
   },
