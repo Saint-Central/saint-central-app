@@ -139,17 +139,20 @@ const lentGuideEvents: LentEvent[] = [
   {
     date: "2025-02-17",
     title: "Daily Goals",
-    description: "Take time to reflect on your spiritual growth and set a personal intention for your daily goals.",
+    description:
+      "Take time to reflect on your spiritual growth and set a personal intention for your daily goals.",
   },
   {
     date: "2025-02-18",
     title: "Silent Prayer",
-    description: "Dedicate 20 minutes to silent prayer or meditation. Find a quiet space, focus on your breathing, and invite God's presence. Consider using a guided prayer resource if needed.",
+    description:
+      "Dedicate 20 minutes to silent prayer or meditation. Find a quiet space, focus on your breathing, and invite God's presence. Consider using a guided prayer resource if needed.",
   },
   {
     date: "2025-02-19",
     title: "Group Discussion",
-    description: "Organize a group discussion with friends or family about the significance of daily goals. Share personal goals and support each other in your spiritual journeys.",
+    description:
+      "Organize a group discussion with friends or family about the significance of daily goals. Share personal goals and support each other in your spiritual journeys.",
   },
   {
     date: "March 5",
@@ -441,7 +444,7 @@ const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
                     )}
                     {task.group_info && (
                       <View style={styles.groupTag}>
-                        <Feather name="users" size={12} color={theme.accent4} />
+                        <Feather name="users" size={12} color={theme.secondary} />
                         <Text style={styles.groupTagText}>
                           Shared group: {task.group_info.name}
                         </Text>
@@ -700,7 +703,7 @@ const renderTaskGroupCard = (
       )}
       {task.group_info && (
         <View style={styles.groupTag}>
-          <Feather name="users" size={12} color={theme.accent4} />
+          <Feather name="users" size={12} color={theme.secondary} />
           <Text style={styles.groupTagText}>Shared group: {task.group_info.name}</Text>
         </View>
       )}
@@ -965,7 +968,15 @@ const Lent2025: React.FC = () => {
   );
 
   const palette = useMemo(
-    () => [theme.tertiary, theme.accent4, theme.accent1, theme.accent2, theme.accent3, theme.secondary, theme.primary],
+    () => [
+      theme.tertiary,
+      theme.secondary,
+      theme.accent1,
+      theme.accent2,
+      theme.accent3,
+      theme.secondary,
+      theme.primary,
+    ],
     [],
   );
 
@@ -2008,7 +2019,7 @@ const Lent2025: React.FC = () => {
           </Text>
           {task.group_info && (
             <View style={styles.groupTag}>
-              <Feather name="users" size={12} color={theme.accent4} />
+              <Feather name="users" size={12} color={theme.secondary} />
               <Text style={styles.groupTagText}>Shared group: {task.group_info.name}</Text>
             </View>
           )}
@@ -2065,7 +2076,7 @@ const Lent2025: React.FC = () => {
                   onPress={() => handleEditTask(task)}
                   activeOpacity={0.7}
                 >
-                  <Feather name="edit" size={16} color={theme.accent4} />
+                  <Feather name="edit" size={16} color={theme.secondary} />
                   <Text style={styles.editActionText}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -3285,24 +3296,24 @@ const styles = StyleSheet.create({
   recurringTaskTitle: {},
   taskDate: {
     fontSize: 14,
-    color: theme.accent4,
+    color: theme.secondary,
     marginBottom: 8,
     letterSpacing: 0.5,
   },
   groupTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: `${theme.accent4}33`,
+    backgroundColor: `${theme.secondary}33`,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 10,
     marginBottom: 8,
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: `${theme.accent4}4D`,
+    borderColor: `${theme.secondary}4D`,
   },
   groupTagText: {
-    color: theme.accent4,
+    color: theme.secondary,
     fontSize: 12,
     marginLeft: 5,
     fontWeight: "600",
@@ -3377,7 +3388,7 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     padding: 4,
   },
-  editActionText: { color: theme.accent4, marginLeft: 4, letterSpacing: 0.3 },
+  editActionText: { color: theme.secondary, marginLeft: 4, letterSpacing: 0.3 },
   deleteActionText: { color: theme.error, marginLeft: 4, letterSpacing: 0.3 },
   calendarContainer: { paddingBottom: 20, marginTop: 8 },
   stickyMonthHeader: {
@@ -3462,7 +3473,7 @@ const styles = StyleSheet.create({
   },
   dayIndicator: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 1.5 },
   taskIndicator: { backgroundColor: theme.tertiary },
-  guideIndicator: { backgroundColor: theme.accent4 },
+  guideIndicator: { backgroundColor: theme.secondary },
   modalOverlay: {
     flex: 1,
     backgroundColor: `${theme.neutral900}B3`,
@@ -3877,7 +3888,7 @@ const styles = StyleSheet.create({
     color: theme.textWhite,
     marginBottom: 2,
   },
-  expandedDayTaskUser: { fontSize: 13, color: theme.accent4, marginBottom: 4 },
+  expandedDayTaskUser: { fontSize: 13, color: theme.secondary, marginBottom: 4 },
   expandedDayTaskDesc: {
     color: `${theme.neutral100}CC`,
     marginBottom: 10,

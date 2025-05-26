@@ -21,7 +21,7 @@ const gradientMap: Record<string, { start: string; end: string }> = {
   "praying-hands": { start: theme.primary, end: theme.secondary },
   users: { start: theme.tertiary, end: theme.accent2 },
   "book-open": { start: theme.accent3, end: theme.accent1 },
-  church: { start: theme.accent4, end: theme.accent2 },
+  church: { start: theme.secondary, end: theme.accent2 },
 };
 
 interface Category {

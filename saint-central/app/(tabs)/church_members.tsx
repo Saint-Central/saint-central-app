@@ -55,18 +55,20 @@ type RouteParams = {
   church_name?: string;
 };
 
-type ChurchMembersScreenRouteProp = RouteProp<{ params: RouteParams }, 'params'>;
+type ChurchMembersScreenRouteProp = RouteProp<{ params: RouteParams }, "params">;
 
 export default function ChurchMembersScreen() {
   const route = useRoute<ChurchMembersScreenRouteProp>();
   const { church_id, church_name } = route.params;
-  
+
   const [members, setMembers] = useState<ChurchMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [editingMember, setEditingMember] = useState<ChurchMember | null>(null);
-  const [memberPrivacySettings, setMemberPrivacySettings] = useState<Record<string, PrivacySettings>>({});
+  const [memberPrivacySettings, setMemberPrivacySettings] = useState<
+    Record<string, PrivacySettings>
+  >({});
   const [updateLoading, setUpdateLoading] = useState(false);
   const [churchDisplayName, setChurchDisplayName] = useState(church_name || "Church");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function ChurchMembersScreen() {
     hide_phone: false,
   });
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  
+
   // Search functionality
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,7 +90,7 @@ export default function ChurchMembersScreen() {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
         setCurrentUserId(data.user.id);
-        
+
         // Get the user's role in this church
         const { data: memberData, error: memberError } = await supabase
           .from("church_members")
@@ -96,13 +98,13 @@ export default function ChurchMembersScreen() {
           .eq("church_id", church_id)
           .eq("user_id", data.user.id)
           .single();
-        
+
         if (memberData) {
           setCurrentUserRole(memberData.role);
         }
       }
     };
-    
+
     getCurrentUser();
   }, [church_id]);
 
@@ -112,25 +114,27 @@ export default function ChurchMembersScreen() {
       setFilteredMembers(members);
       return;
     }
-    
+
     const lowercaseQuery = searchQuery.toLowerCase();
-    const filtered = members.filter(member => {
+    const filtered = members.filter((member) => {
       if (member.hide_name && member.user_id !== currentUserId) {
         return false; // Don't include hidden names in search unless it's the current user
       }
-      
+
       const firstName = member.user?.first_name?.toLowerCase() || "";
       const lastName = member.user?.last_name?.toLowerCase() || "";
       const email = member.user?.email?.toLowerCase() || "";
       const role = member.role?.toLowerCase() || "";
-      
-      return firstName.includes(lowercaseQuery) || 
-             lastName.includes(lowercaseQuery) || 
-             `${firstName} ${lastName}`.includes(lowercaseQuery) ||
-             email.includes(lowercaseQuery) ||
-             role.includes(lowercaseQuery);
+
+      return (
+        firstName.includes(lowercaseQuery) ||
+        lastName.includes(lowercaseQuery) ||
+        `${firstName} ${lastName}`.includes(lowercaseQuery) ||
+        email.includes(lowercaseQuery) ||
+        role.includes(lowercaseQuery)
+      );
     });
-    
+
     setFilteredMembers(filtered);
   }, [searchQuery, members, currentUserId]);
 
@@ -144,7 +148,7 @@ export default function ChurchMembersScreen() {
             .select("name")
             .eq("id", church_id)
             .single();
-          
+
           if (data) {
             setChurchDisplayName(data.name);
           }
@@ -161,7 +165,7 @@ export default function ChurchMembersScreen() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      
+
       // Parse church_id to number for database query
       const churchIdNumber = Number(church_id);
       if (isNaN(churchIdNumber)) {
@@ -169,11 +173,12 @@ export default function ChurchMembersScreen() {
         setMembers([]);
         return;
       }
-      
+
       // Join church_members with users table using the foreign key
       const { data, error } = await supabase
         .from("church_members")
-        .select(`
+        .select(
+          `
           id,
           role,
           joined_at,
@@ -189,7 +194,8 @@ export default function ChurchMembersScreen() {
             profile_image,
             phone_number
           )
-        `)
+        `,
+        )
         .eq("church_id", churchIdNumber);
 
       if (error) {
@@ -198,7 +204,7 @@ export default function ChurchMembersScreen() {
       }
 
       // Transform the data to match ChurchMember type
-      const normalizedData = data.map(item => {
+      const normalizedData = data.map((item) => {
         const userData = Array.isArray(item.users) ? item.users[0] : item.users;
         return {
           id: item.id,
@@ -208,14 +214,16 @@ export default function ChurchMembersScreen() {
           hide_email: item.hide_email || false,
           hide_name: item.hide_name || false,
           hide_phone: item.hide_phone || false,
-          user: userData ? {
-            id: userData.id,
-            email: userData.email,
-            first_name: userData.first_name,
-            last_name: userData.last_name,
-            profile_image: userData.profile_image,
-            phone_number: userData.phone_number
-          } : null
+          user: userData
+            ? {
+                id: userData.id,
+                email: userData.email,
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                profile_image: userData.profile_image,
+                phone_number: userData.phone_number,
+              }
+            : null,
         };
       });
 
@@ -273,7 +281,7 @@ export default function ChurchMembersScreen() {
         .update({
           hide_email: privacySettings.hide_email,
           hide_name: privacySettings.hide_name,
-          hide_phone: privacySettings.hide_phone
+          hide_phone: privacySettings.hide_phone,
         })
         .eq("id", editingMember.id);
 
@@ -313,7 +321,7 @@ export default function ChurchMembersScreen() {
     // Get initials for the avatar placeholder
     const getInitials = () => {
       if (!showName) return "?";
-      
+
       const first = item.user?.first_name?.[0] || "";
       const last = item.user?.last_name?.[0] || "";
       return (first + last).toUpperCase() || "?";
@@ -330,10 +338,7 @@ export default function ChurchMembersScreen() {
           <View style={styles.memberHeader}>
             {/* Profile Image or Initials */}
             {item.user?.profile_image && showName ? (
-              <Image 
-                source={{ uri: item.user.profile_image }} 
-                style={styles.profileImage} 
-              />
+              <Image source={{ uri: item.user.profile_image }} style={styles.profileImage} />
             ) : (
               <LinearGradient
                 colors={theme.gradientPrimary}
@@ -342,16 +347,16 @@ export default function ChurchMembersScreen() {
                 <Text style={styles.initialsText}>{getInitials()}</Text>
               </LinearGradient>
             )}
-            
+
             {/* Member Name and Role */}
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>
-                {showName 
-                  ? `${item.user?.first_name || ''} ${item.user?.last_name || ''}`.trim() 
+                {showName
+                  ? `${item.user?.first_name || ""} ${item.user?.last_name || ""}`.trim()
                   : "Anonymous Member"}
                 {isCurrentUser && <Text style={styles.currentUserText}> (You)</Text>}
               </Text>
-              
+
               <View style={styles.roleBadge}>
                 <Text style={styles.roleText}>{item.role || "Member"}</Text>
               </View>
@@ -359,7 +364,7 @@ export default function ChurchMembersScreen() {
 
             {/* Privacy Settings Button - only for current user */}
             {isCurrentUser && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handlePrivacySettings(item)}
               >
@@ -367,16 +372,19 @@ export default function ChurchMembersScreen() {
               </TouchableOpacity>
             )}
           </View>
-          
+
           {/* Member Details */}
           <View style={styles.memberDetails}>
             {(showEmail || isCurrentUser) && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="envelope" size={14} color={theme.textMedium} style={styles.icon} />
+                <FontAwesome5
+                  name="envelope"
+                  size={14}
+                  color={theme.textMedium}
+                  style={styles.icon}
+                />
                 <Text style={styles.detailText}>
-                  {showEmail 
-                    ? item.user?.email || 'No email provided'
-                    : '*****@****** (Hidden)'}
+                  {showEmail ? item.user?.email || "No email provided" : "*****@****** (Hidden)"}
                   {!showEmail && isCurrentUser && " (Only visible to you)"}
                 </Text>
               </View>
@@ -386,19 +394,20 @@ export default function ChurchMembersScreen() {
               <View style={styles.detailRow}>
                 <FontAwesome5 name="phone" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
-                  {showPhone 
-                    ? item.user.phone_number
-                    : '****-****-**** (Hidden)'}
+                  {showPhone ? item.user.phone_number : "****-****-**** (Hidden)"}
                   {!showPhone && isCurrentUser && " (Only visible to you)"}
                 </Text>
               </View>
             )}
-            
+
             <View style={styles.detailRow}>
-              <FontAwesome5 name="calendar" size={14} color={theme.textMedium} style={styles.icon} />
-              <Text style={styles.detailText}>
-                Member since: {formatDate(item.joined_at)}
-              </Text>
+              <FontAwesome5
+                name="calendar"
+                size={14}
+                color={theme.textMedium}
+                style={styles.icon}
+              />
+              <Text style={styles.detailText}>Member since: {formatDate(item.joined_at)}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -441,8 +450,8 @@ export default function ChurchMembersScreen() {
                 </View>
                 <Switch
                   value={privacySettings.hide_email}
-                  onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_email: value }))
+                  onValueChange={(value) =>
+                    setPrivacySettings((prev) => ({ ...prev, hide_email: value }))
                   }
                   trackColor={{ false: theme.neutral300, true: theme.primary }}
                   thumbColor={theme.neutral50}
@@ -458,8 +467,8 @@ export default function ChurchMembersScreen() {
                 </View>
                 <Switch
                   value={privacySettings.hide_phone}
-                  onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_phone: value }))
+                  onValueChange={(value) =>
+                    setPrivacySettings((prev) => ({ ...prev, hide_phone: value }))
                   }
                   trackColor={{ false: theme.neutral300, true: theme.primary }}
                   thumbColor={theme.neutral50}
@@ -475,8 +484,8 @@ export default function ChurchMembersScreen() {
                 </View>
                 <Switch
                   value={privacySettings.hide_name}
-                  onValueChange={(value) => 
-                    setPrivacySettings(prev => ({ ...prev, hide_name: value }))
+                  onValueChange={(value) =>
+                    setPrivacySettings((prev) => ({ ...prev, hide_name: value }))
                   }
                   trackColor={{ false: theme.neutral300, true: theme.primary }}
                   thumbColor={theme.neutral50}
@@ -484,7 +493,12 @@ export default function ChurchMembersScreen() {
               </View>
 
               <View style={styles.privacyNote}>
-                <FontAwesome5 name="info-circle" size={14} color={theme.textMedium} style={styles.icon} />
+                <FontAwesome5
+                  name="info-circle"
+                  size={14}
+                  color={theme.textMedium}
+                  style={styles.icon}
+                />
                 <Text style={styles.noteText}>
                   These settings control who can see your information in the church directory
                 </Text>
@@ -497,7 +511,7 @@ export default function ChurchMembersScreen() {
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.saveButton}
                   onPress={savePrivacySettings}
@@ -520,11 +534,16 @@ export default function ChurchMembersScreen() {
   // Render search bar
   const renderSearchBar = () => {
     if (!searchVisible) return null;
-    
+
     return (
       <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
-          <FontAwesome5 name="search" size={16} color={theme.textMedium} style={styles.searchIcon} />
+          <FontAwesome5
+            name="search"
+            size={16}
+            color={theme.textMedium}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name, role..."
@@ -535,10 +554,7 @@ export default function ChurchMembersScreen() {
           />
         </View>
         {searchQuery !== "" && (
-          <TouchableOpacity 
-            style={styles.clearButton} 
-            onPress={() => setSearchQuery("")}
-          >
+          <TouchableOpacity style={styles.clearButton} onPress={() => setSearchQuery("")}>
             <FontAwesome5 name="times-circle" size={16} color={theme.textMedium} />
           </TouchableOpacity>
         )}
@@ -548,7 +564,7 @@ export default function ChurchMembersScreen() {
 
   if (loading && !refreshing) {
     return (
-      <View style={[styles.loadingContainer, {paddingTop: Constants.statusBarHeight}]}>
+      <View style={[styles.loadingContainer, { paddingTop: Constants.statusBarHeight }]}>
         <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
@@ -557,8 +573,8 @@ export default function ChurchMembersScreen() {
   return (
     <View style={styles.outerContainer}>
       {/* Status bar padding space */}
-      <View style={{height: Constants.statusBarHeight, backgroundColor: theme.neutral50}} />
-      
+      <View style={{ height: Constants.statusBarHeight, backgroundColor: theme.neutral50 }} />
+
       {/* Header stays fixed at the top */}
       <View style={styles.header}>
         <View style={styles.headerMainContent}>
@@ -572,20 +588,16 @@ export default function ChurchMembersScreen() {
           </LinearGradient>
           <Text style={styles.headerTitle}>{churchDisplayName} Members</Text>
         </View>
-        
+
         {/* Search Button */}
         <TouchableOpacity style={styles.searchButton} onPress={toggleSearch}>
-          <FontAwesome5 
-            name={searchVisible ? "times" : "search"} 
-            size={18} 
-            color={theme.primary} 
-          />
+          <FontAwesome5 name={searchVisible ? "times" : "search"} size={18} color={theme.primary} />
         </TouchableOpacity>
       </View>
-      
+
       {/* Search Bar */}
       {renderSearchBar()}
-      
+
       {/* Content container */}
       <View style={styles.container}>
         <FlatList
@@ -595,22 +607,22 @@ export default function ChurchMembersScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh} 
-              colors={[theme.primary]} 
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.primary]}
             />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <FontAwesome5 
-                name={searchQuery ? "search" : "church"} 
-                size={50} 
-                color={theme.neutral300} 
+              <FontAwesome5
+                name={searchQuery ? "search" : "church"}
+                size={50}
+                color={theme.neutral300}
               />
               <Text style={styles.emptyText}>
-                {searchQuery 
-                  ? "No members found matching your search" 
+                {searchQuery
+                  ? "No members found matching your search"
                   : "No members found for this church"}
               </Text>
             </View>
