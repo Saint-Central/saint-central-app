@@ -5,6 +5,7 @@
 /android
 .expo
 /supabase/.temp
+/api-reference
 
 # dependencies
 /node_modules
