@@ -15,6 +15,7 @@ import {
   TextInputProps,
   SafeAreaView,
   Linking,
+  ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -33,11 +34,10 @@ import Animated, {
   SlideInDown,
   BounceIn,
 } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/AuthContext";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 const isIpad = width >= 768;
 
 // API Configuration
@@ -62,21 +62,23 @@ interface AuthSession {
   user: User;
 }
 
-// --- SVG Cross Component ---
-const CrossIcon = () => {
-  // Using Reanimated for the cross icon animation
+// --- Christian Cross Component ---
+const ChristianCross = () => {
   const rotation = useSharedValue(0);
+  const scale = useSharedValue(0.8);
 
   useEffect(() => {
     rotation.value = withSequence(
-      withTiming(45, { duration: 600, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-      withTiming(0, { duration: 600, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+      withTiming(5, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+      withTiming(-5, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+      withTiming(0, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
     );
+    scale.value = withSpring(1, { damping: 15, stiffness: 150 });
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ rotate: `${rotation.value}deg` }],
+      transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
     };
   });
 
@@ -148,9 +150,7 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
   const data = await response.json().catch(() => ({ error: "Network error" }));
 
   if (!response.ok) {
-    // Handle structured error responses from the auth worker
     if (data.code && data.error) {
-      // Handle specific error codes with user-friendly messages
       switch (data.code) {
         case "RATE_LIMITED":
           throw new Error("Too many attempts. Please wait a moment and try again.");
@@ -216,11 +216,9 @@ const checkSession = async (): Promise<User | null> => {
   } catch (error: any) {
     console.error("Session check failed:", error);
 
-    // If session is invalid, try to refresh the token
     if (error.message?.includes("expired") || error.message?.includes("invalid")) {
       const refreshed = await tryRefreshToken();
       if (refreshed) {
-        // Try session check again with new token
         try {
           const result = await apiCall(`${AUTH_API_BASE}/auth/session`);
           if (result.success && result.valid) {
@@ -265,7 +263,6 @@ const tryRefreshToken = async (): Promise<boolean> => {
     }
   } catch (error) {
     console.error("Token refresh failed:", error);
-    // Clear invalid tokens
     await clearTokens();
   }
   return false;
@@ -278,9 +275,9 @@ const AnimatedInput = Animated.createAnimatedComponent(TextInput);
 const AuthScreen: React.FC = () => {
   const router = useRouter();
   const { signIn, signUp, session, user, loading: authLoading } = useAuth();
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgotPassword" | "resetPassword">(
-    "login",
-  );
+  const [authMode, setAuthMode] = useState<
+    "landing" | "login" | "signup" | "forgotPassword" | "resetPassword"
+  >("landing");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [firstName, setFirstName] = useState<string>("");
@@ -298,48 +295,17 @@ const AuthScreen: React.FC = () => {
   const [secureConfirmNewPasswordEntry, setSecureConfirmNewPasswordEntry] = useState<boolean>(true);
 
   // Animated values
-  const formOpacity = useSharedValue(0);
-  const titlePosition = useSharedValue(-50);
-  const buttonScale = useSharedValue(0.8);
-  const buttonOpacity = useSharedValue(0);
+  const contentOpacity = useSharedValue(0);
+  const contentTranslateY = useSharedValue(50);
 
   useEffect(() => {
-    // Sequence of animations
-    titlePosition.value = withSpring(0, {
-      damping: 12,
-      stiffness: 90,
-    });
-
-    formOpacity.value = withDelay(
-      400,
-      withTiming(1, {
-        duration: 800,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }),
-    );
-
-    buttonOpacity.value = withDelay(
-      600,
-      withTiming(1, {
-        duration: 500,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }),
-    );
-
-    buttonScale.value = withDelay(
-      600,
-      withSpring(1, {
-        damping: 14,
-        stiffness: 100,
-      }),
-    );
+    contentOpacity.value = withDelay(300, withTiming(1, { duration: 1000 }));
+    contentTranslateY.value = withDelay(300, withSpring(0, { damping: 15, stiffness: 150 }));
 
     const subscription = Linking.addEventListener("url", ({ url }) => {
       if (url.startsWith("myapp://auth/callback")) {
-        // Handle OAuth callback
         handleOAuthCallback(url);
       } else if (url.includes("reset-password") || url.includes("token=")) {
-        // Handle password reset link
         handlePasswordResetLink(url);
       }
     });
@@ -349,14 +315,11 @@ const AuthScreen: React.FC = () => {
     };
   }, []);
 
-  // Check if user is already logged in and redirect
   useEffect(() => {
     if (session && user && !authLoading) {
       checkUserDenomination(user.id);
     }
   }, [session, user, authLoading]);
-
-  // Remove this function since we're using AuthContext
 
   const checkUserDenomination = async (userId: string) => {
     try {
@@ -378,7 +341,6 @@ const AuthScreen: React.FC = () => {
           navigateToDenominationSelection();
         }
       } else {
-        // User not found in database, need to select denomination
         navigateToDenominationSelection();
       }
     } catch (error) {
@@ -387,66 +349,19 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  // Animate when changing auth mode
-  useEffect(() => {
-    // Reset animations
-    formOpacity.value = 0;
-    buttonScale.value = 0.8;
-    buttonOpacity.value = 0;
-
-    // Restart animations with delays
-    formOpacity.value = withDelay(
-      100,
-      withTiming(1, {
-        duration: 500,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }),
-    );
-
-    buttonOpacity.value = withDelay(
-      300,
-      withTiming(1, {
-        duration: 400,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }),
-    );
-
-    buttonScale.value = withDelay(
-      300,
-      withSpring(1, {
-        damping: 14,
-        stiffness: 100,
-      }),
-    );
-  }, [authMode]);
-
-  // Animated styles
-  const titleStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: titlePosition.value }],
-    };
-  });
-
-  const formStyle = useAnimatedStyle(() => {
-    return {
-      opacity: formOpacity.value,
-    };
-  });
-
-  const buttonStyle = useAnimatedStyle(() => {
-    return {
-      opacity: buttonOpacity.value,
-      transform: [{ scale: buttonScale.value }],
-    };
-  });
-
-  // Automatically clear error after 15 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(""), 15000);
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  const contentStyle = useAnimatedStyle(() => {
+    return {
+      opacity: contentOpacity.value,
+      transform: [{ translateY: contentTranslateY.value }],
+    };
+  });
 
   const navigateToHome = () => {
     router.replace("/(tabs)/home");
@@ -515,26 +430,21 @@ const AuthScreen: React.FC = () => {
         throw new Error("Invalid OAuth callback parameters");
       }
 
-      // Validate state parameter
       const storedState = await AsyncStorage.getItem("oauth_state");
       if (state !== storedState) {
         throw new Error("Invalid OAuth state parameter - possible CSRF attack");
       }
 
-      // Clear stored state
       await AsyncStorage.removeItem("oauth_state");
 
       const response = await apiCall(`${AUTH_API_BASE}/auth/callback?code=${code}&state=${state}`);
 
       if (response.access_token) {
         await storeTokens(response);
-        setCurrentUser(response.user);
 
-        // Check if user exists in database
         try {
           await checkUserDenomination(response.user.id);
         } catch (error) {
-          // User doesn't exist, create them
           await createUserInDatabase(response.user.id, response.user.email || "");
           navigateToDenominationSelection();
         }
@@ -557,7 +467,6 @@ const AuthScreen: React.FC = () => {
     try {
       setLoading(true);
 
-      // Use native Apple Sign In
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -569,7 +478,6 @@ const AuthScreen: React.FC = () => {
         throw new Error("Unable to authenticate with Apple");
       }
 
-      // Send the Apple identity token to your auth worker
       const response = await apiCall(`${AUTH_API_BASE}/auth/apple-signin`, {
         method: "POST",
         body: JSON.stringify({
@@ -582,7 +490,6 @@ const AuthScreen: React.FC = () => {
       });
 
       if (response.success && response.access_token) {
-        // Store tokens in AuthContext format
         await storeTokens({
           access_token: response.access_token,
           refresh_token: response.refresh_token,
@@ -590,11 +497,9 @@ const AuthScreen: React.FC = () => {
           user: response.user,
         });
 
-        // Check if user exists in database or create them
         try {
           await checkUserDenomination(response.user.id);
         } catch (error) {
-          // User doesn't exist, create them
           await createUserInDatabase(
             response.user.id,
             response.user.email || credential.email || "",
@@ -608,7 +513,6 @@ const AuthScreen: React.FC = () => {
       }
     } catch (e: any) {
       if (e.code === "ERR_CANCELED") {
-        // User canceled the sign-in, don't show an error
         return;
       }
       setError(e.message || "Something went wrong with Apple Sign In. Please try again.");
@@ -642,7 +546,6 @@ const AuthScreen: React.FC = () => {
         if (password !== confirmPassword)
           throw new Error("Passwords don't match. Please check and try again.");
 
-        // Pre-validate the password on the client side.
         const validationError = validatePassword(password);
         if (validationError) {
           throw new Error(validationError);
@@ -661,7 +564,6 @@ const AuthScreen: React.FC = () => {
           throw new Error("Registration failed. Please try again.");
         }
       } else if (authMode === "forgotPassword") {
-        // Forgot password - use the new password reset endpoint
         if (!email) {
           throw new Error("Please enter your email to reset your password.");
         }
@@ -676,7 +578,6 @@ const AuthScreen: React.FC = () => {
 
         if (response.success) {
           setMessage("If the email exists in our system, you will receive a password reset link.");
-          // Optionally switch back to login mode after showing message
           setTimeout(() => {
             setAuthMode("login");
             setMessage("");
@@ -685,7 +586,6 @@ const AuthScreen: React.FC = () => {
           throw new Error("Failed to send password reset email. Please try again.");
         }
       } else if (authMode === "resetPassword") {
-        // Password reset confirmation
         if (!resetToken || !newPassword || !confirmNewPassword) {
           throw new Error("Please fill in all fields to reset your password.");
         }
@@ -694,7 +594,6 @@ const AuthScreen: React.FC = () => {
           throw new Error("Passwords don't match. Please check and try again.");
         }
 
-        // Validate the new password
         const validationError = validatePassword(newPassword);
         if (validationError) {
           throw new Error(validationError);
@@ -711,7 +610,6 @@ const AuthScreen: React.FC = () => {
 
         if (response.success) {
           await storeTokens(response);
-          setCurrentUser(response.user);
           setMessage("Password has been reset successfully. You are now logged in.");
           await checkUserDenomination(response.user.id);
         } else {
@@ -724,8 +622,6 @@ const AuthScreen: React.FC = () => {
       setLoading(false);
     }
   };
-
-  // Remove this function since we're using AuthContext - logout is not used in auth screen anyway
 
   const renderInput = ({
     placeholder,
@@ -742,13 +638,14 @@ const AuthScreen: React.FC = () => {
       style={[
         styles.inputContainer,
         authMode === "signup" && placeholder.includes("Name") ? styles.nameInput : null,
+        authMode === "signup" && styles.signupInputContainer,
       ]}
     >
       {icon}
       <AnimatedInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor="rgba(100, 100, 100, 0.8)"
+        placeholderTextColor="rgba(255, 255, 255, 0.7)"
         value={value}
         onChangeText={setValue}
         keyboardType={keyboardType}
@@ -757,11 +654,57 @@ const AuthScreen: React.FC = () => {
       />
       {toggleSecure && (
         <TouchableOpacity onPress={toggleSecure} style={styles.eyeIcon}>
-          <Feather name={secureEntry ? "eye-off" : "eye"} size={20} color="#6366F1" />
+          <Feather
+            name={secureEntry ? "eye-off" : "eye"}
+            size={20}
+            color="rgba(255, 255, 255, 0.8)"
+          />
         </TouchableOpacity>
       )}
     </Animated.View>
   );
+
+  const getAuthModeText = () => {
+    switch (authMode) {
+      case "landing":
+        return {
+          title: "Saint Central",
+          subtitle: "",
+          verse:
+            '"Come to me, all you who are weary and burdened, and I will give you rest." - Matthew 11:28',
+        };
+      case "login":
+        return {
+          title: "Sign In",
+          subtitle: "Welcome back to your spiritual journey",
+          verse:
+            '"Come to me, all you who are weary and burdened, and I will give you rest." - Matthew 11:28',
+        };
+      case "signup":
+        return {
+          title: "Join Our Community",
+          subtitle: "",
+          verse:
+            '"Therefore, if anyone is in Christ, the new creation has come." - 2 Corinthians 5:17',
+        };
+      case "forgotPassword":
+        return {
+          title: "Restore Your Access",
+          subtitle:
+            "God's grace is sufficient. Let us help you restore your access to continue your journey.",
+          verse: '"He restores my soul. He guides me along the right paths." - Psalm 23:3',
+        };
+      case "resetPassword":
+        return {
+          title: "New Beginning",
+          subtitle: "Set your new password and continue your walk with faith.",
+          verse:
+            '"He gives strength to the weary and increases the power of the weak." - Isaiah 40:29',
+        };
+    }
+  };
+
+  const { title, subtitle, verse } = getAuthModeText();
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -769,228 +712,253 @@ const AuthScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-        {/* Modern Gradient Background */}
-        <LinearGradient
-          colors={["#F9FAFB", "#EEF2FF"]}
-          style={styles.background}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-
-        {/* Decorative Elements */}
-        <Animated.View
-          style={styles.decorativeCircle1}
-          entering={FadeIn.duration(800).delay(200)}
-        />
-        <Animated.View
-          style={styles.decorativeCircle2}
-          entering={FadeIn.duration(800).delay(350)}
-        />
-        <Animated.View
-          style={styles.decorativeCircle3}
-          entering={FadeIn.duration(800).delay(500)}
-        />
-
-        {/* Toast error message */}
-        {error !== "" && (
-          <Animated.View
-            style={styles.toastContainer}
-            entering={SlideInDown.springify().damping(12)}
-            exiting={FadeOut}
-            pointerEvents="none"
-          >
-            <Text style={styles.toastText}>{error}</Text>
-          </Animated.View>
-        )}
-
-        <SafeAreaView
-          style={[
-            styles.safeArea,
-            { alignItems: "center" },
-            isIpad && {
-              maxWidth: 600,
-              alignSelf: "center",
-              justifyContent: "center",
-            },
-          ]}
+        <ImageBackground
+          source={require("../../assets/images/background.png")}
+          style={styles.backgroundImage}
+          resizeMode="cover"
         >
-          <View style={[styles.content, isIpad && { maxWidth: 600 }]}>
-            <Animated.View style={[styles.crossContainer, titleStyle]}>
-              <CrossIcon />
-            </Animated.View>
+          <View style={styles.overlay} />
 
-            <Animated.Text style={[styles.title, titleStyle]} entering={BounceIn.duration(600)}>
-              Saint Central
-            </Animated.Text>
-
-            <Animated.Text
-              style={[styles.subtitle, titleStyle]}
-              entering={BounceIn.duration(600).delay(200)}
+          {/* Error Toast */}
+          {error !== "" && (
+            <Animated.View
+              style={styles.toastContainer}
+              entering={SlideInDown.springify().damping(12)}
+              exiting={FadeOut}
             >
-              {authMode === "login"
-                ? "Let's begin the journey to your spiritual life"
-                : authMode === "signup"
-                  ? "Join today"
-                  : authMode === "forgotPassword"
-                    ? "Reset your password to continue your journey"
-                    : "Enter your new password"}
-            </Animated.Text>
+              <Feather name="alert-circle" size={18} color="#fff" />
+              <Text style={styles.toastText}>{error}</Text>
+            </Animated.View>
+          )}
 
-            {!error && message !== "" && (
-              <Animated.View
-                style={[styles.messageContainer, styles.successContainer]}
-                entering={FadeIn.duration(400)}
+          <SafeAreaView style={styles.safeArea}>
+            <Animated.View
+              style={[styles.content, contentStyle, authMode === "signup" && styles.signupContent]}
+            >
+              {/* Christian Cross */}
+              <View
+                style={[
+                  styles.crossContainer,
+                  authMode === "signup" && styles.signupCrossContainer,
+                ]}
               >
-                <Feather name="check-circle" size={18} color="#10b981" />
-                <Text style={styles.message}>{message}</Text>
-              </Animated.View>
-            )}
+                <ChristianCross />
+              </View>
 
-            <Animated.View style={[styles.form, formStyle]}>
-              {(authMode === "login" || authMode === "signup" || authMode === "forgotPassword") &&
-                renderInput({
-                  placeholder: "Email",
-                  value: email,
-                  setValue: setEmail,
-                  keyboardType: "email-address",
-                  icon: <Feather name="mail" size={20} color="#6366F1" />,
-                  index: 0,
-                })}
+              {/* Main Content */}
+              <Text style={[styles.title, authMode === "signup" && styles.signupTitle]}>
+                {title}
+              </Text>
+              <Text style={[styles.subtitle, authMode === "signup" && styles.signupSubtitle]}>
+                {subtitle}
+              </Text>
 
-              {authMode === "resetPassword" && (
-                <>
-                  {renderInput({
-                    placeholder: "New Password",
-                    value: newPassword,
-                    setValue: setNewPassword,
-                    secureEntry: secureNewPasswordEntry,
-                    toggleSecure: () => setSecureNewPasswordEntry(!secureNewPasswordEntry),
-                    icon: <Feather name="lock" size={20} color="#6366F1" />,
-                    index: 0,
-                  })}
-                  {renderInput({
-                    placeholder: "Confirm New Password",
-                    value: confirmNewPassword,
-                    setValue: setConfirmNewPassword,
-                    secureEntry: secureConfirmNewPasswordEntry,
-                    toggleSecure: () =>
-                      setSecureConfirmNewPasswordEntry(!secureConfirmNewPasswordEntry),
-                    icon: <Feather name="lock" size={20} color="#6366F1" />,
-                    index: 1,
-                  })}
-                </>
+              {/* Bible Verse - Only show for non-signup modes */}
+              {authMode !== "signup" && authMode !== "landing" && (
+                <Animated.View
+                  style={styles.verseContainer}
+                  entering={FadeIn.delay(600).duration(800)}
+                >
+                  <Text style={styles.verse}>{verse}</Text>
+                </Animated.View>
               )}
 
-              {authMode === "signup" && (
-                <View style={styles.nameRow}>
-                  {renderInput({
-                    placeholder: "First Name",
-                    value: firstName,
-                    setValue: setFirstName,
-                    icon: <Feather name="user" size={20} color="#6366F1" />,
-                    index: 1,
-                  })}
-                  {renderInput({
-                    placeholder: "Last Name",
-                    value: lastName,
-                    setValue: setLastName,
-                    icon: <Ionicons name="person" size={20} color="#6366F1" />,
-                    index: 2,
-                  })}
+              {/* Success Message */}
+              {!error && message !== "" && (
+                <Animated.View style={styles.messageContainer} entering={FadeIn.duration(400)}>
+                  <Feather name="check-circle" size={18} color="#4ade80" />
+                  <Text style={styles.message}>{message}</Text>
+                </Animated.View>
+              )}
+
+              {/* Form - Only show when not in landing mode */}
+              {authMode !== "landing" && (
+                <View style={[styles.form, authMode === "signup" && styles.signupForm]}>
+                  {(authMode === "login" ||
+                    authMode === "signup" ||
+                    authMode === "forgotPassword") &&
+                    renderInput({
+                      placeholder: "Email",
+                      value: email,
+                      setValue: setEmail,
+                      keyboardType: "email-address",
+                      icon: <Feather name="mail" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                      index: 0,
+                    })}
+
+                  {authMode === "resetPassword" && (
+                    <>
+                      {renderInput({
+                        placeholder: "New Password",
+                        value: newPassword,
+                        setValue: setNewPassword,
+                        secureEntry: secureNewPasswordEntry,
+                        toggleSecure: () => setSecureNewPasswordEntry(!secureNewPasswordEntry),
+                        icon: <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                        index: 0,
+                      })}
+                      {renderInput({
+                        placeholder: "Confirm New Password",
+                        value: confirmNewPassword,
+                        setValue: setConfirmNewPassword,
+                        secureEntry: secureConfirmNewPasswordEntry,
+                        toggleSecure: () =>
+                          setSecureConfirmNewPasswordEntry(!secureConfirmNewPasswordEntry),
+                        icon: <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                        index: 1,
+                      })}
+                    </>
+                  )}
+
+                  {authMode === "signup" && (
+                    <View style={styles.nameRow}>
+                      {renderInput({
+                        placeholder: "First Name",
+                        value: firstName,
+                        setValue: setFirstName,
+                        icon: <Feather name="user" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                        index: 1,
+                      })}
+                      {renderInput({
+                        placeholder: "Last Name",
+                        value: lastName,
+                        setValue: setLastName,
+                        icon: <Ionicons name="person" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                        index: 2,
+                      })}
+                    </View>
+                  )}
+
+                  {(authMode === "login" || authMode === "signup") &&
+                    renderInput({
+                      placeholder: "Password",
+                      value: password,
+                      setValue: setPassword,
+                      secureEntry: secureTextEntry,
+                      toggleSecure: () => setSecureTextEntry(!secureTextEntry),
+                      icon: <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                      index: authMode === "login" ? 1 : 3,
+                    })}
+
+                  {authMode === "signup" &&
+                    renderInput({
+                      placeholder: "Confirm Password",
+                      value: confirmPassword,
+                      setValue: setConfirmPassword,
+                      secureEntry: secureConfirmTextEntry,
+                      toggleSecure: () => setSecureConfirmTextEntry(!secureConfirmTextEntry),
+                      icon: <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.8)" />,
+                      index: 4,
+                    })}
+
+                  {authMode === "login" && (
+                    <TouchableOpacity
+                      style={styles.forgotLink}
+                      onPress={() => setAuthMode("forgotPassword")}
+                    >
+                      <Text style={styles.forgotText}>Forgot Password?</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 
-              {(authMode === "login" || authMode === "signup") &&
-                renderInput({
-                  placeholder: "Password",
-                  value: password,
-                  setValue: setPassword,
-                  secureEntry: secureTextEntry,
-                  toggleSecure: () => setSecureTextEntry(!secureTextEntry),
-                  icon: <Feather name="lock" size={20} color="#6366F1" />,
-                  index: authMode === "login" ? 1 : 3,
-                })}
+              {/* Main Action Button - Different for landing vs forms */}
+              {authMode !== "landing" && (
+                <TouchableOpacity
+                  style={[styles.button, authMode === "signup" && styles.signupButton]}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.buttonText}>
+                      {authMode === "login"
+                        ? "Sign in"
+                        : authMode === "signup"
+                          ? "Sign up"
+                          : authMode === "forgotPassword"
+                            ? "Reset Password"
+                            : "Update Password"}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
 
-              {authMode === "signup" &&
-                renderInput({
-                  placeholder: "Confirm Password",
-                  value: confirmPassword,
-                  setValue: setConfirmPassword,
-                  secureEntry: secureConfirmTextEntry,
-                  toggleSecure: () => setSecureConfirmTextEntry(!secureConfirmTextEntry),
-                  icon: <Feather name="lock" size={20} color="#6366F1" />,
-                  index: 4,
-                })}
-
-              {authMode === "login" && (
-                <Animated.View entering={FadeIn.delay(200).duration(400)}>
-                  <TouchableOpacity
-                    style={styles.forgotLink}
-                    onPress={() => setAuthMode("forgotPassword")}
+              {/* Social Login - Only show for non-landing form modes */}
+              {authMode !== "forgotPassword" &&
+                authMode !== "resetPassword" &&
+                authMode !== "landing" && (
+                  <View
+                    style={[
+                      styles.socialSection,
+                      authMode === "signup" && styles.signupSocialSection,
+                    ]}
                   >
-                    <Text style={styles.forgotText}>Forgot Password?</Text>
-                  </TouchableOpacity>
-                </Animated.View>
+                    <TouchableOpacity
+                      style={styles.socialButton}
+                      onPress={handleAppleSignIn}
+                      disabled={loading}
+                    >
+                      <FontAwesome5 name="apple" size={20} color="#FFFFFF" />
+                      <Text style={styles.socialButtonText}>Continue with Apple</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+              {/* Mode Switch */}
+              {authMode !== "resetPassword" && authMode !== "landing" && (
+                <TouchableOpacity
+                  style={styles.switchContainer}
+                  onPress={() => {
+                    if (authMode === "login") {
+                      setAuthMode("signup");
+                    } else {
+                      setAuthMode("login");
+                    }
+                  }}
+                >
+                  <Text style={styles.switchText}>
+                    {authMode === "login" ? "Need an account? " : "Already have an account? "}
+                    <Text style={styles.switchTextBold}>
+                      {authMode === "login" ? "Sign up" : "Sign in"}
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
               )}
             </Animated.View>
 
-            <Animated.View style={[buttonStyle]}>
-              <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <View style={styles.buttonInner}>
-                    <Text style={styles.buttonText}>
-                      {authMode === "login"
-                        ? "START HERE"
-                        : authMode === "signup"
-                          ? "SIGN UP"
-                          : authMode === "forgotPassword"
-                            ? "RESET PASSWORD"
-                            : "UPDATE PASSWORD"}
-                    </Text>
-                    <Feather name="arrow-right" size={16} color="#FFFFFF" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
+            {/* Bottom Buttons for Landing Page */}
+            {authMode === "landing" && (
+              <Animated.View style={styles.bottomButtonsContainer}>
+                <TouchableOpacity style={styles.button} onPress={() => setAuthMode("login")}>
+                  <Text style={styles.buttonText}>Sign in</Text>
+                </TouchableOpacity>
 
-            {authMode !== "forgotPassword" && authMode !== "resetPassword" && (
-              <Animated.View
-                style={styles.socialSection}
-                entering={FadeIn.delay(700).duration(400)}
-              >
-                <Text style={styles.orText}>Or continue with</Text>
                 <TouchableOpacity
                   style={styles.socialButton}
                   onPress={handleAppleSignIn}
                   disabled={loading}
                 >
-                  <FontAwesome5 name="apple" size={24} color="#333333" />
-                  <Text style={styles.socialButtonText}>Sign in with Apple</Text>
+                  <FontAwesome5 name="apple" size={20} color="#FFFFFF" />
+                  <Text style={styles.socialButtonText}>Continue with Apple</Text>
                 </TouchableOpacity>
-              </Animated.View>
-            )}
 
-            {authMode !== "resetPassword" && (
-              <Animated.View entering={FadeIn.delay(800).duration(400)}>
                 <TouchableOpacity
-                  onPress={() => setAuthMode(authMode === "login" ? "signup" : "login")}
+                  style={styles.switchContainer}
+                  onPress={() => setAuthMode("signup")}
                 >
                   <Text style={styles.switchText}>
-                    {authMode === "login" ? "Need an account? Sign up" : "Already a member? Log in"}
+                    Need an account?
+                    <Text style={styles.switchTextBold}> Sign up</Text>
                   </Text>
                 </TouchableOpacity>
               </Animated.View>
             )}
-
-            <Animated.View style={styles.footer} entering={FadeIn.delay(900).duration(400)}>
-              <Text style={styles.footerText}>Powered by faith</Text>
-            </Animated.View>
-          </View>
-        </SafeAreaView>
+          </SafeAreaView>
+        </ImageBackground>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -1000,17 +968,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  background: {
+  backgroundImage: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   safeArea: {
     flex: 1,
-    width: "100%",
-    paddingTop: Platform.OS === "ios" ? 40 : 20,
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 40,
+    position: "relative",
+  },
+  signupContent: {
+    paddingTop: 20,
+  },
+  landingContent: {
+    justifyContent: "flex-start",
+    paddingTop: 40,
+  },
+  backButton: {
+    position: "absolute",
+    top: 20,
+    left: 0,
+    padding: 12,
+    zIndex: 10,
   },
   crossContainer: {
-    alignSelf: "center",
-    marginBottom: 8,
+    marginBottom: 24,
+  },
+  signupCrossContainer: {
+    marginBottom: 16,
   },
   crossIconContainer: {
     width: 48,
@@ -1020,101 +1017,118 @@ const styles = StyleSheet.create({
   },
   crossVertical: {
     position: "absolute",
-    width: 8,
+    width: 6,
     height: 48,
-    backgroundColor: "#6366F1",
-    borderRadius: 4,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   crossHorizontal: {
     position: "absolute",
     width: 48,
-    height: 8,
-    backgroundColor: "#6366F1",
-    borderRadius: 4,
-  },
-  content: {
-    width: "100%",
-    maxWidth: 400,
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 24,
+    height: 6,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#374151",
-    letterSpacing: 1,
-    marginBottom: 8,
+    fontSize: 42,
+    fontWeight: "300",
+    color: "#FFFFFF",
     textAlign: "center",
+    marginBottom: 16,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    letterSpacing: 3,
+    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+  },
+  signupTitle: {
+    fontSize: 36,
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 18,
-    color: "#4B5563",
-    marginBottom: 30,
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
-    fontWeight: "400",
-    opacity: 0.9,
-    letterSpacing: 0.5,
-    maxWidth: 280,
+    marginBottom: 20,
+    lineHeight: 24,
+    paddingHorizontal: 20,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  signupSubtitle: {
+    marginBottom: 12,
+  },
+  verseContainer: {
+    marginBottom: 32,
+    paddingHorizontal: 16,
+  },
+  verse: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+    fontStyle: "italic",
+    lineHeight: 18,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   messageContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
+    backgroundColor: "rgba(74, 222, 128, 0.2)",
     borderRadius: 12,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
-    width: "100%",
-  },
-  errorContainer: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    borderColor: "rgba(239, 68, 68, 0.3)",
-  },
-  successContainer: {
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    borderColor: "rgba(16, 185, 129, 0.3)",
-  },
-  error: {
-    color: "#ef4444",
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: "500",
+    borderColor: "rgba(74, 222, 128, 0.3)",
   },
   message: {
-    color: "#10b981",
+    color: "#4ade80",
     marginLeft: 8,
     fontSize: 14,
     fontWeight: "500",
   },
   form: {
     width: "100%",
-    gap: 16,
-    marginBottom: 20,
+    marginBottom: 24,
+  },
+  signupForm: {
+    marginBottom: 16,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     height: 56,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.2)",
-    width: "100%",
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    backdropFilter: "blur(10px)",
+  },
+  signupInputContainer: {
+    height: 52,
+    marginBottom: 12,
   },
   nameInput: {
     flex: 1,
-    width: undefined,
   },
   input: {
     flex: 1,
-    color: "#374151",
+    color: "#FFFFFF",
     fontSize: 16,
     marginLeft: 12,
     height: "100%",
@@ -1126,144 +1140,118 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
-    width: "100%",
+    marginBottom: 0,
   },
   forgotLink: {
     alignSelf: "flex-end",
     marginTop: 8,
-    marginBottom: 0,
   },
   forgotText: {
-    color: "#6366F1",
+    color: "rgba(255, 255, 255, 0.8)",
     fontSize: 14,
     fontWeight: "500",
   },
   button: {
     width: "100%",
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "#6366F1",
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 24,
     marginBottom: 16,
-    paddingHorizontal: 24,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    shadowColor: "rgba(255, 255, 255, 0.3)",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "rgba(34, 197, 94, 0.8)",
+    backdropFilter: "blur(20px)",
   },
-  buttonInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+  signupButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+  bottomButtonsContainer: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 40 : 20,
+    left: 32,
+    right: 32,
+    gap: 4,
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginRight: 8,
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   socialSection: {
-    marginTop: 24,
-    alignItems: "center",
-    gap: 16,
     width: "100%",
+    marginBottom: 24,
   },
-  orText: {
-    color: "#6B7280",
-    fontSize: 14,
+  signupSocialSection: {
+    marginBottom: 16,
   },
   socialButton: {
     width: "100%",
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "rgba(255, 255, 255, 0.20)",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.1)",
     gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: "rgba(255, 255, 255, 0.2)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.4)",
+    backdropFilter: "blur(20px)",
   },
   socialButtonText: {
-    color: "#333333",
-    fontSize: 16,
-    fontWeight: "500",
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  switchContainer: {
+    marginTop: 16,
   },
   switchText: {
-    color: "#6366F1",
+    color: "rgba(255, 255, 255, 0.7)",
     fontSize: 14,
-    marginTop: 24,
-    fontWeight: "500",
+    textAlign: "center",
   },
-  footer: {
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  footerText: {
-    color: "#9CA3AF",
-    fontSize: 12,
+  switchTextBold: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   toastContainer: {
     position: "absolute",
-    top: 50,
+    top: Platform.OS === "ios" ? 60 : 40,
     left: 20,
     right: 20,
-    backgroundColor: "rgba(239,68,68,0.9)",
-    padding: 12,
+    backgroundColor: "rgba(239, 68, 68, 0.95)",
+    padding: 16,
     borderRadius: 12,
     zIndex: 100,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 8,
   },
   toastText: {
     color: "#fff",
     fontSize: 14,
     fontWeight: "500",
-  },
-  // Decorative elements
-  decorativeCircle1: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
-    top: -50,
-    right: -50,
-  },
-  decorativeCircle2: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
-    bottom: 100,
-    left: -50,
-  },
-  decorativeCircle3: {
-    position: "absolute",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
-    bottom: 30,
-    right: 30,
+    marginLeft: 8,
+    flex: 1,
   },
 });
 
 export default AuthScreen;
-
-function setCurrentUser(user: any) {
-  throw new Error("Function not implemented.");
-}
