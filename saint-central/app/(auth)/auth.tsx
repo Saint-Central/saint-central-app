@@ -35,6 +35,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
 const isIpad = width >= 768;
@@ -276,6 +277,7 @@ const AnimatedInput = Animated.createAnimatedComponent(TextInput);
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
+  const { signIn, signUp, session, user, loading: authLoading } = useAuth();
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgotPassword" | "resetPassword">(
     "login",
   );
@@ -294,8 +296,6 @@ const AuthScreen: React.FC = () => {
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] = useState<boolean>(true);
   const [secureNewPasswordEntry, setSecureNewPasswordEntry] = useState<boolean>(true);
   const [secureConfirmNewPasswordEntry, setSecureConfirmNewPasswordEntry] = useState<boolean>(true);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Animated values
   const formOpacity = useSharedValue(0);
@@ -334,9 +334,6 @@ const AuthScreen: React.FC = () => {
       }),
     );
 
-    // Check for existing session on app start
-    checkExistingSession();
-
     const subscription = Linking.addEventListener("url", ({ url }) => {
       if (url.startsWith("myapp://auth/callback")) {
         // Handle OAuth callback
@@ -352,18 +349,14 @@ const AuthScreen: React.FC = () => {
     };
   }, []);
 
-  const checkExistingSession = async () => {
-    try {
-      const user = await checkSession();
-      if (user) {
-        setCurrentUser(user);
-        // Check if user needs denomination selection
-        await checkUserDenomination(user.id);
-      }
-    } catch (error) {
-      console.error("Session check failed:", error);
+  // Check if user is already logged in and redirect
+  useEffect(() => {
+    if (session && user && !authLoading) {
+      checkUserDenomination(user.id);
     }
-  };
+  }, [session, user, authLoading]);
+
+  // Remove this function since we're using AuthContext
 
   const checkUserDenomination = async (userId: string) => {
     try {
@@ -456,17 +449,11 @@ const AuthScreen: React.FC = () => {
   }, [error]);
 
   const navigateToHome = () => {
-    if (!isLoggedIn) {
-      setIsLoggedIn(true);
-      router.replace("/(tabs)/home");
-    }
+    router.replace("/(tabs)/home");
   };
 
   const navigateToDenominationSelection = () => {
-    if (!isLoggedIn) {
-      setIsLoggedIn(true);
-      router.replace("/selectDenomination");
-    }
+    router.replace("/selectDenomination");
   };
 
   const createUserInDatabase = async (
@@ -595,8 +582,13 @@ const AuthScreen: React.FC = () => {
       });
 
       if (response.success && response.access_token) {
-        await storeTokens(response);
-        setCurrentUser(response.user);
+        // Store tokens in AuthContext format
+        await storeTokens({
+          access_token: response.access_token,
+          refresh_token: response.refresh_token,
+          expires_in: response.expires_in,
+          user: response.user,
+        });
 
         // Check if user exists in database or create them
         try {
@@ -637,19 +629,9 @@ const AuthScreen: React.FC = () => {
           throw new Error("Please enter both email and password.");
         }
 
-        const response = await apiCall(`${AUTH_API_BASE}/auth/login`, {
-          method: "POST",
-          body: JSON.stringify({
-            email,
-            password,
-            nonce: generateNonce(),
-          }),
-        });
-
-        if (response.success) {
-          await storeTokens(response);
-          setCurrentUser(response.user);
-          await checkUserDenomination(response.user.id);
+        const result = await signIn(email, password);
+        if (result) {
+          await checkUserDenomination(result.user.id);
         } else {
           throw new Error("Login failed. Please check your credentials.");
         }
@@ -666,29 +648,15 @@ const AuthScreen: React.FC = () => {
           throw new Error(validationError);
         }
 
-        const response = await apiCall(`${AUTH_API_BASE}/auth/register`, {
-          method: "POST",
-          body: JSON.stringify({
-            email,
-            password,
-            metadata: {
-              first_name: firstName,
-              last_name: lastName,
-            },
-            nonce: generateNonce(),
-          }),
+        const result = await signUp(email, password, {
+          first_name: firstName,
+          last_name: lastName,
         });
 
-        if (response.success) {
-          if (response.access_token) {
-            await storeTokens(response);
-            setCurrentUser(response.user);
-            await createUserInDatabase(response.user.id, email, firstName, lastName);
-            setMessage("Welcome! You've signed up successfully.");
-            await checkUserDenomination(response.user.id);
-          } else {
-            setMessage("Check your email to confirm your account.");
-          }
+        if (result) {
+          await createUserInDatabase(result.user.id, email, firstName, lastName);
+          setMessage("Welcome! You've signed up successfully.");
+          await checkUserDenomination(result.user.id);
         } else {
           throw new Error("Registration failed. Please try again.");
         }
@@ -757,33 +725,7 @@ const AuthScreen: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      // Call logout API
-      await apiCall(`${AUTH_API_BASE}/auth/logout`, {
-        method: "POST",
-        body: JSON.stringify({
-          nonce: generateNonce(),
-        }),
-      });
-
-      // Clear local tokens
-      await clearTokens();
-
-      // Navigate to auth screen
-      router.push("/(auth)/auth");
-    } catch (err: unknown) {
-      // Even if API call fails, still clear local tokens and redirect
-      await clearTokens();
-      router.push("/(auth)/auth");
-
-      if (err instanceof Error) {
-        console.error("Logout error:", err.message);
-      }
-    }
-  };
+  // Remove this function since we're using AuthContext - logout is not used in auth screen anyway
 
   const renderInput = ({
     placeholder,

@@ -43,36 +43,41 @@ export class CRUDClient {
   }
 
   async makeRequest(request: CRUDRequest): Promise<CRUDResponse> {
-    const accessToken = await this.getAccessToken();
+    try {
+      const accessToken = await this.getAccessToken();
 
-    if (!accessToken) {
-      throw new Error("No access token available. Please log in.");
+      if (!accessToken) {
+        throw new Error("Auth session missing! Please log in.");
+      }
+
+      const response = await fetch(CRUD_WORKER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          ...request,
+          nonce: generateNonce(), // Add nonce for replay protection
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data: CRUDResponse = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "CRUD operation failed");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error getting user:", error);
+      throw error;
     }
-
-    const response = await fetch(CRUD_WORKER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        ...request,
-        nonce: generateNonce(), // Add nonce for replay protection
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data: CRUDResponse = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || "CRUD operation failed");
-    }
-
-    return data;
   }
 
   // Convenience methods for each operation

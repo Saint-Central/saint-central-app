@@ -23,9 +23,9 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import theme from "@/theme";
 import { NotificationSettings } from "../../components/NotificationSettings";
+import { useAuth } from "@/contexts/AuthContext";
 
 // API Configuration
 const AUTH_API_BASE = "https://auth-worker.colinmcherney.workers.dev";
@@ -42,12 +42,7 @@ interface UserProfile {
   denomination?: string;
 }
 
-interface User {
-  id: string;
-  email?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+// Remove duplicate User interface since it's from AuthContext
 
 // Define the denominations array with name, description, and icon
 const denominations = [
@@ -126,8 +121,8 @@ const denominations = [
 ];
 
 // API Helper Functions
-const apiCall = async (url: string, options: RequestInit = {}) => {
-  const token = await AsyncStorage.getItem("access_token");
+const apiCall = async (url: string, options: RequestInit = {}, getAccessToken: () => Promise<string | null>) => {
+  const token = await getAccessToken();
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -151,31 +146,10 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
   return response.json();
 };
 
-const checkSession = async (): Promise<User | null> => {
-  try {
-    const result = await apiCall(`${AUTH_API_BASE}/auth/session`);
-    if (result.success && result.valid) {
-      return {
-        id: result.user_id,
-        email: result.email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-    }
-  } catch (error) {
-    console.error("Session check failed:", error);
-    // Clear tokens if session is invalid
-    await AsyncStorage.multiRemove(["access_token", "refresh_token", "user", "expires_at"]);
-  }
-  return null;
-};
-
-const clearTokens = async () => {
-  await AsyncStorage.multiRemove(["access_token", "refresh_token", "user", "expires_at"]);
-};
+// Remove these functions since we're using AuthContext
 
 export default function MeScreen() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, session, signOut, getAccessToken } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -217,29 +191,19 @@ export default function MeScreen() {
       duration: 800,
       useNativeDriver: true,
     }).start();
-
-    // Check for existing session
-    checkInitialSession();
   }, []);
 
-  const checkInitialSession = async () => {
-    try {
-      const user = await checkSession();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error("Initial session check failed:", error);
-    }
-  };
+  // Remove this function since we're using AuthContext
 
   useFocusEffect(
     useCallback(() => {
-      if (currentUser) {
+      if (user) {
         fetchUserProfile();
-      } else if (currentUser === null && !loading) {
+      } else if (!user && !loading) {
         router.push("/(auth)/auth");
       }
       return () => {};
-    }, [currentUser]),
+    }, [user]),
   );
 
   const fetchUserProfile = async () => {
@@ -247,7 +211,7 @@ export default function MeScreen() {
       setLoading(true);
       setError("");
 
-      if (!currentUser?.id) {
+      if (!user?.id) {
         router.push("/(auth)/auth");
         return;
       }
@@ -257,9 +221,9 @@ export default function MeScreen() {
         body: JSON.stringify({
           operation: "SELECT",
           table: "users",
-          where: { id: currentUser.id },
+          where: { id: user.id },
         }),
-      });
+      }, getAccessToken);
 
       if (response.success && response.data.length > 0) {
         const data = response.data[0];
@@ -339,14 +303,14 @@ export default function MeScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (!currentUser?.id) return;
+      if (!user?.id) return;
 
       const response = await apiCall(CRUD_API_BASE, {
         method: "POST",
         body: JSON.stringify({
           operation: "UPDATE",
           table: "users",
-          where: { id: currentUser.id },
+          where: { id: user.id },
           data: {
             first_name: editForm.first_name,
             last_name: editForm.last_name,
@@ -355,7 +319,7 @@ export default function MeScreen() {
             updated_at: new Date().toISOString(),
           },
         }),
-      });
+      }, getAccessToken);
 
       if (response.success && response.data.length > 0) {
         const data = response.data[0];
@@ -399,9 +363,9 @@ export default function MeScreen() {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (!currentUser?.id) return;
+      if (!user?.id) return;
 
-      const userId = currentUser.id;
+      const userId = user.id;
 
       // Delete data from all tables that might contain user data
       // Using a common pattern where user_id links to the user
@@ -428,7 +392,7 @@ export default function MeScreen() {
               table: table,
               where: { user_id: userId },
             }),
-          });
+          }, getAccessToken);
         } catch (error) {
           console.error(`Error deleting from ${table}:`, error);
           // Continue with other tables
@@ -444,7 +408,7 @@ export default function MeScreen() {
             table: "friends",
             where: { user_id_1: userId },
           }),
-        });
+        }, getAccessToken);
       } catch (error) {
         console.error("Error deleting friends (user_id_1):", error);
       }
@@ -457,7 +421,7 @@ export default function MeScreen() {
             table: "friends",
             where: { user_id_2: userId },
           }),
-        });
+        }, getAccessToken);
       } catch (error) {
         console.error("Error deleting friends (user_id_2):", error);
       }
@@ -471,23 +435,13 @@ export default function MeScreen() {
             table: "users",
             where: { id: userId },
           }),
-        });
+        }, getAccessToken);
       } catch (error) {
         console.error("Error deleting user:", error);
       }
 
-      // Logout and clear tokens
-      try {
-        await apiCall(`${AUTH_API_BASE}/auth/logout`, {
-          method: "POST",
-          body: JSON.stringify({}),
-        });
-      } catch (error) {
-        console.error("Logout error:", error);
-      }
-
-      // Clear local storage
-      await clearTokens();
+      // Use AuthContext signOut method
+      await signOut();
 
       // If we made it here, successfully deleted account data
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -509,16 +463,7 @@ export default function MeScreen() {
   const handleLogout = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      // Call logout API
-      await apiCall(`${AUTH_API_BASE}/auth/logout`, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-
-      // Clear local storage
-      await clearTokens();
-
+      await signOut();
       router.push("/(auth)/auth");
     } catch (err: unknown) {
       if (err instanceof Error) {

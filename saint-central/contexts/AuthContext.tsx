@@ -390,13 +390,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Initialize session on mount
   useEffect(() => {
+    let isMounted = true;
+
     const initializeAuth = async () => {
-      setLoading(true);
-      await validateSession();
-      setLoading(false);
+      if (isMounted) {
+        setLoading(true);
+      }
+      
+      const validSession = await validateSession();
+      
+      if (isMounted) {
+        setLoading(false);
+      }
     };
 
     initializeAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const value: AuthContextType = {

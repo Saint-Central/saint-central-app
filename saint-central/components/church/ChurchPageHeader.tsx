@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import theme from "@/theme";
-import { supabase } from "@/supabaseClient";
+import { useCRUD } from "@/utils/crudClient";
 import { useChurchContext } from "@/contexts/church";
 
 type Props = {
@@ -32,58 +32,39 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
   const [memberCount, setMemberCount] = useState<number>(0);
   const [eventsCount, setEventsCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { select } = useCRUD();
 
   const fadeAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(0.95);
 
-  // Fetch member count
+  // Fetch both counts in a single effect to reduce API calls
   useEffect(() => {
-    const fetchMemberCount = async () => {
+    const fetchCounts = async () => {
       try {
         setIsLoading(true);
-        const { count, error } = await supabase
-          .from("church_members")
-          .select("id", { count: "exact", head: true })
-          .eq("church_id", church.id);
-
-        if (error) {
-          console.error("Error fetching member count:", error);
-        } else {
-          setMemberCount(count || 0);
-        }
+        
+        // Fetch both counts in parallel to reduce total requests
+        const [members, events] = await Promise.all([
+          select("church_members", {
+            select: "id",
+            where: { church_id: church.id }
+          }),
+          select("church_events", {
+            select: "id", 
+            where: { church_id: church.id }
+          })
+        ]);
+        
+        setMemberCount(members?.length || 0);
+        setEventsCount(events?.length || 0);
       } catch (error) {
-        console.error("Error in fetching member count:", error);
+        console.error("Error in fetching counts:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchMemberCount();
-  }, [church.id]);
-
-  // Fetch events count
-  useEffect(() => {
-    const fetchEventsCount = async () => {
-      try {
-        setIsLoading(true);
-        const { count, error } = await supabase
-          .from("church_events")
-          .select("id", { count: "exact", head: true })
-          .eq("church_id", church.id);
-
-        if (error) {
-          console.error("Error fetching events count:", error);
-        } else {
-          setEventsCount(count || 0);
-        }
-      } catch (error) {
-        console.error("Error in fetching events count:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchEventsCount();
+    fetchCounts();
   }, [church.id]);
 
   // Animation for component mount

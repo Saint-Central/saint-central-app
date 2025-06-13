@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -26,7 +26,7 @@ import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
 import ChurchSidebar from "@/components/church/ChurchSidebar";
 import theme from "@/theme";
-import { supabase } from "../../supabaseClient";
+import { useCRUD } from "@/utils/crudClient";
 import { router, useRouter } from "expo-router";
 import Error from "@/components/ui/Error";
 import useScreen from "@/hooks/useScreen";
@@ -62,7 +62,9 @@ export default function ChurchPage({ userData }: Props) {
   const [isMinistriesLoading, setIsMinistriesLoading] = useState<boolean>(false);
   const [eventsError, setEventsError] = useState<string>("");
   const [ministriesError, setMinistriesError] = useState<string>("");
+  const hasFetchedDataRef = useRef(false);
 
+  const { selectOne, select } = useCRUD();
   const { SCREEN_WIDTH, isTablet } = useScreen();
 
   // Shared values for animations
@@ -74,7 +76,7 @@ export default function ChurchPage({ userData }: Props) {
     data: { church, member },
   } = useChurchContext();
 
-  // Function to fetch events from Supabase - MODIFIED to load all events
+  // Function to fetch events using CRUD API
   const fetchEvents = useCallback(async () => {
     if (!church?.id) return;
 
@@ -82,27 +84,22 @@ export default function ChurchPage({ userData }: Props) {
       setIsEventsLoading(true);
       setEventsError("");
 
-      // Modified query to load all events without date filtering
-      const { data, error } = await supabase
-        .from("church_events")
-        .select("*")
-        .eq("church_id", church.id)
-        .order("time", { ascending: true });
+      const events = await select("church_events", {
+        select: "*",
+        where: { church_id: church.id },
+        order: "time"
+      });
 
-      if (error) {
-        throw error;
-      }
-
-      setEvents(data || []);
+      setEvents(events || []);
     } catch (error) {
       console.error("Error fetching events:", error);
       setEventsError("Failed to load events. Please try again later.");
     } finally {
       setIsEventsLoading(false);
     }
-  }, [church?.id]);
+  }, [church?.id, select]);
 
-  // Function to fetch ministries from Supabase
+  // Function to fetch courses using CRUD API
   const fetchMinistries = useCallback(async () => {
     if (!church?.id) return;
 
@@ -110,32 +107,28 @@ export default function ChurchPage({ userData }: Props) {
       setIsMinistriesLoading(true);
       setMinistriesError("");
 
-      // Use Supabase client to fetch ministries
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("church_id", church.id)
-        .order("time");
+      const courses = await select("courses", {
+        select: "*",
+        where: { church_id: church.id },
+        order: "time"
+      });
 
-      if (error) {
-        throw error;
-      }
-
-      setCourses(data || []);
+      setCourses(courses || []);
     } catch (error) {
-      console.error("Error fetching ministries:", error);
-      setMinistriesError("Failed to load ministries. Please try again later.");
+      console.error("Error fetching courses:", error);
+      setMinistriesError("Failed to load courses. Please try again later.");
     } finally {
       setIsMinistriesLoading(false);
     }
-  }, [church?.id]);
+  }, [church?.id, select]);
 
   useEffect(() => {
-    if (church?.id) {
+    if (church?.id && !hasFetchedDataRef.current) {
+      hasFetchedDataRef.current = true;
       fetchEvents();
       fetchMinistries();
     }
-  }, [church?.id, fetchEvents, fetchMinistries]);
+  }, [church?.id]);
 
   // Animate page elements on mount
   useEffect(() => {

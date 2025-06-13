@@ -16,7 +16,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { ChurchActionButton } from "./ChurchActionButton";
 import theme from "@/theme";
-import { supabase } from "@/supabaseClient";
+import { useCRUD } from "@/utils/crudClient";
 import { LinearGradient } from "expo-linear-gradient";
 import { useChurchContext } from "@/contexts/church";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -49,6 +49,7 @@ export default function ChurchPageContent({ userData }: Props) {
   const [memberCount, setMemberCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { reset: resetChurchData } = useChurchContext();
+  const { selectOne, select, delete: deleteMember } = useCRUD();
 
   const { width } = useWindowDimensions();
   const isTablet = width > 768;
@@ -63,21 +64,16 @@ export default function ChurchPageContent({ userData }: Props) {
   // Add a modal animation ref
   const modalAnimation = useRef(new Animated.Value(0)).current;
 
-  // Fetch member count
+  // Fetch member count using CRUD API
   useEffect(() => {
     const fetchMemberCount = async () => {
       try {
         setIsLoading(true);
-        const { count, error } = await supabase
-          .from("church_members")
-          .select("id", { count: "exact", head: true })
-          .eq("church_id", church.id);
-
-        if (error) {
-          console.error("Error fetching member count:", error);
-        } else {
-          setMemberCount(count || 0);
-        }
+        const members = await select("church_members", {
+          select: "id",
+          where: { church_id: church.id }
+        });
+        setMemberCount(members?.length || 0);
       } catch (error) {
         console.error("Error in fetching member count:", error);
       } finally {
@@ -127,19 +123,9 @@ export default function ChurchPageContent({ userData }: Props) {
 
     try {
       setLeavingChurch(true);
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error("No user logged in");
 
-      // Delete the membership record
-      const { error: deleteError } = await supabase
-        .from("church_members")
-        .delete()
-        .eq("id", member.id);
-      if (deleteError) throw deleteError;
+      // Delete the membership record using CRUD API
+      await deleteMember("church_members", { id: member.id });
 
       resetChurchData();
     } catch (error) {
