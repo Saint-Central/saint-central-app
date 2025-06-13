@@ -28,11 +28,13 @@ import Animated, {
   withSpring,
   withDelay,
   withSequence,
+  withRepeat,
   Easing,
   FadeIn,
   FadeOut,
   SlideInDown,
   BounceIn,
+  runOnJS,
 } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,23 +64,53 @@ interface AuthSession {
   user: User;
 }
 
-// --- Christian Cross Component ---
+// --- Removed Floating Particles to Fix Crashes ---
+
+// --- Static Bible Verse Component ---
+const BibleVerseCarousel = () => {
+  const verses = [
+    '"Come to me, all you who are weary and burdened, and I will give you rest." - Matthew 11:28',
+    '"For I know the plans I have for you," declares the Lord, "plans to prosper you." - Jeremiah 29:11',
+    '"Be strong and courageous. Do not be afraid; do not be discouraged." - Joshua 1:9',
+    '"Cast all your anxiety on him because he cares for you." - 1 Peter 5:7',
+  ];
+
+  const [currentVerse, setCurrentVerse] = useState(0);
+
+  const handleVersePress = () => {
+    Haptics.selectionAsync();
+    setCurrentVerse((prev) => (prev + 1) % verses.length);
+  };
+
+  return (
+    <TouchableOpacity onPress={handleVersePress} activeOpacity={0.8}>
+      <View style={styles.verseContainer}>
+        <Text style={styles.verse}>{verses[currentVerse]}</Text>
+        <View style={styles.verseIndicators}>
+          {verses.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.indicator, i === currentVerse && styles.activeIndicator]}
+            />
+          ))}
+        </View>
+        <Text style={styles.tapToChange}>Tap to change verse</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// --- Simplified Christian Cross Component ---
 const ChristianCross = () => {
-  const rotation = useSharedValue(0);
   const scale = useSharedValue(0.8);
 
   useEffect(() => {
-    rotation.value = withSequence(
-      withTiming(5, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-      withTiming(-5, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-      withTiming(0, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-    );
     scale.value = withSpring(1, { damping: 15, stiffness: 150 });
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
+      transform: [{ scale: scale.value }],
     };
   });
 
@@ -101,6 +133,63 @@ interface CustomInputProps {
   toggleSecure?: () => void;
   index: number;
 }
+
+// --- Enhanced Button Component with Haptics ---
+const EnhancedButton = ({
+  onPress,
+  children,
+  style,
+  disabled,
+  loading,
+}: {
+  onPress: () => void;
+  children: React.ReactNode;
+  style?: any;
+  disabled?: boolean;
+  loading?: boolean;
+}) => {
+  const scale = useSharedValue(1);
+  const shadowIntensity = useSharedValue(0.4);
+
+  const handlePressIn = () => {
+    if (!disabled && !loading) {
+      scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+      shadowIntensity.value = withTiming(0.8, { duration: 150 });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!disabled && !loading) {
+      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+      shadowIntensity.value = withTiming(0.4, { duration: 150 });
+    }
+  };
+
+  const handlePress = () => {
+    if (!disabled && !loading) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    shadowOpacity: shadowIntensity.value,
+  }));
+
+  return (
+    <TouchableOpacity
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      disabled={disabled || loading}
+      activeOpacity={1}
+    >
+      <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 // --- Utility Functions ---
 
@@ -463,10 +552,17 @@ const AuthScreen: React.FC = () => {
 
   useEffect(() => {
     if (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const timer = setTimeout(() => setError(""), 15000);
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (message) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [message]);
 
   const contentStyle = useAnimatedStyle(() => {
     return {
@@ -494,7 +590,6 @@ const AuthScreen: React.FC = () => {
       console.error("❌ [NAVIGATION] Failed to navigate to denomination selection:", error);
     }
   };
-
 
   const createUserInDatabase = async (
     userId: string,
@@ -573,6 +668,7 @@ const AuthScreen: React.FC = () => {
         setResetToken(token);
         setAuthMode("resetPassword");
         setMessage("Please enter your new password below.");
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } else {
         setError("Invalid password reset link. Please request a new one.");
       }
@@ -642,6 +738,7 @@ const AuthScreen: React.FC = () => {
 
     try {
       setLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -724,6 +821,7 @@ const AuthScreen: React.FC = () => {
     Keyboard.dismiss();
     setError("");
     setMessage("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       setLoading(true);
@@ -944,6 +1042,17 @@ const AuthScreen: React.FC = () => {
     }
   };
 
+  const handleModeChange = (newMode: typeof authMode) => {
+    Haptics.selectionAsync();
+    setAuthMode(newMode);
+    setError("");
+    setMessage("");
+  };
+
+  const handleInputFocus = () => {
+    Haptics.selectionAsync();
+  };
+
   const renderInput = ({
     placeholder,
     value,
@@ -969,12 +1078,19 @@ const AuthScreen: React.FC = () => {
         placeholderTextColor="rgba(255, 255, 255, 0.7)"
         value={value}
         onChangeText={setValue}
+        onFocus={handleInputFocus}
         keyboardType={keyboardType}
         secureTextEntry={secureEntry}
         autoCapitalize="none"
       />
       {toggleSecure && (
-        <TouchableOpacity onPress={toggleSecure} style={styles.eyeIcon}>
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.selectionAsync();
+            toggleSecure();
+          }}
+          style={styles.eyeIcon}
+        >
           <Feather
             name={secureEntry ? "eye-off" : "eye"}
             size={20}
@@ -1042,6 +1158,8 @@ const AuthScreen: React.FC = () => {
         >
           <View style={styles.overlay} />
 
+          {/* Removed Floating Particles to Fix Crashes */}
+
           {/* Error Toast */}
           {error !== "" && (
             <Animated.View
@@ -1076,7 +1194,17 @@ const AuthScreen: React.FC = () => {
                 {subtitle}
               </Text>
 
-              {/* Bible Verse - Only show for non-signup modes */}
+              {/* Bible Verse Carousel - Show for landing and non-signup modes */}
+              {authMode === "landing" && (
+                <Animated.View
+                  style={styles.carouselContainer}
+                  entering={FadeIn.delay(600).duration(800)}
+                >
+                  <BibleVerseCarousel />
+                </Animated.View>
+              )}
+
+              {/* Bible Verse - Only show for non-landing, non-signup modes */}
               {authMode !== "signup" && authMode !== "landing" && (
                 <Animated.View
                   style={styles.verseContainer}
@@ -1100,6 +1228,7 @@ const AuthScreen: React.FC = () => {
                       style={styles.continueAfterSignupButton}
                       onPress={() => {
                         console.log("🔘 [MANUAL] User clicked manual continue button");
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         navigateToDenominationSelection();
                       }}
                     >
@@ -1192,7 +1321,10 @@ const AuthScreen: React.FC = () => {
                   {authMode === "login" && (
                     <TouchableOpacity
                       style={styles.forgotLink}
-                      onPress={() => setAuthMode("forgotPassword")}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        handleModeChange("forgotPassword");
+                      }}
                     >
                       <Text style={styles.forgotText}>Forgot Password?</Text>
                     </TouchableOpacity>
@@ -1250,9 +1382,9 @@ const AuthScreen: React.FC = () => {
                   style={styles.switchContainer}
                   onPress={() => {
                     if (authMode === "login") {
-                      setAuthMode("signup");
+                      handleModeChange("signup");
                     } else {
-                      setAuthMode("login");
+                      handleModeChange("login");
                     }
                   }}
                 >
@@ -1269,7 +1401,7 @@ const AuthScreen: React.FC = () => {
             {/* Bottom Buttons for Landing Page */}
             {authMode === "landing" && (
               <Animated.View style={styles.bottomButtonsContainer}>
-                <TouchableOpacity style={styles.button} onPress={() => setAuthMode("login")}>
+                <TouchableOpacity style={styles.button} onPress={() => handleModeChange("login")}>
                   <Text style={styles.buttonText}>Sign in</Text>
                 </TouchableOpacity>
 
@@ -1284,7 +1416,7 @@ const AuthScreen: React.FC = () => {
 
                 <TouchableOpacity
                   style={styles.switchContainer}
-                  onPress={() => setAuthMode("signup")}
+                  onPress={() => handleModeChange("signup")}
                 >
                   <Text style={styles.switchText}>
                     Need an account?
@@ -1316,6 +1448,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Platform.OS === "ios" ? 60 : 40,
+    zIndex: 2,
   },
   content: {
     flex: 1,
@@ -1405,9 +1538,14 @@ const styles = StyleSheet.create({
   signupSubtitle: {
     marginBottom: 12,
   },
+  carouselContainer: {
+    marginBottom: 40,
+    paddingHorizontal: 16,
+  },
   verseContainer: {
     marginBottom: 32,
     paddingHorizontal: 16,
+    alignItems: "center",
   },
   verse: {
     fontSize: 13,
@@ -1418,6 +1556,30 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+    marginBottom: 12,
+  },
+  verseIndicators: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  indicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  activeIndicator: {
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    width: 12,
+  },
+  tapToChange: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.5)",
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
   messageContainer: {
     flexDirection: "column",
