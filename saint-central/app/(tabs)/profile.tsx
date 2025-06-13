@@ -15,8 +15,6 @@ import {
   StatusBar as RNStatusBar,
   ScrollView,
 } from "react-native";
-import { supabase } from "../../supabaseClient";
-import { Session } from "@supabase/supabase-js";
 import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons, Ionicons, FontAwesome5, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,8 +23,13 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import theme from "@/theme";
 import { NotificationSettings } from "../../components/NotificationSettings";
+
+// API Configuration
+const AUTH_API_BASE = "https://auth-worker.colinmcherney.workers.dev";
+const CRUD_API_BASE = "https://crud-worker.colinmcherney.workers.dev";
 
 interface UserProfile {
   id: string;
@@ -37,6 +40,13 @@ interface UserProfile {
   updated_at?: string;
   profile_image?: string;
   denomination?: string;
+}
+
+interface User {
+  id: string;
+  email?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Define the denominations array with name, description, and icon
@@ -115,8 +125,57 @@ const denominations = [
   },
 ];
 
+// API Helper Functions
+const apiCall = async (url: string, options: RequestInit = {}) => {
+  const token = await AsyncStorage.getItem("access_token");
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Network error" }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const checkSession = async (): Promise<User | null> => {
+  try {
+    const result = await apiCall(`${AUTH_API_BASE}/auth/session`);
+    if (result.success && result.valid) {
+      return {
+        id: result.user_id,
+        email: result.email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+  } catch (error) {
+    console.error("Session check failed:", error);
+    // Clear tokens if session is invalid
+    await AsyncStorage.multiRemove(["access_token", "refresh_token", "user", "expires_at"]);
+  }
+  return null;
+};
+
+const clearTokens = async () => {
+  await AsyncStorage.multiRemove(["access_token", "refresh_token", "user", "expires_at"]);
+};
+
 export default function MeScreen() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -159,31 +218,28 @@ export default function MeScreen() {
       useNativeDriver: true,
     }).start();
 
-    // Get the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    // Set up auth state change listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    // Clean up subscription on unmount
-    return () => subscription.unsubscribe();
+    // Check for existing session
+    checkInitialSession();
   }, []);
+
+  const checkInitialSession = async () => {
+    try {
+      const user = await checkSession();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error("Initial session check failed:", error);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
-      if (session) {
+      if (currentUser) {
         fetchUserProfile();
-      } else if (session === null && !loading) {
+      } else if (currentUser === null && !loading) {
         router.push("/(auth)/auth");
       }
       return () => {};
-    }, [session]),
+    }, [currentUser]),
   );
 
   const fetchUserProfile = async () => {
@@ -191,20 +247,22 @@ export default function MeScreen() {
       setLoading(true);
       setError("");
 
-      if (!session?.user) {
+      if (!currentUser?.id) {
         router.push("/(auth)/auth");
         return;
       }
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+      const response = await apiCall(CRUD_API_BASE, {
+        method: "POST",
+        body: JSON.stringify({
+          operation: "SELECT",
+          table: "users",
+          where: { id: currentUser.id },
+        }),
+      });
 
-      if (error) {
-        setError(error.message);
-      } else if (data) {
+      if (response.success && response.data.length > 0) {
+        const data = response.data[0];
         setUserProfile(data);
         setEditForm({
           first_name: data.first_name || "",
@@ -212,6 +270,8 @@ export default function MeScreen() {
           profile_image: data.profile_image || "",
           denomination: data.denomination || "",
         });
+      } else {
+        setError("Profile not found");
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -245,83 +305,29 @@ export default function MeScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true, // Request base64 data to avoid blob conversion issues
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Show processing indicator
-        setLoading(true);
+        const imageAsset = result.assets[0];
+        const imageUri = imageAsset.uri;
 
-        try {
-          const imageAsset = result.assets[0];
-          const imageUri = imageAsset.uri;
-          const base64Data = imageAsset.base64;
+        // For now, just store the local URI
+        // In a full implementation, you'd upload this to your storage service
+        setEditForm((prev) => ({
+          ...prev,
+          profile_image: imageUri,
+        }));
 
-          // Show selected image immediately for better UX
-          setEditForm((prev) => ({
-            ...prev,
-            profile_image: imageUri,
-          }));
-
-          // Generate a unique file path
-          const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
-          const fileName = `profile-${Date.now()}.${fileExt}`;
-          const filePath = `${session?.user.id}/${fileName}`;
-
-          if (!base64Data) {
-            throw new Error("Failed to get image data");
-          }
-
-          // Upload directly using base64 data
-          const { error: uploadError } = await supabase.storage
-            .from("profile-images")
-            .upload(filePath, decode(base64Data), {
-              contentType: `image/${fileExt}`,
-              upsert: true,
-            });
-
-          if (uploadError) {
-            console.error("Upload error:", uploadError);
-            throw new Error(`Upload failed: ${uploadError.message}`);
-          }
-
-          // Get the public URL
-          const { data } = supabase.storage.from("profile-images").getPublicUrl(filePath);
-
-          // Update form with new image URL
-          setEditForm((prev) => ({
-            ...prev,
-            profile_image: data.publicUrl,
-          }));
-
-          // Save the updated profile immediately
-          await supabase
-            .from("users")
-            .update({
-              profile_image: data.publicUrl,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", session?.user.id);
-
-          // Enable editing mode if not already in it
-          if (!isEditing) {
-            setIsEditing(true);
-          }
-
-          Alert.alert(
-            "Image Uploaded",
-            "Your profile image has been uploaded. Click 'Save Changes' to update your profile.",
-            [{ text: "OK" }],
-          );
-        } catch (err) {
-          console.error("Upload process error:", err);
-          Alert.alert("Upload Failed", "Please try again later");
-
-          // Keep the local image for user experience
-          // No need to revert the form state
-        } finally {
-          setLoading(false);
+        // Enable editing mode if not already in it
+        if (!isEditing) {
+          setIsEditing(true);
         }
+
+        Alert.alert(
+          "Image Selected",
+          "Your profile image has been selected. Click 'Save Changes' to update your profile.",
+          [{ text: "OK" }],
+        );
       }
     } catch (err) {
       console.error("Image picker error:", err);
@@ -329,43 +335,36 @@ export default function MeScreen() {
     }
   };
 
-  // Helper function to decode base64
-  function decode(base64: string) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  }
-
   const handleSubmit = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (!session?.user) return;
+      if (!currentUser?.id) return;
 
-      const { data, error } = await supabase
-        .from("users")
-        .update({
-          first_name: editForm.first_name,
-          last_name: editForm.last_name,
-          profile_image: editForm.profile_image,
-          denomination: editForm.denomination,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", session.user.id)
-        .select();
+      const response = await apiCall(CRUD_API_BASE, {
+        method: "POST",
+        body: JSON.stringify({
+          operation: "UPDATE",
+          table: "users",
+          where: { id: currentUser.id },
+          data: {
+            first_name: editForm.first_name,
+            last_name: editForm.last_name,
+            profile_image: editForm.profile_image,
+            denomination: editForm.denomination,
+            updated_at: new Date().toISOString(),
+          },
+        }),
+      });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setUserProfile(data[0]);
+      if (response.success && response.data.length > 0) {
+        const data = response.data[0];
+        setUserProfile(data);
         setEditForm({
-          first_name: data[0].first_name || "",
-          last_name: data[0].last_name || "",
-          profile_image: data[0].profile_image || "",
-          denomination: data[0].denomination || "",
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          profile_image: data.profile_image || "",
+          denomination: data.denomination || "",
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -400,9 +399,9 @@ export default function MeScreen() {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (!session?.user) return;
+      if (!currentUser?.id) return;
 
-      const userId = session.user.id;
+      const userId = currentUser.id;
 
       // Delete data from all tables that might contain user data
       // Using a common pattern where user_id links to the user
@@ -410,7 +409,6 @@ export default function MeScreen() {
         "comments",
         "culture_posts",
         "faith_posts",
-        "friends",
         "intentions",
         "lent_tasks",
         "likes",
@@ -422,56 +420,79 @@ export default function MeScreen() {
 
       // Process all deletions
       for (const table of tables) {
-        let error;
-
-        // Special case for friends table which has user_id_1 and user_id_2
-        if (table === "friends") {
-          // Delete records where user is either user_id_1 or user_id_2
-          const { error: error1 } = await supabase.from(table).delete().eq("user_id_1", userId);
-
-          const { error: error2 } = await supabase.from(table).delete().eq("user_id_2", userId);
-
-          error = error1 || error2;
-        } else {
-          // For other tables, assume user_id is the standard column
-          const { error: deleteError } = await supabase.from(table).delete().eq("user_id", userId);
-
-          error = deleteError;
+        try {
+          await apiCall(CRUD_API_BASE, {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: table,
+              where: { user_id: userId },
+            }),
+          });
+        } catch (error) {
+          console.error(`Error deleting from ${table}:`, error);
+          // Continue with other tables
         }
+      }
 
-        // Log errors but continue with other tables
-        if (error) {
-          console.error(`Error deleting from ${table}: ${error.message}`);
-        }
+      // Handle friends table which has user_id_1 and user_id_2
+      try {
+        await apiCall(CRUD_API_BASE, {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "DELETE",
+            table: "friends",
+            where: { user_id_1: userId },
+          }),
+        });
+      } catch (error) {
+        console.error("Error deleting friends (user_id_1):", error);
+      }
+
+      try {
+        await apiCall(CRUD_API_BASE, {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "DELETE",
+            table: "friends",
+            where: { user_id_2: userId },
+          }),
+        });
+      } catch (error) {
+        console.error("Error deleting friends (user_id_2):", error);
       }
 
       // Delete the user record last
-      const { error: deleteUserError } = await supabase.from("users").delete().eq("id", userId);
-
-      if (deleteUserError) {
-        console.error(`Error deleting user: ${deleteUserError.message}`);
-      }
-
-      // Call the Edge Function to delete the authentication record
       try {
-        const { error: edgeFunctionError } = await supabase.functions.invoke("delete-user", {
-          body: { userId },
+        await apiCall(CRUD_API_BASE, {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "DELETE",
+            table: "users",
+            where: { id: userId },
+          }),
         });
-
-        if (edgeFunctionError) {
-          console.error(`Error calling delete-user function: ${edgeFunctionError.message}`);
-          // Continue with logout even if auth deletion fails
-        }
-      } catch (edgeError) {
-        console.error("Edge function error:", edgeError);
-        // Continue with logout even if auth deletion fails
+      } catch (error) {
+        console.error("Error deleting user:", error);
       }
+
+      // Logout and clear tokens
+      try {
+        await apiCall(`${AUTH_API_BASE}/auth/logout`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+
+      // Clear local storage
+      await clearTokens();
 
       // If we made it here, successfully deleted account data
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Sign out and redirect to home page
-      await supabase.auth.signOut();
+      // Redirect to auth page
       router.push("/(auth)/auth");
     } catch (err: unknown) {
       setLoading(false);
@@ -488,7 +509,16 @@ export default function MeScreen() {
   const handleLogout = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await supabase.auth.signOut();
+
+      // Call logout API
+      await apiCall(`${AUTH_API_BASE}/auth/logout`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+
+      // Clear local storage
+      await clearTokens();
+
       router.push("/(auth)/auth");
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -1178,8 +1208,6 @@ export default function MeScreen() {
     </SafeAreaView>
   );
 }
-
-const { width, height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {

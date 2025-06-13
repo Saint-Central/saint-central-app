@@ -17,10 +17,9 @@ import {
   Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { supabase } from "../../supabaseClient";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Haptics from "expo-haptics";
 import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
-import { Session } from "@supabase/supabase-js";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -35,9 +34,32 @@ import Animated, {
   BounceIn,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 const isIpad = width >= 768;
+
+// API Configuration
+const AUTH_API_BASE = "https://auth-worker.colinmcherney.workers.dev";
+const CRUD_API_BASE = "https://crud-worker.colinmcherney.workers.dev";
+
+// Types
+interface User {
+  id: string;
+  email?: string;
+  email_confirmed_at?: string;
+  created_at: string;
+  updated_at: string;
+  app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, any>;
+}
+
+interface AuthSession {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  user: User;
+}
 
 // --- SVG Cross Component ---
 const CrossIcon = () => {
@@ -77,6 +99,13 @@ interface CustomInputProps {
   index: number;
 }
 
+// --- Utility Functions ---
+
+// Nonce generation for replay protection
+const generateNonce = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+};
+
 // --- Password Validation Function ---
 const validatePassword = (password: string): string | null => {
   if (password.length < 6) {
@@ -97,25 +126,176 @@ const validatePassword = (password: string): string | null => {
   return null;
 };
 
+// --- API Helper Functions ---
+const apiCall = async (url: string, options: RequestInit = {}) => {
+  const token = await AsyncStorage.getItem("access_token");
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  const data = await response.json().catch(() => ({ error: "Network error" }));
+
+  if (!response.ok) {
+    // Handle structured error responses from the auth worker
+    if (data.code && data.error) {
+      // Handle specific error codes with user-friendly messages
+      switch (data.code) {
+        case "RATE_LIMITED":
+          throw new Error("Too many attempts. Please wait a moment and try again.");
+        case "WEAK_PASSWORD":
+          throw new Error(
+            "Password must be at least 12 characters with uppercase, lowercase, numbers, and symbols.",
+          );
+        case "INVALID_EMAIL":
+          throw new Error("Please enter a valid email address.");
+        case "AUTH_FAILED":
+          throw new Error("Invalid email or password. Please check your credentials.");
+        case "TOKEN_EXPIRED":
+          throw new Error("Your session has expired. Please sign in again.");
+        case "INVALID_RESET_TOKEN":
+          throw new Error(
+            "This password reset link is invalid or has expired. Please request a new one.",
+          );
+        case "REDIS_ERROR":
+          throw new Error("Service temporarily unavailable. Please try again in a moment.");
+        default:
+          throw new Error(data.error);
+      }
+    } else if (data.error) {
+      throw new Error(data.error);
+    } else {
+      throw new Error(`Network error (${response.status})`);
+    }
+  }
+
+  return data;
+};
+
+const storeTokens = async (session: AuthSession) => {
+  await AsyncStorage.multiSet([
+    ["access_token", session.access_token],
+    ["refresh_token", session.refresh_token],
+    ["user", JSON.stringify(session.user)],
+    ["expires_at", (Date.now() + session.expires_in * 1000).toString()],
+  ]);
+};
+
+const clearTokens = async () => {
+  await AsyncStorage.multiRemove([
+    "access_token",
+    "refresh_token",
+    "user",
+    "expires_at",
+    "oauth_state",
+  ]);
+};
+
+const checkSession = async (): Promise<User | null> => {
+  try {
+    const result = await apiCall(`${AUTH_API_BASE}/auth/session`);
+    if (result.success && result.valid) {
+      return {
+        id: result.user_id,
+        email: result.email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+  } catch (error: any) {
+    console.error("Session check failed:", error);
+
+    // If session is invalid, try to refresh the token
+    if (error.message?.includes("expired") || error.message?.includes("invalid")) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        // Try session check again with new token
+        try {
+          const result = await apiCall(`${AUTH_API_BASE}/auth/session`);
+          if (result.success && result.valid) {
+            return {
+              id: result.user_id,
+              email: result.email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          }
+        } catch (retryError) {
+          console.error("Session check retry failed:", retryError);
+        }
+      }
+    }
+  }
+  return null;
+};
+
+const tryRefreshToken = async (): Promise<boolean> => {
+  try {
+    const refreshToken = await AsyncStorage.getItem("refresh_token");
+    if (!refreshToken) {
+      return false;
+    }
+
+    const response = await apiCall(`${AUTH_API_BASE}/auth/refresh`, {
+      method: "POST",
+      body: JSON.stringify({
+        refresh_token: refreshToken,
+        nonce: generateNonce(),
+      }),
+    });
+
+    if (response.success && response.access_token) {
+      await AsyncStorage.multiSet([
+        ["access_token", response.access_token],
+        ["refresh_token", response.refresh_token],
+        ["expires_at", (Date.now() + response.expires_in * 1000).toString()],
+      ]);
+      return true;
+    }
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    // Clear invalid tokens
+    await clearTokens();
+  }
+  return false;
+};
+
 // --- Animated Input Component ---
 const AnimatedInput = Animated.createAnimatedComponent(TextInput);
 
 // --- Main Component ---
 const AuthScreen: React.FC = () => {
   const router = useRouter();
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgotPassword">("login");
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgotPassword" | "resetPassword">(
+    "login",
+  );
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [firstName, setFirstName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [resetToken, setResetToken] = useState<string>("");
+  const [newPassword, setNewPassword] = useState<string>("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [secureTextEntry, setSecureTextEntry] = useState<boolean>(true);
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] = useState<boolean>(true);
+  const [secureNewPasswordEntry, setSecureNewPasswordEntry] = useState<boolean>(true);
+  const [secureConfirmNewPasswordEntry, setSecureConfirmNewPasswordEntry] = useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Animated values
   const formOpacity = useSharedValue(0);
@@ -154,51 +334,65 @@ const AuthScreen: React.FC = () => {
       }),
     );
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        setSession(currentSession);
-        if (currentSession && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
-          // Check if this is a brand new user - if they have no denomination yet, they need the selection screen
-          const { data: userData, error } = await supabase
-            .from("users")
-            .select("denomination")
-            .eq("id", currentSession.user.id)
-            .single();
-
-          // If we have user data, check if they need to select denomination
-          if (userData) {
-            if (userData.denomination) {
-              // User has already selected a denomination, go to home
-              navigateToHome();
-            } else {
-              // User exists but has no denomination, send to selection screen
-              navigateToDenominationSelection();
-            }
-          } else if (error) {
-            if (error.code === "PGRST116") {
-              // User not found in database yet, they need to select denomination
-              navigateToDenominationSelection();
-            } else {
-              // Some other error occurred, default to home
-              console.error("Error checking user denomination:", error);
-              navigateToHome();
-            }
-          }
-        }
-      },
-    );
+    // Check for existing session on app start
+    checkExistingSession();
 
     const subscription = Linking.addEventListener("url", ({ url }) => {
       if (url.startsWith("myapp://auth/callback")) {
         // Handle OAuth callback
+        handleOAuthCallback(url);
+      } else if (url.includes("reset-password") || url.includes("token=")) {
+        // Handle password reset link
+        handlePasswordResetLink(url);
       }
     });
 
     return () => {
       subscription.remove();
-      authListener?.subscription.unsubscribe();
     };
   }, []);
+
+  const checkExistingSession = async () => {
+    try {
+      const user = await checkSession();
+      if (user) {
+        setCurrentUser(user);
+        // Check if user needs denomination selection
+        await checkUserDenomination(user.id);
+      }
+    } catch (error) {
+      console.error("Session check failed:", error);
+    }
+  };
+
+  const checkUserDenomination = async (userId: string) => {
+    try {
+      const response = await apiCall(CRUD_API_BASE, {
+        method: "POST",
+        body: JSON.stringify({
+          operation: "SELECT",
+          table: "users",
+          where: { id: userId },
+          select: "denomination",
+        }),
+      });
+
+      if (response.success && response.data.length > 0) {
+        const userData = response.data[0];
+        if (userData.denomination) {
+          navigateToHome();
+        } else {
+          navigateToDenominationSelection();
+        }
+      } else {
+        // User not found in database, need to select denomination
+        navigateToDenominationSelection();
+      }
+    } catch (error) {
+      console.error("Error checking user denomination:", error);
+      navigateToHome();
+    }
+  };
 
   // Animate when changing auth mode
   useEffect(() => {
@@ -282,17 +476,88 @@ const AuthScreen: React.FC = () => {
     lastName?: string,
   ) => {
     try {
-      const { error } = await supabase.from("users").insert([
-        {
-          id: userId,
-          email: userEmail,
-          first_name: firstName || "",
-          last_name: lastName || "",
-        },
-      ]);
-      if (error) throw error;
+      await apiCall(CRUD_API_BASE, {
+        method: "POST",
+        body: JSON.stringify({
+          operation: "INSERT",
+          table: "users",
+          data: {
+            id: userId,
+            email: userEmail,
+            first_name: firstName || "",
+            last_name: lastName || "",
+          },
+        }),
+      });
     } catch (err) {
       console.error("Error inserting user:", err);
+    }
+  };
+
+  const handlePasswordResetLink = async (url: string) => {
+    try {
+      const urlParams = new URL(url);
+      const token = urlParams.searchParams.get("token");
+
+      if (token) {
+        setResetToken(token);
+        setAuthMode("resetPassword");
+        setMessage("Please enter your new password below.");
+      } else {
+        setError("Invalid password reset link. Please request a new one.");
+      }
+    } catch (error) {
+      setError("Invalid password reset link. Please request a new one.");
+    }
+  };
+
+  const handleOAuthCallback = async (url: string) => {
+    try {
+      setLoading(true);
+      const urlParams = new URL(url);
+      const code = urlParams.searchParams.get("code");
+      const state = urlParams.searchParams.get("state");
+      const error = urlParams.searchParams.get("error");
+      const errorDescription = urlParams.searchParams.get("error_description");
+
+      if (error) {
+        throw new Error(`OAuth error: ${error}${errorDescription ? ` - ${errorDescription}` : ""}`);
+      }
+
+      if (!code || !state) {
+        throw new Error("Invalid OAuth callback parameters");
+      }
+
+      // Validate state parameter
+      const storedState = await AsyncStorage.getItem("oauth_state");
+      if (state !== storedState) {
+        throw new Error("Invalid OAuth state parameter - possible CSRF attack");
+      }
+
+      // Clear stored state
+      await AsyncStorage.removeItem("oauth_state");
+
+      const response = await apiCall(`${AUTH_API_BASE}/auth/callback?code=${code}&state=${state}`);
+
+      if (response.access_token) {
+        await storeTokens(response);
+        setCurrentUser(response.user);
+
+        // Check if user exists in database
+        try {
+          await checkUserDenomination(response.user.id);
+        } catch (error) {
+          // User doesn't exist, create them
+          await createUserInDatabase(response.user.id, response.user.email || "");
+          navigateToDenominationSelection();
+        }
+      } else {
+        throw new Error("No access token received from OAuth callback");
+      }
+    } catch (e: any) {
+      setError(e.message || "OAuth authentication failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -301,8 +566,11 @@ const AuthScreen: React.FC = () => {
       setError("Apple Sign In is only available on iOS devices.");
       return;
     }
+
     try {
       setLoading(true);
+
+      // Use native Apple Sign In
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -310,38 +578,47 @@ const AuthScreen: React.FC = () => {
         ],
       });
 
-      if (!credential.identityToken) throw new Error("Unable to authenticate with Apple");
+      if (!credential.identityToken) {
+        throw new Error("Unable to authenticate with Apple");
+      }
 
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: "apple",
-        token: credential.identityToken,
+      // Send the Apple identity token to your auth worker
+      const response = await apiCall(`${AUTH_API_BASE}/auth/apple-signin`, {
+        method: "POST",
+        body: JSON.stringify({
+          identityToken: credential.identityToken,
+          user: credential.user,
+          fullName: credential.fullName,
+          email: credential.email,
+          nonce: generateNonce(),
+        }),
       });
 
-      if (error) throw new Error("Apple Sign In failed. Please try again.");
-      if (data?.session) {
-        const { data: existingUser, error: fetchError } = await supabase
-          .from("users")
-          .select("id")
-          .eq("id", data.session.user.id)
-          .single();
+      if (response.success && response.access_token) {
+        await storeTokens(response);
+        setCurrentUser(response.user);
 
-        if (fetchError && fetchError.code !== "PGRST116") {
-          throw fetchError;
-        }
-
-        if (!existingUser) {
-          const firstNameFromApple = credential.fullName?.givenName ?? "";
-          const lastNameFromApple = credential.fullName?.familyName ?? "";
+        // Check if user exists in database or create them
+        try {
+          await checkUserDenomination(response.user.id);
+        } catch (error) {
+          // User doesn't exist, create them
           await createUserInDatabase(
-            data.session.user.id,
-            data.session.user.email || "",
-            firstNameFromApple,
-            lastNameFromApple,
+            response.user.id,
+            response.user.email || credential.email || "",
+            credential.fullName?.givenName || "",
+            credential.fullName?.familyName || "",
           );
+          navigateToDenominationSelection();
         }
-        navigateToHome();
+      } else {
+        throw new Error("Apple Sign In failed. Please try again.");
       }
     } catch (e: any) {
+      if (e.code === "ERR_CANCELED") {
+        // User canceled the sign-in, don't show an error
+        return;
+      }
       setError(e.message || "Something went wrong with Apple Sign In. Please try again.");
     } finally {
       setLoading(false);
@@ -359,15 +636,22 @@ const AuthScreen: React.FC = () => {
         if (!email || !password) {
           throw new Error("Please enter both email and password.");
         }
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+
+        const response = await apiCall(`${AUTH_API_BASE}/auth/login`, {
+          method: "POST",
+          body: JSON.stringify({
+            email,
+            password,
+            nonce: generateNonce(),
+          }),
         });
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            throw new Error("Incorrect email or password. Please try again.");
-          }
-          throw new Error("Unable to sign in. Please check your connection and try again.");
+
+        if (response.success) {
+          await storeTokens(response);
+          setCurrentUser(response.user);
+          await checkUserDenomination(response.user.id);
+        } else {
+          throw new Error("Login failed. Please check your credentials.");
         }
       } else if (authMode === "signup") {
         if (!email || !password || !firstName || !lastName || !confirmPassword) {
@@ -382,71 +666,122 @@ const AuthScreen: React.FC = () => {
           throw new Error(validationError);
         }
 
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { first_name: firstName, last_name: lastName } },
+        const response = await apiCall(`${AUTH_API_BASE}/auth/register`, {
+          method: "POST",
+          body: JSON.stringify({
+            email,
+            password,
+            metadata: {
+              first_name: firstName,
+              last_name: lastName,
+            },
+            nonce: generateNonce(),
+          }),
         });
-        if (error) {
-          console.log("Sign-up error:", error);
-          // Try to get more detailed error info
-          const errMsg = error.message;
-          const lowerCaseError = errMsg.toLowerCase();
 
-          if (lowerCaseError.includes("user already registered")) {
-            throw new Error("This email is already registered. Try signing in instead.");
+        if (response.success) {
+          if (response.access_token) {
+            await storeTokens(response);
+            setCurrentUser(response.user);
+            await createUserInDatabase(response.user.id, email, firstName, lastName);
+            setMessage("Welcome! You've signed up successfully.");
+            await checkUserDenomination(response.user.id);
+          } else {
+            setMessage("Check your email to confirm your account.");
           }
-
-          // Check for weak password errors first
-          if (lowerCaseError.includes("weak")) {
-            throw new Error(
-              "Password is known to be weak and easy to guess. Please choose a different password.",
-            );
-          }
-
-          // Check for data breach or exposed password keywords.
-          if (lowerCaseError.includes("leak") || lowerCaseError.includes("exposed")) {
-            throw new Error(
-              "Password has been exposed in a data breach. Please choose a different password.",
-            );
-          }
-
-          // Otherwise, if the error mentions password requirements.
-          if (lowerCaseError.includes("password")) {
-            throw new Error(
-              "Password must contain an uppercase letter, a lowercase letter, a digit, and a symbol.",
-            );
-          }
-
-          throw new Error(errMsg);
+        } else {
+          throw new Error("Registration failed. Please try again.");
         }
-        if (data?.user) {
-          await createUserInDatabase(data.user.id, email, firstName, lastName);
-          setMessage(
-            data.session
-              ? "Welcome! You've signed up successfully."
-              : "Check your email to confirm your account.",
-          );
-        }
-      } else {
+      } else if (authMode === "forgotPassword") {
+        // Forgot password - use the new password reset endpoint
         if (!email) {
           throw new Error("Please enter your email to reset your password.");
         }
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: "https://www.saint-central.com/update-password",
+
+        const response = await apiCall(`${AUTH_API_BASE}/auth/reset-password`, {
+          method: "POST",
+          body: JSON.stringify({
+            email,
+            nonce: `reset-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
+          }),
         });
-        if (error) {
-          if (error.message.includes("rate limit")) {
-            throw new Error("Too many reset requests. Please wait and try again later.");
-          }
-          throw new Error("Unable to send reset email. Please check your email and try again.");
+
+        if (response.success) {
+          setMessage("If the email exists in our system, you will receive a password reset link.");
+          // Optionally switch back to login mode after showing message
+          setTimeout(() => {
+            setAuthMode("login");
+            setMessage("");
+          }, 3000);
+        } else {
+          throw new Error("Failed to send password reset email. Please try again.");
         }
-        setMessage("We've sent a password reset link to your email.");
+      } else if (authMode === "resetPassword") {
+        // Password reset confirmation
+        if (!resetToken || !newPassword || !confirmNewPassword) {
+          throw new Error("Please fill in all fields to reset your password.");
+        }
+
+        if (newPassword !== confirmNewPassword) {
+          throw new Error("Passwords don't match. Please check and try again.");
+        }
+
+        // Validate the new password
+        const validationError = validatePassword(newPassword);
+        if (validationError) {
+          throw new Error(validationError);
+        }
+
+        const response = await apiCall(`${AUTH_API_BASE}/auth/reset-password/confirm`, {
+          method: "POST",
+          body: JSON.stringify({
+            token: resetToken,
+            password: newPassword,
+            nonce: generateNonce(),
+          }),
+        });
+
+        if (response.success) {
+          await storeTokens(response);
+          setCurrentUser(response.user);
+          setMessage("Password has been reset successfully. You are now logged in.");
+          await checkUserDenomination(response.user.id);
+        } else {
+          throw new Error("Failed to reset password. Please try again.");
+        }
       }
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Call logout API
+      await apiCall(`${AUTH_API_BASE}/auth/logout`, {
+        method: "POST",
+        body: JSON.stringify({
+          nonce: generateNonce(),
+        }),
+      });
+
+      // Clear local tokens
+      await clearTokens();
+
+      // Navigate to auth screen
+      router.push("/(auth)/auth");
+    } catch (err: unknown) {
+      // Even if API call fails, still clear local tokens and redirect
+      await clearTokens();
+      router.push("/(auth)/auth");
+
+      if (err instanceof Error) {
+        console.error("Logout error:", err.message);
+      }
     }
   };
 
@@ -556,7 +891,9 @@ const AuthScreen: React.FC = () => {
                 ? "Let's begin the journey to your spiritual life"
                 : authMode === "signup"
                   ? "Join today"
-                  : "Reset your password to continue your journey"}
+                  : authMode === "forgotPassword"
+                    ? "Reset your password to continue your journey"
+                    : "Enter your new password"}
             </Animated.Text>
 
             {!error && message !== "" && (
@@ -570,14 +907,39 @@ const AuthScreen: React.FC = () => {
             )}
 
             <Animated.View style={[styles.form, formStyle]}>
-              {renderInput({
-                placeholder: "Email",
-                value: email,
-                setValue: setEmail,
-                keyboardType: "email-address",
-                icon: <Feather name="mail" size={20} color="#6366F1" />,
-                index: 0,
-              })}
+              {(authMode === "login" || authMode === "signup" || authMode === "forgotPassword") &&
+                renderInput({
+                  placeholder: "Email",
+                  value: email,
+                  setValue: setEmail,
+                  keyboardType: "email-address",
+                  icon: <Feather name="mail" size={20} color="#6366F1" />,
+                  index: 0,
+                })}
+
+              {authMode === "resetPassword" && (
+                <>
+                  {renderInput({
+                    placeholder: "New Password",
+                    value: newPassword,
+                    setValue: setNewPassword,
+                    secureEntry: secureNewPasswordEntry,
+                    toggleSecure: () => setSecureNewPasswordEntry(!secureNewPasswordEntry),
+                    icon: <Feather name="lock" size={20} color="#6366F1" />,
+                    index: 0,
+                  })}
+                  {renderInput({
+                    placeholder: "Confirm New Password",
+                    value: confirmNewPassword,
+                    setValue: setConfirmNewPassword,
+                    secureEntry: secureConfirmNewPasswordEntry,
+                    toggleSecure: () =>
+                      setSecureConfirmNewPasswordEntry(!secureConfirmNewPasswordEntry),
+                    icon: <Feather name="lock" size={20} color="#6366F1" />,
+                    index: 1,
+                  })}
+                </>
+              )}
 
               {authMode === "signup" && (
                 <View style={styles.nameRow}>
@@ -643,7 +1005,9 @@ const AuthScreen: React.FC = () => {
                         ? "START HERE"
                         : authMode === "signup"
                           ? "SIGN UP"
-                          : "RESET PASSWORD"}
+                          : authMode === "forgotPassword"
+                            ? "RESET PASSWORD"
+                            : "UPDATE PASSWORD"}
                     </Text>
                     <Feather name="arrow-right" size={16} color="#FFFFFF" />
                   </View>
@@ -651,7 +1015,7 @@ const AuthScreen: React.FC = () => {
               </TouchableOpacity>
             </Animated.View>
 
-            {authMode !== "forgotPassword" && (
+            {authMode !== "forgotPassword" && authMode !== "resetPassword" && (
               <Animated.View
                 style={styles.socialSection}
                 entering={FadeIn.delay(700).duration(400)}
@@ -668,15 +1032,17 @@ const AuthScreen: React.FC = () => {
               </Animated.View>
             )}
 
-            <Animated.View entering={FadeIn.delay(800).duration(400)}>
-              <TouchableOpacity
-                onPress={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-              >
-                <Text style={styles.switchText}>
-                  {authMode === "login" ? "Need an account? Sign up" : "Already a member? Log in"}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
+            {authMode !== "resetPassword" && (
+              <Animated.View entering={FadeIn.delay(800).duration(400)}>
+                <TouchableOpacity
+                  onPress={() => setAuthMode(authMode === "login" ? "signup" : "login")}
+                >
+                  <Text style={styles.switchText}>
+                    {authMode === "login" ? "Need an account? Sign up" : "Already a member? Log in"}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
 
             <Animated.View style={styles.footer} entering={FadeIn.delay(900).duration(400)}>
               <Text style={styles.footerText}>Powered by faith</Text>

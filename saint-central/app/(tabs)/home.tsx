@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../supabaseClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import ChurchPageLayout from "@/components/church/ChurchPageLayout";
 import ChurchPageFallback from "@/components/church/ChurchPageFallback";
 import { ChurchContext, ChurchContextData } from "@/contexts/church";
 import Spinner from "@/components/ui/Spinner";
 
 export default function HomeScreen() {
+  const { session, user } = useAuth();
+  const { selectOne, select } = useCRUD();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -23,76 +26,87 @@ export default function HomeScreen() {
 
   useEffect(() => {
     async function fetchChurchData(): Promise<void> {
+      // Don't load if no session or still loading auth
+      if (!session || !user?.id) {
+        console.log("No valid session or user");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
+      setError(null);
+
       try {
-        // First get the session to ensure we have the most current session data
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          throw sessionError;
-        }
-        // Extract user from session
-        const user = sessionData?.session?.user;
-        if (!user || !user.id) {
-          console.log("No valid user in session");
-          return;
+        console.log("Fetching church data for user:", user.id);
+
+        // Get user profile data
+        const userProfile = await selectOne("users", {
+          select: "first_name, profile_image",
+          where: { id: user.id },
+        });
+
+        if (userProfile) {
+          setUserData((current) => ({
+            username: userProfile.first_name || current.username,
+            profileImage: userProfile.profile_image || current.profileImage,
+          }));
+        } else {
+          console.warn("User profile data not found");
         }
 
-        // get user profile data
-        const { data: userData } = await supabase
-          .from("users")
-          .select("first_name, profile_image")
-          .eq("id", user.id)
-          .single();
-        if (!userData) {
-          console.error("could not find user");
+        // Get church member data
+        const memberData = await selectOne("church_members", {
+          select: "*",
+          where: { user_id: user.id },
+        });
+
+        if (!memberData) {
+          console.log("No church membership found for user");
+          // This is not necessarily an error - user might not be a church member yet
+          setLoading(false);
           return;
         }
-        setUserData((current) => ({
-          username: userData.first_name || current.username,
-          profileImage: userData.profile_image || current.profileImage,
-        }));
-
-        // get church member data
-        const { data: memberData } = await supabase
-          .from("church_members")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
 
         const churchId = memberData.church_id;
         if (!churchId) {
-          console.error("Error finding church ID", memberData);
-          return;
+          throw new Error("Church ID not found in membership data");
         }
-        const { data: churchData } = await supabase.from("churches").select("*").eq("id", churchId);
-        if (!churchData || churchData.length === 0) {
-          console.error(`Church with ID ${churchId} not found.`);
-          return;
-        }
-        const church = churchData[0];
 
-        if (!church || !memberData) {
-          console.error("Could not fetch church and membership data");
-          return;
+        // Get church data
+        const church = await selectOne("churches", {
+          select: "*",
+          where: { id: churchId },
+        });
+
+        if (!church) {
+          throw new Error(`Church with ID ${churchId} not found`);
         }
+
         updateChurchData({ church: church, member: memberData });
+        console.log("Successfully loaded church data");
       } catch (error) {
         console.error("Error while loading church page:", error);
-        setError(error instanceof Error ? error : new Error("Unknown error"));
+        setError(error instanceof Error ? error : new Error("Unknown error occurred"));
+      } finally {
+        setLoading(false);
       }
     }
-    fetchChurchData().finally(() => {
-      setLoading(false);
-    });
-  }, [updateChurchData]);
 
+    fetchChurchData();
+  }, [session, user?.id, selectOne, updateChurchData]);
+
+  // Show loading while auth is still loading
+  if (!session && loading) {
+    return <Spinner />;
+  }
+
+  // Show loading while fetching church data
   if (loading) {
     return <Spinner />;
   }
 
-  // if we have a church member, render the layout
-  // else render the fallback
-  if (!loading && churchData) {
+  // If we have a church member, render the layout
+  if (churchData) {
     return (
       <ChurchContext.Provider
         value={{ data: churchData, update: updateChurchData, reset: resetChurchData }}
@@ -102,5 +116,6 @@ export default function HomeScreen() {
     );
   }
 
+  // Show fallback (no church membership or error)
   return <ChurchPageFallback error={error} />;
 }
