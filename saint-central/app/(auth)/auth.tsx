@@ -1263,3 +1263,7 @@ const styles = StyleSheet.create({
 });
 
 export default AuthScreen;
+
+function setCurrentUser(user: any) {
+  throw new Error("Function not implemented.");
+}
