@@ -111,8 +111,11 @@ const generateNonce = (): string => {
 
 // --- Password Validation Function ---
 const validatePassword = (password: string): string | null => {
-  if (password.length < 6) {
-    return "Password must be at least 6 characters.";
+  if (password.length < 12) {
+    return "Password must be at least 12 characters.";
+  }
+  if (password.length > 128) {
+    return "Password must be less than 128 characters.";
   }
   if (!/[A-Z]/.test(password)) {
     return "Password must contain at least one uppercase letter.";
@@ -123,15 +126,31 @@ const validatePassword = (password: string): string | null => {
   if (!/[0-9]/.test(password)) {
     return "Password must contain at least one digit.";
   }
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    return "Password must contain at least one symbol.";
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
+    return "Password must contain at least one special character (!@#$%^&*()_+-=[]{}';:\"\\|,.<>/?~`).";
   }
+
+  // Check for weak patterns
+  if (/^(.)\1+$/.test(password)) {
+    return "Password cannot be all the same character.";
+  }
+  if (/^(012|123|234|345|456|567|678|789|890)+/i.test(password)) {
+    return "Password cannot contain sequential numbers.";
+  }
+  if (/password|123456|qwerty|admin|root|user|test/i.test(password)) {
+    return "Password cannot contain common words like 'password', '123456', etc.";
+  }
+
   return null;
 };
 
 // --- API Helper Functions ---
 const apiCall = async (url: string, options: RequestInit = {}) => {
-  const token = await AsyncStorage.getItem("access_token");
+  // Try to get token from new keys first, then fallback to old keys
+  let token = await AsyncStorage.getItem("@auth_access_token");
+  if (!token) {
+    token = await AsyncStorage.getItem("access_token");
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -142,12 +161,21 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  console.log("Making API call to:", url);
+  console.log("With headers:", Object.keys(headers));
+  console.log("Token found:", token ? `${token.substring(0, 20)}...` : "No token");
+  console.log("With body:", options.body);
+
   const response = await fetch(url, {
     ...options,
     headers,
   });
 
+  console.log("API response status:", response.status);
+  console.log("API response headers:", Object.fromEntries(response.headers.entries()));
+
   const data = await response.json().catch(() => ({ error: "Network error" }));
+  console.log("API response data:", data);
 
   if (!response.ok) {
     if (data.code && data.error) {
@@ -163,6 +191,7 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
         case "AUTH_FAILED":
           throw new Error("Invalid email or password. Please check your credentials.");
         case "TOKEN_EXPIRED":
+        case "JWT_VERIFICATION_FAILED":
           throw new Error("Your session has expired. Please sign in again.");
         case "INVALID_RESET_TOKEN":
           throw new Error(
@@ -170,13 +199,20 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
           );
         case "REDIS_ERROR":
           throw new Error("Service temporarily unavailable. Please try again in a moment.");
+        case "TABLE_NOT_ALLOWED":
+        case "OPERATION_NOT_ALLOWED":
+          throw new Error("Operation not permitted. Please check your permissions.");
+        case "MISSING_AUTH_HEADER":
+        case "INVALID_AUTH_FORMAT":
+        case "INVALID_TOKEN":
+          throw new Error("Authentication required. Please sign in again.");
         default:
-          throw new Error(data.error);
+          throw new Error(data.error || `API Error: ${data.code}`);
       }
     } else if (data.error) {
       throw new Error(data.error);
     } else {
-      throw new Error(`Network error (${response.status})`);
+      throw new Error(`Network error (${response.status}): ${response.statusText}`);
     }
   }
 
@@ -185,19 +221,26 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
 
 const storeTokens = async (session: AuthSession) => {
   await AsyncStorage.multiSet([
-    ["access_token", session.access_token],
-    ["refresh_token", session.refresh_token],
+    ["@auth_access_token", session.access_token],
+    ["@auth_refresh_token", session.refresh_token],
+    ["@auth_expires_at", (Date.now() + session.expires_in * 1000).toString()],
+    ["access_token", session.access_token], // Keep for backward compatibility
+    ["refresh_token", session.refresh_token], // Keep for backward compatibility
     ["user", JSON.stringify(session.user)],
-    ["expires_at", (Date.now() + session.expires_in * 1000).toString()],
+    ["expires_at", (Date.now() + session.expires_in * 1000).toString()], // Keep for backward compatibility
   ]);
 };
 
 const clearTokens = async () => {
+  console.log("Clearing stored tokens");
   await AsyncStorage.multiRemove([
-    "access_token",
-    "refresh_token",
+    "@auth_access_token",
+    "@auth_refresh_token",
+    "@auth_expires_at",
+    "access_token", // Keep for backward compatibility
+    "refresh_token", // Keep for backward compatibility
     "user",
-    "expires_at",
+    "expires_at", // Keep for backward compatibility
     "oauth_state",
   ]);
 };
@@ -240,8 +283,11 @@ const checkSession = async (): Promise<User | null> => {
 
 const tryRefreshToken = async (): Promise<boolean> => {
   try {
+    console.log("Attempting to refresh token...");
+
     const refreshToken = await AsyncStorage.getItem("refresh_token");
     if (!refreshToken) {
+      console.log("No refresh token found");
       return false;
     }
 
@@ -253,19 +299,26 @@ const tryRefreshToken = async (): Promise<boolean> => {
       }),
     });
 
+    console.log("Token refresh response:", response);
+
     if (response.success && response.access_token) {
       await AsyncStorage.multiSet([
         ["access_token", response.access_token],
         ["refresh_token", response.refresh_token],
         ["expires_at", (Date.now() + response.expires_in * 1000).toString()],
       ]);
+      console.log("Token refreshed successfully");
       return true;
+    } else {
+      console.log("Token refresh failed - no access token in response");
+      await clearTokens();
+      return false;
     }
   } catch (error) {
     console.error("Token refresh failed:", error);
     await clearTokens();
+    return false;
   }
-  return false;
 };
 
 // --- Animated Input Component ---
@@ -323,6 +376,28 @@ const AuthScreen: React.FC = () => {
 
   const checkUserDenomination = async (userId: string) => {
     try {
+      console.log("🔍 [DENOM CHECK] Starting denomination check for user:", userId);
+
+      // Check if we have a valid token
+      const token = await AsyncStorage.getItem("access_token");
+      const expiresAt = await AsyncStorage.getItem("expires_at");
+
+      console.log("🔍 [DENOM CHECK] Token exists:", !!token);
+      console.log("🔍 [DENOM CHECK] Token expires at:", expiresAt);
+      console.log("🔍 [DENOM CHECK] Current time:", Date.now());
+
+      if (expiresAt && Date.now() > parseInt(expiresAt)) {
+        console.log("⏰ [DENOM CHECK] Token appears to be expired, attempting refresh");
+        const refreshed = await tryRefreshToken();
+        if (!refreshed) {
+          console.log("❌ [DENOM CHECK] Token refresh failed, redirecting to auth");
+          router.replace("/auth");
+          return;
+        }
+        console.log("✅ [DENOM CHECK] Token refreshed successfully");
+      }
+
+      console.log("📡 [DENOM CHECK] Making API call to check denomination...");
       const response = await apiCall(CRUD_API_BASE, {
         method: "POST",
         body: JSON.stringify({
@@ -333,19 +408,56 @@ const AuthScreen: React.FC = () => {
         }),
       });
 
-      if (response.success && response.data.length > 0) {
+      console.log("📥 [DENOM CHECK] API response received:", response);
+
+      if (response.success && response.data && response.data.length > 0) {
         const userData = response.data[0];
+        console.log("👤 [DENOM CHECK] User data found:", userData);
+
         if (userData.denomination) {
+          console.log("✅ [DENOM CHECK] User has denomination:", userData.denomination);
+          console.log("🏠 [DENOM CHECK] Navigating to home page");
           navigateToHome();
         } else {
+          console.log("❓ [DENOM CHECK] User has no denomination");
+          console.log("📝 [DENOM CHECK] Navigating to denomination selection");
           navigateToDenominationSelection();
         }
       } else {
+        console.log("❓ [DENOM CHECK] No user data found or empty response");
+        console.log("📝 [DENOM CHECK] Navigating to denomination selection (no data)");
         navigateToDenominationSelection();
       }
-    } catch (error) {
-      console.error("Error checking user denomination:", error);
-      navigateToHome();
+    } catch (error: any) {
+      console.error("❌ [DENOM CHECK] Error checking user denomination:", error);
+      console.error("❌ [DENOM CHECK] Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+
+      // If it's a JWT error, try to refresh the token
+      if (
+        error.message?.includes("JWT") ||
+        error.message?.includes("exp") ||
+        error.message?.includes("expired")
+      ) {
+        console.log("🔄 [DENOM CHECK] JWT error detected, attempting token refresh");
+        try {
+          const refreshed = await tryRefreshToken();
+          if (refreshed) {
+            console.log("✅ [DENOM CHECK] Token refreshed, retrying denomination check");
+            // Retry the denomination check
+            return await checkUserDenomination(userId);
+          }
+        } catch (refreshError) {
+          console.error("❌ [DENOM CHECK] Token refresh failed:", refreshError);
+        }
+      }
+
+      // If all else fails, go to denomination selection
+      console.log("📝 [DENOM CHECK] Navigating to denomination selection (error fallback)");
+      navigateToDenominationSelection();
     }
   };
 
@@ -364,12 +476,25 @@ const AuthScreen: React.FC = () => {
   });
 
   const navigateToHome = () => {
-    router.replace("/(tabs)/home");
+    console.log("🏠 [NAVIGATION] Attempting to navigate to home page");
+    try {
+      router.replace("/(tabs)/home");
+      console.log("✅ [NAVIGATION] Home navigation initiated");
+    } catch (error) {
+      console.error("❌ [NAVIGATION] Failed to navigate to home:", error);
+    }
   };
 
   const navigateToDenominationSelection = () => {
-    router.replace("/selectDenomination");
+    console.log("📝 [NAVIGATION] Attempting to navigate to denomination selection");
+    try {
+      router.replace("/selectDenomination");
+      console.log("✅ [NAVIGATION] Denomination selection navigation initiated");
+    } catch (error) {
+      console.error("❌ [NAVIGATION] Failed to navigate to denomination selection:", error);
+    }
   };
+
 
   const createUserInDatabase = async (
     userId: string,
@@ -378,21 +503,64 @@ const AuthScreen: React.FC = () => {
     lastName?: string,
   ) => {
     try {
-      await apiCall(CRUD_API_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          operation: "INSERT",
-          table: "users",
-          data: {
-            id: userId,
-            email: userEmail,
-            first_name: firstName || "",
-            last_name: lastName || "",
-          },
-        }),
+      console.log("💾 [DB INSERT] Starting user database insertion...");
+      console.log("💾 [DB INSERT] User data:", {
+        id: userId,
+        email: userEmail,
+        first_name: firstName || "",
+        last_name: lastName || "",
       });
-    } catch (err) {
-      console.error("Error inserting user:", err);
+
+      // Skip database connection test since the verification calls work fine
+
+      // Check if we have a valid token
+      const token =
+        (await AsyncStorage.getItem("@auth_access_token")) ||
+        (await AsyncStorage.getItem("access_token"));
+      console.log(
+        "💾 [DB INSERT] Using token:",
+        token ? `${token.substring(0, 20)}...` : "No token found",
+      );
+
+      const requestData = {
+        operation: "INSERT",
+        table: "users",
+        data: {
+          id: userId,
+          email: userEmail,
+          first_name: firstName || "",
+          last_name: lastName || "",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      };
+
+      console.log("💾 [DB INSERT] Request data:", JSON.stringify(requestData, null, 2));
+
+      const response = await apiCall(CRUD_API_BASE, {
+        method: "POST",
+        body: JSON.stringify(requestData),
+      });
+
+      console.log("💾 [DB INSERT] Database insertion response:", response);
+
+      if (response.success) {
+        console.log("✅ [DB INSERT] User successfully inserted into database");
+        return response;
+      } else {
+        console.error("❌ [DB INSERT] Database insertion failed:", response);
+        throw new Error(`Database insertion failed: ${response.error || "Unknown error"}`);
+      }
+    } catch (err: any) {
+      console.error("❌ [DB INSERT] Error inserting user into database:", err);
+      console.error("❌ [DB INSERT] Error details:", {
+        message: err.message,
+        stack: err.stack,
+        name: err.name,
+      });
+
+      // Re-throw the error so calling code can handle it appropriately
+      throw new Error(`Failed to create user in database: ${err.message}`);
     }
   };
 
@@ -442,10 +610,18 @@ const AuthScreen: React.FC = () => {
       if (response.access_token) {
         await storeTokens(response);
 
+        // Store user data that's compatible with existing code
+        await AsyncStorage.setItem("user", JSON.stringify(response.user));
+
         try {
           await checkUserDenomination(response.user.id);
         } catch (error) {
-          await createUserInDatabase(response.user.id, response.user.email || "");
+          try {
+            await createUserInDatabase(response.user.id, response.user.email || "");
+          } catch (dbError: any) {
+            console.error("❌ [OAUTH] Database insertion failed:", dbError);
+            setError(`OAuth sign in successful, but failed to save user data: ${dbError.message}`);
+          }
           navigateToDenominationSelection();
         }
       } else {
@@ -497,15 +673,38 @@ const AuthScreen: React.FC = () => {
           user: response.user,
         });
 
+        // Also store in AuthContext format and update session state
+        const newUser = {
+          id: response.user.id,
+          email: response.user.email || credential.email || "",
+          role: "authenticated",
+          ...response.user,
+        };
+
+        const newSession = {
+          access_token: response.access_token,
+          refresh_token: response.refresh_token,
+          expires_at: Math.floor(Date.now() / 1000) + response.expires_in,
+          user: newUser,
+        };
+
+        // Store user data that matches AuthContext expectations
+        await AsyncStorage.setItem("user", JSON.stringify(newUser));
+
         try {
           await checkUserDenomination(response.user.id);
         } catch (error) {
-          await createUserInDatabase(
-            response.user.id,
-            response.user.email || credential.email || "",
-            credential.fullName?.givenName || "",
-            credential.fullName?.familyName || "",
-          );
+          try {
+            await createUserInDatabase(
+              response.user.id,
+              response.user.email || credential.email || "",
+              credential.fullName?.givenName || "",
+              credential.fullName?.familyName || "",
+            );
+          } catch (dbError: any) {
+            console.error("❌ [APPLE] Database insertion failed:", dbError);
+            setError(`Apple Sign In successful, but failed to save user data: ${dbError.message}`);
+          }
           navigateToDenominationSelection();
         }
       } else {
@@ -533,9 +732,23 @@ const AuthScreen: React.FC = () => {
           throw new Error("Please enter both email and password.");
         }
 
+        console.log("Attempting login with email:", email);
+
         const result = await signIn(email, password);
+        console.log("Login result:", result);
+
         if (result) {
-          await checkUserDenomination(result.user.id);
+          // Store user data that's compatible with existing code
+          await AsyncStorage.setItem("user", JSON.stringify(result.user));
+
+          // Check denomination
+          try {
+            await checkUserDenomination(result.user.id);
+          } catch (denomError) {
+            console.error("Denomination check error:", denomError);
+            // If denomination check fails, still navigate to denomination selection
+            navigateToDenominationSelection();
+          }
         } else {
           throw new Error("Login failed. Please check your credentials.");
         }
@@ -551,18 +764,95 @@ const AuthScreen: React.FC = () => {
           throw new Error(validationError);
         }
 
+        console.log("🚀 [SIGNUP] Starting signup process with:", { email, firstName, lastName });
+
+        // Use AuthContext signUp method
         const result = await signUp(email, password, {
           first_name: firstName,
           last_name: lastName,
         });
 
-        if (result) {
-          await createUserInDatabase(result.user.id, email, firstName, lastName);
-          setMessage("Welcome! You've signed up successfully.");
-          await checkUserDenomination(result.user.id);
-        } else {
-          throw new Error("Registration failed. Please try again.");
+        if (!result) {
+          throw new Error(
+            "Registration failed. Your password must be at least 12 characters with uppercase, lowercase, numbers, and special characters (!@#$%^&*). Please try again with a stronger password.",
+          );
         }
+
+        console.log("🎉 [SIGNUP] SIGNUP SUCCEEDED!");
+        console.log("👤 [SIGNUP] User data:", result.user);
+
+        // Wait a moment to ensure tokens are properly stored
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Create user in database with enhanced logging
+        console.log("💾 [SIGNUP] About to create user in database with data:", {
+          userId: result.user.id,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+        });
+
+        try {
+          const dbInsertResult = await createUserInDatabase(
+            result.user.id,
+            email,
+            firstName,
+            lastName,
+          );
+          console.log("✅ [SIGNUP] User database insertion completed successfully");
+        } catch (dbError: any) {
+          console.error("❌ [SIGNUP] Database insertion failed:", dbError);
+          setError(`Signup successful, but failed to save user data: ${dbError.message}`);
+          // Continue with the flow since auth was successful
+        }
+
+        // Verify the user was actually inserted (only if database insertion succeeded)
+        if (!error) {
+          try {
+            console.log("🔍 [SIGNUP] Verifying user was inserted into database...");
+            const verifyResponse = await apiCall(CRUD_API_BASE, {
+              method: "POST",
+              body: JSON.stringify({
+                operation: "SELECT",
+                table: "users",
+                where: { id: result.user.id },
+                select: "id, email, first_name, last_name, denomination",
+              }),
+            });
+
+            if (verifyResponse.success && verifyResponse.data.length > 0) {
+              console.log("✅ [SIGNUP] User found in database:", verifyResponse.data[0]);
+            } else {
+              console.warn("⚠️ [SIGNUP] User not found in database after insertion!");
+              console.warn("⚠️ [SIGNUP] Verify response:", verifyResponse);
+              setError(
+                "User authentication successful, but data verification failed. Please contact support if you experience issues.",
+              );
+            }
+          } catch (verifyError) {
+            console.error("❌ [SIGNUP] Failed to verify user insertion:", verifyError);
+            setError(
+              "User authentication successful, but data verification failed. Please contact support if you experience issues.",
+            );
+          }
+        }
+
+        // Set success message
+        setMessage("Welcome! You've signed up successfully.");
+
+        // Start denomination check process
+        console.log("🔄 [SIGNUP] Starting denomination check in 2 seconds...");
+        setTimeout(async () => {
+          try {
+            console.log("🔍 [SIGNUP] About to check user denomination for:", result.user.id);
+            await checkUserDenomination(result.user.id);
+            console.log("✅ [SIGNUP] Denomination check process completed");
+          } catch (denomError) {
+            console.error("❌ [SIGNUP] Denomination check error:", denomError);
+            console.log("🚀 [SIGNUP] Navigating to denomination selection due to error");
+            navigateToDenominationSelection();
+          }
+        }, 2000);
       } else if (authMode === "forgotPassword") {
         if (!email) {
           throw new Error("Please enter your email to reset your password.");
@@ -610,6 +900,10 @@ const AuthScreen: React.FC = () => {
 
         if (response.success) {
           await storeTokens(response);
+
+          // Store user data that's compatible with existing code
+          await AsyncStorage.setItem("user", JSON.stringify(response.user));
+
           setMessage("Password has been reset successfully. You are now logged in.");
           await checkUserDenomination(response.user.id);
         } else {
@@ -617,7 +911,34 @@ const AuthScreen: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+      console.error("Auth error details:", err);
+
+      // Handle specific error cases with better messages
+      if (
+        err.message?.includes("429") ||
+        err.message?.includes("rate limit") ||
+        err.message?.includes("Too many")
+      ) {
+        setError(
+          "Too many signup attempts. Please wait a few minutes and try again with a different email.",
+        );
+      } else if (err.message?.includes("400")) {
+        setError(
+          "Invalid signup data. Please ensure your password is at least 12 characters with uppercase, lowercase, numbers, and special characters.",
+        );
+      } else if (err.message?.includes("email") && err.message?.includes("already")) {
+        setError("This email is already registered. Try signing in instead.");
+      } else if (err.message?.includes("password") || err.message?.includes("12 characters")) {
+        setError(
+          "Password must be at least 12 characters with uppercase, lowercase, numbers, and special characters (!@#$%^&*()_+-=[]{}';:\"\\|,.<>/?~`).",
+        );
+      } else if (err.message?.includes("weak") || err.message?.includes("AUTH_FAILED")) {
+        setError(
+          "Password too weak. Must be 12+ characters with uppercase, lowercase, numbers, and special characters. Avoid common patterns.",
+        );
+      } else {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -768,8 +1089,23 @@ const AuthScreen: React.FC = () => {
               {/* Success Message */}
               {!error && message !== "" && (
                 <Animated.View style={styles.messageContainer} entering={FadeIn.duration(400)}>
-                  <Feather name="check-circle" size={18} color="#4ade80" />
-                  <Text style={styles.message}>{message}</Text>
+                  <View style={styles.messageHeader}>
+                    <Feather name="check-circle" size={18} color="#4ade80" />
+                    <Text style={styles.message}>{message}</Text>
+                  </View>
+
+                  {/* Manual navigation button as backup */}
+                  {message.includes("signed up successfully") && (
+                    <TouchableOpacity
+                      style={styles.continueAfterSignupButton}
+                      onPress={() => {
+                        console.log("🔘 [MANUAL] User clicked manual continue button");
+                        navigateToDenominationSelection();
+                      }}
+                    >
+                      <Text style={styles.continueAfterSignupText}>Continue to Setup →</Text>
+                    </TouchableOpacity>
+                  )}
                 </Animated.View>
               )}
 
@@ -1084,7 +1420,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   messageContainer: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
@@ -1094,11 +1430,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(74, 222, 128, 0.3)",
   },
+  messageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   message: {
     color: "#4ade80",
     marginLeft: 8,
     fontSize: 14,
     fontWeight: "500",
+    textAlign: "center",
+  },
+  continueAfterSignupButton: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(74, 222, 128, 0.3)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(74, 222, 128, 0.5)",
+  },
+  continueAfterSignupText: {
+    color: "#4ade80",
+    fontSize: 12,
+    fontWeight: "600",
   },
   form: {
     width: "100%",
