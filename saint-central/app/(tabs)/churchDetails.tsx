@@ -11,11 +11,13 @@ import {
   Linking,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, MaterialIcons, AntDesign } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import theme from "@/theme";
 
 // Define route params type
 type ChurchDetailsRouteParams = {
@@ -242,6 +244,7 @@ const CollapsibleHeader = ({
 
 export default function ChurchDetailsScreen(): JSX.Element {
   const navigation = useNavigation();
+  const router = useRouter();
   const route = useRoute<ChurchDetailsRouteProp>();
   const { churchId } = route.params;
   const insets = useSafeAreaInsets();
@@ -347,10 +350,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
       setIsMember(true);
 
       // Navigate to church page
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "home" as never }],
-      });
+      router.replace("/home");
     } catch (error) {
       console.error("Error joining church:", error);
       alert("Failed to join church. Please try again later.");
@@ -361,7 +361,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
 
   // Navigate back to church list
   const navigateToChurchList = () => {
-    navigation.navigate("churchSearch" as never);
+    router.back();
   };
 
   // Action handlers

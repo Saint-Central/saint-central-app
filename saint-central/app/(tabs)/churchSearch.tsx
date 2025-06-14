@@ -13,6 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation, NavigationProp, ParamListBase } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
@@ -39,6 +40,7 @@ interface Church {
 
 export default function ChurchSearchScreen(): JSX.Element {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const router = useRouter();
   const [loading, setLoading] = useState<boolean>(true); // Start with loading true
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [churches, setChurches] = useState<Church[]>([]);
@@ -124,7 +126,10 @@ export default function ChurchSearchScreen(): JSX.Element {
 
   // Handle church selection
   const handleSelectChurch = (church: Church) => {
-    navigation.navigate("churchDetails", { churchId: church.id });
+    router.push({
+      pathname: "/churchDetails",
+      params: { churchId: church.id }
+    });
   };
 
   // Directly join a church
@@ -168,10 +173,7 @@ export default function ChurchSearchScreen(): JSX.Element {
       if (joinError) throw joinError;
 
       // Navigate to church page
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "home" }],
-      });
+      router.replace("/home");
     } catch (error) {
       console.error("Error joining church:", error);
       Alert.alert("Error", "Failed to join church. Please try again later.");
