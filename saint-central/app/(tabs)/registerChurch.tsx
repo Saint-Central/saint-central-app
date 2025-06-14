@@ -456,6 +456,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.name ? styles.inputError : null]}
                   placeholder="Enter church name"
+                  placeholderTextColor={theme.textLight}
                   value={formData.name}
                   onChangeText={(text) => handleChange("name", text)}
                 />
@@ -469,6 +470,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.address ? styles.inputError : null]}
                   placeholder="Enter full address"
+                  placeholderTextColor={theme.textLight}
                   value={formData.address}
                   onChangeText={(text) => handleChange("address", text)}
                   multiline
@@ -481,6 +483,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g., Catholic, Protestant, Orthodox"
+                  placeholderTextColor={theme.textLight}
                   value={formData.denomination}
                   onChangeText={(text) => handleChange("denomination", text)}
                 />
@@ -491,6 +494,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
                   placeholder="Brief description of your church"
+                  placeholderTextColor={theme.textLight}
                   value={formData.description}
                   onChangeText={(text) => handleChange("description", text)}
                   multiline
@@ -504,6 +508,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g., 1980"
+                  placeholderTextColor={theme.textLight}
                   value={formData.founded}
                   onChangeText={(text) => handleChange("founded", text)}
                   keyboardType="number-pad"
@@ -515,6 +520,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter contact phone number"
+                  placeholderTextColor={theme.textLight}
                   value={formData.phone}
                   onChangeText={(text) => handleChange("phone", text)}
                   keyboardType="phone-pad"
@@ -526,6 +532,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.email ? styles.inputError : null]}
                   placeholder="Enter contact email"
+                  placeholderTextColor={theme.textLight}
                   value={formData.email}
                   onChangeText={(text) => handleChange("email", text)}
                   keyboardType="email-address"
@@ -539,6 +546,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
                   placeholder="Enter schedule details"
+                  placeholderTextColor={theme.textLight}
                   value={formData.mass_schedule}
                   onChangeText={(text) => handleChange("mass_schedule", text)}
                   multiline
@@ -552,6 +560,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.website ? styles.inputError : null]}
                   placeholder="e.g., www.yourchurch.com"
+                  placeholderTextColor={theme.textLight}
                   value={formData.website}
                   onChangeText={(text) => handleChange("website", text)}
                   autoCapitalize="none"
@@ -605,7 +614,7 @@ export default function RegisterChurchScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   headerContainer: {
     flexDirection: "row",
@@ -615,15 +624,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   mainContent: {
     flex: 1,
@@ -642,14 +651,15 @@ const styles = StyleSheet.create({
   introTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1E293B",
+    color: theme.textWhite,
     marginBottom: 8,
     textAlign: "center",
+    letterSpacing: -0.3,
   },
   introText: {
     fontSize: 14,
     lineHeight: 22,
-    color: "#64748B",
+    color: theme.textLight,
     textAlign: "center",
   },
   formContainer: {
@@ -661,21 +671,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#334155",
+    color: theme.textWhite,
     marginBottom: 8,
   },
   requiredStar: {
-    color: "#FF006E",
+    color: theme.error,
   },
   textInput: {
     height: 50,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: "#1E293B",
-    backgroundColor: "#F8FAFC",
+    color: theme.textWhite,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   textAreaInput: {
     height: 100,
@@ -684,21 +694,22 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   inputError: {
-    borderColor: "#FF006E",
-    backgroundColor: "rgba(255, 0, 110, 0.05)",
+    borderColor: theme.error,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
   },
   errorText: {
     fontSize: 12,
-    color: "#FF006E",
+    color: theme.error,
     marginTop: 4,
+    fontWeight: "500",
   },
   // Image upload styles
   imageUploadContainer: {
     height: 200,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -711,18 +722,18 @@ const styles = StyleSheet.create({
   imageUploadText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3A86FF",
+    color: theme.primary,
     marginTop: 12,
   },
   imageUploadSubtext: {
     fontSize: 13,
-    color: "#64748B",
+    color: theme.textLight,
     marginTop: 4,
   },
   uploadingText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#3A86FF",
+    color: theme.primary,
     marginTop: 8,
   },
   imagePreviewContainer: {
@@ -754,11 +765,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#3A86FF",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   submitButtonGradient: {
     height: 56,
@@ -776,17 +787,20 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   noticeContainer: {
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   noticeText: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#334155",
+    color: theme.textLight,
   },
   noticeHighlight: {
     fontWeight: "700",
+    color: theme.textWhite,
   },
 });

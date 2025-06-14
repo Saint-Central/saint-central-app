@@ -208,7 +208,7 @@ export default function ChurchSearchScreen(): JSX.Element {
       onPress={() => handleSelectChurch(item)}
     >
       <LinearGradient
-        colors={["rgba(58, 134, 255, 0.05)", "rgba(67, 97, 238, 0.15)"]}
+        colors={["rgba(255, 255, 255, 0.03)", "rgba(255, 255, 255, 0.08)"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.churchCardGradient}
@@ -242,7 +242,7 @@ export default function ChurchSearchScreen(): JSX.Element {
 
           <TouchableOpacity style={styles.joinButton} onPress={() => handleJoinChurch(item.id)}>
             <LinearGradient
-              colors={["#3A86FF", "#4361EE"]}
+              colors={[theme.primary, theme.accent1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.joinButtonGradient}
@@ -304,18 +304,18 @@ export default function ChurchSearchScreen(): JSX.Element {
           ]}
         >
           <View style={styles.searchBar}>
-            <Feather name="search" size={20} color="#64748B" style={styles.searchIcon} />
+            <Feather name="search" size={20} color={theme.primary} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search by name, address, or category"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.textLight}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                <Ionicons name="close-circle" size={20} color={theme.textLight} />
               </TouchableOpacity>
             )}
           </View>
@@ -376,13 +376,13 @@ export default function ChurchSearchScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   lottieWrapper: {
     width: 200,
@@ -396,8 +396,9 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: "#64748B",
+    color: theme.textLight,
     marginTop: 12,
+    fontWeight: "500",
   },
   headerContainer: {
     flexDirection: "row",
@@ -407,146 +408,162 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   mainContent: {
     flex: 1,
     paddingHorizontal: 20,
   },
   searchBarContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderRadius: 16,
     paddingHorizontal: 16,
-    height: 50,
+    height: 52,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#1E293B",
-    height: 50,
+    color: theme.textWhite,
+    height: 52,
   },
   resultsContainer: {
     marginBottom: 16,
   },
   resultsText: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#64748B",
+    fontWeight: "600",
+    color: theme.textLight,
   },
   churchesList: {
-    paddingBottom: 100, // Increased padding to ensure last item shows above nav bar
+    paddingBottom: 100,
   },
   churchCard: {
-    marginBottom: 12,
-    borderRadius: 16,
+    marginBottom: 16,
+    borderRadius: 18,
     overflow: "hidden",
   },
   churchCardGradient: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(203, 213, 225, 0.5)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   churchCardContent: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    padding: 16,
   },
   churchImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+    width: 70,
+    height: 70,
+    borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#F1F5F9",
-    marginRight: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   churchImage: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
   },
   churchImagePlaceholder: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   churchInfoContainer: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
   },
   churchName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 4,
+    color: theme.textWhite,
+    marginBottom: 6,
+    letterSpacing: -0.2,
   },
   churchAddress: {
     fontSize: 14,
-    color: "#64748B",
-    marginBottom: 2,
+    color: theme.textLight,
+    marginBottom: 4,
   },
   churchCategory: {
     fontSize: 12,
-    fontWeight: "500",
-    color: "#94A3B8",
+    fontWeight: "600",
+    color: theme.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   joinButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   joinButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
   joinButtonText: {
     fontSize: 14,
-    fontWeight: theme.fontBold,
+    fontWeight: "700",
     color: "#FFFFFF",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 0, 110, 0.1)",
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
     padding: 16,
     borderRadius: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.2)",
   },
   errorText: {
     fontSize: 14,
-    color: "#FF006E",
+    color: theme.error,
     marginLeft: 12,
     fontWeight: "500",
     flex: 1,
   },
   retryButton: {
-    backgroundColor: "#FF006E",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: theme.error,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   retryButtonText: {
     color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   emptyStateContainer: {
     flex: 1,
@@ -555,7 +572,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyIcon: {
-    marginBottom: 16,
+    marginBottom: 20,
+    opacity: 0.6,
   },
   emptyAnimation: {
     width: 120,
@@ -563,28 +581,34 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyStateTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 8,
+    color: theme.textWhite,
+    marginBottom: 12,
     textAlign: "center",
+    letterSpacing: -0.3,
   },
   emptyStateDescription: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 22,
-    color: "#64748B",
+    color: theme.textLight,
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   emptyStateButton: {
-    backgroundColor: "#3A86FF",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
+    backgroundColor: theme.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   emptyStateButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

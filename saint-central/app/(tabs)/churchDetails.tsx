@@ -119,10 +119,10 @@ const CollapsibleHeader = ({
     ],
     outputRange: [
       "rgba(0,0,0,0)",
-      "rgba(255,255,255,0.25)",
-      "rgba(255,255,255,0.5)",
-      "rgba(255,255,255,0.75)",
-      "rgba(255,255,255,1)",
+      "rgba(15, 23, 42, 0.25)",
+      "rgba(15, 23, 42, 0.5)",
+      "rgba(15, 23, 42, 0.75)",
+      "rgba(15, 23, 42, 1)",
     ],
     extrapolate: "clamp",
   });
@@ -159,12 +159,12 @@ const CollapsibleHeader = ({
 
         {/* Gradient overlays */}
         <LinearGradient
-          colors={["rgba(0,0,0,0.6)", "rgba(0,0,0,0.3)", "transparent"]}
+          colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.4)", "transparent"]}
           style={[styles.headerGradient, { height: 100 + insets.top }]}
           pointerEvents="none"
         />
         <LinearGradient
-          colors={["transparent", "#FFFFFF"]}
+          colors={["transparent", theme.pageBg]}
           style={styles.bottomGradient}
           pointerEvents="none"
         />
@@ -188,7 +188,7 @@ const CollapsibleHeader = ({
             {
               color: scrollY.interpolate({
                 inputRange: [SCROLL_DISTANCE - 20, SCROLL_DISTANCE],
-                outputRange: ["#FFFFFF", "#1E293B"],
+                outputRange: ["#FFFFFF", theme.textWhite],
                 extrapolate: "clamp",
               }) as any,
             },
@@ -218,7 +218,7 @@ const CollapsibleHeader = ({
             alignItems: "center",
             backgroundColor: scrollY.interpolate({
               inputRange: [0, SCROLL_DISTANCE],
-              outputRange: ["rgba(0,0,0,0.4)", "rgba(230,230,230,0.8)"],
+              outputRange: ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.15)"],
               extrapolate: "clamp",
             }) as any,
           }}
@@ -227,7 +227,7 @@ const CollapsibleHeader = ({
             style={{
               color: scrollY.interpolate({
                 inputRange: [0, SCROLL_DISTANCE],
-                outputRange: ["#FFFFFF", "#1E293B"],
+                outputRange: ["#FFFFFF", theme.textWhite],
                 extrapolate: "clamp",
               }) as any,
             }}
@@ -461,7 +461,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           <Text style={styles.sectionTitle}>Address</Text>
           <View style={styles.infoRow}>
             <View style={styles.iconContainer}>
-              <MaterialIcons name="location-on" size={20} color="#3A86FF" />
+              <MaterialIcons name="location-on" size={20} color={theme.primary} />
             </View>
             <Text style={styles.addressText}>{church.address}</Text>
           </View>
@@ -474,7 +474,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           {church.phone && (
             <TouchableOpacity style={styles.infoRow} onPress={() => callPhone(church.phone!)}>
               <View style={styles.iconContainer}>
-                <MaterialIcons name="phone" size={20} color="#3A86FF" />
+                <MaterialIcons name="phone" size={20} color={theme.accent2} />
               </View>
               <Text style={styles.contactText}>{church.phone}</Text>
             </TouchableOpacity>
@@ -483,7 +483,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           {church.email && (
             <TouchableOpacity style={styles.infoRow} onPress={() => sendEmail(church.email!)}>
               <View style={styles.iconContainer}>
-                <MaterialIcons name="email" size={20} color="#3A86FF" />
+                <MaterialIcons name="email" size={20} color={theme.accent3} />
               </View>
               <Text style={styles.contactText}>{church.email}</Text>
             </TouchableOpacity>
@@ -492,7 +492,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           {church.website && (
             <TouchableOpacity style={styles.infoRow} onPress={() => openWebsite(church.website!)}>
               <View style={styles.iconContainer}>
-                <MaterialIcons name="language" size={20} color="#3A86FF" />
+                <MaterialIcons name="language" size={20} color={theme.primary} />
               </View>
               <Text style={styles.contactText}>{church.website}</Text>
             </TouchableOpacity>
@@ -509,7 +509,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
             <Text style={styles.sectionTitle}>Mass Schedule</Text>
             <View style={styles.infoRow}>
               <View style={styles.iconContainer}>
-                <AntDesign name="calendar" size={20} color="#3A86FF" />
+                <AntDesign name="calendar" size={20} color={theme.accent2} />
               </View>
               <Text style={styles.scheduleText}>{church.mass_schedule}</Text>
             </View>
@@ -522,7 +522,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
             <Text style={styles.sectionTitle}>Founded</Text>
             <View style={styles.infoRow}>
               <View style={styles.iconContainer}>
-                <FontAwesome5 name="history" size={18} color="#3A86FF" />
+                <FontAwesome5 name="history" size={18} color={theme.accent3} />
               </View>
               <Text style={styles.foundedText}>{church.founded}</Text>
             </View>
@@ -558,7 +558,7 @@ export default function ChurchDetailsScreen(): JSX.Element {
           disabled={isMember}
         >
           <LinearGradient
-            colors={isMember ? ["#CBD5E1", "#94A3B8"] : ["#3A86FF", "#4361EE"]}
+            colors={isMember ? [theme.neutral300, theme.neutral400] : [theme.primary, theme.accent1]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.joinButton}
@@ -576,18 +576,19 @@ export default function ChurchDetailsScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   loadingText: {
     fontSize: 16,
-    color: "#64748B",
+    color: theme.textLight,
     marginTop: 16,
+    fontWeight: "500",
   },
   lottieWrapper: {
     width: 200,
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   headerGradient: {
     position: "absolute",
@@ -662,9 +663,9 @@ const styles = StyleSheet.create({
   backButton: {
     position: "absolute",
     left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 15,
@@ -679,20 +680,25 @@ const styles = StyleSheet.create({
   churchName: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1E293B",
+    color: theme.textWhite,
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   categoryContainer: {
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   categoryText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#3A86FF",
+    color: theme.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   sectionContainer: {
     paddingHorizontal: 20,
@@ -701,13 +707,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: theme.textWhite,
     marginBottom: 12,
+    letterSpacing: -0.2,
   },
   descriptionText: {
     fontSize: 15,
     lineHeight: 24,
-    color: "#475569",
+    color: theme.textLight,
   },
   infoRow: {
     flexDirection: "row",
@@ -715,43 +722,45 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   addressText: {
     fontSize: 15,
     lineHeight: 22,
-    color: "#475569",
+    color: theme.textLight,
     flex: 1,
     paddingTop: 5,
   },
   contactText: {
     fontSize: 15,
-    color: "#475569",
+    color: theme.textLight,
     flex: 1,
     paddingTop: 5,
   },
   scheduleText: {
     fontSize: 15,
     lineHeight: 22,
-    color: "#475569",
+    color: theme.textLight,
     flex: 1,
     paddingTop: 5,
   },
   foundedText: {
     fontSize: 15,
-    color: "#475569",
+    color: theme.textLight,
     flex: 1,
     paddingTop: 5,
   },
   noInfoText: {
     fontSize: 15,
-    color: "#94A3B8",
+    color: theme.textMuted,
     fontStyle: "italic",
   },
   joinButtonContainer: {
@@ -764,11 +773,11 @@ const styles = StyleSheet.create({
   joinButtonWrapper: {
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#3A86FF",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   joinButton: {
     height: 56,
@@ -793,27 +802,29 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1E293B",
+    color: theme.textWhite,
     marginTop: 16,
     marginBottom: 8,
+    letterSpacing: -0.2,
   },
   errorText: {
     fontSize: 14,
     textAlign: "center",
-    color: "#64748B",
+    color: theme.textLight,
     marginBottom: 24,
+    lineHeight: 20,
   },
   errorButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   errorButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: theme.textWhite,
   },
 });
