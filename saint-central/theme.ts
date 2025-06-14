@@ -1,59 +1,59 @@
 import { Platform } from "react-native";
 
 export default {
-  // New warm and cozy color palette
+  // Church theme inspired colors - dark theme with green accents
   // Main colors
-  primary: "#A87C5F", // Warm brown
-  secondary: "#C27F55", // Soft terracotta
-  tertiary: "#D8846B", // Soft coral
+  primary: "#22c55e", // Church green from components
+  secondary: "#16a34a", // Darker green
+  tertiary: "#15803d", // Even darker green
 
   // Accent colors
-  accent1: "#9B8557", // Muted gold
-  accent2: "#B97A65", // Muted rust
-  accent3: "#7D9B6A", // Sage green
+  accent1: "#22c55e", // Primary green
+  accent2: "#16a34a", // Secondary green
+  accent3: "#059669", // Emerald accent
 
-  // Neutrals
-  neutral900: "#2D241F", // Almost black with warm undertone
-  neutral800: "#3A2E28",
-  neutral700: "#4E3F37",
-  neutral600: "#6B5A50",
-  neutral500: "#8A7668",
-  neutral400: "#A99686",
-  neutral300: "#C7B9AD",
-  neutral200: "#E2D7CE",
-  neutral100: "#F2EBE4",
-  neutral50: "#F9F5F1", // Almost white with warm undertone
+  // Dark theme neutrals (from church components)
+  neutral900: "#0f1419", // Main dark background
+  neutral800: "#1a202c",
+  neutral700: "#2d3748",
+  neutral600: "#4a5568",
+  neutral500: "#718096",
+  neutral400: "#a0aec0",
+  neutral300: "#cbd5e0",
+  neutral200: "#e2e8f0",
+  neutral100: "#f7fafc",
+  neutral50: "#ffffff",
 
   // Special colors
-  success: "#7D9B6A", // Sage green
-  warning: "#C78D60", // Warm amber
-  error: "#BC6C64", // Dusty rose
-  info: "#6B8A9B", // Muted blue
+  success: "#22c55e", // Green
+  warning: "#f59e0b", // Amber
+  error: "#ef4444", // Red
+  info: "#3b82f6", // Blue
 
-  // Text
-  textDark: "#3A2E28",
-  textMedium: "#6B5A50",
-  textLight: "#A99686",
-  textWhite: "#F9F5F1",
+  // Text (adapted for dark theme)
+  textDark: "#0f1419",
+  textMedium: "rgba(255,255,255,0.7)",
+  textLight: "rgba(255,255,255,0.6)",
+  textWhite: "#ffffff",
 
-  // UI Elements
-  cardBg: "#FFFFFF",
-  pageBg: "#F9F5F1",
-  divider: "#E2D7CE",
-  overlay: "rgba(45, 36, 31, 0.5)",
-  overlayLight: "rgba(45, 36, 31, 0.2)",
+  // UI Elements (dark theme)
+  cardBg: "rgba(255,255,255,0.05)",
+  pageBg: "#0f1419",
+  divider: "rgba(255,255,255,0.1)",
+  overlay: "rgba(15, 20, 25, 0.8)",
+  overlayLight: "rgba(15, 20, 25, 0.4)",
 
-  // Gradients
-  gradientPrimary: ["#A87C5F", "#C27F55"],
-  gradientSecondary: ["#C27F55", "#D8846B"],
-  gradientSuccess: ["#7D9B6A", "#96B585"],
-  gradientWarning: ["#C78D60", "#D9A97C"],
-  gradientDanger: ["#BC6C64", "#D28A82"],
-  gradientInfo: ["#6B8A9B", "#89A5B3"],
-  gradientLight: ["#F9F5F1", "#F2EBE4"],
-  gradientNeutral: ["#6B5A50", "#8A7668"],
-  gradientCool: ["#7B9DA0", "#A4BEC0"],
-  gradientWarm: ["#C78D60", "#D8846B"],
+  // Gradients (updated for dark theme)
+  gradientPrimary: ["#22c55e", "#16a34a"],
+  gradientSecondary: ["#16a34a", "#15803d"],
+  gradientSuccess: ["#22c55e", "#059669"],
+  gradientWarning: ["#f59e0b", "#d97706"],
+  gradientDanger: ["#ef4444", "#dc2626"],
+  gradientInfo: ["#3b82f6", "#2563eb"],
+  gradientLight: ["#f7fafc", "#e2e8f0"],
+  gradientNeutral: ["#4a5568", "#718096"],
+  gradientCool: ["#3b82f6", "#1d4ed8"],
+  gradientWarm: ["#22c55e", "#059669"],
 
   // Typography
   fontRegular: "400",
@@ -78,23 +78,23 @@ export default {
   spacing3XL: 48,
   spacing4XL: 64,
 
-  // Effects
+  // Effects (updated for dark theme)
   shadowLight: {
-    shadowColor: "rgba(45,36,31,0.08)",
+    shadowColor: "rgba(0,0,0,0.3)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
   },
   shadowMedium: {
-    shadowColor: "rgba(45,36,31,0.1)",
+    shadowColor: "rgba(0,0,0,0.4)",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
     shadowRadius: 12,
     elevation: 5,
   },
   shadowHeavy: {
-    shadowColor: "rgba(45,36,31,0.12)",
+    shadowColor: "rgba(0,0,0,0.5)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 16,

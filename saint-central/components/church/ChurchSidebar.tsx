@@ -306,13 +306,13 @@ const styles = StyleSheet.create({
     width: SIDEBAR_WIDTH,
     height: "100%",
     left: 0,
-    backgroundColor: "#FFFFFF",
-    shadowColor: theme.neutral900,
+    backgroundColor: theme.neutral900,
+    shadowColor: "#000000",
     shadowOffset: {
       width: 5,
       height: 0,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 15,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   safeAreaSpacer: {
     height: Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 0,
-    backgroundColor: "rgba(45, 36, 31, 0.4)",
+    backgroundColor: "rgba(15, 20, 25, 0.8)",
     width: "100%",
   },
   headerBackground: {
@@ -334,8 +334,8 @@ const styles = StyleSheet.create({
   headerOverlay: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(45, 36, 31, 0.4)",
-    paddingTop: 70, // Increased padding to move content down more
+    backgroundColor: "rgba(15, 20, 25, 0.6)",
+    paddingTop: 70,
     paddingBottom: 20,
     paddingHorizontal: 20,
     justifyContent: "space-between",
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     marginTop: -20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral900,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
   },
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: theme.neutral900,
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 4.5,
@@ -427,22 +427,23 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: 4,
   },
   menuDescription: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: theme.textLight,
   },
   divider: {
     height: 1,
-    backgroundColor: theme.divider,
+    backgroundColor: "rgba(255,255,255,0.1)",
     marginVertical: 16,
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: theme.divider,
+    borderTopColor: "rgba(255,255,255,0.1)",
+    backgroundColor: theme.neutral900,
   },
   logoutButton: {
     flexDirection: "row",

@@ -504,7 +504,7 @@ export default function MeScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
     );
@@ -513,7 +513,7 @@ export default function MeScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.errorBox}>
           <Ionicons name="alert-circle-outline" size={40} color="#FF006E" />
           <Text style={styles.errorTitle}>Something went wrong</Text>
@@ -529,7 +529,7 @@ export default function MeScreen() {
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.warningBox}>
           <Ionicons name="information" size={40} color="#4361EE" />
           <Text style={styles.warningTitle}>No Profile Found</Text>
@@ -544,7 +544,7 @@ export default function MeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       {/* Floating header */}
       <Animated.View
@@ -726,7 +726,7 @@ export default function MeScreen() {
 
                 <View style={styles.sectionContainer}>
                   <View style={styles.sectionHeader}>
-                    <FontAwesome5 name="user-edit" size={16} color="#3A86FF" />
+                    <FontAwesome5 name="user-edit" size={16} color={theme.primary} />
                     <Text style={styles.sectionTitle}>Edit Profile</Text>
                   </View>
 
@@ -845,7 +845,7 @@ export default function MeScreen() {
               {/* Account Details Section */}
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="user-circle" size={16} color="#3A86FF" />
+                  <FontAwesome5 name="user-circle" size={16} color={theme.primary} />
                   <Text style={styles.sectionTitle}>Account Details</Text>
                 </View>
 
@@ -893,7 +893,7 @@ export default function MeScreen() {
               {/* Contact Section */}
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="envelope" size={16} color="#3A86FF" />
+                  <FontAwesome5 name="envelope" size={16} color={theme.primary} />
                   <Text style={styles.sectionTitle}>Contact</Text>
                 </View>
 
@@ -911,7 +911,7 @@ export default function MeScreen() {
               {/* Timeline Section */}
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="clock" size={16} color="#3A86FF" />
+                  <FontAwesome5 name="clock" size={16} color={theme.primary} />
                   <Text style={styles.sectionTitle}>Timeline</Text>
                 </View>
 
@@ -959,7 +959,7 @@ export default function MeScreen() {
                   <Ionicons
                     name="notifications-outline"
                     size={22}
-                    color="#4A55A2"
+                    color={theme.primary}
                     style={styles.settingIcon}
                   />
                   <View style={styles.settingTextContainer}>
@@ -1082,7 +1082,7 @@ export default function MeScreen() {
                 onPress={() => setDenominationModalVisible(false)}
                 style={styles.closeButton}
               >
-                <Feather name="x" size={24} color={theme.textDark} />
+                <Feather name="x" size={24} color={theme.textWhite} />
               </TouchableOpacity>
             </View>
 
@@ -1174,8 +1174,8 @@ const styles = StyleSheet.create({
     height: Platform.OS === "ios" ? 100 : 80,
     zIndex: 100,
     borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
-    shadowColor: theme.textMedium,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
   },
@@ -1206,7 +1206,7 @@ const styles = StyleSheet.create({
   floatingTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     letterSpacing: 0.5,
     lineHeight: 24,
   },
@@ -1284,12 +1284,12 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 24,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: theme.spacingXS,
   },
   profileEmail: {
     fontSize: 16,
-    color: theme.textMedium,
+    color: theme.textLight,
   },
   card: {
     borderRadius: theme.radiusLarge,
@@ -1385,7 +1385,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginLeft: theme.spacingS,
   },
   inputGroup: {
@@ -1394,16 +1394,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     marginBottom: theme.spacingS,
-    color: theme.textMedium,
+    color: theme.textLight,
     fontWeight: theme.fontMedium,
   },
   input: {
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.2)",
     borderRadius: theme.radiusMedium,
     padding: theme.spacingM,
-    color: theme.textDark,
+    color: theme.textWhite,
     fontSize: 16,
   },
   actionsContainer: {
@@ -1458,10 +1458,12 @@ const styles = StyleSheet.create({
   detailItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: theme.radiusMedium,
     padding: theme.spacingL,
     marginBottom: theme.spacingS,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   detailIconContainer: {
     width: 36,
@@ -1477,12 +1479,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: theme.textLight,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 15,
-    color: theme.textDark,
+    color: theme.textWhite,
     fontWeight: theme.fontMedium,
   },
   logoutButton: {
@@ -1544,13 +1546,13 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginTop: theme.spacingM,
     marginBottom: theme.spacingS,
   },
   errorText: {
     fontSize: 16,
-    color: theme.textMedium,
+    color: theme.textLight,
     textAlign: "center",
     marginBottom: theme.spacingXL,
   },
@@ -1583,13 +1585,13 @@ const styles = StyleSheet.create({
   warningTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginTop: theme.spacingM,
     marginBottom: theme.spacingS,
   },
   warningText: {
     fontSize: 16,
-    color: theme.textMedium,
+    color: theme.textLight,
     textAlign: "center",
     marginBottom: theme.spacingXL,
   },
@@ -1612,16 +1614,16 @@ const styles = StyleSheet.create({
     padding: theme.spacingXL,
   },
   modalContent: {
-    backgroundColor: theme.cardBg,
+    backgroundColor: theme.neutral800,
     borderRadius: theme.radiusLarge,
     padding: theme.spacingXL,
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 10,
   },
@@ -1634,7 +1636,7 @@ const styles = StyleSheet.create({
   },
   modalMessage: {
     fontSize: 16,
-    color: theme.textMedium,
+    color: theme.textLight,
     marginBottom: theme.spacingXL,
     textAlign: "center",
     lineHeight: 22,
@@ -1645,14 +1647,14 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: theme.neutral100,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: theme.radiusMedium,
     paddingVertical: theme.spacingM,
     marginRight: theme.spacingS,
     alignItems: "center",
   },
   modalCancelButtonText: {
-    color: theme.textDark,
+    color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
     fontSize: 16,
   },
@@ -1670,19 +1672,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   deleteConfirmInput: {
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.2)",
     borderRadius: theme.radiusMedium,
     padding: theme.spacingM,
-    color: theme.textDark,
+    color: theme.textWhite,
     fontSize: 16,
     marginBottom: theme.spacingXL,
   },
   denominationSelector: {
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.2)",
     borderRadius: theme.radiusMedium,
     padding: theme.spacingM,
     flexDirection: "row",
@@ -1690,21 +1692,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   denominationText: {
-    color: theme.textDark,
+    color: theme.textWhite,
     fontSize: 16,
   },
   denominationModalContent: {
-    backgroundColor: theme.cardBg,
+    backgroundColor: theme.neutral800,
     borderRadius: theme.radiusLarge,
     padding: 0,
     width: "100%",
     maxWidth: 420,
     maxHeight: "80%",
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.2)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 10,
     overflow: "hidden",
@@ -1715,18 +1717,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: theme.spacingL,
     borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
+    borderBottomColor: "rgba(255,255,255,0.1)",
   },
   denominationModalTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
+    backgroundColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1738,12 +1740,12 @@ const styles = StyleSheet.create({
   denominationItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: theme.radiusMedium,
     padding: theme.spacingM,
     marginBottom: theme.spacingS,
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   selectedDenominationItem: {
     backgroundColor: theme.primary,
@@ -1767,12 +1769,12 @@ const styles = StyleSheet.create({
   denominationItemName: {
     fontSize: 15,
     fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: 2,
   },
   denominationItemDescription: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: theme.textLight,
   },
   selectedDenominationText: {
     color: theme.textWhite,
@@ -1786,12 +1788,12 @@ const styles = StyleSheet.create({
   settingItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.neutral50,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: theme.radiusMedium,
     padding: theme.spacingM,
     marginBottom: theme.spacingS,
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   settingIcon: {
     marginRight: theme.spacingM,
@@ -1802,10 +1804,10 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
   settingDescription: {
     fontSize: 14,
-    color: theme.textMedium,
+    color: theme.textLight,
   },
 });
