@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
@@ -35,6 +36,7 @@ import { Course } from "@/types/course";
 import Button from "@/components/ui/Button";
 import { useChurchContext } from "@/contexts/church";
 import { isAdminOrOwner } from "@/data/user";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   userData: { username: string; profileImage: string };
@@ -67,6 +69,7 @@ export default function ChurchPage({ userData }: Props) {
 
   const { selectOne, select } = useCRUD();
   const { SCREEN_WIDTH, isTablet } = useScreen();
+  const insets = useSafeAreaInsets();
 
   // Shared values for animations
   const scrollY = useSharedValue(0);
@@ -247,8 +250,8 @@ export default function ChurchPage({ userData }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar translucent={false} backgroundColor={theme.neutral900} barStyle="light-content" />
+    <View style={styles.safeArea}>
+      <StatusBar translucent={true} backgroundColor="transparent" barStyle="light-content" />
 
       <ChurchSidebar
         isOpen={sidebarOpen}
@@ -269,17 +272,19 @@ export default function ChurchPage({ userData }: Props) {
       )}
 
       {/* Fixed Header with Hamburger */}
-      <View style={styles.fixedHeader}>
+      <View style={[styles.fixedHeader, { top: insets.top }]}>
         <TouchableOpacity style={styles.fixedHeaderButton} onPress={toggleSidebar}>
           <Ionicons name="menu" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
+      {/* Safe Area Overlay */}
+      <Animated.View style={[styles.safeAreaOverlay, headerAnimatedStyle, { height: insets.top }]} />
+
       {/* Main content with animations */}
-      <View style={styles.overlayBackgroundFill} />
       <Animated.View style={[styles.mainContainer, contentAnimatedStyle]}>
         {/* Floating header */}
-        <Animated.View style={[styles.headerContainer, headerAnimatedStyle]}>
+        <Animated.View style={[styles.headerContainer, headerAnimatedStyle, { top: insets.top }]}>
           <View style={styles.headerBackground} />
           <View style={styles.headerContent}>
             <View style={styles.headerSpacer} />
@@ -417,7 +422,7 @@ export default function ChurchPage({ userData }: Props) {
           </Animated.View>
         </AnimatedScrollView>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 }
 // Events Tab Content
@@ -746,13 +751,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.pageBg,
   },
-  overlayBackgroundFill: {
+  safeAreaOverlay: {
     position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
-    top: 0,
-    height: 48,
-    backgroundColor: theme.pageBg,
+    backgroundColor: theme.neutral900,
     zIndex: 99,
   },
   mainContainer: {
@@ -767,7 +771,6 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
     height: 48,
@@ -794,7 +797,6 @@ const styles = StyleSheet.create({
   },
   fixedHeader: {
     position: "absolute",
-    top: 60,
     left: 0,
     paddingLeft: theme.spacingL,
     paddingTop: 0,
@@ -820,7 +822,7 @@ const styles = StyleSheet.create({
     maxWidth: "70%",
   },
   scrollViewContent: {
-    paddingTop: 48,
+    paddingTop: 0,
     paddingBottom: 100,
   },
   tabletScrollViewContent: {

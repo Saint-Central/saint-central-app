@@ -28,6 +28,7 @@ import theme from "@/theme";
 import { useCRUD } from "@/utils/crudClient";
 import { useChurchContext } from "@/contexts/church";
 import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   userData: { username: string; profileImage: string };
@@ -41,6 +42,7 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isTablet = width > 768;
+  const insets = useSafeAreaInsets();
 
   const [memberCount, setMemberCount] = useState<number>(0);
   const [eventsCount, setEventsCount] = useState<number>(0);
@@ -134,9 +136,9 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
   return (
     <Animated.View style={[styles.container, isTablet && styles.tabletContainer, containerAnimatedStyle]}>
       {/* Hero Section with Parallax Church Image */}
-      <View style={styles.heroSection}>
+      <View style={[styles.heroSection, { height: 450 + insets.top }]}>
         {/* Background Image with Parallax Effect */}
-        <View style={styles.heroImageContainer}>
+        <View style={[styles.heroImageContainer, { top: -insets.top }]}>
           {church.image ? (
             <Animated.View style={[styles.heroImageWrapper, churchImageAnimatedStyle]}>
               <ImageBackground
@@ -251,15 +253,6 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
                 </View>
                 <Text style={styles.detailText}>Sunday 9:00 AM</Text>
               </View>
-
-              <View style={styles.detailItem}>
-                <View style={styles.detailIconContainer}>
-                  <MaterialCommunityIcons name="account-group" size={16} color={theme.accent3} />
-                </View>
-                <Text style={styles.detailText}>
-                  {isLoading ? "..." : `${memberCount} members`}
-                </Text>
-              </View>
             </View>
 
             {/* Quick Stats */}
@@ -307,14 +300,13 @@ const styles = StyleSheet.create({
   // Hero Section
   heroSection: {
     position: "relative",
-    height: 400,
+    height: 450,
     overflow: "hidden",
   },
 
   // Hero Image Container
   heroImageContainer: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
