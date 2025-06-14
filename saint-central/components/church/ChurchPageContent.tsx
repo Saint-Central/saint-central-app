@@ -505,7 +505,7 @@ const QuickActionButton = ({
   icon: string;
   label: string;
   onPress: () => void;
-  gradientColors: string[];
+  gradientColors: [string, string, ...string[]];
 }) => {
   return (
     <TouchableOpacity onPress={onPress} style={styles.quickActionButton} activeOpacity={0.8}>
