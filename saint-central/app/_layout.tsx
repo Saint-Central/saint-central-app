@@ -18,7 +18,7 @@ import * as Notifications from "expo-notifications";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { registerForPushNotificationsAsync, saveUserPushToken } from "@/utils/notifications";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext"; // You'll need to create this file
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 // Prevent the splash screen from auto-hiding until ready
 SplashScreen.preventAutoHideAsync();
