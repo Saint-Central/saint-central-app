@@ -744,14 +744,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#1F2937",
     marginLeft: theme.spacingM,
   },
   modalMessage: {
     fontSize: 16,
-    color: theme.textMedium,
+    color: "#374151",
     marginBottom: theme.spacingXL,
     lineHeight: 24,
+    fontWeight: "500",
   },
   modalButtons: {
     flexDirection: "row",
@@ -770,7 +771,7 @@ const styles = StyleSheet.create({
   modalCancelButtonText: {
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
+    color: "#1F2937",
     textAlign: "center",
   },
   modalConfirmButton: {
