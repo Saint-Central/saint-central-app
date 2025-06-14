@@ -19,6 +19,7 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolate,
+  runOnJS,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Church, ChurchEvent } from "@/types/church";
@@ -39,7 +40,7 @@ type Props = {
   userData: { username: string; profileImage: string };
 };
 
-const TABS = ["Home", "Events", "Courses", "Community"];
+const TABS = ["Home", "Events", "Ministries", "Fellowship"];
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
@@ -71,6 +72,8 @@ export default function ChurchPage({ userData }: Props) {
   const scrollY = useSharedValue(0);
   const sidebarAnim = useSharedValue(0);
   const appearAnim = useSharedValue(0);
+  const tabContentAnim = useSharedValue(1);
+  const tabSlideAnim = useSharedValue(0);
 
   const {
     data: { church, member },
@@ -192,14 +195,60 @@ export default function ChurchPage({ userData }: Props) {
     };
   });
 
-  // Tab handling
+  // Tab content animation
+  const tabContentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: tabContentAnim.value,
+      transform: [
+        {
+          translateY: interpolate(tabContentAnim.value, [0, 1], [30, 0]),
+        },
+        {
+          translateX: interpolate(tabSlideAnim.value, [-1, 0, 1], [-SCREEN_WIDTH * 0.1, 0, SCREEN_WIDTH * 0.1]),
+        },
+        {
+          scale: interpolate(tabContentAnim.value, [0, 1], [0.92, 1]),
+        },
+      ],
+    };
+  });
+
+  // Tab handling with animation
   const handleTabPress = (tabIndex: number) => {
-    setActiveTab(TABS[tabIndex]);
+    const currentIndex = TABS.indexOf(activeTab);
+    const direction = tabIndex > currentIndex ? 1 : -1;
+    
+    // Function to change tab state (needs to run on JS thread)
+    const changeTab = () => {
+      setActiveTab(TABS[tabIndex]);
+    };
+    
+    // Animate out current content with slide
+    tabContentAnim.value = withTiming(0, { duration: 200 });
+    tabSlideAnim.value = withTiming(-direction * 0.3, { duration: 200 }, (finished) => {
+      if (finished) {
+        // Change tab and reset slide position using runOnJS
+        runOnJS(changeTab)();
+        tabSlideAnim.value = direction * 0.3;
+        
+        // Animate in new content
+        tabContentAnim.value = withSpring(1, {
+          damping: 18,
+          stiffness: 280,
+          mass: 0.9,
+        });
+        tabSlideAnim.value = withSpring(0, {
+          damping: 18,
+          stiffness: 280,
+          mass: 0.9,
+        });
+      }
+    });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar translucent={false} backgroundColor="#0f1419" barStyle="light-content" />
+      <StatusBar translucent={false} backgroundColor={theme.neutral900} barStyle="light-content" />
 
       <ChurchSidebar
         isOpen={sidebarOpen}
@@ -244,7 +293,7 @@ export default function ChurchPage({ userData }: Props) {
 
         {/* Page content */}
         <AnimatedScrollView
-          style={{ flex: 1, backgroundColor: "#0f1419" }}
+          style={{ flex: 1, backgroundColor: theme.pageBg }}
           contentContainerStyle={[
             styles.scrollViewContent,
             isTablet && styles.tabletScrollViewContent,
@@ -258,29 +307,51 @@ export default function ChurchPage({ userData }: Props) {
 
           {/* Tabs navigation */}
           <View style={[styles.tabsContainer, isTablet && styles.tabletTabsContainer]}>
-            {TABS.map((tab, index) => (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tabButton, activeTab === tab && styles.activeTab]}
-                onPress={() => handleTabPress(index)}
-                activeOpacity={0.7}
-              >
-                {activeTab === tab && <View style={styles.activeTabIndicator} />}
-                <Text
-                  style={[
-                    styles.tabText,
-                    isTablet && styles.tabletTabText,
-                    activeTab === tab && styles.activeTabText,
-                  ]}
+            {TABS.map((tab, index) => {
+              const tabButtonPressAnim = useSharedValue(1);
+              
+              const tabButtonAnimatedStyle = useAnimatedStyle(() => {
+                return {
+                  transform: [{ scale: tabButtonPressAnim.value }],
+                };
+              });
+
+              const handleTabPressIn = () => {
+                tabButtonPressAnim.value = withSpring(0.95, springConfig);
+              };
+
+              const handleTabPressOut = () => {
+                tabButtonPressAnim.value = withSpring(1, springConfig);
+              };
+
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+                  onPress={() => handleTabPress(index)}
+                  onPressIn={handleTabPressIn}
+                  onPressOut={handleTabPressOut}
+                  activeOpacity={1}
                 >
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Animated.View style={[StyleSheet.absoluteFill, tabButtonAnimatedStyle]}>
+                    {activeTab === tab && <View style={styles.activeTabIndicator} />}
+                  </Animated.View>
+                  <Text
+                    style={[
+                      styles.tabText,
+                      isTablet && styles.tabletTabText,
+                      activeTab === tab && styles.activeTabText,
+                    ]}
+                  >
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Dynamic content based on active tab */}
-          <View style={[styles.tabContent, isTablet && styles.tabletTabContent]}>
+          <Animated.View style={[styles.tabContent, isTablet && styles.tabletTabContent, tabContentAnimatedStyle]}>
             {activeTab === "Home" && <ChurchPageContent userData={userData} />}
 
             {activeTab === "Events" && (
@@ -292,7 +363,7 @@ export default function ChurchPage({ userData }: Props) {
               />
             )}
 
-            {activeTab === "Courses" && isAdminOrOwner(member) && (
+            {activeTab === "Ministries" && isAdminOrOwner(member) && (
               <View style={{ alignItems: "center" }}>
                 <Button
                   onPress={() => {
@@ -314,25 +385,25 @@ export default function ChurchPage({ userData }: Props) {
                       fontWeight: theme.fontSemiBold,
                     }}
                   >
-                    Create Course (Admin)
+                    Create Ministry (Admin)
                   </Text>
                 </Button>
               </View>
             )}
-            {activeTab === "Courses" && (
+            {activeTab === "Ministries" && (
               <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
             )}
 
-            {activeTab === "Community" && (
+            {activeTab === "Fellowship" && (
               <View style={styles.comingSoonContainer}>
-                <FontAwesome5 name="users" size={42} color={theme.primary} />
-                <Text style={styles.comingSoonTitle}>Community Coming Soon</Text>
+                <FontAwesome5 name="church" size={42} color={theme.primary} />
+                <Text style={styles.comingSoonTitle}>Fellowship Coming Soon</Text>
                 <Text style={styles.comingSoonText}>
-                  Connect with our community members and join discussions
+                  Connect with our church family and grow in faith together
                 </Text>
               </View>
             )}
-          </View>
+          </Animated.View>
         </AnimatedScrollView>
       </Animated.View>
     </SafeAreaView>
@@ -418,7 +489,7 @@ const CoursesTab = ({
         <View style={styles.emptyIconContainer}>
           <FontAwesome5 name="church" size={36} color={theme.primary} />
         </View>
-        <Text style={styles.emptyTitle}>No Courses Found</Text>
+        <Text style={styles.emptyTitle}>No Ministries Found</Text>
       </View>
     );
   }
@@ -426,7 +497,7 @@ const CoursesTab = ({
   return (
     <View style={styles.coursesContainer}>
       <View style={styles.sectionHeaderContainer}>
-        <Text style={styles.sectionTitle}>Our Courses</Text>
+        <Text style={styles.sectionTitle}>Our Ministries</Text>
         <View style={styles.sectionHeaderLine} />
       </View>
       <View style={styles.ministriesGrid}>
@@ -637,7 +708,7 @@ const CourseCard = ({ course }: { course: Course }) => {
 
           <View style={styles.courseDetailsContainer}>
             <Text style={styles.courseTitle} numberOfLines={2}>
-              Course title
+              {course.title || "Ministry"}
             </Text>
             {course.description && (
               <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
@@ -646,7 +717,7 @@ const CourseCard = ({ course }: { course: Course }) => {
             )}
             <View style={styles.courseFooter}>
               <Button size="xs">
-                <Text style={styles.joinButtonText}>Join Course</Text>
+                <Text style={styles.joinButtonText}>Join Ministry</Text>
                 <View style={styles.arrowContainer}>
                   <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
                 </View>
@@ -662,7 +733,7 @@ const CourseCard = ({ course }: { course: Course }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0f1419",
+    backgroundColor: theme.pageBg,
   },
   overlayBackgroundFill: {
     position: "absolute",
@@ -670,13 +741,13 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: 48,
-    backgroundColor: "#0f1419",
+    backgroundColor: theme.pageBg,
     zIndex: 99,
   },
   mainContainer: {
     flex: 1,
     overflow: "hidden",
-    backgroundColor: "#0f1419",
+    backgroundColor: theme.pageBg,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -690,9 +761,9 @@ const styles = StyleSheet.create({
     right: 0,
     height: 48,
     zIndex: 100,
-    backgroundColor: "#0f1419",
+    backgroundColor: theme.pageBg,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(34, 197, 94, 0.1)",
+    borderBottomColor: "rgba(251, 191, 36, 0.3)",
   },
   headerContent: {
     flexDirection: "row",
@@ -715,11 +786,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: theme.radiusFull,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(251, 191, 36, 0.5)",
   },
   headerSpacer: {
     width: 36,
@@ -727,7 +798,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     maxWidth: "70%",
   },
   scrollViewContent: {
@@ -745,9 +816,11 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacingL,
     marginTop: theme.spacingM,
     marginBottom: theme.spacingL,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 10,
     padding: 2,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.4)",
   },
   tabletTabsContainer: {
     marginHorizontal: 0,
@@ -762,19 +835,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: "rgba(34, 197, 94, 0.3)",
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
   },
   tabText: {
     fontSize: 15,
     fontWeight: "400",
-    color: "rgba(255,255,255,0.6)",
+    color: theme.textLight,
     textAlign: "center",
   },
   tabletTabText: {
     fontSize: 16,
   },
   activeTabText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "500",
   },
   activeTabIndicator: {
@@ -783,7 +856,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(34, 197, 94, 0.3)",
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
     borderRadius: 8,
   },
   tabContent: {
@@ -833,13 +906,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: theme.spacingS,
   },
   emptyText: {
     fontSize: 16,
     fontWeight: theme.fontRegular,
-    color: "rgba(255,255,255,0.7)",
+    color: theme.textMedium,
     textAlign: "center",
     lineHeight: 24,
   },
@@ -889,7 +962,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginRight: theme.spacingM,
     letterSpacing: -0.5,
   },
@@ -911,11 +984,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventCard: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.2)",
+    borderColor: "rgba(251, 191, 36, 0.4)",
   },
   eventCardContent: {
     flexDirection: "row",
@@ -956,7 +1029,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     flex: 1,
   },
   recurringBadge: {
@@ -969,7 +1042,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   recurringText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 10,
     fontWeight: theme.fontSemiBold,
     marginLeft: 4,
@@ -1002,13 +1075,13 @@ const styles = StyleSheet.create({
   },
   eventLocation: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
+    color: theme.textMedium,
     marginLeft: 6,
     flex: 1,
   },
   eventExcerpt: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
+    color: theme.textMedium,
     lineHeight: 18,
     marginBottom: 8,
   },
@@ -1027,7 +1100,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   viewDetailsText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
     fontSize: 12,
   },
@@ -1049,11 +1122,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseCard: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.2)",
+    borderColor: "rgba(251, 191, 36, 0.4)",
   },
   courseCardContent: {
     flexDirection: "row",
@@ -1088,12 +1161,12 @@ const styles = StyleSheet.create({
   courseTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     marginBottom: 8,
   },
   courseDescription: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
+    color: theme.textMedium,
     lineHeight: 18,
     marginBottom: 8,
   },
@@ -1108,7 +1181,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   joinButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
     fontSize: 12,
   },

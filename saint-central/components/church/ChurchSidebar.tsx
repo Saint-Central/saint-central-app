@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   safeAreaSpacer: {
     height: Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 0,
-    backgroundColor: "rgba(15, 20, 25, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
     width: "100%",
   },
   headerBackground: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   headerOverlay: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(15, 20, 25, 0.6)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     paddingTop: 70,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -361,15 +361,15 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.8)",
   },
   profileInitial: {
-    color: "white",
+    color: theme.textWhite,
     fontSize: 28,
     fontWeight: "700",
   },
   userName: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 22,
     fontWeight: "700",
-    textShadowColor: "rgba(45, 36, 31, 0.2)",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
@@ -436,13 +436,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(251, 191, 36, 0.3)",
     marginVertical: 16,
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
+    borderTopColor: "rgba(251, 191, 36, 0.3)",
     backgroundColor: theme.neutral900,
   },
   logoutButton: {

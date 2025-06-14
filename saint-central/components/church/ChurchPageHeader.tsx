@@ -114,7 +114,7 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
           <View style={styles.topActions}>
             {/* Notification Bell */}
             <TouchableOpacity style={styles.notificationButton} activeOpacity={0.6}>
-              <Ionicons name="notifications" size={22} color="rgba(34, 197, 94, 1)" />
+              <Ionicons name="notifications" size={22} color={theme.primary} />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
 
@@ -149,7 +149,7 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
               <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
             ) : (
               <View style={styles.churchImagePlaceholder}>
-                <Ionicons name="church" size={50} color="rgba(34, 197, 94, 0.8)" />
+                <Ionicons name="church" size={64} color={theme.accent1} />
               </View>
             )}
           </View>
@@ -160,11 +160,11 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
               {church.name}
             </Text>
             <View style={styles.locationRow}>
-              <Ionicons name="location" size={16} color="rgba(255,255,255,0.6)" />
+              <Ionicons name="location" size={16} color={theme.textLight} />
               <Text style={styles.locationText}>{church.address.split(",")[0]}</Text>
             </View>
             <View style={styles.serviceTimeRow}>
-              <Ionicons name="time" size={16} color="rgba(34, 197, 94, 0.8)" />
+              <Ionicons name="time" size={16} color={theme.accent2} />
               <Text style={styles.serviceTimeText}>Sunday 9:00 AM</Text>
             </View>
           </View>
@@ -208,12 +208,14 @@ const styles = StyleSheet.create({
 
   // Church Image Section
   churchImageContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 24,
+    width: 160,
+    height: 160,
+    borderRadius: 32,
     overflow: "hidden",
-    marginBottom: theme.spacingM,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    marginBottom: theme.spacingL,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 3,
+    borderColor: "rgba(251, 191, 36, 0.3)",
   },
   churchImage: {
     width: "100%",
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
 
   // Church Info Section
@@ -245,13 +247,13 @@ const styles = StyleSheet.create({
   },
   timeGreeting: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.6)",
+    color: theme.textLight,
     fontWeight: "400",
     marginBottom: 2,
   },
   userNameText: {
     fontSize: 28,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "700",
     letterSpacing: -0.5,
   },
@@ -272,10 +274,10 @@ const styles = StyleSheet.create({
     right: 2,
     width: 8,
     height: 8,
-    backgroundColor: "#ef4444",
+    backgroundColor: theme.error,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: "#0f1419",
+    borderColor: theme.pageBg,
   },
 
   // Profile Button
@@ -293,10 +295,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(34, 197, 94, 0.2)",
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
   },
   profileInitial: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -304,7 +306,7 @@ const styles = StyleSheet.create({
   // Church Name
   churchName: {
     fontSize: 24,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: "700",
     textAlign: "center",
     letterSpacing: -0.5,
@@ -323,7 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   locationText: {
-    color: "rgba(255,255,255,0.6)",
+    color: theme.textLight,
     fontSize: 15,
     fontWeight: "400",
   },
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   serviceTimeText: {
-    color: "rgba(34, 197, 94, 0.9)",
+    color: theme.accent2,
     fontSize: 15,
     fontWeight: "500",
   },
