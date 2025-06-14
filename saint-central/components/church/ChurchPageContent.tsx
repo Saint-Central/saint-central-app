@@ -9,10 +9,20 @@ import {
   StyleSheet,
   Text,
   Alert,
-  Animated,
+  Animated as RNAnimated,
   useWindowDimensions,
   Modal,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+  Easing,
+} from "react-native-reanimated";
 import { useNavigation } from "@react-navigation/native";
 import { ChurchActionButton } from "./ChurchActionButton";
 import theme from "@/theme";
@@ -47,6 +57,7 @@ export default function ChurchPageContent({ userData }: Props) {
   const router = useRouter();
   const [leavingChurch, setLeavingChurch] = useState<boolean>(false);
   const [memberCount, setMemberCount] = useState<number>(0);
+  const [eventsCount, setEventsCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { reset: resetChurchData } = useChurchContext();
   const { selectOne, select, delete: deleteMember } = useCRUD();
@@ -56,56 +67,63 @@ export default function ChurchPageContent({ userData }: Props) {
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
   // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim1 = useRef(new Animated.Value(0)).current;
-  const cardAnim2 = useRef(new Animated.Value(0)).current;
-  const cardAnim3 = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new RNAnimated.Value(0)).current;
+  const cardAnim1 = useRef(new RNAnimated.Value(0)).current;
+  const cardAnim2 = useRef(new RNAnimated.Value(0)).current;
+  const cardAnim3 = useRef(new RNAnimated.Value(0)).current;
 
   // Add a modal animation ref
-  const modalAnimation = useRef(new Animated.Value(0)).current;
+  const modalAnimation = useRef(new RNAnimated.Value(0)).current;
 
-  // Fetch member count using CRUD API
+  // Fetch member count and events count using CRUD API
   useEffect(() => {
-    const fetchMemberCount = async () => {
+    const fetchCounts = async () => {
       try {
         setIsLoading(true);
-        const members = await select("church_members", {
-          select: "id",
-          where: { church_id: church.id }
-        });
+        const [members, events] = await Promise.all([
+          select("church_members", {
+            select: "id",
+            where: { church_id: church.id },
+          }),
+          select("church_events", {
+            select: "id",
+            where: { church_id: church.id },
+          }),
+        ]);
         setMemberCount(members?.length || 0);
+        setEventsCount(events?.length || 0);
       } catch (error) {
-        console.error("Error in fetching member count:", error);
+        console.error("Error in fetching counts:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchMemberCount();
+    fetchCounts();
   }, [church.id]);
 
   // Run animations when component mounts
   useEffect(() => {
     const animations = [
-      Animated.timing(fadeAnim, {
+      RNAnimated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      Animated.spring(cardAnim1, {
+      RNAnimated.spring(cardAnim1, {
         toValue: 1,
         tension: 300,
         friction: 20,
         useNativeDriver: true,
       }),
-      Animated.spring(cardAnim2, {
+      RNAnimated.spring(cardAnim2, {
         toValue: 1,
         tension: 300,
         friction: 20,
         delay: 50,
         useNativeDriver: true,
       }),
-      Animated.spring(cardAnim3, {
+      RNAnimated.spring(cardAnim3, {
         toValue: 1,
         tension: 300,
         friction: 20,
@@ -115,7 +133,7 @@ export default function ChurchPageContent({ userData }: Props) {
     ];
 
     // Start all animations
-    Animated.parallel(animations).start();
+    RNAnimated.parallel(animations).start();
   }, [fadeAnim, cardAnim1, cardAnim2, cardAnim3]);
 
   const handleLeaveChurch = async (): Promise<void> => {
@@ -139,7 +157,7 @@ export default function ChurchPageContent({ userData }: Props) {
   // Update confirmLeaveChurch to include animation
   const confirmLeaveChurch = () => {
     setShowLeaveModal(true);
-    Animated.spring(modalAnimation, {
+    RNAnimated.spring(modalAnimation, {
       toValue: 1,
       tension: 300,
       friction: 20,
@@ -149,7 +167,7 @@ export default function ChurchPageContent({ userData }: Props) {
 
   // Add closeModal function to handle animations
   const closeModal = () => {
-    Animated.timing(modalAnimation, {
+    RNAnimated.timing(modalAnimation, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
@@ -159,317 +177,82 @@ export default function ChurchPageContent({ userData }: Props) {
   };
 
   return (
-    <Animated.View style={{ opacity: fadeAnim }}>
-      {/* Featured Image */}
-      {church.image && (
-        <Animated.View
-          style={[
-            styles.imageContainer,
-            isTablet && styles.tabletImageContainer,
-            {
-              transform: [
-                { scale: cardAnim1 },
-                {
-                  translateY: cardAnim1.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [50, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
-          <LinearGradient colors={["transparent", "rgba(0,0,0,0.7)"]} style={styles.imageOverlay}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{church.category || "Christian Church"}</Text>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-      )}
+    <View style={styles.nativeContainer}>
+      {/* Quick Stats */}
+      <View style={styles.quickStats}>
+        <StatItem
+          icon="people"
+          value={isLoading ? "..." : memberCount.toString()}
+          label="Members"
+        />
+        <StatItem
+          icon="calendar"
+          value={isLoading ? "..." : eventsCount.toString()}
+          label="Events"
+        />
+        <StatItem icon="trending-up" value="+12%" label="Growth" />
+      </View>
 
-      {/* About Section */}
-      <Animated.View
-        style={[
-          styles.sectionContainer,
-          isTablet && styles.tabletSectionContainer,
-          {
-            transform: [
-              { scale: cardAnim1 },
-              {
-                translateY: cardAnim1.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, isTablet && styles.tabletSectionTitle]}>About</Text>
-          <View style={styles.sectionDivider} />
-        </View>
-
-        <View style={styles.aboutCard}>
-          <Text style={[styles.aboutText, isTablet && styles.tabletAboutText]}>
-            {church.description}
-          </Text>
-
-          <View style={styles.detailsRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="time-outline" size={isTablet ? 18 : 16} color={theme.primary} />
-              <Text style={[styles.detailLabel, isTablet && styles.tabletDetailLabel]}>
-                Founded
-              </Text>
-              <Text style={[styles.detailValue, isTablet && styles.tabletDetailValue]}>
-                {church.founded || "N/A"}
-              </Text>
-            </View>
-
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar-outline" size={isTablet ? 18 : 16} color={theme.tertiary} />
-              <Text style={[styles.detailLabel, isTablet && styles.tabletDetailLabel]}>
-                Services
-              </Text>
-              <Text style={[styles.detailValue, isTablet && styles.tabletDetailValue]}>
-                Sun, Wed
-              </Text>
-            </View>
-
-            <View style={styles.detailItem}>
-              <Ionicons name="people-outline" size={isTablet ? 18 : 16} color={theme.secondary} />
-              <Text style={[styles.detailLabel, isTablet && styles.tabletDetailLabel]}>
-                Members
-              </Text>
-              <Text style={[styles.detailValue, isTablet && styles.tabletDetailValue]}>
-                {isLoading ? "..." : memberCount}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* Quick Services */}
-      <Animated.View
-        style={[
-          styles.sectionContainer,
-          isTablet && styles.tabletSectionContainer,
-          {
-            transform: [
-              { scale: cardAnim2 },
-              {
-                translateY: cardAnim2.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, isTablet && styles.tabletSectionTitle]}>
-            Quick Services
-          </Text>
-          <View style={styles.sectionDivider} />
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.servicesScrollContainer,
-            isTablet && styles.tabletServicesScrollContainer,
-          ]}
-        >
-          <ServiceCard
-            title="Service Times"
-            time="9:00 AM"
-            icon={<FontAwesome5 name="pray" size={isTablet ? 24 : 20} color="#FFFFFF" />}
-            color1={theme.gradientPrimary[0]}
-            color2={theme.gradientPrimary[1]}
-            isTablet={isTablet}
-            onPress={() =>
-              router.push({
-                pathname: "/ServiceTimes",
-                params: { churchId: church.id },
-              })
-            }
-          />
-
-          <ServiceCard
-            title="Bible Study"
-            time="Wed, 7 PM"
-            icon={<FontAwesome5 name="bible" size={isTablet ? 24 : 20} color="#FFFFFF" />}
-            color1={theme.gradientSecondary[0]}
-            color2={theme.gradientSecondary[1]}
-            isTablet={isTablet}
-            onPress={() => navigation.navigate("biblestudy")}
-          />
-
-          <ServiceCard
-            title="Youth Group"
-            time="Fri, 6 PM"
-            icon={<Ionicons name="people" size={isTablet ? 24 : 20} color="#FFFFFF" />}
-            color1={theme.gradientInfo[0]}
-            color2={theme.gradientInfo[1]}
-            isTablet={isTablet}
-            onPress={() => navigation.navigate("youthgroup")}
-          />
-
-          <ServiceCard
-            title="Prayer"
-            time="Daily, 6 AM"
-            icon={<FontAwesome5 name="hands" size={isTablet ? 24 : 20} color="#FFFFFF" />}
-            color1={theme.gradientSuccess[0]}
-            color2={theme.gradientSuccess[1]}
-            isTablet={isTablet}
-            onPress={() => {}}
-          />
-        </ScrollView>
-      </Animated.View>
-
-      {/* Actions Section */}
-      <Animated.View
-        style={[
-          styles.sectionContainer,
-          isTablet && styles.tabletSectionContainer,
-          {
-            transform: [
-              { scale: cardAnim3 },
-              {
-                translateY: cardAnim3.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, isTablet && styles.tabletSectionTitle]}>Actions</Text>
-          <View style={styles.sectionDivider} />
-        </View>
-
-        <ChurchActionButton
-          icon={
-            <LinearGradient
-              colors={[theme.gradientPrimary[0], theme.gradientPrimary[1]]}
-              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="calendar" size={isTablet ? 22 : 18} color="#FFFFFF" />
-            </LinearGradient>
-          }
+      {/* Native iOS List */}
+      <View style={styles.nativeList}>
+        <NavigationItem
+          icon="calendar"
+          title="Events"
+          subtitle="Upcoming activities"
           onPress={() =>
             router.push({
               pathname: "/church_events",
               params: { churchId: church.id },
             })
           }
-        >
-          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
-            Events Calendar
-          </Text>
-          <Text
-            style={[
-              styles.actionButtonDescription,
-              isTablet && styles.tabletActionButtonDescription,
-            ]}
-          >
-            View upcoming church events
-          </Text>
-        </ChurchActionButton>
-
-        <ChurchActionButton
-          icon={
-            <LinearGradient
-              colors={[theme.gradientCool[0], theme.gradientCool[1]]}
-              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <FontAwesome5 name="hands-helping" size={isTablet ? 22 : 18} color="#FFFFFF" />
-            </LinearGradient>
-          }
-          onPress={() => navigation.navigate("volunteerhomepage")}
-        >
-          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
-            Volunteering
-          </Text>
-          <Text
-            style={[
-              styles.actionButtonDescription,
-              isTablet && styles.tabletActionButtonDescription,
-            ]}
-          >
-            Get involved in our ministries
-          </Text>
-        </ChurchActionButton>
-
-        <ChurchActionButton
-          icon={
-            <LinearGradient
-              colors={[theme.gradientSecondary[0], theme.gradientSecondary[1]]}
-              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <FontAwesome5 name="church" size={isTablet ? 22 : 18} color="#FFFFFF" />
-            </LinearGradient>
-          }
-          onPress={() => navigation.navigate("MinistriesScreen")}
-        >
-          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
-            Ministries
-          </Text>
-          <Text
-            style={[
-              styles.actionButtonDescription,
-              isTablet && styles.tabletActionButtonDescription,
-            ]}
-          >
-            Browse our church ministries
-          </Text>
-        </ChurchActionButton>
-
-        <ChurchActionButton
-          icon={
-            <LinearGradient
-              colors={[theme.gradientInfo[0], theme.gradientInfo[1]]}
-              style={[styles.actionIcon, isTablet && styles.tabletActionIcon]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="people" size={isTablet ? 22 : 18} color="#FFFFFF" />
-            </LinearGradient>
-          }
+        />
+        <View style={styles.listSeparator} />
+        <NavigationItem
+          icon="users"
+          title="Members"
+          subtitle="Church directory"
           onPress={() =>
             navigation.navigate("church_members", {
               church_id: church.id.toString(),
               church_name: church.name,
             })
           }
-        >
-          <Text style={[styles.actionButtonTitle, isTablet && styles.tabletActionButtonTitle]}>
-            Members
-          </Text>
-          <Text
-            style={[
-              styles.actionButtonDescription,
-              isTablet && styles.tabletActionButtonDescription,
-            ]}
-          >
-            View church members
-          </Text>
-        </ChurchActionButton>
-      </Animated.View>
+        />
+        <View style={styles.listSeparator} />
+        <NavigationItem
+          icon="church"
+          title="Ministries"
+          subtitle="Get involved"
+          onPress={() => navigation.navigate("MinistriesScreen")}
+        />
+        <View style={styles.listSeparator} />
+        <NavigationItem
+          icon="hands-helping"
+          title="Volunteer"
+          subtitle="Serve others"
+          onPress={() => navigation.navigate("volunteerhomepage")}
+        />
+      </View>
+
+      {/* About Section */}
+      <View style={styles.aboutSection}>
+        <Text style={styles.aboutSectionTitle}>About</Text>
+        <Text style={styles.aboutText}>{church.description}</Text>
+
+        <View style={styles.aboutDetails}>
+          <View style={styles.aboutDetailRow}>
+            <Text style={styles.aboutDetailLabel}>Founded</Text>
+            <Text style={styles.aboutDetailValue}>{church.founded || "N/A"}</Text>
+          </View>
+          <View style={styles.aboutDetailRow}>
+            <Text style={styles.aboutDetailLabel}>Schedule</Text>
+            <Text style={styles.aboutDetailValue}>Sunday & Wednesday</Text>
+          </View>
+        </View>
+      </View>
 
       {/* Leave Church Button */}
-      <Animated.View
+      <RNAnimated.View
         style={[
           styles.leaveButtonContainer,
           isTablet && styles.tabletLeaveButtonContainer,
@@ -501,7 +284,7 @@ export default function ChurchPageContent({ userData }: Props) {
             </>
           )}
         </TouchableOpacity>
-      </Animated.View>
+      </RNAnimated.View>
 
       {/* Leave Church Confirmation Modal */}
       <Modal
@@ -511,7 +294,7 @@ export default function ChurchPageContent({ userData }: Props) {
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View
+          <RNAnimated.View
             style={[
               styles.modalContainer,
               {
@@ -570,246 +353,153 @@ export default function ChurchPageContent({ userData }: Props) {
                 <Text style={styles.modalConfirmButtonText}>Yes, Leave</Text>
               </TouchableOpacity>
             </View>
-          </Animated.View>
+          </RNAnimated.View>
         </View>
       </Modal>
-    </Animated.View>
+    </View>
   );
 }
 
-interface ServiceCardProps {
-  title: string;
-  time: string;
-  icon: React.ReactNode;
-  color1: string;
-  color2: string;
-  isTablet?: boolean;
-  onPress: () => void;
-}
-
-const ServiceCard = ({
-  title,
-  time,
-  icon,
-  color1,
-  color2,
-  isTablet,
-  onPress,
-}: ServiceCardProps) => {
+// Clean Stat Item Component
+const StatItem = ({ icon, value, label }: { icon: string; value: string; label: string }) => {
   return (
-    <TouchableOpacity
-      style={[styles.serviceCard, isTablet && styles.tabletServiceCard]}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      <LinearGradient
-        colors={[color1, color2]}
-        style={styles.serviceCardGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={[styles.serviceIconContainer, isTablet && styles.tabletServiceIconContainer]}>
-          {icon}
+    <View style={styles.statItem}>
+      <Ionicons name={icon as any} size={20} color="rgba(34, 197, 94, 0.9)" />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+};
+
+// Clean Navigation Item Component
+const NavigationItem = ({
+  icon,
+  title,
+  subtitle,
+  onPress,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) => {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.navItem}>
+      <View style={styles.navContent}>
+        <FontAwesome5 name={icon} size={18} color="rgba(34, 197, 94, 0.9)" />
+        <View style={styles.navTextContainer}>
+          <Text style={styles.navTitle}>{title}</Text>
+          <Text style={styles.navSubtitle}>{subtitle}</Text>
         </View>
-        <Text style={[styles.serviceTitle, isTablet && styles.tabletServiceTitle]}>{title}</Text>
-        <Text style={[styles.serviceTime, isTablet && styles.tabletServiceTime]}>{time}</Text>
-      </LinearGradient>
+        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  imageContainer: {
-    height: 180,
-    borderRadius: theme.radiusLarge,
-    overflow: "hidden",
-    marginBottom: theme.spacingXL,
-    ...theme.shadowLight,
+  // Native Container
+  nativeContainer: {
+    flex: 1,
+    paddingHorizontal: theme.spacingL,
   },
-  tabletImageContainer: {
-    height: 240,
-    marginBottom: theme.spacing2XL,
+
+  // Quick Stats
+  quickStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: theme.spacingL,
+    marginBottom: theme.spacingL,
   },
-  churchImage: {
-    width: "100%",
-    height: "100%",
+  statItem: {
+    alignItems: "center",
   },
-  imageOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 70,
-    justifyContent: "flex-end",
-    padding: theme.spacingL,
-  },
-  categoryBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: theme.spacingM,
-    paddingVertical: theme.spacingXS,
-    borderRadius: theme.radiusFull,
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  categoryText: {
+  statValue: {
+    fontSize: 24,
+    fontWeight: "700",
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: theme.fontSemiBold,
+    marginBottom: 2,
   },
-  sectionContainer: {
+  statLabel: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.6)",
+  },
+
+  // Native iOS List
+  nativeList: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
     marginBottom: theme.spacingXL,
+    overflow: "hidden",
   },
-  tabletSectionContainer: {
-    marginBottom: theme.spacing2XL,
+  listSeparator: {
+    height: 0.5,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginLeft: 50,
   },
-  sectionTitleRow: {
+  navItem: {
+    backgroundColor: "transparent",
+  },
+  navContent: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: theme.spacingM,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingM,
+    gap: theme.spacingM,
+    minHeight: 50,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-    marginRight: theme.spacingM,
-  },
-  tabletSectionTitle: {
-    fontSize: 22,
-  },
-  sectionDivider: {
+  navTextContainer: {
     flex: 1,
-    height: 1,
-    backgroundColor: theme.neutral200,
   },
-  aboutCard: {
-    backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusLarge,
-    padding: theme.spacingL,
-    ...theme.shadowLight,
-    borderWidth: 1,
-    borderColor: theme.neutral100,
+  navTitle: {
+    fontSize: 17,
+    fontWeight: "400",
+    color: "#FFFFFF",
+    marginBottom: 1,
+  },
+  navSubtitle: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.6)",
+  },
+
+  // About Section
+  aboutSection: {
+    marginBottom: theme.spacingXL,
+  },
+  aboutSectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: theme.spacingM,
+    letterSpacing: -0.5,
   },
   aboutText: {
-    fontSize: 15,
-    color: theme.textMedium,
+    fontSize: 16,
+    color: "rgba(255,255,255,0.7)",
     lineHeight: 22,
     marginBottom: theme.spacingL,
   },
-  tabletAboutText: {
-    fontSize: 17,
-    lineHeight: 26,
-    marginBottom: theme.spacingXL,
+  aboutDetails: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    padding: theme.spacingM,
   },
-  detailsRow: {
+  aboutDetailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-  detailItem: {
     alignItems: "center",
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: theme.textMedium,
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  tabletDetailLabel: {
-    fontSize: 14,
-    marginTop: 6,
-    marginBottom: 3,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-  },
-  tabletDetailValue: {
-    fontSize: 16,
-  },
-  servicesScrollContainer: {
-    paddingVertical: theme.spacingXS,
-    paddingRight: theme.spacingL,
-  },
-  tabletServicesScrollContainer: {
     paddingVertical: theme.spacingS,
   },
-  serviceCard: {
-    width: 120,
-    height: 140,
-    borderRadius: theme.radiusMedium,
-    marginRight: theme.spacingM,
-    ...theme.shadowLight,
+  aboutDetailLabel: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "400",
   },
-  tabletServiceCard: {
-    width: 160,
-    height: 180,
-    marginRight: theme.spacingL,
-  },
-  serviceCardGradient: {
-    flex: 1,
-    borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    justifyContent: "space-between",
-  },
-  serviceIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radiusMedium,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: theme.spacingM,
-  },
-  tabletServiceIconContainer: {
-    width: 48,
-    height: 48,
-    marginBottom: theme.spacingL,
-  },
-  serviceTitle: {
+  aboutDetailValue: {
+    fontSize: 16,
+    fontWeight: "500",
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: theme.fontSemiBold,
-  },
-  tabletServiceTitle: {
-    fontSize: 18,
-  },
-  serviceTime: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 13,
-    marginTop: 4,
-  },
-  tabletServiceTime: {
-    fontSize: 15,
-    marginTop: 6,
-  },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radiusMedium,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabletActionIcon: {
-    width: 44,
-    height: 44,
-  },
-  actionButtonTitle: {
-    fontSize: 15,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-  },
-  tabletActionButtonTitle: {
-    fontSize: 18,
-  },
-  actionButtonDescription: {
-    fontSize: 13,
-    color: theme.textMedium,
-    marginTop: 2,
-  },
-  tabletActionButtonDescription: {
-    fontSize: 15,
-    marginTop: 4,
   },
   leaveButtonContainer: {
     marginVertical: theme.spacingXL,

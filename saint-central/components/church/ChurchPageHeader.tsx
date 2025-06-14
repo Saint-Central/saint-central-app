@@ -7,8 +7,17 @@ import {
   StyleSheet,
   GestureResponderEvent,
   useWindowDimensions,
+  ImageBackground,
 } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
@@ -42,19 +51,19 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
     const fetchCounts = async () => {
       try {
         setIsLoading(true);
-        
+
         // Fetch both counts in parallel to reduce total requests
         const [members, events] = await Promise.all([
           select("church_members", {
             select: "id",
-            where: { church_id: church.id }
+            where: { church_id: church.id },
           }),
           select("church_events", {
-            select: "id", 
-            where: { church_id: church.id }
-          })
+            select: "id",
+            where: { church_id: church.id },
+          }),
         ]);
-        
+
         setMemberCount(members?.length || 0);
         setEventsCount(events?.length || 0);
       } catch (error) {
@@ -93,222 +102,241 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
 
   return (
     <Animated.View style={[styles.container, isTablet && styles.tabletContainer, animatedStyle]}>
-      {/* Church name and location row */}
-      <View style={[styles.titleRow, isTablet && styles.tabletTitleRow]}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.welcomeText}>Welcome to</Text>
-          <Text style={[styles.churchName, isTablet && styles.tabletChurchName]} numberOfLines={2}>
-            {church.name}
-          </Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={16} color={theme.textMedium} />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {church.address.split(",")[0]}
-            </Text>
+      {/* Native iOS Header */}
+      <View style={styles.nativeHeader}>
+        {/* Top Status Row */}
+        <View style={styles.topRow}>
+          <View style={styles.greetingSection}>
+            <Text style={styles.timeGreeting}>{getTimeGreeting()}</Text>
+            <Text style={styles.userNameText}>{userData.username}</Text>
           </View>
-        </View>
 
-        {/* Profile button */}
-        <TouchableOpacity
-          onPress={() => router.navigate("/profile")}
-          style={styles.profileButton}
-          activeOpacity={0.8}
-        >
-          {userData.profileImage ? (
-            <Image
-              source={{ uri: userData.profileImage }}
-              style={styles.profileImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <LinearGradient
-              colors={theme.gradientPrimary}
-              style={styles.profilePlaceholder}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+          <View style={styles.topActions}>
+            {/* Notification Bell */}
+            <TouchableOpacity style={styles.notificationButton} activeOpacity={0.6}>
+              <Ionicons name="notifications" size={22} color="rgba(34, 197, 94, 1)" />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+
+            {/* Profile Button */}
+            <TouchableOpacity
+              onPress={() => router.navigate("/profile")}
+              style={styles.profileButton}
+              activeOpacity={0.6}
             >
-              <Text style={styles.profileInitial}>
-                {userData.username ? userData.username[0].toUpperCase() : "?"}
-              </Text>
-            </LinearGradient>
-          )}
-
-          {/* Notification indicator */}
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick stats row */}
-      <View style={[styles.statsContainer, isTablet && styles.tabletStatsContainer]}>
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={theme.gradientInfo}
-            style={styles.statIconBackground}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="people" size={16} color="#FFFFFF" />
-          </LinearGradient>
-          <View>
-            <Text style={styles.statValue}>{isLoading ? "..." : memberCount}</Text>
-            <Text style={styles.statLabel}>Members</Text>
+              {userData.profileImage ? (
+                <Image
+                  source={{ uri: userData.profileImage }}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.profilePlaceholder}>
+                  <Text style={styles.profileInitial}>
+                    {userData.username ? userData.username[0].toUpperCase() : "?"}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={theme.gradientSuccess}
-            style={styles.statIconBackground}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="calendar" size={16} color="#FFFFFF" />
-          </LinearGradient>
-          <View>
-            <Text style={styles.statValue}>{isLoading ? "..." : eventsCount}</Text>
-            <Text style={styles.statLabel}>Events</Text>
+        {/* Church Identity */}
+        <View style={styles.churchIdentitySection}>
+          {/* Church Image */}
+          <View style={styles.churchImageContainer}>
+            {church.image ? (
+              <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.churchImagePlaceholder}>
+                <Ionicons name="church" size={50} color="rgba(34, 197, 94, 0.8)" />
+              </View>
+            )}
           </View>
-        </View>
 
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={theme.gradientWarm}
-            style={styles.statIconBackground}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="heart" size={16} color="#FFFFFF" />
-          </LinearGradient>
-          <View>
-            <Text style={styles.statValue}>91%</Text>
-            <Text style={styles.statLabel}>Rating</Text>
+          {/* Church Info */}
+          <View style={styles.churchInfo}>
+            <Text style={[styles.churchName, isTablet && styles.tabletChurchName]}>
+              {church.name}
+            </Text>
+            <View style={styles.locationRow}>
+              <Ionicons name="location" size={16} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.locationText}>{church.address.split(",")[0]}</Text>
+            </View>
+            <View style={styles.serviceTimeRow}>
+              <Ionicons name="time" size={16} color="rgba(34, 197, 94, 0.8)" />
+              <Text style={styles.serviceTimeText}>Sunday 9:00 AM</Text>
+            </View>
           </View>
         </View>
       </View>
     </Animated.View>
   );
+
+  function getTimeGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  }
 }
 
 const styles = StyleSheet.create({
+  // Main Container
   container: {
-    marginBottom: theme.spacingXL,
-    paddingHorizontal: theme.spacingL,
+    marginBottom: 0,
+    paddingHorizontal: 0,
     paddingTop: 0,
   },
   tabletContainer: {
-    maxWidth: 800,
+    maxWidth: 900,
     alignSelf: "center",
     width: "100%",
   },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: theme.spacingS,
-  },
-  tabletTitleRow: {
+
+  // Native iOS Header
+  nativeHeader: {
     paddingHorizontal: theme.spacingL,
+    paddingBottom: theme.spacingXL,
   },
-  titleContainer: {
-    flex: 1,
-    marginRight: theme.spacingL,
-  },
-  welcomeText: {
-    fontSize: 14,
-    fontWeight: theme.fontRegular,
-    color: theme.textMedium,
-    marginBottom: theme.spacingXS,
-  },
-  churchName: {
-    fontSize: 28,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginBottom: theme.spacingS,
-    letterSpacing: -0.5,
-  },
-  tabletChurchName: {
-    fontSize: 32,
-  },
-  locationRow: {
-    flexDirection: "row",
+
+  // Church Identity Section
+  churchIdentitySection: {
     alignItems: "center",
+    marginTop: theme.spacingL,
   },
-  locationText: {
-    fontSize: 14,
-    fontWeight: theme.fontMedium,
-    color: theme.textMedium,
-    marginLeft: 4,
+
+  // Church Image Section
+  churchImageContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginBottom: theme.spacingM,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
-  profileButton: {
-    position: "relative",
-    marginTop: theme.spacingXS,
+  churchImage: {
+    width: "100%",
+    height: "100%",
   },
-  profileImage: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  profilePlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.radiusFull,
+  churchImagePlaceholder: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+
+  // Church Info Section
+  churchInfo: {
+    alignItems: "center",
+    gap: theme.spacingXS,
+  },
+
+  // Top Row (Greeting + Actions)
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacingS,
+  },
+  greetingSection: {
+    flex: 1,
+  },
+  timeGreeting: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "400",
+    marginBottom: 2,
+  },
+  userNameText: {
+    fontSize: 28,
+    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: -0.5,
+  },
+  topActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacingM,
+  },
+
+  // Notification Button
+  notificationButton: {
+    position: "relative",
+    padding: 4,
+  },
+  notificationDot: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    backgroundColor: "#ef4444",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#0f1419",
+  },
+
+  // Profile Button
+  profileButton: {
+    position: "relative",
+  },
+  profileImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  profilePlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(34, 197, 94, 0.2)",
   },
   profileInitial: {
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: theme.fontBold,
+    fontSize: 14,
+    fontWeight: "600",
   },
-  notificationBadge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.tertiary,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
+
+  // Church Name
+  churchName: {
+    fontSize: 24,
+    color: "#FFFFFF",
+    fontWeight: "700",
+    textAlign: "center",
+    letterSpacing: -0.5,
+    lineHeight: 28,
+    marginBottom: theme.spacingXS,
   },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: theme.spacingXL,
-    paddingHorizontal: theme.spacingM,
+  tabletChurchName: {
+    fontSize: 28,
   },
-  tabletStatsContainer: {
-    maxWidth: 400,
-    alignSelf: "center",
-    marginTop: theme.spacing2XL,
-  },
-  statItem: {
+
+  // Location Row
+  locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
+    gap: 4,
+    marginBottom: 2,
   },
-  statIconBackground: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radiusMedium,
+  locationText: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 15,
+    fontWeight: "400",
+  },
+
+  // Service Time Row
+  serviceTimeRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: theme.spacingS,
+    gap: 4,
   },
-  statValue: {
-    fontSize: 16,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: theme.fontRegular,
-    color: theme.textMedium,
+  serviceTimeText: {
+    color: "rgba(34, 197, 94, 0.9)",
+    fontSize: 15,
+    fontWeight: "500",
   },
 });

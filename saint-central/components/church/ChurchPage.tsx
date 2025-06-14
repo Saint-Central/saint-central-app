@@ -87,7 +87,7 @@ export default function ChurchPage({ userData }: Props) {
       const events = await select("church_events", {
         select: "*",
         where: { church_id: church.id },
-        order: "time"
+        order: "time",
       });
 
       setEvents(events || []);
@@ -110,7 +110,7 @@ export default function ChurchPage({ userData }: Props) {
       const courses = await select("courses", {
         select: "*",
         where: { church_id: church.id },
-        order: "time"
+        order: "time",
       });
 
       setCourses(courses || []);
@@ -199,7 +199,7 @@ export default function ChurchPage({ userData }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar translucent={false} backgroundColor="#FFFFFF" barStyle="dark-content" />
+      <StatusBar translucent={false} backgroundColor="#0f1419" barStyle="light-content" />
 
       <ChurchSidebar
         isOpen={sidebarOpen}
@@ -244,7 +244,7 @@ export default function ChurchPage({ userData }: Props) {
 
         {/* Page content */}
         <AnimatedScrollView
-          style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+          style={{ flex: 1, backgroundColor: "#0f1419" }}
           contentContainerStyle={[
             styles.scrollViewContent,
             isTablet && styles.tabletScrollViewContent,
@@ -261,10 +261,11 @@ export default function ChurchPage({ userData }: Props) {
             {TABS.map((tab, index) => (
               <TouchableOpacity
                 key={tab}
-                style={styles.tabButton}
+                style={[styles.tabButton, activeTab === tab && styles.activeTab]}
                 onPress={() => handleTabPress(index)}
                 activeOpacity={0.7}
               >
+                {activeTab === tab && <View style={styles.activeTabIndicator} />}
                 <Text
                   style={[
                     styles.tabText,
@@ -274,8 +275,6 @@ export default function ChurchPage({ userData }: Props) {
                 >
                   {tab}
                 </Text>
-
-                {activeTab === tab && <View style={styles.activeTabIndicator} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -663,7 +662,7 @@ const CourseCard = ({ course }: { course: Course }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0f1419",
   },
   overlayBackgroundFill: {
     position: "absolute",
@@ -671,13 +670,13 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0f1419",
     zIndex: 99,
   },
   mainContainer: {
     flex: 1,
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0f1419",
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -691,9 +690,9 @@ const styles = StyleSheet.create({
     right: 0,
     height: 48,
     zIndex: 100,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0f1419",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(203, 213, 225, 0.3)",
+    borderBottomColor: "rgba(34, 197, 94, 0.1)",
   },
   headerContent: {
     flexDirection: "row",
@@ -716,11 +715,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
+    backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: theme.neutral200,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   headerSpacer: {
     width: 36,
@@ -728,7 +727,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     maxWidth: "70%",
   },
   scrollViewContent: {
@@ -744,12 +743,11 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: "row",
     marginHorizontal: theme.spacingL,
-    marginTop: theme.spacingXL,
-    marginBottom: theme.spacingM,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
-    padding: 4,
-    ...theme.shadowLight,
+    marginTop: theme.spacingM,
+    marginBottom: theme.spacingL,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 10,
+    padding: 2,
   },
   tabletTabsContainer: {
     marginHorizontal: 0,
@@ -758,32 +756,35 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
     alignItems: "center",
-    position: "relative",
     justifyContent: "center",
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: "rgba(34, 197, 94, 0.3)",
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: theme.fontMedium,
-    color: theme.textMedium,
+    fontSize: 15,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.6)",
     textAlign: "center",
   },
   tabletTabText: {
     fontSize: 16,
   },
   activeTabText: {
-    color: theme.primary,
-    fontWeight: theme.fontSemiBold,
+    color: "#FFFFFF",
+    fontWeight: "500",
   },
   activeTabIndicator: {
     position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     bottom: 0,
-    height: 3,
-    width: "70%",
-    backgroundColor: theme.primary,
-    borderRadius: theme.radiusFull,
-    marginLeft: -10,
+    backgroundColor: "rgba(34, 197, 94, 0.3)",
+    borderRadius: 8,
   },
   tabContent: {
     paddingHorizontal: theme.spacingL,
@@ -832,13 +833,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     marginBottom: theme.spacingS,
   },
   emptyText: {
     fontSize: 16,
     fontWeight: theme.fontRegular,
-    color: theme.textMedium,
+    color: "rgba(255,255,255,0.7)",
     textAlign: "center",
     lineHeight: 24,
   },
@@ -867,14 +868,14 @@ const styles = StyleSheet.create({
   comingSoonTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     marginTop: theme.spacingL,
     marginBottom: theme.spacingS,
   },
   comingSoonText: {
     fontSize: 16,
     fontWeight: theme.fontRegular,
-    color: theme.textMedium,
+    color: "rgba(255,255,255,0.7)",
     textAlign: "center",
     lineHeight: 24,
   },
@@ -888,7 +889,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     marginRight: theme.spacingM,
     letterSpacing: -0.5,
   },
@@ -910,12 +911,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: theme.radiusMedium,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: theme.neutral200,
-    ...theme.shadowLight,
+    borderColor: "rgba(34, 197, 94, 0.2)",
   },
   eventCardContent: {
     flexDirection: "row",
@@ -956,7 +956,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     flex: 1,
   },
   recurringBadge: {
@@ -1002,13 +1002,13 @@ const styles = StyleSheet.create({
   },
   eventLocation: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: "rgba(255,255,255,0.7)",
     marginLeft: 6,
     flex: 1,
   },
   eventExcerpt: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: "rgba(255,255,255,0.7)",
     lineHeight: 18,
     marginBottom: 8,
   },
@@ -1049,12 +1049,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: theme.radiusMedium,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: theme.neutral200,
-    ...theme.shadowLight,
+    borderColor: "rgba(34, 197, 94, 0.2)",
   },
   courseCardContent: {
     flexDirection: "row",
@@ -1089,12 +1088,12 @@ const styles = StyleSheet.create({
   courseTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     marginBottom: 8,
   },
   courseDescription: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: "rgba(255,255,255,0.7)",
     lineHeight: 18,
     marginBottom: 8,
   },
