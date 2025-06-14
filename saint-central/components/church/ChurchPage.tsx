@@ -10,7 +10,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -280,6 +280,7 @@ export default function ChurchPage({ userData }: Props) {
       <Animated.View style={[styles.mainContainer, contentAnimatedStyle]}>
         {/* Floating header */}
         <Animated.View style={[styles.headerContainer, headerAnimatedStyle]}>
+          <View style={styles.headerBackground} />
           <View style={styles.headerContent}>
             <View style={styles.headerSpacer} />
 
@@ -302,11 +303,11 @@ export default function ChurchPage({ userData }: Props) {
           scrollEventThrottle={16}
           onScroll={scrollHandler}
         >
-          {/* Church Page Header */}
+          {/* Enhanced Church Page Header with Hero Image */}
           <ChurchPageHeader userData={userData} onPressMenu={toggleSidebar} />
 
-          {/* Tabs navigation */}
-          <View style={[styles.tabsContainer, isTablet && styles.tabletTabsContainer]}>
+          {/* Modern Tab Navigation */}
+          <View style={[styles.modernTabsContainer, isTablet && styles.tabletTabsContainer]}>
             {TABS.map((tab, index) => {
               const tabButtonPressAnim = useSharedValue(1);
               
@@ -317,7 +318,7 @@ export default function ChurchPage({ userData }: Props) {
               });
 
               const handleTabPressIn = () => {
-                tabButtonPressAnim.value = withSpring(0.95, springConfig);
+                tabButtonPressAnim.value = withSpring(0.96, springConfig);
               };
 
               const handleTabPressOut = () => {
@@ -327,20 +328,27 @@ export default function ChurchPage({ userData }: Props) {
               return (
                 <TouchableOpacity
                   key={tab}
-                  style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+                  style={[styles.modernTabButton, activeTab === tab && styles.modernActiveTab]}
                   onPress={() => handleTabPress(index)}
                   onPressIn={handleTabPressIn}
                   onPressOut={handleTabPressOut}
                   activeOpacity={1}
                 >
                   <Animated.View style={[StyleSheet.absoluteFill, tabButtonAnimatedStyle]}>
-                    {activeTab === tab && <View style={styles.activeTabIndicator} />}
+                    {activeTab === tab && (
+                      <LinearGradient
+                        colors={[theme.primary, theme.accent1]}
+                        style={styles.modernActiveTabIndicator}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      />
+                    )}
                   </Animated.View>
                   <Text
                     style={[
-                      styles.tabText,
+                      styles.modernTabText,
                       isTablet && styles.tabletTabText,
-                      activeTab === tab && styles.activeTabText,
+                      activeTab === tab && styles.modernActiveTabText,
                     ]}
                   >
                     {tab}
@@ -364,30 +372,27 @@ export default function ChurchPage({ userData }: Props) {
             )}
 
             {activeTab === "Ministries" && isAdminOrOwner(member) && (
-              <View style={{ alignItems: "center" }}>
-                <Button
-                  onPress={() => {
-                    router.push({
-                      pathname: "/create-course",
-                      params: {
-                        churchId: member.church_id,
-                        userId: member.user_id,
-                        role: member.role,
-                      },
-                    });
-                  }}
-                  size="md"
-                  style={{ width: "65%" }}
-                >
-                  <Text
-                    style={{
-                      color: theme.textWhite,
-                      fontWeight: theme.fontSemiBold,
+              <View style={styles.adminSection}>
+                <View style={styles.adminCard}>
+                  <MaterialCommunityIcons name="shield-account" size={24} color={theme.primary} />
+                  <Text style={styles.adminCardTitle}>Admin Controls</Text>
+                  <Button
+                    onPress={() => {
+                      router.push({
+                        pathname: "/create-course",
+                        params: {
+                          churchId: member.church_id,
+                          userId: member.user_id,
+                          role: member.role,
+                        },
+                      });
                     }}
+                    size="md"
+                    style={styles.adminButton}
                   >
-                    Create Ministry (Admin)
-                  </Text>
-                </Button>
+                    <Text style={styles.adminButtonText}>Create Ministry</Text>
+                  </Button>
+                </View>
               </View>
             )}
             {activeTab === "Ministries" && (
@@ -395,12 +400,18 @@ export default function ChurchPage({ userData }: Props) {
             )}
 
             {activeTab === "Fellowship" && (
-              <View style={styles.comingSoonContainer}>
-                <FontAwesome5 name="church" size={42} color={theme.primary} />
-                <Text style={styles.comingSoonTitle}>Fellowship Coming Soon</Text>
-                <Text style={styles.comingSoonText}>
-                  Connect with our church family and grow in faith together
-                </Text>
+              <View style={styles.modernComingSoonContainer}>
+                <LinearGradient
+                  colors={[theme.primary + "20", theme.accent1 + "15"]}
+                  style={styles.comingSoonGradient}
+                >
+                  <FontAwesome5 name="users" size={48} color={theme.primary} />
+                  <Text style={styles.modernComingSoonTitle}>Fellowship Coming Soon</Text>
+                  <Text style={styles.modernComingSoonText}>
+                    Connect with our church family and grow in faith together. 
+                    This feature will include prayer groups, social events, and community discussions.
+                  </Text>
+                </LinearGradient>
               </View>
             )}
           </Animated.View>
@@ -761,9 +772,6 @@ const styles = StyleSheet.create({
     right: 0,
     height: 48,
     zIndex: 100,
-    backgroundColor: theme.pageBg,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(251, 191, 36, 0.3)",
   },
   headerContent: {
     flexDirection: "row",
@@ -773,6 +781,16 @@ const styles = StyleSheet.create({
     height: "100%",
     paddingTop: 4,
     paddingBottom: 6,
+  },
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: theme.pageBg,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(251, 191, 36, 0.3)",
   },
   fixedHeader: {
     position: "absolute",
@@ -822,10 +840,53 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(251, 191, 36, 0.4)",
   },
+  // Modern Tab Styles
+  modernTabsContainer: {
+    flexDirection: "row",
+    marginHorizontal: theme.spacingL,
+    marginTop: theme.spacingL,
+    marginBottom: theme.spacingL,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
   tabletTabsContainer: {
     marginHorizontal: 0,
     maxWidth: 500,
     alignSelf: "center",
+  },
+  modernTabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    position: "relative",
+  },
+  modernActiveTab: {
+    // Style handled by gradient
+  },
+  modernTabText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.textLight,
+    textAlign: "center",
+    position: "relative",
+    zIndex: 1,
+  },
+  modernActiveTabText: {
+    color: theme.textWhite,
+    fontWeight: "600",
+  },
+  modernActiveTabIndicator: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
   },
   tabButton: {
     flex: 1,
@@ -932,6 +993,36 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontSemiBold,
     fontSize: 14,
   },
+  // Admin Section
+  adminSection: {
+    paddingHorizontal: theme.spacingL,
+    marginBottom: theme.spacingL,
+  },
+  adminCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+    alignItems: "center",
+    gap: 12,
+  },
+  adminCardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textWhite,
+  },
+  adminButton: {
+    width: "100%",
+    maxWidth: 200,
+  },
+  adminButtonText: {
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
+    fontSize: 14,
+  },
+
+  // Coming Soon Styles
   comingSoonContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -951,6 +1042,35 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.7)",
     textAlign: "center",
     lineHeight: 24,
+  },
+
+  // Modern Coming Soon
+  modernComingSoonContainer: {
+    paddingHorizontal: theme.spacingL,
+    marginTop: theme.spacingL,
+  },
+  comingSoonGradient: {
+    borderRadius: 20,
+    padding: 32,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  modernComingSoonTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: theme.textWhite,
+    marginTop: 16,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modernComingSoonText: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: theme.textLight,
+    textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 280,
   },
 
   // Section headers

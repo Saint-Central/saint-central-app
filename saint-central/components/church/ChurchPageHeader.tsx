@@ -8,6 +8,7 @@ import {
   GestureResponderEvent,
   useWindowDimensions,
   ImageBackground,
+  Platform,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -17,13 +18,16 @@ import Animated, {
   withSequence,
   withTiming,
   Easing,
+  interpolate,
+  withDelay,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import theme from "@/theme";
 import { useCRUD } from "@/utils/crudClient";
 import { useChurchContext } from "@/contexts/church";
+import { BlurView } from "expo-blur";
 
 type Props = {
   userData: { username: string; profileImage: string };
@@ -43,8 +47,12 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { select } = useCRUD();
 
+  // Enhanced animations
   const fadeAnim = useSharedValue(0);
-  const scaleAnim = useSharedValue(0.95);
+  const scaleAnim = useSharedValue(0.8);
+  const floatAnim = useSharedValue(0);
+  const shimmerAnim = useSharedValue(0);
+  const parallaxAnim = useSharedValue(0);
 
   // Fetch both counts in a single effect to reduce API calls
   useEffect(() => {
@@ -76,96 +84,200 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
     fetchCounts();
   }, [church.id]);
 
-  // Animation for component mount
+  // Enhanced animation sequence
   useEffect(() => {
-    // Fast animation on mount
-    fadeAnim.value = withSpring(1, {
-      damping: 18,
-      stiffness: 250,
-      mass: 1,
-    });
+    // Staggered entrance animations
+    fadeAnim.value = withDelay(200, withTiming(1, { duration: 800 }));
+    scaleAnim.value = withDelay(400, withSpring(1, { damping: 15, stiffness: 150 }));
+    
+    // Floating animation for church image
+    floatAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 3000, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1
+    );
 
-    scaleAnim.value = withSpring(1, {
-      damping: 18,
-      stiffness: 250,
-      mass: 1,
-    });
+    // Shimmer effect
+    shimmerAnim.value = withRepeat(
+      withTiming(1, { duration: 2000 }),
+      -1
+    );
   }, []);
 
   // Animated styles
-  const animatedStyle = useAnimatedStyle(() => {
+  const containerAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: fadeAnim.value,
       transform: [{ scale: scaleAnim.value }],
     };
   });
 
+  const churchImageAnimatedStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(floatAnim.value, [0, 1], [0, -8]);
+    const scale = interpolate(floatAnim.value, [0, 0.5, 1], [1, 1.02, 1]);
+    
+    return {
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  const shimmerAnimatedStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(shimmerAnim.value, [0, 1], [-100, 300]);
+    
+    return {
+      transform: [{ translateX }],
+    };
+  });
+
   return (
-    <Animated.View style={[styles.container, isTablet && styles.tabletContainer, animatedStyle]}>
-      {/* Native iOS Header */}
-      <View style={styles.nativeHeader}>
-        {/* Top Status Row */}
-        <View style={styles.topRow}>
-          <View style={styles.greetingSection}>
-            <Text style={styles.timeGreeting}>{getTimeGreeting()}</Text>
-            <Text style={styles.userNameText}>{userData.username}</Text>
-          </View>
-
-          <View style={styles.topActions}>
-            {/* Notification Bell */}
-            <TouchableOpacity style={styles.notificationButton} activeOpacity={0.6}>
-              <Ionicons name="notifications" size={22} color={theme.primary} />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
-
-            {/* Profile Button */}
-            <TouchableOpacity
-              onPress={() => router.navigate("/profile")}
-              style={styles.profileButton}
-              activeOpacity={0.6}
-            >
-              {userData.profileImage ? (
-                <Image
-                  source={{ uri: userData.profileImage }}
-                  style={styles.profileImage}
-                  resizeMode="cover"
+    <Animated.View style={[styles.container, isTablet && styles.tabletContainer, containerAnimatedStyle]}>
+      {/* Hero Section with Parallax Church Image */}
+      <View style={styles.heroSection}>
+        {/* Background Image with Parallax Effect */}
+        <View style={styles.heroImageContainer}>
+          {church.image ? (
+            <Animated.View style={[styles.heroImageWrapper, churchImageAnimatedStyle]}>
+              <ImageBackground
+                source={{ uri: church.image }}
+                style={styles.heroBackgroundImage}
+                resizeMode="cover"
+              >
+                {/* Gradient Overlay */}
+                <LinearGradient
+                  colors={[
+                    'rgba(0,0,0,0.1)',
+                    'rgba(0,0,0,0.3)',
+                    'rgba(0,0,0,0.6)',
+                    'rgba(15, 23, 42, 0.9)'
+                  ]}
+                  locations={[0, 0.3, 0.7, 1]}
+                  style={styles.heroGradientOverlay}
                 />
-              ) : (
-                <View style={styles.profilePlaceholder}>
-                  <Text style={styles.profileInitial}>
-                    {userData.username ? userData.username[0].toUpperCase() : "?"}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+                
+                {/* Shimmer Effect */}
+                <Animated.View style={[styles.shimmerEffect, shimmerAnimatedStyle]}>
+                  <LinearGradient
+                    colors={['transparent', 'rgba(255,255,255,0.1)', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.shimmerGradient}
+                  />
+                </Animated.View>
+              </ImageBackground>
+            </Animated.View>
+          ) : (
+            <View style={styles.heroPlaceholder}>
+              <LinearGradient
+                colors={[theme.primary, theme.accent1, theme.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroPlaceholderGradient}
+              >
+                <FontAwesome5 name="church" size={80} color="rgba(255,255,255,0.8)" />
+              </LinearGradient>
+            </View>
+          )}
         </View>
 
-        {/* Church Identity */}
-        <View style={styles.churchIdentitySection}>
-          {/* Church Image */}
-          <View style={styles.churchImageContainer}>
-            {church.image ? (
-              <Image source={{ uri: church.image }} style={styles.churchImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.churchImagePlaceholder}>
-                <Ionicons name="church" size={64} color={theme.accent1} />
-              </View>
-            )}
+        {/* Floating Content Card */}
+        <View style={styles.floatingCard}>
+          {/* Top Status Row */}
+          <View style={styles.topRow}>
+            <View style={styles.greetingSection}>
+              <Text style={styles.timeGreeting}>{getTimeGreeting()}</Text>
+              <Text style={styles.userNameText}>{userData.username}</Text>
+            </View>
+
+            <View style={styles.topActions}>
+              {/* Notification Bell */}
+              <TouchableOpacity style={styles.notificationButton} activeOpacity={0.7}>
+                <View style={styles.notificationIconContainer}>
+                  <Ionicons name="notifications" size={20} color={theme.primary} />
+                  <View style={styles.notificationDot} />
+                </View>
+              </TouchableOpacity>
+
+              {/* Profile Button */}
+              <TouchableOpacity
+                onPress={() => router.navigate("/profile")}
+                style={styles.profileButton}
+                activeOpacity={0.7}
+              >
+                {userData.profileImage ? (
+                  <Image
+                    source={{ uri: userData.profileImage }}
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={[theme.primary, theme.accent1]}
+                    style={styles.profilePlaceholder}
+                  >
+                    <Text style={styles.profileInitial}>
+                      {userData.username ? userData.username[0].toUpperCase() : "?"}
+                    </Text>
+                  </LinearGradient>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Church Info */}
-          <View style={styles.churchInfo}>
-            <Text style={[styles.churchName, isTablet && styles.tabletChurchName]}>
-              {church.name}
-            </Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={16} color={theme.textLight} />
-              <Text style={styles.locationText}>{church.address.split(",")[0]}</Text>
+          {/* Church Identity Card */}
+          <View style={styles.churchCard}>
+            <View style={styles.churchCardHeader}>
+              <Text style={[styles.churchName, isTablet && styles.tabletChurchName]}>
+                {church.name}
+              </Text>
+              <View style={styles.verifiedBadge}>
+                <MaterialCommunityIcons name="check-decagram" size={16} color={theme.success} />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
             </View>
-            <View style={styles.serviceTimeRow}>
-              <Ionicons name="time" size={16} color={theme.accent2} />
-              <Text style={styles.serviceTimeText}>Sunday 9:00 AM</Text>
+
+            <View style={styles.churchDetails}>
+              <View style={styles.detailItem}>
+                <View style={styles.detailIconContainer}>
+                  <MaterialCommunityIcons name="map-marker" size={16} color={theme.primary} />
+                </View>
+                <Text style={styles.detailText}>{church.address.split(",")[0]}</Text>
+              </View>
+
+              <View style={styles.detailItem}>
+                <View style={styles.detailIconContainer}>
+                  <MaterialCommunityIcons name="clock-outline" size={16} color={theme.accent2} />
+                </View>
+                <Text style={styles.detailText}>Sunday 9:00 AM</Text>
+              </View>
+
+              <View style={styles.detailItem}>
+                <View style={styles.detailIconContainer}>
+                  <MaterialCommunityIcons name="account-group" size={16} color={theme.accent3} />
+                </View>
+                <Text style={styles.detailText}>
+                  {isLoading ? "..." : `${memberCount} members`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Quick Stats */}
+            <View style={styles.quickStatsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{isLoading ? "..." : eventsCount}</Text>
+                <Text style={styles.statLabel}>Events</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{isLoading ? "..." : memberCount}</Text>
+                <Text style={styles.statLabel}>Members</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>4.9</Text>
+                <Text style={styles.statLabel}>Rating</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -185,8 +297,6 @@ const styles = StyleSheet.create({
   // Main Container
   container: {
     marginBottom: 0,
-    paddingHorizontal: 0,
-    paddingTop: 0,
   },
   tabletContainer: {
     maxWidth: 900,
@@ -194,45 +304,84 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
-  // Native iOS Header
-  nativeHeader: {
-    paddingHorizontal: theme.spacingL,
-    paddingBottom: theme.spacingXL,
-  },
-
-  // Church Identity Section
-  churchIdentitySection: {
-    alignItems: "center",
-    marginTop: theme.spacingL,
-  },
-
-  // Church Image Section
-  churchImageContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 32,
+  // Hero Section
+  heroSection: {
+    position: "relative",
+    height: 400,
     overflow: "hidden",
-    marginBottom: theme.spacingL,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderWidth: 3,
-    borderColor: "rgba(251, 191, 36, 0.3)",
-  },
-  churchImage: {
-    width: "100%",
-    height: "100%",
-  },
-  churchImagePlaceholder: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
 
-  // Church Info Section
-  churchInfo: {
+  // Hero Image Container
+  heroImageContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  heroImageWrapper: {
+    flex: 1,
+  },
+  heroBackgroundImage: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  heroGradientOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
+  // Shimmer Effect
+  shimmerEffect: {
+    position: "absolute",
+    top: 0,
+    left: -100,
+    right: 0,
+    bottom: 0,
+    width: 100,
+  },
+  shimmerGradient: {
+    flex: 1,
+    width: 100,
+  },
+
+  // Hero Placeholder
+  heroPlaceholder: {
+    flex: 1,
+  },
+  heroPlaceholderGradient: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    gap: theme.spacingXS,
+  },
+
+  // Floating Card
+  floatingCard: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backdropFilter: "blur(20px)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
   },
 
   // Top Row (Greeting + Actions)
@@ -240,19 +389,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: theme.spacingS,
+    marginBottom: 20,
   },
   greetingSection: {
     flex: 1,
   },
   timeGreeting: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.textLight,
     fontWeight: "400",
     marginBottom: 2,
   },
   userNameText: {
-    fontSize: 28,
+    fontSize: 22,
     color: theme.textWhite,
     fontWeight: "700",
     letterSpacing: -0.5,
@@ -260,24 +409,26 @@ const styles = StyleSheet.create({
   topActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacingM,
+    gap: 12,
   },
 
   // Notification Button
   notificationButton: {
+    padding: 8,
+  },
+  notificationIconContainer: {
     position: "relative",
-    padding: 4,
   },
   notificationDot: {
     position: "absolute",
-    top: 2,
-    right: 2,
+    top: -2,
+    right: -2,
     width: 8,
     height: 8,
     backgroundColor: theme.error,
     borderRadius: 4,
-    borderWidth: 1,
-    borderColor: theme.pageBg,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
 
   // Profile Button
@@ -285,60 +436,129 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   profileImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   profilePlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(251, 191, 36, 0.2)",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   profileInitial: {
     color: theme.textWhite,
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
   },
 
-  // Church Name
+  // Church Card
+  churchCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+
+  // Church Card Header
+  churchCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
   churchName: {
-    fontSize: 24,
+    fontSize: 20,
     color: theme.textWhite,
     fontWeight: "700",
-    textAlign: "center",
     letterSpacing: -0.5,
-    lineHeight: 28,
-    marginBottom: theme.spacingXS,
+    flex: 1,
+    marginRight: 12,
   },
   tabletChurchName: {
-    fontSize: 28,
+    fontSize: 24,
   },
 
-  // Location Row
-  locationRow: {
+  // Verified Badge
+  verifiedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  verifiedText: {
+    color: theme.success,
+    fontSize: 11,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
+  // Church Details
+  churchDetails: {
+    marginBottom: 16,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  detailIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  detailText: {
+    color: theme.textLight,
+    fontSize: 14,
+    fontWeight: "400",
+    flex: 1,
+  },
+
+  // Quick Stats
+  quickStatsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.textWhite,
     marginBottom: 2,
   },
-  locationText: {
-    color: theme.textLight,
-    fontSize: 15,
-    fontWeight: "400",
-  },
-
-  // Service Time Row
-  serviceTimeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  serviceTimeText: {
-    color: theme.accent2,
-    fontSize: 15,
+  statLabel: {
+    fontSize: 11,
     fontWeight: "500",
+    color: theme.textLight,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
 });
