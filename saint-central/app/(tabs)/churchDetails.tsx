@@ -12,12 +12,13 @@ import {
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, MaterialIcons, AntDesign } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import theme from "@/theme";
+import { useCRUD } from "@/utils/crudClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Define route params type
 type ChurchDetailsRouteParams = {
@@ -248,6 +249,8 @@ export default function ChurchDetailsScreen(): JSX.Element {
   const route = useRoute<ChurchDetailsRouteProp>();
   const { churchId } = route.params;
   const insets = useSafeAreaInsets();
+  const { selectOne, select, insert } = useCRUD();
+  const { user, getAccessToken } = useAuth();
 
   // Animation values
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -275,41 +278,33 @@ export default function ChurchDetailsScreen(): JSX.Element {
         setLoading(true);
         console.log("Fetching church details for ID:", churchId);
 
-        // Get church details
-        const { data: churchData, error: churchError } = await supabase
-          .from("churches")
-          .select("*")
-          .eq("id", churchId)
-          .single();
-
-        if (churchError) {
-          console.error("Error fetching church:", churchError);
-          throw churchError;
-        }
+        // Get church details using CRUD API
+        const churchData = await selectOne("churches", {
+          where: { id: parseInt(churchId.toString()) }
+        });
 
         if (churchData) {
           console.log("Church data loaded:", churchData.name);
           setChurch(churchData);
         } else {
           console.log("No church data found");
+          throw new Error("Church not found");
         }
 
         // Check if user is a member of this church
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-
-        const userId = sessionData?.session?.user?.id;
-
-        if (userId) {
-          const { data: memberData, error: memberError } = await supabase
-            .from("church_members")
-            .select("*")
-            .eq("church_id", churchId)
-            .eq("user_id", userId);
-
-          if (memberError) throw memberError;
+        if (user?.id) {
+          const memberData = await select("church_members", {
+            where: {
+              church_id: parseInt(churchId.toString()),
+              user_id: user.id
+            },
+            limit: 1
+          });
 
           setIsMember(memberData && memberData.length > 0);
+          console.log("Membership status:", memberData && memberData.length > 0);
+        } else {
+          setIsMember(false);
         }
       } catch (error) {
         console.error("Error fetching church details:", error);
@@ -320,40 +315,71 @@ export default function ChurchDetailsScreen(): JSX.Element {
     }
 
     fetchChurchDetails();
-  }, [churchId]);
+  }, [churchId, user?.id]);
 
   // Handle joining church
   const handleJoinChurch = async () => {
     try {
       setLoading(true);
 
-      // Get current user
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
+      // Debug session info
+      console.log("Session info:", { user: user?.id });
+      
+      // Check if user is logged in
+      if (!user?.id) {
+        alert("You must be logged in to join a church");
+        return;
+      }
 
-      const userId = sessionData?.session?.user?.id;
-      if (!userId) throw new Error("Not authenticated");
+      // Verify we have a valid access token
+      const accessToken = await getAccessToken();
+      console.log("Access token exists:", !!accessToken);
+      
+      if (!accessToken) {
+        alert("Your session has expired. Please log in again.");
+        return;
+      }
 
-      // Add user to church_members
-      const { error: joinError } = await supabase.from("church_members").insert([
-        {
-          user_id: userId,
-          church_id: churchId,
-          role: "member",
-          joined_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (joinError) throw joinError;
+      console.log("Adding user to church_members...");
+      
+      // Add user to church_members using CRUD API
+      const membershipData = {
+        user_id: user.id,
+        church_id: parseInt(churchId.toString()),
+        role: "member",
+        joined_at: new Date().toISOString(),
+      };
+      
+      console.log("Membership data:", membershipData);
+      
+      await insert("church_members", membershipData);
 
       // Update membership status
       setIsMember(true);
+      
+      console.log("Successfully joined church!");
 
-      // Navigate to church page
-      router.replace("/home");
+      // Set loading to false first, then navigate
+      setLoading(false);
+      
+      // Navigate to church page with a timestamp to force refresh
+      router.push(`/home?refresh=${Date.now()}`);
+      return; // Early return to avoid finally block
     } catch (error) {
       console.error("Error joining church:", error);
-      alert("Failed to join church. Please try again later.");
+      
+      // More specific error handling
+      let errorMessage = "Failed to join church. Please try again later.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("Auth session missing")) {
+          errorMessage = "Your session has expired. Please log in again.";
+        } else if (error.message.includes("Not authenticated")) {
+          errorMessage = "Authentication failed. Please log in again.";
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

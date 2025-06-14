@@ -5,13 +5,16 @@ import ChurchPageLayout from "@/components/church/ChurchPageLayout";
 import ChurchPageFallback from "@/components/church/ChurchPageFallback";
 import { ChurchContext, ChurchContextData } from "@/contexts/church";
 import Spinner from "@/components/ui/Spinner";
+import { useLocalSearchParams } from "expo-router";
 
 export default function HomeScreen() {
   const { session, user, loading: authLoading } = useAuth();
   const { selectOne, select } = useCRUD();
+  const { refresh } = useLocalSearchParams();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const hasFetchedRef = useRef(false);
+  const lastRefreshRef = useRef<string | null>(null);
 
   const [churchData, setChurchData] = useState<ChurchContextData | undefined>();
   const [userData, setUserData] = useState<{ username: string; profileImage: string }>({
@@ -29,13 +32,26 @@ export default function HomeScreen() {
     let isMounted = true;
 
     async function fetchChurchData(): Promise<void> {
-      // Don't load if auth is still loading or no session/user or already fetched
-      if (authLoading || !session || !user?.id || hasFetchedRef.current) {
+      // Check if we need to refresh due to a new refresh parameter
+      const refreshValue = Array.isArray(refresh) ? refresh[0] : refresh;
+      const shouldRefresh = refreshValue && refreshValue !== lastRefreshRef.current;
+      
+      if (shouldRefresh) {
+        console.log("Refresh parameter detected, resetting fetch state");
+        hasFetchedRef.current = false;
+        lastRefreshRef.current = refreshValue;
+        setChurchData(undefined);
+        setError(null);
+      }
+
+      // Don't load if auth is still loading or no session/user or already fetched (unless refreshing)
+      if (authLoading || !session || !user?.id || (hasFetchedRef.current && !shouldRefresh)) {
         console.log("Auth loading, no valid session, no user, or already fetched:", { 
           authLoading, 
           hasSession: !!session, 
           hasUser: !!user?.id,
-          alreadyFetched: hasFetchedRef.current 
+          alreadyFetched: hasFetchedRef.current,
+          shouldRefresh
         });
         if (isMounted && !hasFetchedRef.current) {
           setLoading(false);
@@ -135,7 +151,7 @@ export default function HomeScreen() {
     return () => {
       isMounted = false;
     };
-  }, [authLoading, session?.access_token, user?.id]);
+  }, [authLoading, session?.access_token, user?.id, refresh]);
 
   // Show loading while auth is still loading
   if (authLoading) {

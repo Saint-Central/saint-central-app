@@ -14,12 +14,13 @@ import {
 } from "react-native";
 import { useNavigation, NavigationProp, ParamListBase } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import DecoratedHeader from "@/components/ui/DecoratedHeader";
 import theme from "@/theme";
+import { useCRUD } from "@/utils/crudClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Types for church data
 interface Church {
@@ -41,6 +42,8 @@ interface Church {
 export default function ChurchSearchScreen(): JSX.Element {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const router = useRouter();
+  const { select, insert } = useCRUD();
+  const { user, session, getAccessToken } = useAuth();
   const [loading, setLoading] = useState<boolean>(true); // Start with loading true
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [churches, setChurches] = useState<Church[]>([]);
@@ -94,18 +97,28 @@ export default function ChurchSearchScreen(): JSX.Element {
     }
   }, [searchQuery, churches]);
 
-  // Fetch churches from Supabase
+  // Fetch churches from CRUD API
   const fetchChurches = async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      // Log to debug
-
-      const { data, error: fetchError } = await supabase.from("churches").select("*").order("name");
-      if (fetchError) {
-        console.error("Supabase error:", fetchError);
-        throw fetchError;
+      console.log("Fetching churches...");
+      
+      // Check if we have a valid session before making API calls
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        console.warn("No access token available for fetching churches");
+        // We can still try to fetch churches, depending on your API setup
       }
+
+      // Fetch churches using CRUD API
+      const data = await select("churches", {
+        select: "*",
+        order: "name"
+      });
+
+      console.log("Fetched churches:", data?.length || 0);
 
       if (data && data.length > 0) {
         setChurches(data);
@@ -137,46 +150,79 @@ export default function ChurchSearchScreen(): JSX.Element {
     try {
       setLoading(true);
 
-      // Get current user
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-
-      const userId = sessionData?.session?.user?.id;
-      if (!userId) {
+      // Debug session info
+      console.log("Session info:", { user: user?.id, hasSession: !!session });
+      
+      // Check if user is logged in
+      if (!user?.id) {
         Alert.alert("Authentication Error", "You must be logged in to join a church");
         return;
       }
 
-      // Check if user is already a member
-      const { data: existingMembership } = await supabase
-        .from("church_members")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("church_id", churchId)
-        .single();
+      // Verify we have a valid access token
+      const accessToken = await getAccessToken();
+      console.log("Access token exists:", !!accessToken);
+      
+      if (!accessToken) {
+        Alert.alert("Authentication Error", "Your session has expired. Please log in again.");
+        return;
+      }
 
-      if (existingMembership) {
+      console.log("Checking existing membership for user:", user.id, "church:", churchId);
+      
+      // Check if user is already a member
+      const existingMembership = await select("church_members", {
+        where: {
+          user_id: user.id,
+          church_id: parseInt(churchId.toString()) // Ensure it's a number if needed
+        },
+        limit: 1
+      });
+
+      console.log("Existing membership check result:", existingMembership);
+
+      if (existingMembership && existingMembership.length > 0) {
         Alert.alert("Already a Member", "You are already a member of this church");
         return;
       }
 
+      console.log("Adding user to church_members...");
+      
       // Add user directly to church_members
-      const { error: joinError } = await supabase.from("church_members").insert([
-        {
-          user_id: userId,
-          church_id: churchId,
-          role: "member",
-          joined_at: new Date().toISOString(),
-        },
-      ]);
+      const membershipData = {
+        user_id: user.id,
+        church_id: parseInt(churchId.toString()), // Ensure it's a number if needed
+        role: "member",
+        joined_at: new Date().toISOString(),
+      };
+      
+      console.log("Membership data:", membershipData);
+      
+      await insert("church_members", membershipData);
 
-      if (joinError) throw joinError;
-
-      // Navigate to church page
-      router.replace("/home");
+      console.log("Successfully joined church!");
+      
+      // Set loading to false first, then navigate
+      setLoading(false);
+      
+      // Navigate directly to the church page with a timestamp to force refresh
+      router.push(`/home?refresh=${Date.now()}`);
+      return; // Early return to avoid finally block
     } catch (error) {
       console.error("Error joining church:", error);
-      Alert.alert("Error", "Failed to join church. Please try again later.");
+      
+      // More specific error handling
+      let errorMessage = "Failed to join church. Please try again later.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("Auth session missing")) {
+          errorMessage = "Your session has expired. Please log in again.";
+        } else if (error.message.includes("Not authenticated")) {
+          errorMessage = "Authentication failed. Please log in again.";
+        }
+      }
+      
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -242,14 +288,20 @@ export default function ChurchSearchScreen(): JSX.Element {
             )}
           </View>
 
-          <TouchableOpacity style={styles.joinButton} onPress={() => handleJoinChurch(item.id)}>
+          <TouchableOpacity 
+            style={[styles.joinButton, !user && styles.joinButtonDisabled]} 
+            onPress={() => user ? handleJoinChurch(item.id) : Alert.alert("Login Required", "Please log in to join a church")}
+            disabled={!user}
+          >
             <LinearGradient
-              colors={[theme.primary, theme.accent1]}
+              colors={user ? [theme.primary, theme.accent1] : [theme.neutral300, theme.neutral400]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.joinButtonGradient}
             >
-              <Text style={styles.joinButtonText}>Join</Text>
+              <Text style={[styles.joinButtonText, !user && styles.joinButtonTextDisabled]}>
+                {user ? "Join" : "Login to Join"}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -339,6 +391,12 @@ export default function ChurchSearchScreen(): JSX.Element {
           <Text style={styles.resultsText}>
             {filteredChurches.length} {filteredChurches.length === 1 ? "church" : "churches"} found
           </Text>
+          {/* Session status indicator */}
+          {!user && (
+            <Text style={styles.sessionWarning}>
+              ⚠️ Not logged in - join functionality disabled
+            </Text>
+          )}
         </View>
 
         {/* Churches list */}
@@ -454,6 +512,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.textLight,
   },
+  sessionWarning: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: theme.warning,
+    marginTop: 4,
+  },
   churchesList: {
     paddingBottom: 100,
   },
@@ -538,6 +602,12 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  joinButtonDisabled: {
+    opacity: 0.6,
+  },
+  joinButtonTextDisabled: {
+    color: theme.textMuted,
   },
   errorContainer: {
     flexDirection: "row",
