@@ -149,10 +149,10 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
                 {/* Gradient Overlay */}
                 <LinearGradient
                   colors={[
-                    'rgba(0,0,0,0.1)',
-                    'rgba(0,0,0,0.3)',
-                    'rgba(0,0,0,0.6)',
-                    'rgba(15, 23, 42, 0.9)'
+                    'rgba(10,9,8,0.1)',
+                    'rgba(10,9,8,0.3)',
+                    'rgba(10,9,8,0.6)',
+                    'rgba(26, 24, 21, 0.9)'
                   ]}
                   locations={[0, 0.3, 0.7, 1]}
                   style={styles.heroGradientOverlay}
@@ -161,7 +161,7 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
                 {/* Shimmer Effect */}
                 <Animated.View style={[styles.shimmerEffect, shimmerAnimatedStyle]}>
                   <LinearGradient
-                    colors={['transparent', 'rgba(255,255,255,0.1)', 'transparent']}
+                    colors={['transparent', 'rgba(254,243,199,0.08)', 'transparent']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.shimmerGradient}
@@ -177,7 +177,7 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
                 end={{ x: 1, y: 1 }}
                 style={styles.heroPlaceholderGradient}
               >
-                <FontAwesome5 name="church" size={80} color="rgba(255,255,255,0.8)" />
+                <FontAwesome5 name="church" size={80} color={theme.accent2} />
               </LinearGradient>
             </View>
           )}
@@ -357,11 +357,11 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(254, 243, 199, 0.06)",
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(254, 243, 199, 0.12)",
     backdropFilter: "blur(20px)",
     ...Platform.select({
       ios: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.error,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(254, 243, 199, 0.12)",
   },
 
   // Profile Button
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(254, 243, 199, 0.2)",
   },
   profilePlaceholder: {
     width: 40,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(254, 243, 199, 0.2)",
   },
   profileInitial: {
     color: theme.textWhite,
@@ -451,11 +451,11 @@ const styles = StyleSheet.create({
 
   // Church Card
   churchCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(254, 243, 199, 0.08)",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(254, 243, 199, 0.12)",
   },
 
   // Church Card Header
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(254, 243, 199, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -525,11 +525,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(254, 243, 199, 0.06)",
     borderRadius: 12,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(254, 243, 199, 0.12)",
   },
   statItem: {
     alignItems: "center",
@@ -551,6 +551,6 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(254, 243, 199, 0.1)",
   },
 });

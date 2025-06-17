@@ -1,59 +1,59 @@
 import { Platform } from "react-native";
 
 export default {
-  // Christian Dark Theme - Clean black with sacred accents
+  // Christian Dark Theme - Warm and inviting with sacred accents
   // Main colors
-  primary: "#fbbf24", // Golden (divine light)
-  secondary: "#dc2626", // Crimson (sacrifice/love)
-  tertiary: "#2563eb", // Royal blue (heaven)
+  primary: "#f59e0b", // Warm amber (divine warmth)
+  secondary: "#ef4444", // Warm red (love/passion)
+  tertiary: "#3b82f6", // Softer blue (peace)
 
   // Accent colors
-  accent1: "#fbbf24", // Gold (glory)
-  accent2: "#ffffff", // Pure white (holiness)
-  accent3: "#dc2626", // Sacred crimson
+  accent1: "#fbbf24", // Soft gold (glory)
+  accent2: "#fef3c7", // Warm cream (light)
+  accent3: "#f87171", // Soft coral (warmth)
 
-  // Clean dark neutrals
-  neutral900: "#000000", // Pure black
-  neutral800: "#0a0a0a", // Deep black
-  neutral700: "#171717", // Dark charcoal
-  neutral600: "#262626", // Medium charcoal
-  neutral500: "#404040", // Light charcoal
-  neutral400: "#737373", // Gray
-  neutral300: "#a3a3a3", // Light gray
-  neutral200: "#d4d4d4", // Very light gray
-  neutral100: "#f5f5f5", // Off white
-  neutral50: "#ffffff", // Pure white
+  // Warm dark neutrals
+  neutral900: "#0a0908", // Warm black
+  neutral800: "#1a1815", // Warm deep brown
+  neutral700: "#292521", // Warm dark brown
+  neutral600: "#3d3a34", // Warm medium brown
+  neutral500: "#57534e", // Warm brown
+  neutral400: "#78716c", // Warm gray
+  neutral300: "#a8a29e", // Warm light gray
+  neutral200: "#d6d3d1", // Warm very light gray
+  neutral100: "#f5f5f4", // Warm off white
+  neutral50: "#fafaf9", // Warm white
 
   // Special colors
-  success: "#22c55e", // Life green
-  warning: "#f59e0b", // Amber
-  error: "#dc2626", // Sacred red
-  info: "#2563eb", // Heaven blue
+  success: "#34d399", // Soft mint green
+  warning: "#fbbf24", // Warm yellow
+  error: "#f87171", // Soft coral red
+  info: "#60a5fa", // Soft sky blue
 
-  // Text (clean dark theme)
-  textDark: "#000000",
-  textMedium: "rgba(255, 255, 255, 0.8)", // White with opacity
-  textLight: "rgba(255, 255, 255, 0.6)", // Softer white
-  textWhite: "#ffffff", // Pure white
+  // Text (warm dark theme)
+  textDark: "#1a1815",
+  textMedium: "rgba(254, 243, 199, 0.85)", // Warm cream with opacity
+  textLight: "rgba(254, 243, 199, 0.65)", // Softer warm cream
+  textWhite: "#fef3c7", // Warm cream white
 
-  // UI Elements (clean dark theme)
-  cardBg: "rgba(255, 255, 255, 0.03)", // Subtle white overlay
-  pageBg: "#000000", // Pure black
-  divider: "rgba(251, 191, 36, 0.2)", // Golden divider
-  overlay: "rgba(0, 0, 0, 0.9)", // Black overlay
-  overlayLight: "rgba(0, 0, 0, 0.5)", // Light black overlay
+  // UI Elements (warm dark theme)
+  cardBg: "rgba(254, 243, 199, 0.04)", // Subtle warm overlay
+  pageBg: "#0a0908", // Warm black
+  divider: "rgba(245, 158, 11, 0.25)", // Warm amber divider
+  overlay: "rgba(10, 9, 8, 0.85)", // Warm black overlay
+  overlayLight: "rgba(10, 9, 8, 0.5)", // Light warm black overlay
 
-  // Gradients (clean dark theme)
-  gradientPrimary: ["#fbbf24", "#f59e0b"], // Golden glory
-  gradientSecondary: ["#dc2626", "#b91c1c"], // Sacred crimson
-  gradientSuccess: ["#22c55e", "#16a34a"], // Life green
-  gradientWarning: ["#f59e0b", "#d97706"], // Amber
-  gradientDanger: ["#dc2626", "#b91c1c"], // Sacred red
-  gradientInfo: ["#2563eb", "#1d4ed8"], // Heaven blue
-  gradientLight: ["#ffffff", "#f5f5f5"], // Pure light
-  gradientNeutral: ["#404040", "#737373"], // Charcoal blend
-  gradientCool: ["#2563eb", "#1e40af"], // Cool blue
-  gradientWarm: ["#fbbf24", "#dc2626"], // Golden to crimson
+  // Gradients (warm dark theme)
+  gradientPrimary: ["#fbbf24", "#f59e0b"], // Warm golden glow
+  gradientSecondary: ["#f87171", "#ef4444"], // Warm coral to red
+  gradientSuccess: ["#34d399", "#10b981"], // Soft mint green
+  gradientWarning: ["#fbbf24", "#f59e0b"], // Warm amber
+  gradientDanger: ["#f87171", "#ef4444"], // Warm coral red
+  gradientInfo: ["#60a5fa", "#3b82f6"], // Soft sky blue
+  gradientLight: ["#fef3c7", "#f5f5f4"], // Warm cream light
+  gradientNeutral: ["#57534e", "#78716c"], // Warm brown blend
+  gradientCool: ["#60a5fa", "#3b82f6"], // Soft blue
+  gradientWarm: ["#fbbf24", "#f87171"], // Golden to coral
 
   // Typography
   fontRegular: "400",

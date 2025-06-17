@@ -593,12 +593,12 @@ const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) =>
               />
             ) : (
               <LinearGradient
-                colors={[theme.neutral100, theme.neutral200]}
+                colors={[theme.neutral700, theme.neutral600]}
                 style={isTablet ? styles.tabletEventImage : styles.eventImage}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <FontAwesome5 name="calendar-alt" size={28} color={theme.neutral400} />
+                <FontAwesome5 name="calendar-alt" size={28} color={theme.primary} />
               </LinearGradient>
             )}
           </View>
@@ -616,7 +616,7 @@ const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) =>
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <Ionicons name="repeat" size={12} color="#FFFFFF" />
+                  <Ionicons name="repeat" size={12} color={theme.textWhite} />
                   <Text style={styles.recurringText}>Recurring</Text>
                 </LinearGradient>
               )}
@@ -712,12 +712,12 @@ const CourseCard = ({ course }: { course: Course }) => {
               />
             ) : (
               <LinearGradient
-                colors={[theme.neutral100, theme.neutral200]}
+                colors={[theme.neutral700, theme.neutral600]}
                 style={isTablet ? styles.tabletCourseImage : styles.courseImage}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <FontAwesome5 name="church" size={28} color={theme.neutral400} />
+                <FontAwesome5 name="church" size={28} color={theme.primary} />
               </LinearGradient>
             )}
           </View>
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: theme.pageBg,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(251, 191, 36, 0.3)",
+    borderBottomColor: "rgba(245, 158, 11, 0.3)",
   },
   fixedHeader: {
     position: "absolute",
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.5)",
+    borderColor: "rgba(245, 158, 11, 0.4)",
   },
   headerSpacer: {
     width: 36,
@@ -836,11 +836,11 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacingL,
     marginTop: theme.spacingM,
     marginBottom: theme.spacingL,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(254, 243, 199, 0.04)",
     borderRadius: 10,
     padding: 2,
     borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.4)",
+    borderColor: "rgba(245, 158, 11, 0.35)",
   },
   // Modern Tab Styles
   modernTabsContainer: {
@@ -848,11 +848,11 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacingL,
     marginTop: theme.spacingL,
     marginBottom: theme.spacingL,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(254, 243, 199, 0.03)",
     borderRadius: 16,
     padding: 4,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(254, 243, 199, 0.08)",
   },
   tabletTabsContainer: {
     marginHorizontal: 0,
@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacingL,
   },
   adminCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(254, 243, 199, 0.04)",
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
@@ -1056,7 +1056,7 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(254, 243, 199, 0.08)",
   },
   modernComingSoonTitle: {
     fontSize: 22,
@@ -1106,11 +1106,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(254, 243, 199, 0.03)",
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.4)",
+    borderColor: "rgba(245, 158, 11, 0.35)",
   },
   eventCardContent: {
     flexDirection: "row",
@@ -1244,11 +1244,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(254, 243, 199, 0.03)",
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.4)",
+    borderColor: "rgba(245, 158, 11, 0.35)",
   },
   courseCardContent: {
     flexDirection: "row",

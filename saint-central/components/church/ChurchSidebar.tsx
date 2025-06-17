@@ -163,7 +163,7 @@ export default function ChurchSidebar({
 
                 {/* Close Button */}
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                  <AntDesign name="close" size={24} color="#FFFFFF" />
+                  <AntDesign name="close" size={24} color={theme.textWhite} />
                 </TouchableOpacity>
               </View>
             </ImageBackground>
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     width: SIDEBAR_WIDTH,
     height: "100%",
     left: 0,
-    backgroundColor: theme.neutral900,
+    backgroundColor: theme.neutral800,
     shadowColor: "#000000",
     shadowOffset: {
       width: 5,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   safeAreaSpacer: {
     height: Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 0,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backgroundColor: "rgba(10, 9, 8, 0.9)",
     width: "100%",
   },
   headerBackground: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   headerOverlay: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(10, 9, 8, 0.75)",
     paddingTop: 70,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -353,12 +353,12 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(254, 243, 199, 0.3)",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
     borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.8)",
+    borderColor: "rgba(254, 243, 199, 0.75)",
   },
   profileInitial: {
     color: theme.textWhite,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(254, 243, 199, 0.2)",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 70, // Move button down to match content
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     marginTop: -20,
-    backgroundColor: theme.neutral900,
+    backgroundColor: theme.neutral800,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
   },
@@ -436,14 +436,14 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(251, 191, 36, 0.3)",
+    backgroundColor: "rgba(245, 158, 11, 0.3)",
     marginVertical: 16,
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: "rgba(251, 191, 36, 0.3)",
-    backgroundColor: theme.neutral900,
+    borderTopColor: "rgba(245, 158, 11, 0.3)",
+    backgroundColor: theme.neutral800,
   },
   logoutButton: {
     flexDirection: "row",
