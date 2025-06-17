@@ -149,10 +149,10 @@ export default function ChurchPageHeader({ userData, onPressMenu }: Props) {
                 {/* Gradient Overlay */}
                 <LinearGradient
                   colors={[
-                    'rgba(10,9,8,0.1)',
-                    'rgba(10,9,8,0.3)',
-                    'rgba(10,9,8,0.6)',
-                    'rgba(26, 24, 21, 0.9)'
+                    'rgba(28,25,23,0.1)',
+                    'rgba(28,25,23,0.3)',
+                    'rgba(28,25,23,0.6)',
+                    'rgba(41, 37, 36, 0.9)'
                   ]}
                   locations={[0, 0.3, 0.7, 1]}
                   style={styles.heroGradientOverlay}
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: "rgba(254, 243, 199, 0.06)",
+    backgroundColor: "rgba(254, 243, 199, 0.1)",
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    backgroundColor: "rgba(254, 243, 199, 0.06)",
+    backgroundColor: "rgba(254, 243, 199, 0.1)",
     borderRadius: 12,
     paddingVertical: 12,
     borderWidth: 1,

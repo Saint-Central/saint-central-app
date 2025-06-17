@@ -12,15 +12,15 @@ export default {
   accent2: "#fef3c7", // Warm cream (light)
   accent3: "#f87171", // Soft coral (warmth)
 
-  // Warm dark neutrals
-  neutral900: "#0a0908", // Warm black
-  neutral800: "#1a1815", // Warm deep brown
-  neutral700: "#292521", // Warm dark brown
-  neutral600: "#3d3a34", // Warm medium brown
-  neutral500: "#57534e", // Warm brown
-  neutral400: "#78716c", // Warm gray
-  neutral300: "#a8a29e", // Warm light gray
-  neutral200: "#d6d3d1", // Warm very light gray
+  // Lighter warm dark neutrals
+  neutral900: "#1c1917", // Lighter warm black
+  neutral800: "#292524", // Lighter warm deep brown
+  neutral700: "#3f3a36", // Lighter warm dark brown
+  neutral600: "#57534e", // Lighter warm medium brown
+  neutral500: "#78716c", // Lighter warm brown
+  neutral400: "#a8a29e", // Warm gray
+  neutral300: "#d6d3d1", // Warm light gray
+  neutral200: "#e7e5e4", // Warm very light gray
   neutral100: "#f5f5f4", // Warm off white
   neutral50: "#fafaf9", // Warm white
 
@@ -36,12 +36,12 @@ export default {
   textLight: "rgba(254, 243, 199, 0.65)", // Softer warm cream
   textWhite: "#fef3c7", // Warm cream white
 
-  // UI Elements (warm dark theme)
-  cardBg: "rgba(254, 243, 199, 0.04)", // Subtle warm overlay
-  pageBg: "#0a0908", // Warm black
-  divider: "rgba(245, 158, 11, 0.25)", // Warm amber divider
-  overlay: "rgba(10, 9, 8, 0.85)", // Warm black overlay
-  overlayLight: "rgba(10, 9, 8, 0.5)", // Light warm black overlay
+  // UI Elements (lighter warm dark theme)
+  cardBg: "rgba(254, 243, 199, 0.06)", // Subtle warm overlay
+  pageBg: "#1c1917", // Lighter warm black
+  divider: "rgba(245, 158, 11, 0.3)", // Warm amber divider
+  overlay: "rgba(28, 25, 23, 0.85)", // Lighter warm black overlay
+  overlayLight: "rgba(28, 25, 23, 0.5)", // Light warm black overlay
 
   // Gradients (warm dark theme)
   gradientPrimary: ["#fbbf24", "#f59e0b"], // Warm golden glow

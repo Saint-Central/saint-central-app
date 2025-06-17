@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   safeAreaSpacer: {
     height: Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 0,
-    backgroundColor: "rgba(10, 9, 8, 0.9)",
+    backgroundColor: "rgba(28, 25, 23, 0.9)",
     width: "100%",
   },
   headerBackground: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   headerOverlay: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(10, 9, 8, 0.75)",
+    backgroundColor: "rgba(28, 25, 23, 0.75)",
     paddingTop: 70,
     paddingBottom: 20,
     paddingHorizontal: 20,
