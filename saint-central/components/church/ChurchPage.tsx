@@ -21,8 +21,11 @@ import Animated, {
   interpolate,
   Extrapolate,
   runOnJS,
+  withSequence,
+  withRepeat,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Church, ChurchEvent } from "@/types/church";
 import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
@@ -45,6 +48,7 @@ type Props = {
 const TABS = ["Home", "Events", "Ministries", "Fellowship"];
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 // Spring animation config
 const springConfig = {
@@ -77,6 +81,9 @@ export default function ChurchPage({ userData }: Props) {
   const appearAnim = useSharedValue(0);
   const tabContentAnim = useSharedValue(1);
   const tabSlideAnim = useSharedValue(0);
+  const fixedButtonScale = useSharedValue(1);
+  const fixedButtonRotation = useSharedValue(0);
+  const headerShimmerAnim = useSharedValue(0);
 
   const {
     data: { church, member },
@@ -144,7 +151,14 @@ export default function ChurchPage({ userData }: Props) {
       stiffness: 300,
       mass: 1,
     });
-  }, [appearAnim]);
+    
+    // Start header shimmer animation
+    headerShimmerAnim.value = withRepeat(
+      withTiming(1, { duration: 3000 }),
+      -1,
+      false
+    );
+  }, [appearAnim, headerShimmerAnim]);
 
   // Handle sidebar animation
   useEffect(() => {
@@ -162,14 +176,35 @@ export default function ChurchPage({ userData }: Props) {
     },
   });
 
-  // Animated styles for header
+  // Enhanced animated styles for sticky header
   const headerAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 50], [0, 1], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 50], [0.96, 1], Extrapolate.CLAMP);
+    const opacity = interpolate(scrollY.value, [0, 100], [0, 1], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 50], [-50, 0], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 100], [0.95, 1], Extrapolate.CLAMP);
+    const blur = interpolate(scrollY.value, [0, 100], [0, 20], Extrapolate.CLAMP);
 
     return {
       opacity,
-      transform: [{ scale }],
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  // Glass morphism backdrop style
+  const headerBackdropStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [50, 150], [0, 0.95], Extrapolate.CLAMP);
+    return {
+      opacity,
+    };
+  });
+
+  // Header content fade animation
+  const headerContentStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [80, 120], [0, 1], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [80, 120], [10, 0], Extrapolate.CLAMP);
+    
+    return {
+      opacity,
+      transform: [{ translateY }],
     };
   });
 
@@ -273,28 +308,127 @@ export default function ChurchPage({ userData }: Props) {
 
       {/* Fixed Header with Hamburger */}
       <View style={[styles.fixedHeader, { top: insets.top }]}>
-        <TouchableOpacity style={styles.fixedHeaderButton} onPress={toggleSidebar}>
-          <Ionicons name="menu" size={24} color={theme.primary} />
-        </TouchableOpacity>
+        <AnimatedTouchableOpacity 
+          style={[
+            styles.fixedHeaderButton,
+            useAnimatedStyle(() => ({
+              transform: [
+                { scale: fixedButtonScale.value },
+                { rotate: `${fixedButtonRotation.value}deg` }
+              ],
+            }))
+          ]} 
+          onPress={() => {
+            fixedButtonRotation.value = withSequence(
+              withSpring(-5, { damping: 10, stiffness: 200 }),
+              withSpring(5, { damping: 10, stiffness: 200 }),
+              withSpring(0, { damping: 15, stiffness: 400 })
+            );
+            toggleSidebar();
+          }}
+          onPressIn={() => {
+            fixedButtonScale.value = withSpring(0.9, { damping: 15, stiffness: 400 });
+          }}
+          onPressOut={() => {
+            fixedButtonScale.value = withSpring(1, { damping: 15, stiffness: 400 });
+          }}
+          activeOpacity={1}
+        >
+          <Animated.View
+            style={useAnimatedStyle(() => ({
+              transform: [{ rotate: `${interpolate(sidebarAnim.value, [0, 1], [0, 90])}deg` }],
+            }))}
+          >
+            <Ionicons name="menu" size={24} color={theme.primary} />
+          </Animated.View>
+        </AnimatedTouchableOpacity>
       </View>
 
-      {/* Safe Area Overlay */}
-      <Animated.View style={[styles.safeAreaOverlay, headerAnimatedStyle, { height: insets.top }]} />
+      {/* Safe Area Overlay with enhanced animation */}
+      <Animated.View 
+        style={[
+          styles.safeAreaOverlay, 
+          useAnimatedStyle(() => ({
+            opacity: interpolate(scrollY.value, [0, 100], [0, 1], Extrapolate.CLAMP),
+            backgroundColor: interpolate(
+              scrollY.value,
+              [0, 100],
+              [0, 0.95]
+            ) === 0 ? 'transparent' : theme.neutral900,
+          })),
+          { height: insets.top }
+        ]} 
+      />
 
       {/* Main content with animations */}
       <Animated.View style={[styles.mainContainer, contentAnimatedStyle]}>
-        {/* Floating header */}
+        {/* Enhanced Floating Sticky Header */}
         <Animated.View style={[styles.headerContainer, headerAnimatedStyle, { top: insets.top }]}>
-          <View style={styles.headerBackground} />
-          <View style={styles.headerContent}>
-            <View style={styles.headerSpacer} />
+          {/* Glass morphism backdrop */}
+          <Animated.View style={[styles.headerBackdrop, headerBackdropStyle]}>
+            {Platform.OS === 'ios' && (
+              <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
+          </Animated.View>
+          
+          {/* Gradient overlay */}
+          <LinearGradient
+            colors={['rgba(28,25,23,0.95)', 'rgba(28,25,23,0.85)', 'rgba(41,37,36,0.8)']}
+            style={styles.headerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+          
+          {/* Header content with animation */}
+          <Animated.View style={[styles.headerContent, headerContentStyle]}>
+            {/* Empty space for hamburger menu */}
+            <View style={styles.headerMenuSpacer} />
 
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {church?.name}
-            </Text>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {church?.name}
+              </Text>
+              <View style={styles.headerSubtitleContainer}>
+                <View style={styles.onlineIndicator} />
+                <Text style={styles.headerSubtitle}>Active Now</Text>
+              </View>
+            </View>
 
-            <View style={styles.headerSpacer} />
-          </View>
+            <TouchableOpacity 
+              style={styles.headerActionButton}
+              activeOpacity={0.7}
+            >
+              <View style={styles.headerIconContainer}>
+                <Ionicons name="notifications-outline" size={22} color={theme.accent2} />
+                <View style={styles.headerNotificationDot} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {/* Bottom border with animated shimmer */}
+          <Animated.View style={[styles.headerBorder, headerBackdropStyle]}>
+            <Animated.View
+              style={[
+                styles.headerBorderGradient,
+                useAnimatedStyle(() => ({
+                  transform: [{
+                    translateX: interpolate(
+                      headerShimmerAnim.value,
+                      [0, 1],
+                      [-200, 400]
+                    ),
+                  }],
+                }))
+              ]}
+            >
+              <LinearGradient
+                colors={['transparent', 'rgba(254,243,199,0.3)', 'rgba(254,243,199,0.5)', 'rgba(254,243,199,0.3)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ flex: 1, width: 200 }}
+              />
+            </Animated.View>
+          </Animated.View>
         </Animated.View>
 
         {/* Page content */}
@@ -773,53 +907,138 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    height: 48,
+    height: 64,
     zIndex: 100,
+    overflow: "hidden",
   },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: theme.spacingL,
-    height: "100%",
-    paddingTop: 4,
-    paddingBottom: 6,
-  },
-  headerBackground: {
+  headerBackdrop: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.pageBg,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(245, 158, 11, 0.3)",
+    backgroundColor: "rgba(28,25,23,0.3)",
+  },
+  headerGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: theme.spacingM,
+    height: "100%",
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  headerMenuSpacer: {
+    width: 52, // Same width as the menu button to maintain alignment
+  },
+  headerActionButton: {
+    padding: 8,
+    position: "relative",
+  },
+  headerIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(254,243,199,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(254,243,199,0.12)",
+    position: "relative",
+  },
+  headerNotificationDot: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    backgroundColor: theme.error,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "rgba(28,25,23,0.9)",
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: theme.textWhite,
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  headerSubtitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: theme.textLight,
+    opacity: 0.8,
+  },
+  onlineIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.success,
+  },
+  headerBorder: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    overflow: "hidden",
+  },
+  headerBorderGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 200,
   },
   fixedHeader: {
     position: "absolute",
     left: 0,
-    paddingLeft: theme.spacingL,
-    paddingTop: 0,
+    paddingLeft: theme.spacingM,
+    paddingTop: 8,
     zIndex: 101, // Higher than other headers
   },
   fixedHeaderButton: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radiusFull,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(254, 243, 199, 0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.4)",
+    borderColor: "rgba(254, 243, 199, 0.2)",
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   headerSpacer: {
     width: 36,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textWhite,
-    maxWidth: "70%",
   },
   scrollViewContent: {
     paddingTop: 0,
