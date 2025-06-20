@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import { supabase } from "../supabaseClient";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createCRUDClient } from "./crudClient";
 
 // Set up notification handler - how notifications are presented while app is in foreground
 Notifications.setNotificationHandler({
@@ -18,6 +19,55 @@ Notifications.setNotificationHandler({
 const PUSH_TOKEN_KEY = "pushToken";
 const USER_NOTIFICATION_PREFERENCES = "userNotificationPreferences";
 const APP_STATE_KEY = "appState";
+const ACCESS_TOKEN_KEY = "@auth_access_token";
+
+// Helper function to get access token for non-React contexts
+async function getAccessToken(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch (error) {
+    console.error("Error getting access token:", error);
+    return null;
+  }
+}
+
+// Helper function to get current user from new auth system
+async function getCurrentUser(): Promise<{ id: string; email?: string; role: string } | null> {
+  try {
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      return null;
+    }
+
+    // Validate session to get user data
+    const response = await fetch("https://auth-worker.colinmcherney.workers.dev/auth/session", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const sessionData = await response.json();
+
+    if (sessionData.success && sessionData.valid) {
+      return {
+        id: sessionData.user_id,
+        email: sessionData.email,
+        role: sessionData.role,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error getting current user:", error);
+    return null;
+  }
+}
 
 // Default user preferences for different notification types
 const DEFAULT_NOTIFICATION_PREFERENCES = {
@@ -84,47 +134,39 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 }
 
 /**
- * Save the device token to the Supabase database for the current user
+ * Save the device token to the database for the current user
  */
 export async function saveUserPushToken(pushToken: string | undefined): Promise<void> {
   if (!pushToken) return;
 
   try {
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    // Create CRUD client
+    const crudClient = await createCRUDClient(getAccessToken);
 
-    if (userError || !user) {
-      console.error("Error getting user:", userError);
+    // Get current user from new auth system
+    const user = await getCurrentUser();
+
+    if (!user) {
+      console.error("Error getting user - not authenticated");
       return;
     }
 
-    // Check if token already exists
-    const { data: existingTokens, error: checkError } = await supabase
-      .from("user_push_tokens")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("token", pushToken);
-
-    if (checkError) {
-      console.error("Error checking existing token:", checkError);
-      return;
-    }
+    // Check if token already exists using new API
+    const existingTokens = await crudClient.select("user_push_tokens", {
+      where: {
+        user_id: user.id,
+        token: pushToken
+      }
+    });
 
     // If token doesn't exist, save it
     if (!existingTokens || existingTokens.length === 0) {
-      const { error } = await supabase.from("user_push_tokens").insert({
+      await crudClient.insert("user_push_tokens", {
         user_id: user.id,
         token: pushToken,
         device_type: Platform.OS,
         created_at: new Date().toISOString(),
       });
-
-      if (error) {
-        console.error("Error saving push token:", error);
-      }
     }
   } catch (error) {
     console.error("Error in saveUserPushToken:", error);
@@ -146,25 +188,34 @@ export async function updateNotificationPreferences(
     const newPrefs = { ...currentPrefs, ...preferences };
     await AsyncStorage.setItem(USER_NOTIFICATION_PREFERENCES, JSON.stringify(newPrefs));
 
-    // Save to database
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    // Save to database using new API
+    const crudClient = await createCRUDClient(getAccessToken);
+    
+    const user = await getCurrentUser();
 
-    if (userError || !user) {
-      console.error("Error getting user:", userError);
+    if (!user) {
+      console.error("Error getting user - not authenticated");
       return;
     }
 
-    const { error } = await supabase.from("user_preferences").upsert({
-      user_id: user.id,
-      notification_preferences: newPrefs,
-      updated_at: new Date().toISOString(),
+    // Check if preferences exist first
+    const existingPrefs = await crudClient.selectOne("user_preferences", {
+      where: { user_id: user.id }
     });
 
-    if (error) {
-      console.error("Error saving notification preferences:", error);
+    if (existingPrefs) {
+      // Update existing preferences
+      await crudClient.update("user_preferences", {
+        notification_preferences: newPrefs,
+        updated_at: new Date().toISOString(),
+      }, { user_id: user.id });
+    } else {
+      // Insert new preferences
+      await crudClient.insert("user_preferences", {
+        user_id: user.id,
+        notification_preferences: newPrefs,
+        updated_at: new Date().toISOString(),
+      });
     }
   } catch (error) {
     console.error("Error updating notification preferences:", error);
@@ -182,25 +233,22 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
       return JSON.parse(storedPrefs);
     }
 
-    // If not in local storage, try to get from database
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    // If not in local storage, try to get from database using new API
+    const crudClient = await createCRUDClient(getAccessToken);
+    
+    const user = await getCurrentUser();
 
-    if (userError || !user) {
-      console.error("Error getting user:", userError);
+    if (!user) {
+      console.error("Error getting user - not authenticated");
       return DEFAULT_NOTIFICATION_PREFERENCES;
     }
 
-    const { data, error } = await supabase
-      .from("user_preferences")
-      .select("notification_preferences")
-      .eq("user_id", user.id)
-      .single();
+    const data = await crudClient.selectOne("user_preferences", {
+      select: "notification_preferences",
+      where: { user_id: user.id }
+    });
 
-    if (error || !data) {
-      console.error("Error getting notification preferences:", error);
+    if (!data || !data.notification_preferences) {
       return DEFAULT_NOTIFICATION_PREFERENCES;
     }
 
@@ -269,34 +317,30 @@ export async function updateAppState(
  */
 export async function sendMinistryMessage(ministryId: number, messageText: string): Promise<void> {
   try {
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    // Create CRUD client
+    const crudClient = await createCRUDClient(getAccessToken);
+    
+    // Get current user from new auth system
+    const user = await getCurrentUser();
 
-    if (userError || !user) {
-      console.error("Error getting user:", userError);
+    if (!user) {
+      console.error("Error getting user - not authenticated");
       return;
     }
 
     // Check app state to determine if push notifications will be handled by Edge Function
     const isInForeground = await isAppInForeground();
 
-    // Add message to database
+    // Add message to database using new API
     // If app is in foreground, mark push_sent as true since we'll handle notifications in the app
     // If app is in background, mark push_sent as false so the Edge Function will send push notifications
-    const { error } = await supabase.from("ministry_messages").insert({
+    await crudClient.insert("ministry_messages", {
       ministry_id: ministryId,
       user_id: user.id,
       message_text: messageText,
       sent_at: new Date().toISOString(),
       push_sent: isInForeground, // If app is in foreground, we don't need the Edge Function to send push
     });
-
-    if (error) {
-      console.error("Error sending ministry message:", error);
-    }
   } catch (error) {
     console.error("Error in sendMinistryMessage:", error);
   }
@@ -311,22 +355,22 @@ export async function sendMinistryNotification(
   message: string,
 ): Promise<void> {
   try {
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    // Create CRUD client
+    const crudClient = await createCRUDClient(getAccessToken);
+    
+    // Get current user from new auth system
+    const user = await getCurrentUser();
 
-    if (userError || !user) {
-      console.error("Error getting user:", userError);
+    if (!user) {
+      console.error("Error getting user - not authenticated");
       return;
     }
 
     // Check app state to determine if push notifications will be handled by Edge Function
     const isInForeground = await isAppInForeground();
 
-    // Add notification to database
-    const { error } = await supabase.from("ministry_notifications").insert({
+    // Add notification to database using new API
+    await crudClient.insert("ministry_notifications", {
       ministry_id: ministryId,
       sender_id: user.id,
       title,
@@ -334,10 +378,6 @@ export async function sendMinistryNotification(
       created_at: new Date().toISOString(),
       push_sent: isInForeground, // If app is in foreground, we don't need the Edge Function to send push
     });
-
-    if (error) {
-      console.error("Error sending ministry notification:", error);
-    }
   } catch (error) {
     console.error("Error in sendMinistryNotification:", error);
   }
@@ -373,10 +413,8 @@ export function setupMinistryNotificationsListener(ministryIds: number[] = []): 
         async (payload) => {
           const notification = payload.new;
 
-          // Get current user
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+          // Get current user from new auth system
+          const user = await getCurrentUser();
 
           if (!user) return;
 
@@ -396,11 +434,16 @@ export function setupMinistryNotificationsListener(ministryIds: number[] = []): 
             type: "ministry_notification",
           });
 
-          // Mark this notification as push_sent=true since we've handled it locally
-          await supabase
-            .from("ministry_notifications")
-            .update({ push_sent: true })
-            .eq("id", notification.id);
+          // Mark this notification as push_sent=true since we've handled it locally using new API
+          try {
+            const crudClient = await createCRUDClient(getAccessToken);
+            await crudClient.update("ministry_notifications", 
+              { push_sent: true }, 
+              { id: notification.id }
+            );
+          } catch (updateError) {
+            console.error("Error updating notification push_sent status:", updateError);
+          }
         },
       );
     });
@@ -454,31 +497,29 @@ export function setupMinistryMessagesListener(ministryIds: number[] = []): () =>
         async (payload) => {
           const message = payload.new;
 
-          // Get current user
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+          // Get current user from new auth system
+          const user = await getCurrentUser();
 
           if (!user) return;
 
           // Don't notify for your own messages
           if (message.user_id === user.id) return;
 
-          // Get ministry details for the notification title
-          const { data: ministryData } = await supabase
-            .from("ministries")
-            .select("name")
-            .eq("id", ministryId)
-            .single();
+          // Get ministry details for the notification title using new API
+          const crudClient = await createCRUDClient(getAccessToken);
+          
+          const ministryData = await crudClient.selectOne("ministries", {
+            select: "name",
+            where: { id: ministryId }
+          });
 
           if (!ministryData) return;
 
-          // Get message sender details
-          const { data: senderData } = await supabase
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", message.user_id)
-            .single();
+          // Get message sender details using new API
+          const senderData = await crudClient.selectOne("users", {
+            select: "first_name, last_name",
+            where: { id: message.user_id }
+          });
 
           const senderName = senderData
             ? `${senderData.first_name} ${senderData.last_name}`
@@ -501,8 +542,15 @@ export function setupMinistryMessagesListener(ministryIds: number[] = []): () =>
             },
           );
 
-          // Mark this message as push_sent=true since we've handled it locally
-          await supabase.from("ministry_messages").update({ push_sent: true }).eq("id", message.id);
+          // Mark this message as push_sent=true since we've handled it locally using new API
+          try {
+            await crudClient.update("ministry_messages", 
+              { push_sent: true }, 
+              { id: message.id }
+            );
+          } catch (updateError) {
+            console.error("Error updating message push_sent status:", updateError);
+          }
         },
       );
     });
