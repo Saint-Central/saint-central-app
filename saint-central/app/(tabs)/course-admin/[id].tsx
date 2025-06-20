@@ -74,9 +74,9 @@ const CourseAdminDashboard: React.FC = () => {
 
     try {
       // Check if user is admin or owner of the church
-      const courseData = await crud.selectOne<Course>("courses", {
+      const courseData = await crud.selectOne("courses", {
         where: { id: Number(id) },
-      });
+      }) as Course | null;
 
       if (courseData) {
         const churchMember = await crud.selectOne("church_members", {
@@ -99,9 +99,9 @@ const CourseAdminDashboard: React.FC = () => {
       setLoading(true);
 
       // Fetch course details
-      const courseData = await crud.selectOne<Course>("courses", {
+      const courseData = await crud.selectOne("courses", {
         where: { id: Number(id) },
-      });
+      }) as Course | null;
 
       if (!courseData) {
         Alert.alert("Error", "Course not found");
@@ -112,10 +112,9 @@ const CourseAdminDashboard: React.FC = () => {
       setCourse(courseData);
 
       // Fetch enrollments
-      const enrollments = await crud.select<CourseEnrollment>("course_enrollment", {
+      const enrollments = await crud.select("course_enrollment", {
         where: { course_id: Number(id) },
-        orderBy: { enrollment_date: "desc" },
-      });
+      }) as CourseEnrollment[];
 
       // Fetch user details for each enrollment
       const membersData: EnrolledMember[] = [];
@@ -536,7 +535,7 @@ const styles = StyleSheet.create({
   privacyBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.borderLight,
+    backgroundColor: theme.neutral600,
     paddingHorizontal: theme.spacingS,
     paddingVertical: 4,
     borderRadius: theme.radiusSmall,

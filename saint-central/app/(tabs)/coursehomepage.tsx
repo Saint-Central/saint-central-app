@@ -210,10 +210,9 @@ const CourseHomePage: React.FC = () => {
       setLoading(true);
 
       // Fetch courses for the selected church
-      const coursesData = await crud.select<Course>("courses", {
+      const coursesData = await crud.select("courses", {
         where: { church_id: selectedChurchId },
-        orderBy: { time: "desc" },
-      });
+      }) as Course[];
 
       if (coursesData) {
         setCourses(coursesData);
@@ -417,24 +416,7 @@ const CourseHomePage: React.FC = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Render search bar
-  const renderSearchBar = () => (
-    <View style={styles.searchContainer}>
-      <Feather name="search" size={18} color={theme.textLight} style={styles.searchIcon} />
-      <TextInput
-        style={styles.searchInput}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search courses..."
-        placeholderTextColor={theme.textLight}
-      />
-      {searchQuery.length > 0 && (
-        <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery("")}>
-          <Feather name="x" size={18} color={theme.textLight} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  // This function is no longer used since search is handled in the main JSX
 
   // Render modern course card
   const renderCourseCard = ({ item }: { item: Course }) => {
@@ -645,7 +627,7 @@ const CourseHomePage: React.FC = () => {
                 </Text>
                 {(church.role === "admin" || church.role === "owner") && (
                   <View style={styles.adminBadge}>
-                    <Feather name="crown" size={10} color={theme.primary} />
+                    <Feather name="star" size={10} color={theme.primary} />
                   </View>
                 )}
               </TouchableOpacity>

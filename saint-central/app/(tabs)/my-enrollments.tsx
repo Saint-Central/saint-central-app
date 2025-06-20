@@ -54,19 +54,18 @@ const MyEnrollmentsPage: React.FC = () => {
       setLoading(true);
 
       // Fetch user's enrollments
-      const enrollments = await crud.select<CourseEnrollment>("course_enrollment", {
+      const enrollments = await crud.select("course_enrollment", {
         where: { user_id: user.id },
-        orderBy: { enrollment_date: "desc" },
-      });
+      }) as CourseEnrollment[];
 
       if (enrollments && enrollments.length > 0) {
         // Fetch course details for each enrollment
         const coursesWithEnrollment: EnrolledCourse[] = [];
 
         for (const enrollment of enrollments) {
-          const course = await crud.selectOne<Course>("courses", {
+          const course = await crud.selectOne("courses", {
             where: { id: enrollment.course_id },
-          });
+          }) as Course | null;
 
           if (course) {
             coursesWithEnrollment.push({
@@ -454,7 +453,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacingM,
     paddingTop: theme.spacingM,
     borderTopWidth: 1,
-    borderTopColor: theme.borderLight,
+    borderTopColor: theme.neutral600,
   },
   enrollmentText: {
     fontSize: 12,

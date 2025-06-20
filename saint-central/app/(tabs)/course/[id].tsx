@@ -53,26 +53,26 @@ const CourseDetailPage: React.FC = () => {
       setLoading(true);
 
       // Fetch course details
-      const courseData = await crud.selectOne<Course>("courses", {
+      const courseData = await crud.selectOne("courses", {
         where: { id: Number(id) },
-      });
+      }) as Course | null;
 
       if (!courseData) {
         Alert.alert("Error", "Course not found");
-        router.back();
+        router.push("/coursehomepage");
         return;
       }
 
       setCourse(courseData);
 
       // Check if user is enrolled
-      const enrollmentData = await crud.select<CourseEnrollment>("course_enrollment", {
+      const enrollmentData = await crud.select("course_enrollment", {
         where: {
           user_id: user?.id,
           course_id: Number(id),
         },
         limit: 1,
-      });
+      }) as CourseEnrollment[];
 
       if (enrollmentData && enrollmentData.length > 0) {
         setEnrollment(enrollmentData[0]);
@@ -258,7 +258,7 @@ const CourseDetailPage: React.FC = () => {
               <Switch
                 value={hideEmail}
                 onValueChange={setHideEmail}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                trackColor={{ false: theme.neutral600, true: theme.primary }}
                 thumbColor={hideEmail ? theme.textWhite : theme.textLight}
               />
             </View>
@@ -268,7 +268,7 @@ const CourseDetailPage: React.FC = () => {
               <Switch
                 value={hidePhone}
                 onValueChange={setHidePhone}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                trackColor={{ false: theme.neutral600, true: theme.primary }}
                 thumbColor={hidePhone ? theme.textWhite : theme.textLight}
               />
             </View>
@@ -278,7 +278,7 @@ const CourseDetailPage: React.FC = () => {
               <Switch
                 value={hideName}
                 onValueChange={setHideName}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                trackColor={{ false: theme.neutral600, true: theme.primary }}
                 thumbColor={hideName ? theme.textWhite : theme.textLight}
               />
             </View>
@@ -319,7 +319,7 @@ const CourseDetailPage: React.FC = () => {
                   setHideEmail(value);
                   updatePrivacySettings();
                 }}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                trackColor={{ false: theme.neutral600, true: theme.primary }}
                 thumbColor={hideEmail ? theme.textWhite : theme.textLight}
               />
             </View>
@@ -332,7 +332,7 @@ const CourseDetailPage: React.FC = () => {
                   setHidePhone(value);
                   updatePrivacySettings();
                 }}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                trackColor={{ false: theme.neutral600, true: theme.primary }}
                 thumbColor={hidePhone ? theme.textWhite : theme.textLight}
               />
             </View>
@@ -345,7 +345,7 @@ const CourseDetailPage: React.FC = () => {
                   setHideName(value);
                   updatePrivacySettings();
                 }}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                trackColor={{ false: theme.neutral600, true: theme.primary }}
                 thumbColor={hideName ? theme.textWhite : theme.textLight}
               />
             </View>
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: theme.spacingM,
     borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
+    borderBottomColor: theme.neutral600,
   },
   privacyLabel: {
     fontSize: 16,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   enrolledBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.successLight,
+    backgroundColor: theme.cardBg,
     padding: theme.spacingM,
     borderRadius: theme.radiusSmall,
     marginBottom: theme.spacingM,
