@@ -169,41 +169,95 @@ export default function ChurchPage({ userData }: Props) {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Scroll event handler
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+  // Ultra-smooth scroll handler
+  const scrollHandler = useAnimatedScrollHandler(
+    {
+      onScroll: (event) => {
+        // Use spring animation for ultra-smooth value updates
+        scrollY.value = withSpring(event.contentOffset.y, {
+          damping: 50,
+          stiffness: 400,
+          mass: 0.8,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        });
+      },
     },
-  });
+    []
+  );
 
-  // Enhanced animated styles for sticky header
+  // Ultra-smooth header animation
   const headerAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 100], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(scrollY.value, [0, 50], [-50, 0], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 100], [0.95, 1], Extrapolate.CLAMP);
-    const blur = interpolate(scrollY.value, [0, 100], [0, 20], Extrapolate.CLAMP);
-
+    // Extended range for ultra-smooth interpolation
+    const progress = interpolate(
+      scrollY.value, 
+      [0, 80, 120], 
+      [0, 0.8, 1], 
+      Extrapolate.CLAMP
+    );
+    
+    // Natural easing curves for smoothness
+    const easedProgress = interpolate(
+      progress,
+      [0, 1],
+      [0, 1],
+      Extrapolate.CLAMP,
+      'easeOutCubic'
+    );
+    
+    // Smooth transforms with natural motion
+    const translateY = interpolate(easedProgress, [0, 1], [-20, 0]);
+    const scale = interpolate(easedProgress, [0, 1], [0.98, 1]);
+    
     return {
-      opacity,
+      opacity: easedProgress,
       transform: [{ translateY }, { scale }],
     };
   });
 
-  // Glass morphism backdrop style
+  // Ultra-smooth backdrop animation
   const headerBackdropStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [50, 150], [0, 0.95], Extrapolate.CLAMP);
+    const progress = interpolate(
+      scrollY.value, 
+      [0, 60, 120], 
+      [0, 0.5, 1], 
+      Extrapolate.CLAMP
+    );
+    
+    const easedOpacity = interpolate(
+      progress,
+      [0, 1],
+      [0, 0.95],
+      Extrapolate.CLAMP,
+      'easeOutQuart'
+    );
+    
     return {
-      opacity,
+      opacity: easedOpacity,
     };
   });
 
-  // Header content fade animation
+  // Ultra-smooth content animation
   const headerContentStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [80, 120], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(scrollY.value, [80, 120], [10, 0], Extrapolate.CLAMP);
+    const progress = interpolate(
+      scrollY.value, 
+      [40, 100, 120], 
+      [0, 0.7, 1], 
+      Extrapolate.CLAMP
+    );
+    
+    const easedProgress = interpolate(
+      progress,
+      [0, 1],
+      [0, 1],
+      Extrapolate.CLAMP,
+      'easeOutQuint'
+    );
+    
+    const translateY = interpolate(easedProgress, [0, 1], [3, 0]);
     
     return {
-      opacity,
+      opacity: easedProgress,
       transform: [{ translateY }],
     };
   });
@@ -344,18 +398,31 @@ export default function ChurchPage({ userData }: Props) {
         </AnimatedTouchableOpacity>
       </View>
 
-      {/* Safe Area Overlay with enhanced animation */}
+      {/* Safe Area Overlay with ultra-smooth animation */}
       <Animated.View 
         style={[
           styles.safeAreaOverlay, 
-          useAnimatedStyle(() => ({
-            opacity: interpolate(scrollY.value, [0, 100], [0, 1], Extrapolate.CLAMP),
-            backgroundColor: interpolate(
-              scrollY.value,
-              [0, 100],
-              [0, 0.95]
-            ) === 0 ? 'transparent' : theme.neutral900,
-          })),
+          useAnimatedStyle(() => {
+            const progress = interpolate(
+              scrollY.value, 
+              [0, 60, 120], 
+              [0, 0.3, 1], 
+              Extrapolate.CLAMP
+            );
+            
+            const easedOpacity = interpolate(
+              progress,
+              [0, 1],
+              [0, 1],
+              Extrapolate.CLAMP,
+              'easeOutQuart'
+            );
+            
+            return {
+              opacity: easedOpacity,
+              backgroundColor: theme.neutral900,
+            };
+          }),
           { height: insets.top }
         ]} 
       />
