@@ -39,6 +39,7 @@ const CourseDetailPage: React.FC = () => {
     StatusBar.setBarStyle("light-content");
     if (Platform.OS === "android") {
       StatusBar.setBackgroundColor(theme.primary);
+      StatusBar.setTranslucent(false);
     }
   }, []);
 
@@ -201,6 +202,7 @@ const CourseDetailPage: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.push("/coursehomepage")} style={styles.backButton}>
@@ -211,7 +213,11 @@ const CourseDetailPage: React.FC = () => {
         </View>
       </SafeAreaView>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {course.image_url && (
           <View style={styles.imageContainer}>
             <Image source={{ uri: course.image_url }} style={styles.courseImage} resizeMode="cover" />
@@ -368,6 +374,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     backgroundColor: theme.primary,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   header: {
     flexDirection: "row",
@@ -390,6 +397,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 120, // Space above tab bar for enrollment section
   },
   loadingContainer: {
     flex: 1,
