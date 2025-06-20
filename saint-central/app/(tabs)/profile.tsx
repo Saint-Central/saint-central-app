@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // API Configuration
 const AUTH_API_BASE = "https://auth-worker.colinmcherney.workers.dev";
 const CRUD_API_BASE = "https://crud-worker.colinmcherney.workers.dev";
+const STORAGE_API_BASE = "https://storage-worker.colinmcherney.workers.dev";
 
 interface UserProfile {
   id: string;
@@ -121,7 +122,11 @@ const denominations = [
 ];
 
 // API Helper Functions
-const apiCall = async (url: string, options: RequestInit = {}, getAccessToken: () => Promise<string | null>) => {
+const apiCall = async (
+  url: string,
+  options: RequestInit = {},
+  getAccessToken: () => Promise<string | null>,
+) => {
   const token = await getAccessToken();
 
   const headers: Record<string, string> = {
@@ -146,6 +151,63 @@ const apiCall = async (url: string, options: RequestInit = {}, getAccessToken: (
   return response.json();
 };
 
+// Storage API upload function using base64 data
+const uploadToStorageBase64 = async (
+  base64Data: string,
+  fileName: string,
+  getAccessToken: () => Promise<string | null>,
+) => {
+  try {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new Error("No access token available");
+    }
+
+    console.log("Base64 data size:", base64Data.length);
+
+    // Upload via storage API with base64 data
+    const uploadResponse = await fetch(`${STORAGE_API_BASE}/storage/upload`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        operation: "UPLOAD",
+        bucket: "profile-images",
+        fileName: fileName,
+        contentType: "image/jpeg",
+        data: base64Data,
+        encoding: "base64",
+        options: {
+          upsert: true,
+          cacheControl: "max-age=31536000",
+        },
+      }),
+    });
+
+    if (!uploadResponse.ok) {
+      const error = await uploadResponse.json().catch(() => ({ error: "Network error" }));
+      throw new Error(error.error || "Failed to upload via storage API");
+    }
+
+    const uploadData = await uploadResponse.json();
+    console.log("Storage API response:", uploadData);
+
+    if (!uploadData.success) {
+      throw new Error("Upload failed: " + (uploadData.error || "Unknown error"));
+    }
+
+    // With the updated storage worker, we should get a direct public URL
+    return uploadData.publicUrl || uploadData.signedUrl || uploadData.url;
+
+  } catch (error) {
+    console.error("Storage upload error:", error);
+    throw error;
+  }
+};
+
+
 // Remove these functions since we're using AuthContext
 
 export default function MeScreen() {
@@ -165,6 +227,9 @@ export default function MeScreen() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [denominationModalVisible, setDenominationModalVisible] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const router = useRouter();
 
   // Animation values
@@ -216,14 +281,18 @@ export default function MeScreen() {
         return;
       }
 
-      const response = await apiCall(CRUD_API_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          operation: "SELECT",
-          table: "users",
-          where: { id: user.id },
-        }),
-      }, getAccessToken);
+      const response = await apiCall(
+        CRUD_API_BASE,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "SELECT",
+            table: "users",
+            where: { id: user.id },
+          }),
+        },
+        getAccessToken,
+      );
 
       if (response.success && response.data.length > 0) {
         const data = response.data[0];
@@ -234,6 +303,9 @@ export default function MeScreen() {
           profile_image: data.profile_image || "",
           denomination: data.denomination || "",
         });
+
+        // Set profile image URL directly from database
+        setProfileImageUrl(data.profile_image);
       } else {
         setError("Profile not found");
       }
@@ -263,35 +335,65 @@ export default function MeScreen() {
         return;
       }
 
-      // Launch image picker
+      // Launch image picker with reasonable quality for profile images
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7, // Good quality for profile images
+        base64: true, // Get base64 directly from picker
+        exif: false, // Don't include EXIF data to reduce size
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageAsset = result.assets[0];
-        const imageUri = imageAsset.uri;
+        const base64Data = imageAsset.base64;
 
-        // For now, just store the local URI
-        // In a full implementation, you'd upload this to your storage service
-        setEditForm((prev) => ({
-          ...prev,
-          profile_image: imageUri,
-        }));
-
-        // Enable editing mode if not already in it
-        if (!isEditing) {
-          setIsEditing(true);
+        if (!base64Data) {
+          Alert.alert("Error", "Failed to process image");
+          return;
         }
 
-        Alert.alert(
-          "Image Selected",
-          "Your profile image has been selected. Click 'Save Changes' to update your profile.",
-          [{ text: "OK" }],
-        );
+        try {
+          // Start loading
+          setIsUploading(true);
+
+          // Generate unique filename
+          const timestamp = Date.now();
+          const userId = user?.id || "anonymous";
+          const fileName = `profile_${userId}_${timestamp}.jpg`;
+
+          // Upload using base64 data directly with improved storage worker
+          const uploadedImageUrl = await uploadToStorageBase64(base64Data, fileName, getAccessToken);
+
+          // Update form with the URL (for saving to database)
+          setEditForm((prev) => ({
+            ...prev,
+            profile_image: uploadedImageUrl,
+          }));
+
+          // Update profile image URL for immediate display
+          setProfileImageUrl(uploadedImageUrl);
+
+          // Enable editing mode if not already in it
+          if (!isEditing) {
+            setIsEditing(true);
+          }
+
+          // Stop loading and show success
+          setIsUploading(false);
+          setShowSuccessModal(true);
+
+          // Haptic feedback for success
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (uploadError) {
+          setIsUploading(false);
+          console.error("Upload error:", uploadError);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert("Upload Failed", "Failed to upload image. Please try again.", [
+            { text: "OK" },
+          ]);
+        }
       }
     } catch (err) {
       console.error("Image picker error:", err);
@@ -305,21 +407,25 @@ export default function MeScreen() {
 
       if (!user?.id) return;
 
-      const response = await apiCall(CRUD_API_BASE, {
-        method: "POST",
-        body: JSON.stringify({
-          operation: "UPDATE",
-          table: "users",
-          where: { id: user.id },
-          data: {
-            first_name: editForm.first_name,
-            last_name: editForm.last_name,
-            profile_image: editForm.profile_image,
-            denomination: editForm.denomination,
-            updated_at: new Date().toISOString(),
-          },
-        }),
-      }, getAccessToken);
+      const response = await apiCall(
+        CRUD_API_BASE,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "UPDATE",
+            table: "users",
+            where: { id: user.id },
+            data: {
+              first_name: editForm.first_name,
+              last_name: editForm.last_name,
+              profile_image: editForm.profile_image,
+              denomination: editForm.denomination,
+              updated_at: new Date().toISOString(),
+            },
+          }),
+        },
+        getAccessToken,
+      );
 
       if (response.success && response.data.length > 0) {
         const data = response.data[0];
@@ -330,6 +436,9 @@ export default function MeScreen() {
           profile_image: data.profile_image || "",
           denomination: data.denomination || "",
         });
+
+        // Update profile image URL directly from database
+        setProfileImageUrl(data.profile_image);
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -385,14 +494,18 @@ export default function MeScreen() {
       // Process all deletions
       for (const table of tables) {
         try {
-          await apiCall(CRUD_API_BASE, {
-            method: "POST",
-            body: JSON.stringify({
-              operation: "DELETE",
-              table: table,
-              where: { user_id: userId },
-            }),
-          }, getAccessToken);
+          await apiCall(
+            CRUD_API_BASE,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                operation: "DELETE",
+                table: table,
+                where: { user_id: userId },
+              }),
+            },
+            getAccessToken,
+          );
         } catch (error) {
           console.error(`Error deleting from ${table}:`, error);
           // Continue with other tables
@@ -401,41 +514,53 @@ export default function MeScreen() {
 
       // Handle friends table which has user_id_1 and user_id_2
       try {
-        await apiCall(CRUD_API_BASE, {
-          method: "POST",
-          body: JSON.stringify({
-            operation: "DELETE",
-            table: "friends",
-            where: { user_id_1: userId },
-          }),
-        }, getAccessToken);
+        await apiCall(
+          CRUD_API_BASE,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: "friends",
+              where: { user_id_1: userId },
+            }),
+          },
+          getAccessToken,
+        );
       } catch (error) {
         console.error("Error deleting friends (user_id_1):", error);
       }
 
       try {
-        await apiCall(CRUD_API_BASE, {
-          method: "POST",
-          body: JSON.stringify({
-            operation: "DELETE",
-            table: "friends",
-            where: { user_id_2: userId },
-          }),
-        }, getAccessToken);
+        await apiCall(
+          CRUD_API_BASE,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: "friends",
+              where: { user_id_2: userId },
+            }),
+          },
+          getAccessToken,
+        );
       } catch (error) {
         console.error("Error deleting friends (user_id_2):", error);
       }
 
       // Delete the user record last
       try {
-        await apiCall(CRUD_API_BASE, {
-          method: "POST",
-          body: JSON.stringify({
-            operation: "DELETE",
-            table: "users",
-            where: { id: userId },
-          }),
-        }, getAccessToken);
+        await apiCall(
+          CRUD_API_BASE,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: "users",
+              where: { id: userId },
+            }),
+          },
+          getAccessToken,
+        );
       } catch (error) {
         console.error("Error deleting user:", error);
       }
@@ -653,8 +778,8 @@ export default function MeScreen() {
           ]}
         >
           <View style={styles.avatarContainer}>
-            {userProfile.profile_image ? (
-              <Image source={{ uri: userProfile.profile_image }} style={styles.avatarImage} />
+            {profileImageUrl ? (
+              <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} />
             ) : (
               <LinearGradient
                 colors={theme.gradientPrimary}
@@ -1150,6 +1275,76 @@ export default function MeScreen() {
           <NotificationSettings onClose={toggleNotificationSettings} />
         </Modal>
       )}
+
+      {/* Upload Loading Overlay */}
+      {isUploading && (
+        <Modal
+          visible={isUploading}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.uploadOverlay}>
+            <BlurView intensity={80} tint="dark" style={styles.uploadBlur}>
+              <View style={styles.uploadContent}>
+                <LinearGradient
+                  colors={theme.gradientPrimary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.uploadGradient}
+                >
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                  <Text style={styles.uploadText}>Uploading Image...</Text>
+                  <Text style={styles.uploadSubtext}>Please wait while we process your photo</Text>
+                </LinearGradient>
+              </View>
+            </BlurView>
+          </View>
+        </Modal>
+      )}
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successOverlay}>
+          <View style={styles.successContent}>
+            <LinearGradient
+              colors={['#4CAF50', '#45A049']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.successHeader}
+            >
+              <Ionicons name="checkmark-circle" size={60} color="#FFFFFF" />
+            </LinearGradient>
+            <View style={styles.successBody}>
+              <Text style={styles.successTitle}>Upload Successful!</Text>
+              <Text style={styles.successMessage}>
+                Your profile image has been uploaded successfully. Don't forget to click 'Save Changes' to update your profile.
+              </Text>
+              <TouchableOpacity 
+                style={styles.successButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowSuccessModal(false);
+                }}
+              >
+                <LinearGradient
+                  colors={theme.gradientPrimary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.successButtonGradient}
+                >
+                  <Text style={styles.successButtonText}>Got it!</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -1809,5 +2004,107 @@ const styles = StyleSheet.create({
   settingDescription: {
     fontSize: 14,
     color: theme.textLight,
+  },
+  
+  // Upload Loading Styles
+  uploadOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uploadBlur: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uploadContent: {
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  uploadGradient: {
+    paddingVertical: theme.spacing3XL,
+    paddingHorizontal: theme.spacingXL * 2,
+    alignItems: "center",
+    minWidth: 280,
+  },
+  uploadText: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: "#FFFFFF",
+    marginTop: theme.spacingL,
+    textAlign: "center",
+  },
+  uploadSubtext: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: theme.spacingS,
+    textAlign: "center",
+  },
+
+  // Success Modal Styles
+  successOverlay: {
+    flex: 1,
+    backgroundColor: theme.overlay,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: theme.spacingXL,
+  },
+  successContent: {
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+    width: "100%",
+    maxWidth: 350,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  successHeader: {
+    paddingVertical: theme.spacingXL,
+    alignItems: "center",
+  },
+  successBody: {
+    padding: theme.spacingXL,
+    alignItems: "center",
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    marginBottom: theme.spacingM,
+    textAlign: "center",
+  },
+  successMessage: {
+    fontSize: 16,
+    color: theme.textLight,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: theme.spacingXL,
+  },
+  successButton: {
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  successButtonGradient: {
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL * 1.5,
+    alignItems: "center",
+  },
+  successButtonText: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: "#FFFFFF",
   },
 });
