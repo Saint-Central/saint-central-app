@@ -124,12 +124,12 @@ function RootLayoutContent() {
         merchantIdentifier="merchant.com.saintcentral"
       >
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          {/* Always render Slot so that a navigator is mounted */}
-          <Slot />
-          {isLoading && (
+          {isLoading ? (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color="#FAC898" />
             </View>
+          ) : (
+            <Slot />
           )}
         </ThemeProvider>
       </StripeProvider>
