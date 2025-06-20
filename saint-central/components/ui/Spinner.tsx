@@ -1,5 +1,6 @@
 import LottieView from "lottie-react-native";
 import { View, StyleSheet } from "react-native";
+import theme from "@/theme";
 
 export default function Spinner() {
   return (
@@ -24,7 +25,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   lottieWrapper: {
     width: 200,
