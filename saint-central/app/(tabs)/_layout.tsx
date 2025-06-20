@@ -1,17 +1,14 @@
 import { Tabs } from "expo-router";
 import React, { useEffect } from "react";
-import { Platform, View, StyleSheet, TouchableOpacity, Text } from "react-native";
+import { Platform, View, StyleSheet, TouchableOpacity, Text, Dimensions } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-  withSequence,
   interpolate,
-  Easing,
 } from "react-native-reanimated";
-import { BlurView } from "expo-blur";
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ParamListBase, TabNavigationState } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,126 +29,32 @@ interface SimpleTabIconProps {
 
 const ICON_SIZE = 24;
 
-// Compact tab with Christian-themed animations
+// Simple tab with minimal animations
 const SimpleTabIcon: React.FC<SimpleTabIconProps> = ({ name, focused, index }) => {
   const iconScale = useSharedValue(1);
-  const iconRotation = useSharedValue(0);
-  const textOpacity = useSharedValue(0);
-  const iconOpacity = useSharedValue(0.5);
-  const crossScale = useSharedValue(0);
-  const crossRotation = useSharedValue(0);
-  const holyLightOpacity = useSharedValue(0);
-  const blessingRipple = useSharedValue(0);
-  const lineWidth = useSharedValue(0);
-  const starsOpacity = useSharedValue(0);
+  const iconOpacity = useSharedValue(focused ? 1 : 0.6);
+  const textOpacity = useSharedValue(focused ? 1 : 0);
   
   useEffect(() => {
     if (focused) {
-      // Gentle haptic like a blessing
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      // Icon blessed with gentle growth (like spiritual awakening)
-      iconScale.value = withSequence(
-        withTiming(1.25, { duration: 300, easing: Easing.out(Easing.sin) }),
-        withSpring(1.12, { damping: 12, stiffness: 200 })
-      );
-      
-      // Gentle rotation (like prayer movement)
-      iconRotation.value = withSequence(
-        withTiming(10, { duration: 200, easing: Easing.out(Easing.sin) }),
-        withSpring(0, { damping: 15, stiffness: 250 })
-      );
-      iconOpacity.value = withTiming(1, { duration: 400 });
-      
-      // Cross blessing animation (trinity-inspired 3 phases)
-      crossScale.value = withSequence(
-        withTiming(0, { duration: 0 }),
-        withTiming(1.2, { duration: 200 }),
-        withTiming(1, { duration: 200 }),
-        withTiming(0, { duration: 300 })
-      );
-      crossRotation.value = withTiming(360, { duration: 700, easing: Easing.out(Easing.quad) });
-      
-      // Holy light emanating (like divine presence)
-      holyLightOpacity.value = withSequence(
-        withTiming(0, { duration: 0 }),
-        withTiming(0.8, { duration: 400, easing: Easing.out(Easing.sin) }),
-        withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 400 })
-      );
-      
-      // Blessing ripple (like divine touch)
-      blessingRipple.value = withSequence(
-        withTiming(0, { duration: 0 }),
-        withTiming(2, { duration: 800, easing: Easing.out(Easing.sin) }),
-        withTiming(0, { duration: 200 })
-      );
-      
-      // Line indicator (like path of righteousness)
-      lineWidth.value = withSpring(28, { damping: 18, stiffness: 250 });
-      
-      // Text revelation
-      textOpacity.value = withTiming(1, { duration: 500 });
-      
-      // Stars of Bethlehem
-      starsOpacity.value = withSequence(
-        withTiming(0, { duration: 100 }),
-        withTiming(1, { duration: 300 }),
-        withTiming(0.7, { duration: 400 }),
-        withTiming(0, { duration: 300 })
-      );
+      iconScale.value = withSpring(1.1, { damping: 15, stiffness: 200 });
+      iconOpacity.value = withTiming(1, { duration: 200 });
+      textOpacity.value = withTiming(1, { duration: 200 });
     } else {
-      iconScale.value = withSpring(1, { damping: 15, stiffness: 300 });
-      iconRotation.value = withTiming(0, { duration: 300 });
-      iconOpacity.value = withTiming(0.5, { duration: 300 });
-      crossScale.value = withSpring(0, { damping: 15, stiffness: 300 });
-      crossRotation.value = withTiming(0, { duration: 200 });
-      holyLightOpacity.value = withTiming(0, { duration: 200 });
-      blessingRipple.value = 0;
-      lineWidth.value = withSpring(0, { damping: 15, stiffness: 300 });
+      iconScale.value = withSpring(1, { damping: 15, stiffness: 200 });
+      iconOpacity.value = withTiming(0.6, { duration: 200 });
       textOpacity.value = withTiming(0, { duration: 200 });
-      starsOpacity.value = 0;
     }
   }, [focused]);
 
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: iconScale.value },
-      { rotate: `${iconRotation.value}deg` }
-    ],
+    transform: [{ scale: iconScale.value }],
     opacity: iconOpacity.value,
   }));
 
   const textStyle = useAnimatedStyle(() => ({
     opacity: textOpacity.value,
-  }));
-
-  const crossStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: crossScale.value },
-      { rotate: `${crossRotation.value}deg` }
-    ],
-    opacity: crossScale.value,
-  }));
-
-  const holyLightStyle = useAnimatedStyle(() => ({
-    opacity: holyLightOpacity.value,
-    transform: [{ scale: interpolate(holyLightOpacity.value, [0, 1], [0.5, 1.5]) }],
-  }));
-
-  const blessingRippleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: blessingRipple.value }],
-    opacity: interpolate(blessingRipple.value, [0, 0.5, 2], [0, 0.6, 0]),
-  }));
-
-  const lineStyle = useAnimatedStyle(() => ({
-    width: lineWidth.value,
-    opacity: lineWidth.value > 0 ? 1 : 0,
-  }));
-
-  const starsStyle = useAnimatedStyle(() => ({
-    opacity: starsOpacity.value,
-    transform: [{ scale: starsOpacity.value }],
   }));
 
   // Icon mapping
@@ -176,63 +79,18 @@ const SimpleTabIcon: React.FC<SimpleTabIconProps> = ({ name, focused, index }) =
 
   return (
     <View style={styles.tabContainer}>
-      {/* Blessing ripple (divine touch) */}
-      <Animated.View style={[styles.blessingRipple, blessingRippleStyle]}>
-        <LinearGradient
-          colors={[`${theme.accent2}40`, `${theme.accent1}30`, 'transparent']}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-      
-      {/* Holy light emanation */}
-      <Animated.View style={[styles.holyLight, holyLightStyle]}>
-        <LinearGradient
-          colors={['rgba(255,215,0,0.3)', `${theme.accent2}20`, 'transparent']}
-          start={{ x: 0.5, y: 0.5 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-      
-      {/* Cross blessing */}
-      <Animated.View style={[styles.crossBlessing, crossStyle]}>
-        <MaterialCommunityIcons 
-          name="cross" 
-          size={16} 
-          color={`${theme.accent2}80`} 
-        />
-      </Animated.View>
-      
-      {/* Stars of Bethlehem */}
-      <Animated.View style={[styles.star1, starsStyle]}>
-        <MaterialCommunityIcons name="star-four-points" size={6} color={theme.accent2} />
-      </Animated.View>
-      <Animated.View style={[styles.star2, starsStyle]}>
-        <MaterialCommunityIcons name="star-four-points" size={4} color={theme.accent1} />
-      </Animated.View>
-      <Animated.View style={[styles.star3, starsStyle]}>
-        <MaterialCommunityIcons name="star-four-points" size={5} color="#FFD700" />
-      </Animated.View>
-      
       {/* Icon */}
       <Animated.View style={iconStyle}>
         {iconData[name].icon}
       </Animated.View>
       
-      {/* Text label */}
-      <Animated.Text style={[styles.tabLabel, textStyle]}>
-        {iconData[name].label}
-      </Animated.Text>
+      {/* Text label - only shown when focused */}
+      {focused && (
+        <Animated.Text style={[styles.tabLabel, textStyle]}>
+          {iconData[name].label}
+        </Animated.Text>
+      )}
       
-      {/* Path of righteousness indicator */}
-      <Animated.View style={[styles.pathIndicator, lineStyle]}>
-        <LinearGradient
-          colors={['#FFD700', theme.accent1, theme.accent2]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
     </View>
   );
 };
@@ -240,36 +98,55 @@ const SimpleTabIcon: React.FC<SimpleTabIconProps> = ({ name, focused, index }) =
 const SimpleModernTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
   const insets = useSafeAreaInsets();
   const visibleTabs = ["home", "discover", "Bible", "profile"];
-
+  const { width: screenWidth } = Dimensions.get('window');
+  
+  // Sliding underline indicator
+  const underlineX = useSharedValue(0);
+  
   // Track if Comments screen is active
   const isCommentsScreen = state.routes.some(
     (route) => route.name === "" && state.index === state.routes.indexOf(route),
   );
 
+  // Calculate underline position based on active tab
+  useEffect(() => {
+    const activeIndex = visibleTabs.findIndex(tab => {
+      const routeIndex = state.routes.findIndex(route => route.name === tab);
+      return state.index === routeIndex || (tab === "home" && isCommentsScreen);
+    });
+    
+    if (activeIndex !== -1) {
+      // Calculate tab width (screen width minus padding divided by 4 tabs)
+      const tabWidth = (screenWidth - 32) / 4; // 32px total horizontal padding (16px each side)
+      const targetX = activeIndex * tabWidth + (tabWidth / 2) - 15; // Center the 30px underline in the tab
+      underlineX.value = withSpring(targetX, { damping: 15, stiffness: 200 });
+    }
+  }, [state.index, isCommentsScreen, screenWidth]);
+
+  const underlineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: underlineX.value }],
+  }));
+
   return (
     <View style={styles.container}>
-      {/* Background */}
-      <View style={StyleSheet.absoluteFill}>
-        <LinearGradient
-          colors={[theme.neutral900, theme.neutral800]}
-          style={StyleSheet.absoluteFill}
-        />
-        {Platform.OS === "ios" && (
-          <BlurView
-            intensity={20}
-            tint="dark"
-            style={[StyleSheet.absoluteFill, { opacity: 0.8 }]}
-          />
-        )}
-      </View>
+      {/* Simplified Background */}
+      <LinearGradient
+        colors={[
+          `${theme.neutral900}f8`, 
+          `${theme.neutral800}f5`
+        ]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
       
-      {/* Top border */}
+      {/* Simple Top border */}
       <View style={styles.topBorder} />
       
       {/* Tab buttons */}
       <View style={[styles.tabRow, { 
-        height: 50 + insets.bottom,
-        paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 8, 0) : 0 
+        height: 48 + insets.bottom,
+        paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 4, 0) : 4 
       }]}>
         {state.routes.map((route, index) => {
           if (!visibleTabs.includes(route.name)) {
@@ -279,6 +156,8 @@ const SimpleModernTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
           const isFocused = state.index === index || (route.name === "home" && isCommentsScreen);
 
           const onPress = () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            
             const event = navigation.emit({
               type: "tabPress",
               target: route.key,
@@ -295,7 +174,7 @@ const SimpleModernTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
               key={route.key}
               style={styles.tabButton}
               onPress={onPress}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <SimpleTabIcon
                 name={route.name as SimpleTabIconProps["name"]}
@@ -305,6 +184,16 @@ const SimpleModernTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
             </TouchableOpacity>
           );
         })}
+        
+        {/* Sliding underline indicator positioned under text */}
+        <Animated.View style={[styles.slidingUnderline, underlineStyle]}>
+          <LinearGradient
+            colors={[theme.accent1, theme.accent2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.slidingUnderlineGradient}
+          />
+        </Animated.View>
       </View>
     </View>
   );
@@ -357,6 +246,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: "transparent",
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.neutral900,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   
   topBorder: {
@@ -365,91 +265,53 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: "rgba(254, 243, 199, 0.1)",
+    backgroundColor: `${theme.accent2}40`,
   },
   
   tabRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-evenly",
-    paddingHorizontal: 10,
-    paddingTop: 2,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    position: "relative",
   },
   
   tabButton: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    height: "100%",
+    height: 40,
+    backgroundColor: "transparent",
   },
   
   tabContainer: {
     justifyContent: "center",
     alignItems: "center",
-    width: 44,
-    height: 44,
+    width: 60,
+    height: 40,
     position: "relative",
   },
   
-  // Christian-themed elements
-  blessingRipple: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: "hidden",
-  },
-  
-  holyLight: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  
-  crossBlessing: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  
-  // Stars of Bethlehem
-  star1: {
-    position: "absolute",
-    top: 4,
-    left: 6,
-  },
-  
-  star2: {
-    position: "absolute",
-    top: 8,
-    right: 4,
-  },
-  
-  star3: {
-    position: "absolute",
-    bottom: 6,
-    left: 4,
-  },
-  
   tabLabel: {
-    position: "absolute",
-    bottom: 3,
-    fontSize: 8,
-    fontWeight: theme.fontBold,
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: "600",
     color: theme.accent1,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
+    letterSpacing: 0.2,
   },
   
-  pathIndicator: {
+  slidingUnderline: {
     position: "absolute",
-    bottom: -1,
+    top: 50, // paddingTop(8) + icon center(20) + icon half(12) + text marginTop(4) + text height(10) + small gap(6)
+    width: 30,
     height: 2,
     borderRadius: 1,
-    overflow: "hidden",
+    left: 16, // Start from the left padding
+  },
+  
+  slidingUnderlineGradient: {
+    flex: 1,
+    borderRadius: 1,
   },
 });
