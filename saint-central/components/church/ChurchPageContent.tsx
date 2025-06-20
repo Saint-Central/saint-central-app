@@ -218,7 +218,7 @@ export default function ChurchPageContent({ userData }: Props) {
           title="Classes"
           subtitle="Learn and grow"
           gradientColors={[theme.accent3, theme.secondary]}
-          onPress={() => navigation.navigate("MinistriesScreen")}
+          onPress={() => navigation.navigate("coursehomepage")}
           metric="12"
           metricLabel="Active"
         />

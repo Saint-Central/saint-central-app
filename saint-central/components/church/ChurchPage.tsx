@@ -827,7 +827,10 @@ const CourseCard = ({ course }: { course: Course }) => {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => {
-        console.log(course);
+        router.push({
+          pathname: "/course/[id]",
+          params: { id: course.id },
+        });
       }}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}

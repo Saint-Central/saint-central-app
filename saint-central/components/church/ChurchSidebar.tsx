@@ -257,6 +257,19 @@ export default function ChurchSidebar({
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo("/coursehomepage")}
+            >
+              <View style={styles.menuIconContainer}>
+                <FontAwesome5 name="graduation-cap" size={20} color={theme.textMedium} />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>Classes</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
+            </TouchableOpacity>
             {/* Mass Schedule Section */}
             {/* <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("schedule")}>
               <View style={styles.menuIconContainer}>
