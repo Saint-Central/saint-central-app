@@ -1152,7 +1152,7 @@ const AuthScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         <ImageBackground
-          source={require("../../assets/images/background.png")}
+          source={require("../../assets/images/rainforest.png")}
           style={styles.backgroundImage}
           resizeMode="cover"
         >
