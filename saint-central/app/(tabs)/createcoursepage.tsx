@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { User } from '@supabase/supabase-js';
 import { 
   View, 
   Text, 
@@ -12,12 +10,16 @@ import {
   ActivityIndicator, 
   Platform,
   Image,
-  Alert 
+  Alert,
+  KeyboardAvoidingView 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCRUD } from '../../utils/crudClient';
+import theme from '../../theme';
 
 type CourseFormData = {
   description: string;
@@ -34,13 +36,17 @@ type Church = {
   name: string;
 };
 
+// Storage API configuration
+const STORAGE_WORKER_URL = 'https://storage-worker.colinmcherney.workers.dev';
+
 const CreateCoursePage: React.FC = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const courseId = params.courseId as string | undefined;
   const isEditMode = !!courseId;
   
-  const [user, setUser] = useState<User | null>(null);
+  const { user, getAccessToken } = useAuth();
+  const crud = useCRUD();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userChurches, setUserChurches] = useState<Church[]>([]);
@@ -59,37 +65,31 @@ const CreateCoursePage: React.FC = () => {
     user_id: '',
   });
 
-  // Fetch user and authorization on component mount
+  // Check authentication and fetch user churches on mount
   useEffect(() => {
-    const fetchUserAndAuth = async () => {
+    const initialize = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data?.user) {
-          setUser(data.user);
-          // Set user_id in form data
-          setFormData(prev => ({ ...prev, user_id: data.user.id }));
-          await fetchUserChurches(data.user.id);
-        } else {
-          // Handle not authenticated
+        if (!user) {
           Alert.alert('Authentication Required', 'You must be logged in to create courses');
-          // Navigate to home page
           router.replace('/coursehomepage');
           return;
         }
+        
+        // Set user_id in form data
+        setFormData(prev => ({ ...prev, user_id: user.id }));
+        await fetchUserChurches(user.id);
       } catch (error) {
-        console.error('Error fetching user:', error);
-        Alert.alert('Authentication Error', 'Failed to verify your credentials');
-        // Navigate to home page
+        console.error('Error initializing:', error);
+        Alert.alert('Error', 'Failed to load data');
         router.replace('/coursehomepage');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserAndAuth();
-  }, []);
+    initialize();
+  }, [user]);
 
   // Fetch existing course data if in edit mode
   useEffect(() => {
@@ -98,20 +98,16 @@ const CreateCoursePage: React.FC = () => {
     }
   }, [courseId, user]);
 
-  // Fetch existing course data from Supabase
+  // Fetch existing course data using CRUD API
   const fetchCourseData = async () => {
-    if (!courseId) return;
+    if (!courseId || !user) return;
     
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .single();
-      
-      if (error) throw error;
+      const data = await crud.selectOne('courses', {
+        where: { id: courseId }
+      });
       
       if (data) {
         console.log('Fetched course data:', data);
@@ -124,7 +120,7 @@ const CreateCoursePage: React.FC = () => {
           host: data.host || '',
           image_url: data.image_url,
           church_id: data.church_id,
-          user_id: data.user_id || user?.id || '',
+          user_id: data.user_id || user.id || '',
         });
         
         // Set image URI if there's an existing image
@@ -140,27 +136,31 @@ const CreateCoursePage: React.FC = () => {
     }
   };
 
-  // Fetch churches where the user is admin or owner
+  // Fetch churches where the user is a member using CRUD API
   const fetchUserChurches = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('church_members')
-        .select(`
-          church_id,
-          churches:church_id (
-            id,
-            name
-          )
-        `)
-        .eq('user_id', userId);
+      // First get church member records
+      const memberData = await crud.select('church_members', {
+        where: { user_id: userId }
+      });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const churches = data.map((item: any) => ({
-          id: item.churches.id,
-          name: item.churches.name,
-        }));
+      if (memberData && memberData.length > 0) {
+        // Get unique church IDs
+        const churchIds = [...new Set(memberData.map(item => item.church_id))];
+        
+        // Fetch church details for each ID
+        const churchPromises = churchIds.map(id => 
+          crud.selectOne('churches', { where: { id } })
+        );
+        
+        const churchesData = await Promise.all(churchPromises);
+        const churches = churchesData
+          .filter(church => church !== null)
+          .map(church => ({
+            id: church.id,
+            name: church.name,
+          }));
+        
         setUserChurches(churches);
 
         // Set default church if available
@@ -232,7 +232,7 @@ const CreateCoursePage: React.FC = () => {
     }
   };
 
-  // Upload image to Supabase storage and get public URL
+  // Upload image using the Storage API
   const uploadImage = async (): Promise<string | undefined> => {
     if (!imageUri) return undefined;
     
@@ -242,27 +242,63 @@ const CreateCoursePage: React.FC = () => {
     }
     
     try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error('Authentication required');
+      }
+
+      // Convert image to base64
       const response = await fetch(imageUri);
       const blob = await response.blob();
       
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          // Remove the data:image/...;base64, prefix
+          const base64Data = base64String.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(blob);
+      const base64Data = await base64Promise;
+      
       // Generate a unique file name
-      const fileExt = imageUri.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileExt = imageUri.split('.').pop() || 'jpg';
+      const fileName = `course_${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       
-      // Upload the file to course-bucket
-      const { error: uploadError } = await supabase.storage
-        .from('course-bucket')
-        .upload(filePath, blob);
-        
-      if (uploadError) throw uploadError;
+      // Determine content type
+      const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
       
-      // Get the public URL for the uploaded image
-      const { data } = supabase.storage
-        .from('course-bucket')
-        .getPublicUrl(filePath);
-        
-      return data.publicUrl;
+      // Upload using Storage API
+      const uploadResponse = await fetch(`${STORAGE_WORKER_URL}/storage/upload-direct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          operation: 'UPLOAD',
+          bucket: 'course-bucket',
+          fileName: fileName,
+          data: base64Data,
+          encoding: 'base64',
+          contentType: contentType,
+          options: {
+            upsert: true
+          }
+        }),
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+      
+      const uploadData = await uploadResponse.json();
+      return uploadData.publicUrl || uploadData.data?.publicUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -309,30 +345,17 @@ const CreateCoursePage: React.FC = () => {
         time: formData.time.toISOString(),
       };
       
-      let error;
-      
       if (isEditMode && courseId) {
         // Update existing course
         console.log('Updating course:', courseId);
-        const { error: updateError } = await supabase
-          .from('courses')
-          .update(courseData)
-          .eq('id', courseId);
-        
-        error = updateError;
+        await crud.update('courses', courseData, { id: courseId });
         setSuccessMessage('Course updated successfully!');
       } else {
         // Create new course
         console.log('Creating new course');
-        const { error: insertError } = await supabase
-          .from('courses')
-          .insert([courseData]);
-        
-        error = insertError;
+        await crud.insert('courses', courseData);
         setSuccessMessage('Course created successfully!');
       }
-      
-      if (error) throw error;
       
       // Navigate back to course home page after a short delay
       setTimeout(() => {
@@ -350,7 +373,7 @@ const CreateCoursePage: React.FC = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4361EE" />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
@@ -359,13 +382,16 @@ const CreateCoursePage: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton} 
             onPress={() => router.replace('/coursehomepage')}
           >
-            <FontAwesome5 name="arrow-left" size={18} color="#4361EE" />
+            <FontAwesome5 name="arrow-left" size={18} color={theme.primary} />
           </TouchableOpacity>
           <Text style={styles.headerText}>
             {isEditMode ? 'Edit Course' : 'Create New Course'}
@@ -381,14 +407,14 @@ const CreateCoursePage: React.FC = () => {
           <View style={styles.formContainer}>
             {errorMessage && (
               <View style={styles.errorContainer}>
-                <FontAwesome5 name="exclamation-circle" size={18} color="#E53E3E" style={{marginRight: 8}} />
+                <FontAwesome5 name="exclamation-circle" size={18} color={theme.error} style={{marginRight: 8}} />
                 <Text style={styles.errorText}>{errorMessage}</Text>
               </View>
             )}
             
             {successMessage && (
               <View style={styles.successContainer}>
-                <FontAwesome5 name="check-circle" size={18} color="#16A34A" style={{marginRight: 8}} />
+                <FontAwesome5 name="check-circle" size={18} color={theme.success} style={{marginRight: 8}} />
                 <Text style={styles.successText}>{successMessage}</Text>
               </View>
             )}
@@ -404,7 +430,7 @@ const CreateCoursePage: React.FC = () => {
                   <Image source={{ uri: imageUri }} style={styles.imagePreview} />
                 ) : (
                   <View style={styles.uploadPlaceholder}>
-                    <FontAwesome5 name="image" size={32} color="#CBD5E0" />
+                    <FontAwesome5 name="image" size={32} color={theme.neutral400} />
                     <Text style={styles.imageUploadText}>
                       Upload Course Image
                     </Text>
@@ -420,7 +446,7 @@ const CreateCoursePage: React.FC = () => {
                   style={styles.removeImageButton}
                   onPress={() => setImageUri(null)}
                 >
-                  <FontAwesome5 name="times-circle" size={20} color="#FFFFFF" />
+                  <FontAwesome5 name="times-circle" size={20} color={theme.textWhite} />
                 </TouchableOpacity>
               )}
             </View>
@@ -459,7 +485,7 @@ const CreateCoursePage: React.FC = () => {
                 value={formData.description}
                 onChangeText={(value) => handleChange('description', value)}
                 placeholder="Enter course title or description"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor={theme.textLight}
               />
             </View>
 
@@ -471,7 +497,7 @@ const CreateCoursePage: React.FC = () => {
                   style={styles.dateTimeButton}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <FontAwesome5 name="calendar" size={16} color="#4361EE" style={styles.dateTimeIcon} />
+                  <FontAwesome5 name="calendar" size={16} color={theme.primary} style={styles.dateTimeIcon} />
                   <Text style={styles.dateTimeText}>
                     {formData.time.toLocaleDateString()}
                   </Text>
@@ -481,7 +507,7 @@ const CreateCoursePage: React.FC = () => {
                   style={styles.dateTimeButton}
                   onPress={() => setShowTimePicker(true)}
                 >
-                  <FontAwesome5 name="clock" size={16} color="#4361EE" style={styles.dateTimeIcon} />
+                  <FontAwesome5 name="clock" size={16} color={theme.primary} style={styles.dateTimeIcon} />
                   <Text style={styles.dateTimeText}>
                     {formData.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -515,7 +541,7 @@ const CreateCoursePage: React.FC = () => {
                 value={formData.location}
                 onChangeText={(value) => handleChange('location', value)}
                 placeholder="Enter course location"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor={theme.textLight}
               />
             </View>
 
@@ -527,7 +553,7 @@ const CreateCoursePage: React.FC = () => {
                 value={formData.host}
                 onChangeText={(value) => handleChange('host', value)}
                 placeholder="Enter host or instructor name"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor={theme.textLight}
               />
             </View>
 
@@ -539,10 +565,10 @@ const CreateCoursePage: React.FC = () => {
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={theme.textWhite} />
                 ) : (
                   <View style={styles.buttonInner}>
-                    <FontAwesome5 name="save" size={16} color="#FFFFFF" style={{marginRight: 8}} />
+                    <FontAwesome5 name="save" size={16} color={theme.textWhite} style={{marginRight: 8}} />
                     <Text style={styles.submitButtonText}>
                       {isEditMode ? 'Update Course' : 'Create Course'}
                     </Text>
@@ -552,7 +578,7 @@ const CreateCoursePage: React.FC = () => {
             </View>
           </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -560,7 +586,7 @@ const CreateCoursePage: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.pageBg,
   },
   container: {
     flex: 1,
@@ -569,28 +595,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: theme.divider,
+    backgroundColor: theme.cardBg,
   },
   backButton: {
-    padding: 8,
+    padding: theme.spacingS,
   },
   headerText: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
   },
   headerSpacer: {
-    width: 36, // Same width as back button for balance
+    width: 36,
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 30, // Add padding at bottom for iOS safe area
+    paddingBottom: 100, // Extra padding for nav bar
   },
   loadingContainer: {
     flex: 1,
@@ -598,158 +624,146 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: theme.spacingM,
     fontSize: 16,
-    color: '#4A5568',
+    color: theme.textMedium,
   },
   formContainer: {
-    padding: 16,
+    padding: theme.spacingL,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: `${theme.error}20`,
+    padding: theme.spacingM,
+    borderRadius: theme.radiusSmall,
+    marginBottom: theme.spacingL,
   },
   errorText: {
     flex: 1,
-    color: '#DC2626',
+    color: theme.error,
   },
   successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: `${theme.success}20`,
+    padding: theme.spacingM,
+    borderRadius: theme.radiusSmall,
+    marginBottom: theme.spacingL,
   },
   successText: {
     flex: 1,
-    color: '#16A34A',
+    color: theme.success,
   },
   formGroup: {
-    marginBottom: 24,
+    marginBottom: theme.spacingXL,
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#4A5568',
+    fontWeight: theme.fontSemiBold,
+    marginBottom: theme.spacingS,
+    color: theme.textWhite,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.cardBg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.divider,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: theme.radiusSmall,
     fontSize: 16,
-    color: '#1A202C',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    color: theme.textWhite,
+    ...theme.shadowLight,
   },
   pickerContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   churchOption: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.cardBg,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
+    marginRight: theme.spacingS,
+    marginBottom: theme.spacingS,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.divider,
   },
   churchOptionSelected: {
-    backgroundColor: '#4361EE',
-    borderColor: '#4361EE',
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   churchOptionText: {
-    color: '#4A5568',
-    fontWeight: '500',
+    color: theme.textMedium,
+    fontWeight: theme.fontMedium,
   },
   churchOptionTextSelected: {
-    color: '#FFFFFF',
+    color: theme.neutral900,
   },
   dateTimeContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: theme.spacingS,
   },
   dateTimeButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.cardBg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.divider,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: theme.radiusSmall,
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    ...theme.shadowLight,
   },
   dateTimeIcon: {
-    marginRight: 8,
+    marginRight: theme.spacingS,
   },
   dateTimeText: {
-    color: '#1A202C',
+    color: theme.textWhite,
     fontSize: 15,
   },
   imageUploadButton: {
     width: '100%',
     height: 200,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.cardBg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
+    borderColor: theme.divider,
+    borderRadius: theme.radiusMedium,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    ...theme.shadowLight,
   },
   uploadPlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.cardBg,
   },
   imagePreview: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: theme.radiusMedium,
   },
   imageUploadText: {
-    color: '#4A5568',
-    fontWeight: '600',
-    marginTop: 12,
+    color: theme.textMedium,
+    fontWeight: theme.fontSemiBold,
+    marginTop: theme.spacingM,
     fontSize: 16,
   },
   imageHelpText: {
-    color: '#A0AEC0',
+    color: theme.textLight,
     fontSize: 14,
     marginTop: 6,
   },
   removeImageButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 8,
+    top: theme.spacingL,
+    right: theme.spacingL,
+    backgroundColor: theme.overlay,
+    padding: theme.spacingS,
     borderRadius: 20,
   },
   buttonContainer: {
-    marginTop: 24,
-    marginBottom: Platform.OS === 'ios' ? 24 : 8,
+    marginTop: theme.spacingXL,
+    marginBottom: theme.spacing2XL,
   },
   buttonInner: {
     flexDirection: 'row',
@@ -757,23 +771,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButton: {
-    backgroundColor: '#4361EE',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: theme.primary,
+    padding: theme.spacingL,
+    borderRadius: theme.radiusSmall,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2D3748',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    ...theme.shadowMedium,
   },
   submitButtonDisabled: {
-    backgroundColor: '#A0AEC0',
+    backgroundColor: theme.neutral600,
   },
   submitButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: theme.neutral900,
+    fontWeight: theme.fontSemiBold,
     fontSize: 16,
   },
 });
