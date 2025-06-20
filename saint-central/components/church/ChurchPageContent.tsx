@@ -25,6 +25,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useNavigation } from "@react-navigation/native";
 import { ChurchActionButton } from "./ChurchActionButton";
+import ChurchActivityCards from "./ChurchActivityCards";
 import theme from "@/theme";
 import { useCRUD } from "@/utils/crudClient";
 import { LinearGradient } from "expo-linear-gradient";
@@ -234,6 +235,9 @@ export default function ChurchPageContent({ userData }: Props) {
           metricLabel="Opportunities"
         />
       </View>
+
+      {/* Church Activity Cards */}
+      <ChurchActivityCards />
 
       {/* Church Info Card */}
       <View style={styles.infoCard}>
