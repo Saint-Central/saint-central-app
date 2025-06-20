@@ -1683,7 +1683,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 2,
-    borderColor: "rgba(34, 197, 94, 0.8)",
+    borderColor: "rgba(245, 158, 11, 0.3)",
     backdropFilter: "blur(20px)",
   },
   signupButton: {
