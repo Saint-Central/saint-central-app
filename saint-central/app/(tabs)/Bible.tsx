@@ -343,7 +343,7 @@ export default function BibleScreen() {
   const [searching, setSearching] = useState<boolean>(false);
 
   // Theme & font
-  const [readingTheme, setReadingTheme] = useState<ReadingTheme>("paper");
+  const [readingTheme, setReadingTheme] = useState<ReadingTheme>("night");
   const [fontSize, setFontSize] = useState<FontSize>("medium");
 
   // Testament filter
