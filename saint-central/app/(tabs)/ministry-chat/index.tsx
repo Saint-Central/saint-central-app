@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { useCRUD } from "../../../utils/crudClient";
+import { useAuth } from "../../../contexts/AuthContext";
 import { supabase } from "../../../supabaseClient";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import Animated, {
@@ -74,6 +76,7 @@ interface Message {
   sender_avatar_url?: string;
   is_current_user?: boolean;
   animateIn?: boolean;
+  push_sent?: boolean;
 }
 
 // Ministry interface
@@ -104,6 +107,10 @@ const MinistryChat = () => {
   const ministryId = (route.params as RouteParams)?.id
     ? parseInt((route.params as RouteParams).id)
     : null;
+
+  // Initialize CRUD client and auth
+  const { select, selectOne, insert, update } = useCRUD();
+  const { user, getAccessToken } = useAuth();
 
   const [ministry, setMinistry] = useState<Ministry | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -194,60 +201,35 @@ const MinistryChat = () => {
     }
   };
 
-  // Function to save push token to Supabase
+  // Function to save push token using CRUD API
   const savePushToken = async (token: string) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       if (!user) return;
 
       const now = new Date().toISOString();
 
       // First check if token already exists for this user
-      const { data: existingToken, error: fetchError } = await supabase
-        .from("user_push_tokens")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("token", token)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error("Error checking existing token:", fetchError);
-        return;
-      }
+      const existingToken = await selectOne("user_push_tokens", {
+        where: {
+          user_id: user.id,
+          token: token,
+        },
+      });
 
       if (existingToken) {
         // Update existing token's last_used timestamp
-        const { error: updateError } = await supabase
-          .from("user_push_tokens")
-          .update({
-            last_used: now,
-          })
-          .eq("user_id", user.id)
-          .eq("token", token);
-
-        if (updateError) {
-          console.error("Error updating token:", updateError);
-        } else {
-          console.log("Push token updated successfully");
-        }
+        await update("user_push_tokens", { last_used: now }, { user_id: user.id, token: token });
+        console.log("Push token updated successfully");
       } else {
         // Insert new token
-        const { error: insertError } = await supabase.from("user_push_tokens").insert({
+        await insert("user_push_tokens", {
           user_id: user.id,
           token: token,
           device_type: Platform.OS,
           created_at: now,
           last_used: now,
         });
-
-        if (insertError) {
-          console.error("Error inserting token:", insertError);
-        } else {
-          console.log("Push token saved successfully");
-        }
+        console.log("Push token saved successfully");
       }
     } catch (error) {
       console.error("Error in savePushToken:", error);
@@ -368,7 +350,8 @@ const MinistryChat = () => {
             filter: `ministry_id=eq.${ministryId}`,
           },
           async (payload) => {
-            console.log("Real-time message received:", payload);
+            console.log("🔔 REALTIME MESSAGE RECEIVED:", payload);
+            console.log("🔔 Payload new data:", JSON.stringify(payload.new, null, 2));
 
             // Enhanced error handling with optional chaining
             try {
@@ -381,11 +364,10 @@ const MinistryChat = () => {
                 return;
               }
 
-              const { data: userData } = await supabase
-                .from("users")
-                .select("first_name, last_name, profile_image")
-                .eq("id", message.user_id)
-                .single();
+              const userData = await selectOne("users", {
+                select: "first_name, last_name, profile_image",
+                where: { id: message.user_id },
+              });
 
               const fullName = userData
                 ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
@@ -509,16 +491,14 @@ const MinistryChat = () => {
     }
   };
 
-  // Fetch ministry details
+  // Fetch ministry details using CRUD API
   const fetchMinistryDetails = async () => {
     try {
-      const { data, error } = await supabase
-        .from("ministries")
-        .select("id, name, description, image_url")
-        .eq("id", ministryId)
-        .single();
-
-      if (error) throw error;
+      console.log("Fetching ministry details for ID:", ministryId);
+      const data = await selectOne("ministries", {
+        select: "id, name, description, image_url",
+        where: { id: ministryId },
+      });
 
       if (data) {
         setMinistry(data);
@@ -531,24 +511,15 @@ const MinistryChat = () => {
     }
   };
 
-  // Fetch current user
+  // Fetch current user using Auth and CRUD APIs
   const fetchCurrentUser = async () => {
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-
       if (user) {
-        const { data: userData, error: userDataError } = await supabase
-          .from("users")
-          .select("first_name, last_name, profile_image")
-          .eq("id", user.id)
-          .single();
-
-        if (userDataError) throw userDataError;
+        console.log("Fetching user data for ID:", user.id);
+        const userData = await selectOne("users", {
+          select: "first_name, last_name, profile_image",
+          where: { id: user.id },
+        });
 
         setCurrentUser({
           id: user.id,
@@ -574,42 +545,41 @@ const MinistryChat = () => {
 
       console.log("Fetching messages, isInitial:", isInitial, "ministryId:", ministryId);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       if (!user) {
         throw new Error("No user logged in");
       }
 
-      // Use timestamp-based pagination
-      let query = supabase
-        .from("ministry_messages")
-        .select(
-          `
-          id,
-          ministry_id,
-          user_id,
-          message_text,
-          sent_at,
-          attachment_url
-        `,
-        )
-        .eq("ministry_id", ministryId)
-        .order("sent_at", { ascending: false })
-        .limit(MESSAGES_PER_PAGE);
+      // Since CRUD API doesn't support ordering properly, let's get more messages and sort client-side
+      let queryOptions: any = {
+        select: "id, ministry_id, user_id, message_text, sent_at, attachment_url",
+        where: { ministry_id: ministryId },
+        limit: 100, // Get more messages to ensure we get recent ones
+      };
 
-      // If not initial load and we have a last timestamp, use it for pagination
-      if (!isInitial && lastMessageTimestamp) {
-        console.log("Using timestamp for pagination:", lastMessageTimestamp);
-        query = query.lt("sent_at", lastMessageTimestamp);
-      }
+      console.log("Query options:", JSON.stringify(queryOptions, null, 2));
 
-      const { data, error } = await query;
-
-      if (error) throw error;
+      let data = await select("ministry_messages", queryOptions);
 
       console.log(`Fetched ${data?.length || 0} messages`);
+
+      if (data && data.length > 0) {
+        // Sort client-side by sent_at descending (newest first)
+        data = data.sort(
+          (a: any, b: any) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime(),
+        );
+
+        // For initial load, take only the most recent messages
+        if (isInitial) {
+          data = data.slice(0, MESSAGES_PER_PAGE);
+        } else {
+          // For pagination, skip the messages we already have
+          const currentMessageIds = messages.map((m) => m.id);
+          data = data.filter((msg) => !currentMessageIds.includes(msg.id));
+          data = data.slice(0, MESSAGES_PER_PAGE);
+        }
+
+        console.log(`After sorting and filtering: ${data?.length || 0} messages`);
+      }
 
       if (data) {
         // Update pagination state
@@ -627,14 +597,13 @@ const MinistryChat = () => {
           setLastMessageTimestamp(oldestMessage.sent_at);
         }
 
-        // Fetch user details for each message
+        // Fetch user details for each message using CRUD API
         const messagesWithUsers = await Promise.all(
           data.map(async (message) => {
-            const { data: userData } = await supabase
-              .from("users")
-              .select("first_name, last_name, profile_image")
-              .eq("id", message.user_id)
-              .single();
+            const userData = await selectOne("users", {
+              select: "first_name, last_name, profile_image",
+              where: { id: message.user_id },
+            });
 
             const fullName = userData
               ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
@@ -752,7 +721,7 @@ const MinistryChat = () => {
         message_text: msgText,
         sent_at: new Date().toISOString(),
         attachment_url: attachmentUrl,
-        push_sent: false, // Add this field to track notification status
+        // Removed push_sent field - might not exist in database
       };
 
       // Reset typing status
@@ -766,17 +735,93 @@ const MinistryChat = () => {
 
       setIsTyping(false);
 
-      // Save to Supabase - don't need to update local state as realtime will handle it
-      const { data: messageData, error } = await supabase
-        .from("ministry_messages")
-        .insert(newMessage)
-        .select("id")
-        .single();
+      // Save using CRUD API - don't need to update local state as realtime will handle it
+      console.log("=== ATTEMPTING TO SAVE MESSAGE ===");
+      console.log("Current user:", currentUser);
+      console.log("Ministry ID:", ministryId);
+      console.log("Message to save:", JSON.stringify(newMessage, null, 2));
+      console.log("Message data types:", {
+        ministry_id: typeof newMessage.ministry_id,
+        user_id: typeof newMessage.user_id,
+        message_text: typeof newMessage.message_text,
+        sent_at: typeof newMessage.sent_at,
+        attachment_url: typeof newMessage.attachment_url,
+        push_sent: typeof newMessage.push_sent,
+      });
 
-      if (error) throw error;
+      try {
+        const messageResponse = await insert("ministry_messages", newMessage);
+        console.log("=== CRUD API RESPONSE ===");
+        console.log("Raw response:", JSON.stringify(messageResponse, null, 2));
+        console.log("Response type:", typeof messageResponse);
+        console.log("Is array:", Array.isArray(messageResponse));
 
-      // Trigger the edge function to send notifications
-      await triggerNotifications(messageData.id);
+        // Handle case where API returns an array with the inserted record
+        const messageData = Array.isArray(messageResponse) ? messageResponse[0] : messageResponse;
+        console.log("Processed messageData:", JSON.stringify(messageData, null, 2));
+
+        if (!messageData) {
+          console.error("No message data returned from CRUD API");
+          throw new Error("No message data returned from CRUD API");
+        }
+
+        // Check different possible ID field names
+        const messageId = messageData.id || messageData._id || messageData.message_id;
+        console.log("Message ID found:", messageId);
+
+        if (!messageId) {
+          console.error(
+            "No ID field found in response. Available fields:",
+            Object.keys(messageData),
+          );
+          throw new Error("Failed to save message - no ID returned");
+        }
+
+        console.log("✅ Message saved successfully with ID:", messageId);
+
+        // Verify the message was actually saved by trying to fetch it back
+        setTimeout(async () => {
+          try {
+            console.log("=== VERIFYING MESSAGE SAVE ===");
+            const verifyMessage = await selectOne("ministry_messages", {
+              where: { id: messageId },
+            });
+            console.log("Verification result:", verifyMessage ? "✅ Found" : "❌ Not found");
+            if (verifyMessage) {
+              console.log("Verified message data:", JSON.stringify(verifyMessage, null, 2));
+            }
+
+            // Also try to fetch all recent messages to see what's in the table
+            console.log("=== CHECKING ALL RECENT MESSAGES ===");
+            const allRecentMessages = await select("ministry_messages", {
+              where: { ministry_id: ministryId },
+              limit: 5,
+            });
+            console.log(
+              `Found ${allRecentMessages?.length || 0} recent messages for ministry ${ministryId}`,
+            );
+            allRecentMessages?.forEach((msg, index) => {
+              console.log(`Message ${index + 1}:`, {
+                id: msg.id,
+                text: msg.message_text,
+                user_id: msg.user_id,
+                sent_at: msg.sent_at,
+              });
+            });
+          } catch (verifyError) {
+            console.error("Error verifying message save:", verifyError);
+          }
+        }, 1000);
+
+        // Trigger notifications
+        await triggerNotifications(messageId);
+      } catch (insertError) {
+        console.error("=== CRUD INSERT ERROR ===");
+        console.error("Error type:", typeof insertError);
+        console.error("Error message:", insertError.message);
+        console.error("Full error:", JSON.stringify(insertError, null, 2));
+        throw insertError;
+      }
 
       // Real-time subscription will handle adding the message to the list
     } catch (error) {
@@ -790,51 +835,39 @@ const MinistryChat = () => {
     }
   };
 
-  // Function to trigger the notification edge function
+  // Function to trigger notifications via your backend API
   const triggerNotifications = async (messageId: number) => {
     try {
       console.log(
-        `Invoking notifications function with messageId: ${messageId}, ministryId: ${ministryId}`,
+        `Invoking notifications API with messageId: ${messageId}, ministryId: ${ministryId}`,
       );
 
-      // Try a different name for the function - based on what you've deployed
-      // Change "notifications" to the actual name of your deployed function, e.g. "ministry-notifications"
-      const { data, error } = await supabase.functions.invoke("ministry-notifications", {
-        body: {
-          messageId: messageId,
-          ministryId: ministryId,
-        },
-      });
+      const accessToken = await getAccessToken();
 
-      if (error) {
-        console.error("Error triggering notifications:", error);
+      // For now, skip notifications since the endpoint isn't set up yet
+      console.log("Skipping notifications - endpoint not configured");
+      const data = { success: true, message: "Notifications skipped" };
 
-        // Try to extract more detailed error information
-        if (error.message) {
-          console.error("Error message:", error.message);
-        }
+      // TODO: Implement notification endpoint in your backend
+      // const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/notifications/ministry`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${accessToken}`
+      //   },
+      //   body: JSON.stringify({
+      //     messageId: messageId,
+      //     ministryId: ministryId,
+      //   })
+      // });
+      //
+      // if (!response.ok) {
+      //   throw new Error(`HTTP ${response.status}`);
+      // }
+      //
+      // const data = await response.json();
 
-        if (error.context) {
-          console.error("Error context:", error.context);
-        }
-
-        // Don't show error to user, just log it
-        console.error("Full error object:", JSON.stringify(error));
-
-        // Continue without notifications - don't block the main flow
-        console.log("Continuing without sending notifications");
-      } else {
-        console.log("Notification result:", data);
-
-        // Check if there are any errors in the response data
-        if (data && data.errors && data.errors.length > 0) {
-          console.error("Function returned errors:", data.errors);
-        }
-
-        if (data && data.debug) {
-          console.log("Function debug info:", data.debug);
-        }
-      }
+      console.log("Notification result:", data);
     } catch (error) {
       console.error("Exception in triggerNotifications:", error);
 
@@ -896,29 +929,38 @@ const MinistryChat = () => {
 
       setUploadProgress(0.3);
 
-      // Modern Supabase Storage API for 2025
-      const { data, error } = await supabase.storage.from("attachments").upload(filePath, blob, {
-        contentType: `image/${fileExt}`,
-        upsert: true,
-        cacheControl: "3600",
+      // Upload file via your backend API
+      const formData = new FormData();
+      formData.append("file", {
+        uri: asset.uri,
+        type: asset.mimeType || "image/jpeg",
+        name: fileName,
       } as any);
+      formData.append("ministry_id", ministryId.toString());
 
-      if (error) throw error;
+      const accessToken = await getAccessToken();
+      const uploadResponse = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/uploads/ministry-attachment`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        },
+      );
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const publicUrl = uploadResult.url;
 
       // Track progress manually
       setUploadProgress(0.9);
 
-      // Get public URL with enhanced CDN options
-      const { data: urlData } = await supabase.storage.from("attachments").getPublicUrl(filePath, {
-        transform: {
-          width: 800,
-          height: 800,
-          quality: 80,
-          format: "origin",
-        },
-      });
-
-      setAttachmentUrl(urlData.publicUrl);
+      setAttachmentUrl(publicUrl);
       setUploadProgress(1.0);
 
       // Haptic feedback for success

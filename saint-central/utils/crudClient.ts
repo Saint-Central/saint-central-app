@@ -68,8 +68,15 @@ export class CRUDClient {
       }
 
       const data: CRUDResponse = await response.json();
+      
+      // Log the full response for debugging (only for INSERT operations to reduce spam)
+      if (data.operation === 'INSERT') {
+        console.log('CRUD API Response Status:', response.status);
+        console.log('CRUD API Response Data:', JSON.stringify(data, null, 2));
+      }
 
       if (!data.success) {
+        console.error('CRUD API reported failure:', data.error);
         throw new Error(data.error || "CRUD operation failed");
       }
 
