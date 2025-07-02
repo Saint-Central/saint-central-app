@@ -39,14 +39,14 @@ const quickActions = [
     id: 3,
     icon: "heart",
     iconSet: "FontAwesome5",
-    title: "Give",
+    title: "Donate",
     gradient: ["#10B981", "#059669"],
   },
   {
     id: 4,
     icon: "users",
     iconSet: "FontAwesome5",
-    title: "Connect",
+    title: "Social",
     gradient: ["#F59E0B", "#EA580C"],
   },
 ];
@@ -57,7 +57,7 @@ const featuredContent = {
   subtitle: "Join us for a special service",
   date: "April 9, 2024",
   image: require("../../assets/images/riverside.png"),
-  gradient: ["rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"],
+  gradient: ["rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"] as [string, string],
 };
 
 // Service times
@@ -72,8 +72,8 @@ const serviceTimes = [
 const categories = [
   {
     id: 1,
-    title: "Scripture & Prayer",
-    icon: "bible",
+    title: "Faith",
+    icon: "book-cross",
     iconSet: "MaterialCommunityIcons",
     description: "Daily devotionals and Bible reading plans",
     color: "#7C3AED",
@@ -91,7 +91,7 @@ const categories = [
   },
   {
     id: 3,
-    title: "Community Stories",
+    title: "Culture & Testimonies",
     icon: "comment-quote-outline",
     iconSet: "MaterialCommunityIcons",
     description: "Testimonies of faith and transformation",
@@ -100,7 +100,7 @@ const categories = [
   },
   {
     id: 4,
-    title: "Church News",
+    title: "News",
     icon: "newspaper-variant-outline",
     iconSet: "MaterialCommunityIcons",
     description: "Latest updates and announcements",
@@ -200,10 +200,7 @@ const FeaturedSection = () => {
           style={styles.featuredImage}
           imageStyle={styles.featuredImageStyle}
         >
-          <LinearGradient
-            colors={featuredContent.gradient}
-            style={styles.featuredOverlay}
-          >
+          <LinearGradient colors={featuredContent.gradient} style={styles.featuredOverlay}>
             <View style={styles.featuredBadge}>
               <Text style={styles.featuredBadgeText}>FEATURED EVENT</Text>
             </View>
@@ -252,10 +249,7 @@ const ServiceTimeCard = ({ service, index }: { service: any; index: number }) =>
       }}
     >
       <TouchableOpacity
-        style={[
-          styles.serviceCard,
-          service.active && styles.serviceCardActive,
-        ]}
+        style={[styles.serviceCard, service.active && styles.serviceCardActive]}
         activeOpacity={0.7}
       >
         <View style={styles.serviceDay}>
@@ -302,7 +296,8 @@ const CategoryCard = ({ category, index }: { category: any; index: number }) => 
     ]).start();
   }, []);
 
-  const IconComponent = category.iconSet === "MaterialCommunityIcons" ? MaterialCommunityIcons : FontAwesome5;
+  const IconComponent =
+    category.iconSet === "MaterialCommunityIcons" ? MaterialCommunityIcons : FontAwesome5;
 
   return (
     <Animated.View
@@ -354,10 +349,7 @@ export default function DiscoverScreen() {
       {/* Sticky Header - Safe Area Background */}
       <View style={[styles.stickyHeader, { height: insets.top }]} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Safe Area Spacing */}
         <View style={{ height: insets.top }} />
 
@@ -399,7 +391,12 @@ export default function DiscoverScreen() {
         {/* Divider with Cross */}
         <View style={styles.dividerContainer}>
           <View style={styles.dividerLine} />
-          <MaterialCommunityIcons name="cross" size={24} color={theme.textLight} style={styles.dividerIcon} />
+          <MaterialCommunityIcons
+            name="cross"
+            size={24}
+            color={theme.textLight}
+            style={styles.dividerIcon}
+          />
           <View style={styles.dividerLine} />
         </View>
 
@@ -419,7 +416,8 @@ export default function DiscoverScreen() {
         <View style={styles.quoteContainer}>
           <MaterialCommunityIcons name="format-quote-open" size={28} color={theme.primary} />
           <Text style={styles.quoteText}>
-            "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future."
+            "For I know the plans I have for you, declares the Lord, plans to prosper you and not to
+            harm you, plans to give you hope and a future."
           </Text>
           <Text style={styles.quoteAttribution}>Jeremiah 29:11</Text>
         </View>
