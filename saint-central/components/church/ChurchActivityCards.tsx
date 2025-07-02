@@ -2,6 +2,7 @@ import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated as RNAnimated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
 import theme from "@/theme";
 
 type ActivityCard = {
@@ -10,23 +11,26 @@ type ActivityCard = {
   icon: string;
   iconType: "FontAwesome5" | "MaterialCommunityIcons";
   gradientColors: string[];
+  route?: string;
   onPress?: () => void;
 };
 
 const activities: ActivityCard[] = [
   {
     id: "1",
-    title: "Sunday Mass",
+    title: "Church Service Times",
     icon: "church",
     iconType: "FontAwesome5",
     gradientColors: [`${theme.primary}15`, `${theme.primary}10`],
+    route: "ServiceTimes",
   },
   {
     id: "2", 
-    title: "Bible Study",
+    title: "Bible Study Times",
     icon: "book-open-variant",
     iconType: "MaterialCommunityIcons",
     gradientColors: [`${theme.secondary}15`, `${theme.secondary}10`],
+    route: "biblestudy",
   },
   {
     id: "3",
@@ -34,6 +38,7 @@ const activities: ActivityCard[] = [
     icon: "account-group",
     iconType: "MaterialCommunityIcons",
     gradientColors: [`${theme.accent1}15`, `${theme.accent1}10`],
+    route: "YouthGroupSchedulePage",
   },
   {
     id: "4",
@@ -41,6 +46,7 @@ const activities: ActivityCard[] = [
     icon: "heart",
     iconType: "FontAwesome5",
     gradientColors: [`${theme.tertiary}15`, `${theme.tertiary}10`],
+    route: "Prayer",
   },
 ];
 
@@ -67,6 +73,7 @@ const ActivityCardComponent = ({ activity }: { activity: ActivityCard }) => {
       case "2": return theme.secondary;
       case "3": return theme.accent1;
       case "4": return theme.tertiary;
+      case "5": return theme.accent3;
       default: return theme.primary;
     }
   };
@@ -106,21 +113,44 @@ const ActivityCardComponent = ({ activity }: { activity: ActivityCard }) => {
 };
 
 export default function ChurchActivityCards() {
+  const navigation = useNavigation();
+  
+  // Debug: Log the activities to make sure they're all there
+  console.log("Activities count:", activities.length);
+  console.log("Activity titles:", activities.map(a => a.title));
+
+  const handleActivityPress = (activity: ActivityCard) => {
+    if (activity.route) {
+      try {
+        console.log(`Navigating to: ${activity.route}`);
+        navigation.navigate(activity.route as never);
+      } catch (error) {
+        console.error(`Failed to navigate to ${activity.route}:`, error);
+        // You can add an Alert here if needed
+        // Alert.alert("Coming Soon", `${activity.title} page is under development`);
+      }
+    } else if (activity.onPress) {
+      activity.onPress();
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
         <MaterialCommunityIcons name="calendar-heart" size={20} color={theme.primary} />
-        <Text style={styles.sectionTitle}>Quick Activities</Text>
+        <Text style={styles.sectionTitle}>Quick Activities ({activities.length})</Text>
       </View>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.verticalContainer}>
         {activities.map((activity) => (
-          <ActivityCardComponent key={activity.id} activity={activity} />
+          <ActivityCardComponent 
+            key={activity.id} 
+            activity={{
+              ...activity,
+              onPress: () => handleActivityPress(activity)
+            }} 
+          />
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -145,12 +175,11 @@ const styles = StyleSheet.create({
     color: theme.textWhite,
     marginLeft: 8,
   },
-  scrollContent: {
-    paddingRight: 16,
+  verticalContainer: {
+    gap: 12,
   },
   cardWrapper: {
-    marginRight: 12,
-    width: 140,
+    width: '100%',
   },
   card: {
     borderRadius: 12,
