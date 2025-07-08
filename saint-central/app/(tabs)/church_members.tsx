@@ -21,7 +21,8 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { useRoute, RouteProp } from "@react-navigation/native";
-import { supabase } from "../../supabaseClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import Constants from "expo-constants";
 import theme from "../../theme";
 
@@ -60,6 +61,10 @@ type ChurchMembersScreenRouteProp = RouteProp<{ params: RouteParams }, "params">
 export default function ChurchMembersScreen() {
   const route = useRoute<ChurchMembersScreenRouteProp>();
   const { church_id, church_name } = route.params;
+  
+  // Use custom auth and CRUD hooks
+  const { user: currentUser } = useAuth();
+  const { select, selectOne, update } = useCRUD();
 
   const [members, setMembers] = useState<ChurchMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,26 +90,30 @@ export default function ChurchMembersScreen() {
 
   // Get current user and their role on component mount
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setCurrentUserId(data.user.id);
+    const getCurrentUserRole = async () => {
+      if (currentUser?.id) {
+        setCurrentUserId(currentUser.id);
 
-        const { data: memberData, error: memberError } = await supabase
-          .from("church_members")
-          .select("role")
-          .eq("church_id", church_id)
-          .eq("user_id", data.user.id)
-          .single();
+        try {
+          const memberData = await selectOne("church_members", {
+            select: "role",
+            where: { 
+              church_id: parseInt(church_id),
+              user_id: currentUser.id 
+            }
+          });
 
-        if (memberData) {
-          setCurrentUserRole(memberData.role);
+          if (memberData) {
+            setCurrentUserRole(memberData.role);
+          }
+        } catch (error) {
+          console.error("Error fetching current user role:", error);
         }
       }
     };
 
-    getCurrentUser();
-  }, [church_id]);
+    getCurrentUserRole();
+  }, [church_id, currentUser, selectOne]);
 
   // Filter members based on search query
   useEffect(() => {
@@ -141,14 +150,13 @@ export default function ChurchMembersScreen() {
     const getChurchName = async () => {
       if (!church_name) {
         try {
-          const { data, error } = await supabase
-            .from("churches")
-            .select("name")
-            .eq("id", church_id)
-            .single();
+          const churchData = await selectOne("churches", {
+            select: "name",
+            where: { id: parseInt(church_id) }
+          });
 
-          if (data) {
-            setChurchDisplayName(data.name);
+          if (churchData) {
+            setChurchDisplayName(churchData.name);
           }
         } catch (error) {
           console.error("Error fetching church name:", error);
@@ -157,7 +165,7 @@ export default function ChurchMembersScreen() {
     };
 
     getChurchName();
-  }, [church_id, church_name]);
+  }, [church_id, church_name, selectOne]);
 
   // Fetch church members
   const fetchMembers = async () => {
@@ -171,61 +179,50 @@ export default function ChurchMembersScreen() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("church_members")
-        .select(
-          `
-          id,
-          role,
-          joined_at,
-          user_id,
-          hide_email,
-          hide_name,
-          hide_phone,
-          users!user_id (
-            id,
-            email,
-            first_name,
-            last_name,
-            profile_image,
-            phone_number
-          )
-        `,
-        )
-        .eq("church_id", churchIdNumber);
+      // First, get church members
+      const churchMembers = await select("church_members", {
+        where: { church_id: churchIdNumber }
+      });
 
-      if (error) {
-        console.error("Error fetching members:", error);
+      if (!churchMembers || churchMembers.length === 0) {
+        setMembers([]);
+        setFilteredMembers([]);
         return;
       }
 
-      const normalizedData = data.map((item) => {
-        const userData = Array.isArray(item.users) ? item.users[0] : item.users;
-        return {
-          id: item.id,
-          role: item.role,
-          joined_at: item.joined_at,
-          user_id: item.user_id,
-          hide_email: item.hide_email ?? false,
-          hide_name: item.hide_name ?? false,
-          hide_phone: item.hide_phone ?? false,
-          user: userData
-            ? {
-                id: userData.id,
-                email: userData.email,
-                first_name: userData.first_name,
-                last_name: userData.last_name,
-                profile_image: userData.profile_image,
-                phone_number: userData.phone_number,
-              }
-            : null,
-        };
+      // Get all user IDs from church members
+      const userIds = churchMembers.map(member => member.user_id);
+
+      // Fetch user data for all members
+      // Note: This assumes your CRUD API supports WHERE IN queries
+      // If not, you might need to make individual requests or modify your API
+      const users = await select("users", {
+        where: { id: userIds } // This might need to be adjusted based on your CRUD API capabilities
       });
+
+      // Create a map of users by ID for easy lookup
+      const userMap = new Map();
+      users.forEach(user => {
+        userMap.set(user.id, user);
+      });
+
+      // Combine church member data with user data
+      const normalizedData = churchMembers.map((member) => ({
+        id: member.id,
+        role: member.role,
+        joined_at: member.joined_at,
+        user_id: member.user_id,
+        hide_email: member.hide_email ?? false,
+        hide_name: member.hide_name ?? false,
+        hide_phone: member.hide_phone ?? false,
+        user: userMap.get(member.user_id) || null,
+      }));
 
       setMembers(normalizedData as ChurchMember[]);
       setFilteredMembers(normalizedData as ChurchMember[]);
     } catch (error) {
       console.error("Failed to fetch members:", error);
+      Alert.alert("Error", "Failed to load church members. Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -270,20 +267,15 @@ export default function ChurchMembersScreen() {
     try {
       setUpdateLoading(true);
 
-      const { error } = await supabase
-        .from("church_members")
-        .update({
+      await update(
+        "church_members",
+        {
           hide_email: privacySettings.hide_email,
           hide_name: privacySettings.hide_name,
           hide_phone: privacySettings.hide_phone,
-        })
-        .eq("id", editingMember.id);
-
-      if (error) {
-        console.error("Error updating privacy settings:", error);
-        Alert.alert("Error", "Failed to update privacy settings. Please try again.");
-        return;
-      }
+        },
+        { id: editingMember.id }
+      );
 
       await fetchMembers();
       setPrivacyModalVisible(false);
@@ -446,6 +438,7 @@ export default function ChurchMembersScreen() {
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalContainer}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           >
             <View style={styles.modalContent}>
               <LinearGradient
@@ -477,7 +470,12 @@ export default function ChurchMembersScreen() {
                 </View>
 
                 {/* Modal Body */}
-                <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                <ScrollView 
+                  style={styles.modalBody} 
+                  contentContainerStyle={styles.modalBodyContent}
+                  showsVerticalScrollIndicator={false}
+                  bounces={true}
+                >
                   <Text style={styles.description}>
                     Control what information other church members can see about you. Even church administrators cannot view hidden information.
                   </Text>
@@ -1044,18 +1042,22 @@ const styles = StyleSheet.create({
     backgroundColor: theme.overlay,
     justifyContent: "center",
     alignItems: "center",
+    paddingVertical: theme.spacing2XL,
   },
   modalContainer: {
     width: '90%',
     maxHeight: '85%',
+    flex: 1,
   },
   modalContent: {
     borderRadius: theme.radiusXL,
     overflow: 'hidden',
+    flex: 1,
     ...theme.shadowHeavy,
   },
   modalGradient: {
     borderRadius: theme.radiusXL,
+    flex: 1,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1091,7 +1093,11 @@ const styles = StyleSheet.create({
     padding: theme.spacingM,
   },
   modalBody: {
+    flex: 1,
+  },
+  modalBodyContent: {
     padding: theme.spacingXL,
+    paddingBottom: theme.spacing2XL,
   },
   description: {
     fontSize: 16,
@@ -1174,28 +1180,29 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: "row",
-    justifyContent: "space-between",
     marginTop: theme.spacingL,
+    gap: theme.spacingM,
   },
   cancelButton: {
-    flex: 1,
-    marginRight: theme.spacingM,
+    width: '47.5%',
     borderRadius: theme.radiusLarge,
     overflow: 'hidden',
   },
   cancelButtonGradient: {
     paddingVertical: theme.spacingL,
-    paddingHorizontal: theme.spacingXL,
+    paddingHorizontal: theme.spacingM,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 50,
   },
   cancelButtonText: {
     color: theme.textMedium,
     fontWeight: theme.fontSemiBold,
     fontSize: 16,
+    textAlign: 'center',
   },
   saveButton: {
-    flex: 1,
-    marginLeft: theme.spacingM,
+    width: '47.5%',
     borderRadius: theme.radiusLarge,
     overflow: 'hidden',
   },
@@ -1204,11 +1211,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: theme.spacingL,
-    paddingHorizontal: theme.spacingXL,
+    paddingHorizontal: theme.spacingM,
+    minHeight: 50,
+    flexWrap: 'nowrap',
   },
   saveButtonText: {
     color: theme.textWhite,
     fontWeight: theme.fontBold,
     fontSize: 16,
+    textAlign: 'center',
   },
 });
