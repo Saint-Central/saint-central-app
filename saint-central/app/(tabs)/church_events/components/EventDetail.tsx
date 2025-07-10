@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Image, Pressable, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, Image, Pressable, ScrollView, Linking } from "react-native";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { ChurchEvent } from "../types";
 import { formatEventDate, formatEventTime } from "../utils/dateUtils";
@@ -12,6 +12,26 @@ export interface EventDetailProps {
   onEdit?: (event: ChurchEvent) => void;
   onDelete?: (eventId: number) => void;
 }
+
+const renderDescription = (text: string) => {
+  // Simple URL regex
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      return (
+        <Text
+          key={i}
+          style={{ color: THEME.primary, textDecorationLine: 'underline' }}
+          onPress={() => Linking.openURL(part)}
+        >
+          {part}
+        </Text>
+      );
+    }
+    return <Text key={i} style={{ color: THEME.textLight }}>{part}</Text>;
+  });
+};
 
 const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDelete }) => {
   return (
@@ -55,7 +75,7 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDel
           }}
           onPress={onClose}
         >
-          <Feather name="x" size={24} color={THEME.textDark} />
+          <Feather name="x" size={24} color={THEME.primary} />
         </TouchableOpacity>
 
         {event?.image_url && (
@@ -85,12 +105,12 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDel
               marginBottom: 16,
             }}
           >
-            <MaterialIcons name="event" size={22} color={THEME.textMedium} />
+            <MaterialIcons name="event" size={22} color={THEME.primary} />
             <Text
               style={{
                 fontSize: 16,
                 marginLeft: 12,
-                color: THEME.textDark,
+                color: THEME.textWhite,
               }}
             >
               {event?.time ? formatEventDate(event.time) : "No date specified"}
@@ -104,12 +124,12 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDel
               marginBottom: 16,
             }}
           >
-            <MaterialIcons name="access-time" size={22} color={THEME.textMedium} />
+            <MaterialIcons name="access-time" size={22} color={THEME.primary} />
             <Text
               style={{
                 fontSize: 16,
                 marginLeft: 12,
-                color: THEME.textDark,
+                color: THEME.textWhite,
               }}
             >
               {event?.time ? formatEventTime(event.time) : "No time specified"}
@@ -123,12 +143,12 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDel
               marginBottom: 24,
             }}
           >
-            <MaterialIcons name="location-on" size={22} color={THEME.textMedium} />
+            <MaterialIcons name="location-on" size={22} color={THEME.primary} />
             <Text
               style={{
                 fontSize: 16,
                 marginLeft: 12,
-                color: THEME.textDark,
+                color: THEME.textWhite,
               }}
             >
               {event?.author_name || "No location specified"}
@@ -139,7 +159,7 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDel
             style={{
               fontSize: 18,
               fontWeight: "700",
-              color: THEME.textDark,
+              color: THEME.primary,
               marginTop: 8,
               marginBottom: 12,
             }}
@@ -150,22 +170,42 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, onClose, onEdit, onDel
             style={{
               fontSize: 16,
               lineHeight: 24,
-              color: THEME.textMedium,
+              color: THEME.textLight,
               marginBottom: 24,
             }}
           >
-            {event?.excerpt || "No description available"}
+            {event?.excerpt ? renderDescription(event.excerpt) : "No description available"}
           </Text>
+
+          {/* Video link button */}
+          {event?.video_link && (
+            <TouchableOpacity
+              style={{
+                backgroundColor: THEME.primary,
+                paddingVertical: 12,
+                paddingHorizontal: 20,
+                borderRadius: 30,
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+              onPress={() => Linking.openURL(event.video_link!)}
+            >
+              <Feather name="play-circle" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Watch Video</Text>
+            </TouchableOpacity>
+          )}
 
           {(onEdit || onDelete) && (
             <View
               style={{
                 flexDirection: "row",
                 justifyContent: "space-between",
-                marginTop: 20,
-                paddingTop: 20,
+                marginTop: 10, // reduced from 20
+                paddingTop: 10, // reduced from 20
                 borderTopWidth: 1,
                 borderTopColor: "rgba(0,0,0,0.1)",
+                gap: 8, // add gap for tighter spacing
               }}
             >
               {onEdit && (

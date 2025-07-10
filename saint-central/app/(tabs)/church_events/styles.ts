@@ -48,7 +48,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: "700",
-    color: THEME.primary,
+    color: THEME.accent1, // Changed to warm gold for better visibility
   },
   headerButtons: {
     flexDirection: "row",
@@ -83,7 +83,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     fontSize: 16,
-    color: THEME.primary,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
   },
   clearSearchButton: {
     padding: 8,
@@ -116,11 +116,11 @@ export const styles = StyleSheet.create({
   viewOptionText: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.textMedium,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginLeft: 6,
   },
   viewOptionTextActive: {
-    color: THEME.textWhite,
+    color: THEME.textDark, // Dark text on primary background
   },
   // Month Navigation
   monthNavigation: {
@@ -143,7 +143,7 @@ export const styles = StyleSheet.create({
   monthText: {
     fontSize: 18,
     fontWeight: "600",
-    color: THEME.primary,
+    color: THEME.accent1, // Changed to warm gold for better visibility
   },
   // Calendar
   calendarContainer: {
@@ -169,7 +169,7 @@ export const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     fontWeight: "600",
   },
   calendarGrid: {},
@@ -206,11 +206,11 @@ export const styles = StyleSheet.create({
   },
   dayNumber: {
     fontSize: 15,
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     fontWeight: "400",
   },
   selectedDayNumber: {
-    color: THEME.textWhite,
+    color: THEME.textDark, // Dark text on primary background
     fontWeight: "600",
   },
   todayNumber: {
@@ -236,7 +236,7 @@ export const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: THEME.textMedium,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginTop: 10,
   },
   // Empty States
@@ -257,12 +257,12 @@ export const styles = StyleSheet.create({
   noEventsText: {
     fontSize: 18,
     fontWeight: "600",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginTop: 16,
   },
   noEventsSubtext: {
     fontSize: 15,
-    color: THEME.textMedium,
+    color: THEME.textLight, // Using textLight for secondary text
     textAlign: "center",
     marginTop: 8,
     maxWidth: "85%",
@@ -304,24 +304,24 @@ export const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginBottom: 4,
   },
   eventTime: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.textLight, // Using textLight for secondary text
     marginBottom: 4,
   },
   eventLocation: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.textLight, // Using textLight for secondary text
   },
   eventCardBody: {
     marginTop: 8,
   },
   eventDescription: {
     fontSize: 15,
-    color: THEME.textMedium,
+    color: THEME.textLight, // Using textLight for secondary text
     lineHeight: 22,
   },
   eventCardFooter: {
@@ -435,12 +435,12 @@ export const styles = StyleSheet.create({
   dateDetailTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginBottom: 6,
   },
   dateDetailSubtitle: {
     fontSize: 15,
-    color: THEME.textMedium,
+    color: THEME.textLight, // Using textLight for secondary text
   },
   dateDetailActions: {
     flexDirection: "row",
@@ -456,7 +456,7 @@ export const styles = StyleSheet.create({
   dateDetailActionText: {
     fontSize: 14,
     fontWeight: "500",
-    color: THEME.primary,
+    color: THEME.accent1, // Changed to warm gold for better visibility
     marginLeft: 6,
   },
   dateDetailContent: {
@@ -495,7 +495,7 @@ export const styles = StyleSheet.create({
   dateDetailAddButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: THEME.primary,
+    color: THEME.accent1, // Changed to warm gold for better visibility
     marginLeft: 8,
   },
   // Modals
@@ -544,7 +544,7 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
   },
   modalCloseButton: {
     width: 36,
@@ -564,14 +564,14 @@ export const styles = StyleSheet.create({
   formLabel: {
     fontSize: 16,
     fontWeight: "500",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginBottom: 8,
   },
   formInput: {
     backgroundColor: THEME.pageBg,
     borderRadius: 12,
     padding: 16,
-    color: THEME.primary,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     fontSize: 16,
     borderWidth: 1,
     borderColor: THEME.divider,
@@ -591,7 +591,7 @@ export const styles = StyleSheet.create({
   },
   dateTimeText: {
     fontSize: 16,
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     flex: 1,
   },
   recurrenceContainer: {
@@ -621,11 +621,11 @@ export const styles = StyleSheet.create({
   recurrenceTypeText: {
     fontSize: 14,
     fontWeight: "500",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginLeft: 4,
   },
   recurrenceTypeTextSelected: {
-    color: THEME.textWhite,
+    color: THEME.textDark, // Dark text on primary background
   },
   recurrenceOptionsContainer: {
     marginTop: 12,
@@ -637,7 +637,7 @@ export const styles = StyleSheet.create({
   },
   recurrenceOptionLabel: {
     fontSize: 16,
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginRight: 8,
   },
   intervalContainer: {
@@ -654,7 +654,7 @@ export const styles = StyleSheet.create({
     borderColor: THEME.divider,
     marginRight: 8,
     fontSize: 16,
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
   },
   daysContainer: {
     flexDirection: "row",
@@ -679,10 +679,10 @@ export const styles = StyleSheet.create({
   dayText: {
     fontSize: 14,
     fontWeight: "500",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
   },
   dayTextSelected: {
-    color: THEME.textWhite,
+    color: THEME.textDark, // Dark text on primary background
   },
   recurrenceUntilContainer: {
     flexDirection: "row",
@@ -723,13 +723,13 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   cancelButtonText: {
-    color: THEME.textDark,
+    color: THEME.textDark, // Dark text on light background
   },
   submitButtonText: {
-    color: THEME.textWhite,
+    color: THEME.textDark, // Dark text on primary background
   },
   deleteButtonText: {
-    color: THEME.textWhite,
+    color: THEME.textWhite, // Light text on error background
   },
   imagePickerContainer: {
     justifyContent: "center",
@@ -770,7 +770,7 @@ export const styles = StyleSheet.create({
   selectorLabel: {
     fontSize: 16,
     fontWeight: "500",
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     marginBottom: 8,
     paddingHorizontal: 20,
   },
@@ -791,13 +791,13 @@ export const styles = StyleSheet.create({
     borderColor: THEME.primary,
   },
   churchOptionText: {
-    color: THEME.textDark,
+    color: THEME.textWhite, // Changed to warm cream white for better contrast
     fontSize: 14,
     fontWeight: "500",
     paddingVertical: 8,
   },
   churchOptionTextActive: {
-    color: THEME.textWhite,
+    color: THEME.textDark, // Dark text on primary background
   },
   mainContent: {
     flex: 1,
