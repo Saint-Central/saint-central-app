@@ -1,8 +1,10 @@
 import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated as RNAnimated, Dimensions } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated as RNAnimated, Dimensions, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import theme from "@/theme";
 
 const { width } = Dimensions.get('window');
@@ -16,6 +18,7 @@ type ActivityCard = {
   gradientColors: string[];
   route?: string;
   onPress?: () => void;
+  requiresChurch?: boolean; // New property to indicate if route needs churchId
 };
 
 const activities: ActivityCard[] = [
@@ -26,6 +29,7 @@ const activities: ActivityCard[] = [
     iconType: "FontAwesome5",
     gradientColors: [`${theme.primary}25`, `${theme.primary}10`],
     route: "ServiceTimes",
+    requiresChurch: true, // This route needs churchId
   },
   {
     id: "2", 
@@ -34,6 +38,7 @@ const activities: ActivityCard[] = [
     iconType: "MaterialCommunityIcons",
     gradientColors: [`${theme.secondary}25`, `${theme.secondary}10`],
     route: "biblestudy",
+    requiresChurch: true, // This route needs churchId
   },
   {
     id: "3",
@@ -42,6 +47,7 @@ const activities: ActivityCard[] = [
     iconType: "MaterialCommunityIcons",
     gradientColors: [`${theme.accent1}25`, `${theme.accent1}10`],
     route: "YouthGroupSchedulePage",
+    requiresChurch: true, // This route needs churchId
   },
   {
     id: "4",
@@ -50,6 +56,7 @@ const activities: ActivityCard[] = [
     iconType: "FontAwesome5",
     gradientColors: [`${theme.tertiary}25`, `${theme.tertiary}10`],
     route: "Prayer",
+    requiresChurch: false, // This route doesn't need churchId
   },
 ];
 
@@ -135,22 +142,105 @@ const ActivityCardComponent = ({ activity, index }: { activity: ActivityCard; in
   );
 };
 
+// Interface for user churches
+interface UserChurch {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export default function ChurchActivityCards() {
   const navigation = useNavigation();
+  const { user } = useAuth();
+  const { select, selectOne } = useCRUD();
+  
+  // State for user's churches
+  const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
+  const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // Debug: Log the activities to make sure they're all there
   console.log("Activities count:", activities.length);
   console.log("Activity titles:", activities.map(a => a.title));
 
+  // Fetch user's churches when component mounts
+  useEffect(() => {
+    if (user) {
+      fetchUserChurches();
+    }
+  }, [user]);
+
+  const fetchUserChurches = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+
+      // Get churches where the user is a member using CRUD client
+      const churchMemberships = await select("church_members", {
+        where: { user_id: user.id },
+        select: "church_id, role"
+      });
+
+      if (churchMemberships && churchMemberships.length > 0) {
+        // Get church details for each membership
+        const churchPromises = churchMemberships.map(async (membership) => {
+          const church = await selectOne("churches", {
+            where: { id: membership.church_id },
+            select: "id, name"
+          });
+          
+          return church ? {
+            id: church.id,
+            name: church.name,
+            role: membership.role,
+          } : null;
+        });
+
+        const churches = (await Promise.all(churchPromises)).filter(Boolean) as UserChurch[];
+
+        setUserChurches(churches);
+        console.log("User churches found:", churches);
+
+        // Select the first church by default if none is selected
+        if (!selectedChurchId && churches.length > 0) {
+          setSelectedChurchId(churches[0].id);
+          console.log("Auto-selected church:", churches[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user churches:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleActivityPress = (activity: ActivityCard) => {
     if (activity.route) {
       try {
         console.log(`Navigating to: ${activity.route}`);
-        navigation.navigate(activity.route as never);
+        
+        // Check if this route requires a church and we have one selected
+        if (activity.requiresChurch) {
+          if (!selectedChurchId) {
+            Alert.alert(
+              "No Church Selected", 
+              "Please make sure you're a member of a church to access this feature.",
+              [{ text: "OK" }]
+            );
+            return;
+          }
+          
+          // Navigate with churchId parameter
+          console.log(`Navigating to ${activity.route} with churchId: ${selectedChurchId}`);
+          (navigation as any).navigate(activity.route, { churchId: selectedChurchId });
+        } else {
+          // Navigate without parameters
+          navigation.navigate(activity.route as never);
+        }
       } catch (error) {
         console.error(`Failed to navigate to ${activity.route}:`, error);
-        // You can add an Alert here if needed
-        // Alert.alert("Coming Soon", `${activity.title} page is under development`);
+        Alert.alert("Navigation Error", `Failed to open ${activity.title}. Please try again.`);
       }
     } else if (activity.onPress) {
       activity.onPress();
@@ -162,7 +252,23 @@ export default function ChurchActivityCards() {
       <View style={styles.sectionHeader}>
         <MaterialCommunityIcons name="calendar-heart" size={20} color={theme.primary} />
         <Text style={styles.sectionTitle}>Quick Activities ({activities.length})</Text>
+        {selectedChurchId && userChurches.length > 0 && (
+          <Text style={styles.churchIndicator}>
+            • {userChurches.find(c => c.id === selectedChurchId)?.name}
+          </Text>
+        )}
       </View>
+      
+      {/* Show loading or church info */}
+      {loading && user && (
+        <Text style={styles.loadingText}>Loading church information...</Text>
+      )}
+      
+      {!loading && user && userChurches.length === 0 && (
+        <Text style={styles.noChurchText}>
+          Join a church to access church-specific activities
+        </Text>
+      )}
       
       {/* Grid Layout */}
       <View style={styles.gridContainer}>
@@ -211,12 +317,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
     paddingHorizontal: 16,
+    flexWrap: "wrap",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: theme.textWhite,
     marginLeft: 8,
+  },
+  churchIndicator: {
+    fontSize: 12,
+    color: theme.primary,
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+  loadingText: {
+    fontSize: 12,
+    color: theme.textMedium,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  noChurchText: {
+    fontSize: 12,
+    color: theme.accent3,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    fontStyle: "italic",
   },
   gridContainer: {
     paddingHorizontal: 16,

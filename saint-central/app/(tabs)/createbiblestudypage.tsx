@@ -17,8 +17,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { AntDesign, Feather, MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { supabase } from "../../supabaseClient";
-import { User } from "@supabase/supabase-js";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import { LinearGradient } from "expo-linear-gradient";
 import theme from "../../theme"; // Updated import path
 
@@ -52,8 +52,11 @@ const CreateBibleStudyPage: React.FC = () => {
   const bibleStudyId = params.bibleStudyId as string | undefined;
   const isEditMode = !!bibleStudyId;
 
+  // Use custom auth and CRUD hooks
+  const { user: currentUser } = useAuth();
+  const { select, selectOne, insert, update } = useCRUD();
+
   // State variables
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
@@ -78,64 +81,68 @@ const CreateBibleStudyPage: React.FC = () => {
   // Date picker state - removed time picker state
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
 
-  // Fetch current user on mount
+  // Set default creator when user is available
   useEffect(() => {
-    const fetchCurrentUser = async (): Promise<void> => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setUser(data.user);
-          // Set a default creator name but don't force it
-          if (!formData.created_by) {
-            setFormData((prevData) => ({
-              ...prevData,
-              created_by: data.user.email || "Bible Study Leader",
-            }));
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-        Alert.alert("Error", "Failed to authenticate user");
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
+    if (currentUser && !formData.created_by) {
+      setFormData((prevData) => ({
+        ...prevData,
+        created_by: currentUser.email || "Bible Study Leader",
+      }));
+    }
+  }, [currentUser]);
 
   // Fetch user's churches after user is loaded
   useEffect(() => {
-    if (user) {
+    if (currentUser) {
       fetchUserChurches();
     }
-  }, [user]);
+  }, [currentUser]);
 
   // Load Bible study data if in edit mode
   useEffect(() => {
-    if (isEditMode && user) {
+    if (isEditMode && currentUser) {
       fetchBibleStudyData();
     }
-  }, [isEditMode, user]);
+  }, [isEditMode, currentUser]);
 
   // Fetch user's churches with role information
   const fetchUserChurches = async (): Promise<void> => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
       // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from("church_members")
-        .select("church_id, role, churches(id, name)")
-        .eq("user_id", user.id);
+      const churchMembers = await select("church_members", {
+        select: "church_id, role",
+        where: { user_id: currentUser.id }
+      });
 
-      if (error) throw error;
+      if (churchMembers && churchMembers.length > 0) {
+        // Get church details for each membership individually
+        const churchData: any[] = [];
+        
+        for (const member of churchMembers) {
+          try {
+            const church = await selectOne("churches", {
+              select: "id, name",
+              where: { id: member.church_id }
+            });
+            
+            if (church) {
+              churchData.push({
+                ...church,
+                role: member.role
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching church ${member.church_id}:`, error);
+          }
+        }
 
-      if (data && data.length > 0) {
         // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map((item) => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: string; name: string }).name,
-          role: item.role,
+        const churches: UserChurch[] = churchData.map((church) => ({
+          id: church.id.toString(),
+          name: church.name,
+          role: church.role,
         }));
 
         // Filter churches where user has admin or owner role
@@ -172,22 +179,18 @@ const CreateBibleStudyPage: React.FC = () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("bible_study_times")
-        .select("*")
-        .eq("id", bibleStudyId)
-        .single();
-
-      if (error) throw error;
+      const data = await selectOne("bible_study_times", {
+        where: { id: parseInt(bibleStudyId) }
+      });
 
       if (data) {
         // Populate form with existing data
         setFormData({
-          id: data.id,
+          id: data.id.toString(),
           date: data.date,
           time: data.time,
           image: data.image,
-          church_id: data.church_id,
+          church_id: data.church_id.toString(),
           created_by: data.created_by,
           description: data.description || "",
           location: data.location || "",
@@ -243,9 +246,9 @@ const CreateBibleStudyPage: React.FC = () => {
     }
   };
 
-  // Handle image selection and upload to bible-images bucket
+  // Handle image selection - updated to use placeholder since no storage service
   const pickImage = async (): Promise<void> => {
-    if (!user) {
+    if (!currentUser) {
       Alert.alert("Error", "You must be signed in to upload images");
       return;
     }
@@ -263,39 +266,20 @@ const CreateBibleStudyPage: React.FC = () => {
         setUploadingImage(true);
         setErrorMessage(null);
 
-        // Get the selected image URI
-        const uri = result.assets[0].uri;
-
-        // Convert image to blob
-        const response = await fetch(uri);
-        const blob = await response.blob();
-
-        // Generate a unique filename
-        const fileExt = uri.substring(uri.lastIndexOf(".") + 1);
-        const fileName = `bible-study-${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`; // Safe to use user.id as we checked above
-
-        // Upload to bible-images bucket
-        const { data, error } = await supabase.storage.from("bible-images").upload(filePath, blob, {
-          contentType: `image/${fileExt}`,
-          upsert: false,
-        });
-
-        if (error) {
-          Alert.alert("Upload Error", `Failed to upload image: ${error.message}`);
-          throw error;
-        }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage.from("bible-images").getPublicUrl(filePath);
-
-        // Update form with image URL
-        updateField("image", urlData.publicUrl);
+        // For now, we'll use a placeholder since we don't have image storage
+        // In a real implementation, you'd want to upload to your own image service
+        const placeholderUrl = "https://via.placeholder.com/400x200?text=Bible+Study+Image";
+        
+        // Simulate upload delay
+        setTimeout(() => {
+          updateField("image", placeholderUrl);
+          setUploadingImage(false);
+          Alert.alert("Note", "Image selected successfully. Note: In production, this would upload to your image storage service.");
+        }, 1000);
       }
     } catch (error) {
-      console.error("Error picking/uploading image:", error);
-      Alert.alert("Error", "Failed to upload image. Please try again.");
-    } finally {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to select image. Please try again.");
       setUploadingImage(false);
     }
   };
@@ -332,7 +316,7 @@ const CreateBibleStudyPage: React.FC = () => {
       return false;
     }
 
-    if (!user) {
+    if (!currentUser) {
       setErrorMessage("You must be signed in to save");
       return false;
     }
@@ -342,7 +326,7 @@ const CreateBibleStudyPage: React.FC = () => {
 
   // Handle save/update with improved error handling and loading state
   const handleSave = async (): Promise<void> => {
-    if (!user) {
+    if (!currentUser) {
       Alert.alert("Error", "You must be signed in to create or edit Bible studies");
       return;
     }
@@ -358,53 +342,31 @@ const CreateBibleStudyPage: React.FC = () => {
       setSaving(true);
       setErrorMessage(null);
 
+      const bibleStudyData = {
+        date: formData.date,
+        time: formData.time,
+        image: formData.image,
+        church_id: parseInt(formData.church_id),
+        created_by: formData.created_by || "Bible Study Leader",
+        description: formData.description,
+        location: formData.location,
+        is_recurring: formData.is_recurring,
+        title: formData.title,
+        recurring_type: formData.recurring_type,
+      };
+
       if (isEditMode) {
         // Update existing Bible study
-        const { error } = await supabase
-          .from("bible_study_times")
-          .update({
-            date: formData.date,
-            time: formData.time,
-            image: formData.image,
-            church_id: formData.church_id,
-            created_by: formData.created_by || "Bible Study Leader",
-            description: formData.description,
-            location: formData.location,
-            is_recurring: formData.is_recurring,
-            title: formData.title,
-            recurring_type: formData.recurring_type,
-          })
-          .eq("id", bibleStudyId);
-
-        if (error) {
-          Alert.alert("Save Error", `Failed to update Bible study: ${error.message}`);
-          throw error;
-        }
+        await update("bible_study_times", bibleStudyData, {
+          id: parseInt(bibleStudyId!)
+        });
 
         Alert.alert("Success", "Bible study updated successfully", [
           { text: "OK", onPress: () => router.push("/biblestudy") },
         ]);
       } else {
         // Create new Bible study
-        const { error } = await supabase.from("bible_study_times").insert([
-          {
-            date: formData.date,
-            time: formData.time,
-            image: formData.image,
-            church_id: formData.church_id,
-            created_by: formData.created_by || "Bible Study Leader",
-            description: formData.description,
-            location: formData.location,
-            is_recurring: formData.is_recurring,
-            title: formData.title,
-            recurring_type: formData.recurring_type,
-          },
-        ]);
-
-        if (error) {
-          Alert.alert("Save Error", `Failed to create Bible study: ${error.message}`);
-          throw error;
-        }
+        await insert("bible_study_times", bibleStudyData);
 
         Alert.alert("Success", "Bible study created successfully", [
           { text: "OK", onPress: () => router.push("/biblestudy") },
@@ -413,6 +375,7 @@ const CreateBibleStudyPage: React.FC = () => {
     } catch (error) {
       console.error("Error saving Bible study:", error);
       setErrorMessage("Failed to save Bible study. Please try again.");
+      Alert.alert("Save Error", `Failed to ${isEditMode ? 'update' : 'create'} Bible study. Please try again.`);
     } finally {
       setSaving(false);
     }
@@ -509,7 +472,7 @@ const CreateBibleStudyPage: React.FC = () => {
                   value={formData.title}
                   onChangeText={(text) => updateField("title", text)}
                   placeholder="e.g., Sunday Morning Bible Study"
-                  placeholderTextColor={theme.textLight}
+                  placeholderTextColor={theme.neutral400}
                   autoCapitalize="words"
                 />
               </View>
@@ -524,7 +487,7 @@ const CreateBibleStudyPage: React.FC = () => {
                 value={formData.description}
                 onChangeText={(text) => updateField("description", text)}
                 placeholder="Enter details about the Bible study content, themes, or format"
-                placeholderTextColor={theme.textLight}
+                placeholderTextColor={theme.neutral400}
                 multiline={true}
                 numberOfLines={4}
               />
@@ -565,7 +528,7 @@ const CreateBibleStudyPage: React.FC = () => {
                   value={formData.time}
                   onChangeText={(text) => updateField("time", text)}
                   placeholder="e.g., 10:00 AM"
-                  placeholderTextColor={theme.textLight}
+                  placeholderTextColor={theme.neutral400}
                 />
               </View>
               <Text style={styles.helperText}>
@@ -624,7 +587,7 @@ const CreateBibleStudyPage: React.FC = () => {
                   value={formData.location}
                   onChangeText={(text) => updateField("location", text)}
                   placeholder="e.g., Church Fellowship Hall"
-                  placeholderTextColor={theme.textLight}
+                  placeholderTextColor={theme.neutral400}
                 />
               </View>
             </View>
@@ -639,7 +602,7 @@ const CreateBibleStudyPage: React.FC = () => {
                   value={formData.created_by}
                   onChangeText={(text) => updateField("created_by", text)}
                   placeholder="Enter creator name (e.g., Pastor Smith, Youth Group, etc.)"
-                  placeholderTextColor={theme.textLight}
+                  placeholderTextColor={theme.neutral400}
                 />
               </View>
               <Text style={styles.helperText}>
@@ -658,7 +621,7 @@ const CreateBibleStudyPage: React.FC = () => {
                 {uploadingImage ? (
                   <View style={styles.uploadingContainer}>
                     <ActivityIndicator size="large" color={theme.primary} />
-                    <Text style={styles.uploadingText}>Uploading image...</Text>
+                    <Text style={styles.uploadingText}>Processing image...</Text>
                   </View>
                 ) : formData.image ? (
                   <>
@@ -674,6 +637,9 @@ const CreateBibleStudyPage: React.FC = () => {
                   </>
                 )}
               </TouchableOpacity>
+              <Text style={styles.helperText}>
+                Note: Image functionality requires setting up your own image storage service
+              </Text>
             </View>
 
             {/* Recurring Option - Enhanced with multiple choices */}
@@ -872,7 +838,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.primary,
   },
   headerRightPlaceholder: {
     width: 40,
@@ -904,62 +870,87 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 12,
+    marginBottom: 20,
+    padding: 16,
     backgroundColor: "rgba(188, 108, 100, 0.1)",
-    borderRadius: theme.radiusSmall,
+    borderRadius: theme.radiusMedium,
     borderLeftWidth: 4,
     borderLeftColor: theme.error,
+    borderWidth: 1,
+    borderColor: "rgba(188, 108, 100, 0.2)",
   },
   errorText: {
     color: theme.error,
     fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
   },
   formCard: {
     marginHorizontal: 16,
     backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusMedium,
-    padding: 16,
+    borderRadius: theme.radiusLarge,
+    padding: 24,
     ...theme.shadowLight,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: theme.neutral100,
   },
   fieldContainer: {
-    marginBottom: 20,
+    marginBottom: 28,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.neutral100,
   },
   fieldLabel: {
-    fontSize: 16,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 3,
   },
   // Enhanced input styling
   enhancedInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    paddingHorizontal: 12,
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
+    paddingHorizontal: 16,
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   enhancedTextInput: {
     flex: 1,
-    padding: 12,
+    padding: 16,
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
+    fontWeight: "600",
   },
   // Original input styling
   textInput: {
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    padding: 12,
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
+    padding: 16,
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
+    fontWeight: "600",
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   textAreaInput: {
     height: 120,
@@ -968,55 +959,71 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    padding: 12,
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
+    padding: 16,
     paddingLeft: 16,
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   dateTimeText: {
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
     flex: 1,
+    fontWeight: "600",
   },
   singleChurchContainer: {
     backgroundColor: theme.overlayLight,
-    borderRadius: theme.radiusSmall,
-    padding: 12,
-    borderWidth: 1,
+    borderRadius: theme.radiusMedium,
+    padding: 16,
+    borderWidth: 2,
     borderColor: theme.primary,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   singleChurchText: {
     fontSize: 16,
     color: theme.primary,
-    fontWeight: theme.fontMedium,
+    fontWeight: theme.fontBold,
   },
   churchSelector: {
     flexDirection: "row",
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   churchOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: theme.pageBg,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: theme.divider,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: theme.neutral800,
+    borderRadius: 24,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   churchOptionActive: {
     backgroundColor: theme.primary,
     borderColor: theme.primary,
   },
   churchOptionText: {
-    color: theme.textMedium,
-    fontWeight: theme.fontMedium,
+    color: theme.textWhite,
+    fontWeight: theme.fontBold,
     fontSize: 14,
   },
   churchOptionTextActive: {
     color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
+    fontWeight: theme.fontBold,
   },
   creatorInfoContainer: {
     flexDirection: "row",
@@ -1035,18 +1042,24 @@ const styles = StyleSheet.create({
   },
   imagePickerButton: {
     height: 180,
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   imagePickerText: {
-    marginTop: 8,
+    marginTop: 12,
     fontSize: 16,
-    color: theme.textMedium,
+    color: theme.textWhite,
+    fontWeight: "600",
   },
   previewImage: {
     width: "100%",
@@ -1082,33 +1095,38 @@ const styles = StyleSheet.create({
   recurringOptionsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginVertical: 8,
+    marginVertical: 12,
     justifyContent: "space-between",
   },
   recurringOption: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
+    padding: 14,
+    marginBottom: 10,
     width: "48%",
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   recurringOptionActive: {
     backgroundColor: theme.primary,
     borderColor: theme.primary,
   },
   recurringOptionText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: theme.textDark,
-    fontWeight: theme.fontMedium,
+    marginLeft: 10,
+    fontSize: 15,
+    color: theme.textWhite,
+    fontWeight: theme.fontBold,
   },
   recurringOptionTextActive: {
     color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
+    fontWeight: theme.fontBold,
   },
 
   // Old switch styling (kept for reference)
@@ -1149,53 +1167,73 @@ const styles = StyleSheet.create({
 
   helperText: {
     fontSize: 14,
-    color: theme.textLight,
-    marginTop: 6,
+    color: theme.neutral300,
+    marginTop: 8,
     fontStyle: "italic",
+    lineHeight: 18,
+    paddingLeft: 4,
+    fontWeight: "500",
   },
   requiredNote: {
-    fontSize: 12,
-    color: theme.textLight,
-    marginTop: 10,
+    fontSize: 14,
+    color: theme.neutral300,
+    marginTop: 20,
     fontStyle: "italic",
+    textAlign: "center",
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.neutral700,
+    fontWeight: "500",
   },
   actionContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 16,
+    marginTop: 8,
   },
   cancelButton: {
     flex: 1,
-    padding: 14,
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    marginRight: 8,
+    padding: 16,
+    backgroundColor: theme.neutral800,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 2,
+    borderColor: theme.neutral600,
+    marginRight: 10,
     alignItems: "center",
+    shadowColor: theme.neutral900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cancelButtonText: {
-    color: theme.textMedium,
+    color: theme.textWhite,
     fontSize: 16,
-    fontWeight: theme.fontSemiBold,
+    fontWeight: theme.fontBold,
   },
   saveButton: {
     flex: 2,
     flexDirection: "row",
-    padding: 14,
+    padding: 16,
     backgroundColor: theme.primary,
-    borderRadius: theme.radiusSmall,
+    borderRadius: theme.radiusMedium,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 8,
+    marginLeft: 10,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   saveButtonDisabled: {
-    backgroundColor: theme.textLight,
+    backgroundColor: theme.neutral400,
+    shadowOpacity: 0.1,
   },
   saveButtonText: {
     color: theme.textWhite,
     fontSize: 16,
-    fontWeight: theme.fontSemiBold,
+    fontWeight: theme.fontBold,
   },
   saveButtonIcon: {
     marginLeft: 8,

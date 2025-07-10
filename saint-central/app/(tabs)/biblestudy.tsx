@@ -28,8 +28,8 @@ import {
   FontAwesome5,
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { supabase } from "../../supabaseClient";
-import { User } from "@supabase/supabase-js";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import theme from "../../theme"; // Import the new theme file
 
 const { width, height } = Dimensions.get("window");
@@ -69,18 +69,12 @@ interface IconAndColor {
   color: string;
 }
 
-// Background colors
-const PARCHMENT_BG = "#F9F5F1"; // Light parchment/cream color
-const CARD_BG = "#FFFFFF"; // White for cards
-const SELECTED_TAB_BG = "#FFFFFF"; // White background for selected tab
-const UNSELECTED_TAB_BG = "rgba(169, 150, 134, 0.15)"; // Light version of neutral400
-
 const BibleStudySchedulePage: React.FC = () => {
   // Configure status bar on component mount
   useEffect(() => {
-    StatusBar.setBarStyle("dark-content");
+    StatusBar.setBarStyle("light-content"); // Changed to light content for dark theme
     if (Platform.OS === "android") {
-      StatusBar.setBackgroundColor(PARCHMENT_BG);
+      StatusBar.setBackgroundColor(theme.pageBg);
       StatusBar.setTranslucent(false);
     }
   }, []);
@@ -89,10 +83,13 @@ const BibleStudySchedulePage: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // Use custom auth and CRUD hooks
+  const { user: currentUser } = useAuth();
+  const { select, selectOne } = useCRUD();
+
   // State variables
   const [bibleStudies, setBibleStudies] = useState<BibleStudy[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<User | null>(null);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
   const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
   const [hasPermissionToCreate, setHasPermissionToCreate] = useState<boolean>(false);
@@ -103,30 +100,12 @@ const BibleStudySchedulePage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTabs, setActiveTabs] = useState<"upcoming" | "past">("upcoming");
 
-  // Fetch current user on mount
-  useEffect(() => {
-    const fetchCurrentUser = async (): Promise<void> => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setUser(data.user);
-          console.log("User authenticated:", data.user.id);
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
-
   // Fetch user's churches after user is loaded
   useEffect(() => {
-    if (user) {
+    if (currentUser) {
       fetchUserChurches();
     }
-  }, [user]);
+  }, [currentUser]);
 
   // Update filtered Bible studies when Bible studies or search query changes
   useEffect(() => {
@@ -160,33 +139,52 @@ const BibleStudySchedulePage: React.FC = () => {
 
   // Fetch user's churches with role information
   const fetchUserChurches = async (): Promise<void> => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
       setLoading(true);
 
       // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from("church_members")
-        .select("church_id, role, churches(id, name)")
-        .eq("user_id", user.id);
+      const churchMembers = await select("church_members", {
+        select: "church_id, role",
+        where: { user_id: currentUser.id }
+      });
 
-      if (error) throw error;
+      if (churchMembers && churchMembers.length > 0) {
+        // Get church details for each membership individually
+        const churchData: any[] = [];
+        
+        for (const member of churchMembers) {
+          try {
+            const church = await selectOne("churches", {
+              select: "id, name",
+              where: { id: member.church_id }
+            });
+            
+            if (church) {
+              churchData.push({
+                ...church,
+                role: member.role
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching church ${member.church_id}:`, error);
+          }
+        }
 
-      if (data && data.length > 0) {
         // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map((item) => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: string; name: string }).name,
-          role: item.role,
+        const userChurchesData: UserChurch[] = churchData.map((church) => ({
+          id: church.id.toString(),
+          name: church.name || "Unknown Church",
+          role: church.role,
         }));
 
-        setUserChurches(churches);
-        console.log("User churches:", churches);
+        setUserChurches(userChurchesData);
+        console.log("User churches:", userChurchesData);
 
         // Select the first church by default if none is selected
-        if (!selectedChurchId && churches.length > 0) {
-          setSelectedChurchId(churches[0].id);
+        if (!selectedChurchId && userChurchesData.length > 0) {
+          setSelectedChurchId(userChurchesData[0].id);
         }
 
         // Check permissions after setting churches
@@ -202,7 +200,7 @@ const BibleStudySchedulePage: React.FC = () => {
 
   // Check if user has permission to create/edit Bible studies
   const checkPermissions = (): void => {
-    if (!user || !selectedChurchId) {
+    if (!currentUser || !selectedChurchId) {
       setHasPermissionToCreate(false);
       return;
     }
@@ -224,7 +222,7 @@ const BibleStudySchedulePage: React.FC = () => {
 
   // Fetch Bible studies for the selected church
   const fetchBibleStudies = async (): Promise<void> => {
-    if (!user || !selectedChurchId) {
+    if (!currentUser || !selectedChurchId) {
       setBibleStudies([]);
       setFilteredBibleStudies([]);
       return;
@@ -233,27 +231,33 @@ const BibleStudySchedulePage: React.FC = () => {
     try {
       setLoading(true);
 
-      // Fetch Bible studies for the selected church
-      const { data, error } = await supabase
-        .from("bible_study_times")
-        .select("*")
-        .eq("church_id", selectedChurchId)
-        .order("date", { ascending: false });
+      const churchIdNumber = parseInt(selectedChurchId);
+      if (isNaN(churchIdNumber)) {
+        console.error("Invalid church ID:", selectedChurchId);
+        setBibleStudies([]);
+        setFilteredBibleStudies([]);
+        return;
+      }
 
-      if (error) throw error;
+      // Fetch Bible studies for the selected church
+      const data = await select("bible_study_times", {
+        where: { church_id: churchIdNumber }
+        // Removed order clause for now - will sort in JavaScript instead
+      });
 
       if (data) {
         // Transform Bible study data to include additional fields
-        const enhancedData: BibleStudy[] = await Promise.all(
-          data.map(async (study) => {
-            return {
-              ...study,
-              description: study.description || "Bible Study", // Use description as the main identifier
-              location: study.location || "Church Main Hall",
-              is_recurring: study.is_recurring || false,
-            };
-          }),
-        );
+        let enhancedData: BibleStudy[] = data.map((study) => ({
+          ...study,
+          id: study.id.toString(), // Ensure ID is string
+          church_id: study.church_id.toString(),
+          description: study.description || "Bible Study", // Use description as the main identifier
+          location: study.location || "Church Main Hall",
+          is_recurring: study.is_recurring || false,
+        }));
+
+        // Sort by date in JavaScript (descending - newest first)
+        enhancedData = enhancedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         setBibleStudies(enhancedData);
         // Initial filtering based on active tab
@@ -283,7 +287,7 @@ const BibleStudySchedulePage: React.FC = () => {
 
   // Navigate to create Bible study page
   const handleCreateBibleStudyClick = (): void => {
-    if (!user || !selectedChurchId) {
+    if (!currentUser || !selectedChurchId) {
       Alert.alert(
         "Sign In Required",
         "Please sign in and select a church to create Bible studies.",
@@ -371,25 +375,20 @@ const BibleStudySchedulePage: React.FC = () => {
     return { icon: "book", color: theme.primary }; // Warm brown for default
   };
 
-  // Helper function to handle null image URLs and ensure proper bucket URL
+  // Helper function to handle null image URLs - updated for generic image service
   const getImageUrl = (url: string | null): string => {
     if (!url) {
       return "https://via.placeholder.com/400x200?text=Bible+Study";
     }
 
-    // If the URL is already a full URL from the bible-images bucket, return it
-    if (url.includes("bible-images")) {
+    // If the URL is already a full URL, return it
+    if (url.startsWith("http")) {
       return url;
     }
 
-    // If it's a path without the full URL, construct the URL
-    if (!url.startsWith("http")) {
-      // This assumes Supabase storage URLs follow this pattern
-      const { data } = supabase.storage.from("bible-images").getPublicUrl(url);
-      return data.publicUrl;
-    }
-
-    return url;
+    // For now, return placeholder since we don't have access to Supabase storage
+    // In a real implementation, you'd want to set up your own image storage service
+    return "https://via.placeholder.com/400x200?text=Bible+Study";
   };
 
   // Format date for display
@@ -450,7 +449,7 @@ const BibleStudySchedulePage: React.FC = () => {
     const { day, month } = getDateComponents(item.date);
     const studyDate = new Date(item.date);
     const isPastStudy = studyDate < new Date();
-    const isCreator = user && item.created_by === user.id;
+    const isCreator = currentUser && item.created_by === currentUser.id;
     const canEdit = hasPermissionToCreate || isCreator;
 
     return (
@@ -470,7 +469,7 @@ const BibleStudySchedulePage: React.FC = () => {
           {/* Title row */}
           <View style={styles.titleRow}>
             <View style={[styles.studyIconContainer, { backgroundColor: color }]}>
-              <Feather name={icon as any} size={20} color="#FFFFFF" />
+              <Feather name={icon as any} size={20} color={theme.textWhite} />
             </View>
             <View style={styles.titleContainer}>
               <Text style={styles.studyTitle} numberOfLines={1}>
@@ -514,7 +513,7 @@ const BibleStudySchedulePage: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={PARCHMENT_BG} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.pageBg} />
 
       <ScrollView
         style={styles.scrollView}
@@ -641,7 +640,7 @@ const BibleStudySchedulePage: React.FC = () => {
             </View>
           ) : filteredBibleStudies.length === 0 ? (
             <View style={styles.emptyStateContainer}>
-              <FontAwesome5 name="bible" size={50} color={theme.neutral300} />
+              <FontAwesome5 name="bible" size={50} color={theme.neutral500} />
               <Text style={styles.emptyStateTitle}>No Bible studies found</Text>
               <Text style={styles.emptyStateMessage}>
                 {searchQuery
@@ -661,7 +660,7 @@ const BibleStudySchedulePage: React.FC = () => {
 
       {/* Add refresh button before search toggle button */}
       <TouchableOpacity style={styles.refreshButton} onPress={handleManualRefresh}>
-        <Feather name="refresh-cw" size={22} color="#FFFFFF" />
+        <Feather name="refresh-cw" size={22} color={theme.textWhite} />
       </TouchableOpacity>
 
       {/* Search toggle button */}
@@ -669,17 +668,17 @@ const BibleStudySchedulePage: React.FC = () => {
         style={styles.searchToggleButton}
         onPress={() => setShowSearch(!showSearch)}
       >
-        <Feather name={showSearch ? "x" : "search"} size={22} color="#FFFFFF" />
+        <Feather name={showSearch ? "x" : "search"} size={22} color={theme.textWhite} />
       </TouchableOpacity>
     </View>
   );
 };
 
-// Clean, minimalist styles with parchment theme
+// Updated styles to use theme properly
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PARCHMENT_BG,
+    backgroundColor: theme.pageBg,
   },
   scrollView: {
     flex: 1,
@@ -705,14 +704,14 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 32,
     fontWeight: theme.fontBold,
-    color: theme.neutral900,
+    color: theme.textWhite,
     marginBottom: 16,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
   heroVerse: {
     fontSize: 18,
     fontStyle: "italic",
-    color: theme.neutral700,
+    color: theme.textMedium,
     textAlign: "center",
     marginBottom: 4,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -720,7 +719,7 @@ const styles = StyleSheet.create({
   },
   verseReference: {
     fontSize: 14,
-    color: theme.neutral600,
+    color: theme.textLight,
     marginBottom: 30,
   },
   createButton: {
@@ -731,18 +730,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minWidth: 250,
+    ...theme.shadowMedium,
   },
   createButtonText: {
     fontSize: 16,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     letterSpacing: 1,
   },
 
   // Filter Tabs
   filterTabsContainer: {
     flexDirection: "row",
-    backgroundColor: UNSELECTED_TAB_BG,
+    backgroundColor: theme.neutral700,
     borderRadius: 30,
     padding: 4,
     marginBottom: 20,
@@ -754,16 +754,16 @@ const styles = StyleSheet.create({
     borderRadius: 26,
   },
   filterTabActive: {
-    backgroundColor: SELECTED_TAB_BG,
+    backgroundColor: theme.primary,
   },
   filterTabText: {
     fontWeight: theme.fontBold,
-    color: theme.neutral500,
+    color: theme.textLight,
     letterSpacing: 1,
     fontSize: 14,
   },
   filterTabTextActive: {
-    color: theme.neutral900,
+    color: theme.textWhite,
   },
 
   // Church Selection
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   churchCard: {
-    backgroundColor: CARD_BG,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     padding: 20,
     flexDirection: "row",
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
   churchName: {
     fontSize: 24,
     fontWeight: theme.fontBold,
-    color: theme.neutral900,
+    color: theme.textWhite,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
   roleBadge: {
@@ -810,18 +810,19 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: theme.divider,
+    borderColor: theme.neutral600,
+    backgroundColor: theme.neutral800,
   },
   churchOptionActive: {
-    backgroundColor: theme.accent1,
-    borderColor: theme.accent1,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   churchOptionText: {
-    color: theme.neutral600,
+    color: theme.textLight,
     fontWeight: theme.fontMedium,
   },
   churchOptionTextActive: {
-    color: theme.neutral800,
+    color: theme.textWhite,
     fontWeight: theme.fontBold,
   },
 
@@ -829,7 +830,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: CARD_BG,
+    backgroundColor: theme.cardBg,
     borderRadius: 50,
     paddingHorizontal: 16,
     marginBottom: 20,
@@ -843,7 +844,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
   clearSearchButton: {
     padding: 8,
@@ -883,7 +884,7 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: CARD_BG,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     padding: 40,
     marginVertical: 20,
@@ -892,7 +893,7 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginTop: 16,
     marginBottom: 8,
   },
@@ -906,7 +907,7 @@ const styles = StyleSheet.create({
 
   // Bible Study Card
   bibleStudyCard: {
-    backgroundColor: CARD_BG,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     marginBottom: 16,
     overflow: "hidden",
@@ -915,21 +916,21 @@ const styles = StyleSheet.create({
   },
   dateContainer: {
     width: 60,
-    backgroundColor: theme.neutral100,
+    backgroundColor: theme.neutral700,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
   },
   dateMonth: {
     fontSize: 12,
-    color: theme.neutral600,
+    color: theme.textLight,
     fontWeight: theme.fontBold,
     textTransform: "uppercase",
     marginBottom: 2,
   },
   dateDay: {
     fontSize: 20,
-    color: theme.neutral800,
+    color: theme.textWhite,
     fontWeight: theme.fontBold,
   },
   cardContent: {
@@ -955,12 +956,12 @@ const styles = StyleSheet.create({
   studyTitle: {
     fontSize: 16,
     fontWeight: theme.fontBold,
-    color: theme.neutral900,
+    color: theme.textWhite,
     marginBottom: 2,
   },
   studyTime: {
     fontSize: 14,
-    color: theme.neutral600,
+    color: theme.textLight,
   },
   locationRow: {
     flexDirection: "row",
@@ -970,11 +971,11 @@ const styles = StyleSheet.create({
   locationText: {
     marginLeft: 6,
     fontSize: 14,
-    color: theme.neutral700,
+    color: theme.textMedium,
   },
   descriptionText: {
     fontSize: 14,
-    color: theme.neutral600,
+    color: theme.textLight,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -984,16 +985,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: theme.neutral100,
+    borderTopColor: theme.neutral700,
   },
   createdByText: {
     fontSize: 12,
-    color: theme.neutral500,
+    color: theme.textLight,
   },
   editButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: theme.neutral100,
+    backgroundColor: theme.neutral700,
     borderRadius: 50,
   },
   editButtonText: {
