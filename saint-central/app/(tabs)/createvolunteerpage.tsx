@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { User } from '@supabase/supabase-js';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCRUD } from '@/utils/crudClient';
+import { supabase } from '../../supabaseClient';
 import { 
   View, 
   Text, 
@@ -40,7 +41,8 @@ const CreateVolunteerPage: React.FC = () => {
   const volunteerId = params.volunteerId as string | undefined;
   const isEditMode = !!volunteerId;
   
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuth();
+  const crud = useCRUD();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userChurches, setUserChurches] = useState<Church[]>([]);
@@ -61,35 +63,16 @@ const CreateVolunteerPage: React.FC = () => {
 
   // Fetch user and authorization on component mount
   useEffect(() => {
-    const fetchUserAndAuth = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data?.user) {
-          setUser(data.user);
-          // Set user_id in form data
-          setFormData(prev => ({ ...prev, user_id: data.user.id }));
-          await fetchUserChurches(data.user.id);
-        } else {
-          // Handle not authenticated
-          Alert.alert('Authentication Required', 'You must be logged in to create volunteer opportunities');
-          // Navigate to home page
-          router.replace('/volunteerhomepage');
-          return;
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        Alert.alert('Authentication Error', 'Failed to verify your credentials');
-        // Navigate to home page
-        router.replace('/volunteerhomepage');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserAndAuth();
-  }, []);
+    setLoading(true);
+    if (!user) {
+      Alert.alert('Authentication Required', 'You must be logged in to create volunteer opportunities');
+      router.replace('/volunteerhomepage');
+      return;
+    }
+    setFormData(prev => ({ ...prev, user_id: user.id }));
+    fetchUserChurches(user.id);
+    setLoading(false);
+  }, [user]);
 
   // Fetch existing volunteer opportunity data if in edit mode
   useEffect(() => {
@@ -101,22 +84,12 @@ const CreateVolunteerPage: React.FC = () => {
   // Fetch existing volunteer opportunity data from Supabase
   const fetchVolunteerData = async () => {
     if (!volunteerId) return;
-    
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('volunteer')
-        .select('*')
-        .eq('id', volunteerId)
-        .single();
-      
-      if (error) throw error;
-      
+      const data = await crud.selectOne('volunteer', {
+        where: { id: volunteerId }
+      });
       if (data) {
-        console.log('Fetched volunteer data:', data);
-        
-        // Update form data with existing values
         setFormData({
           description: data.description || '',
           time: new Date(data.time),
@@ -126,15 +99,19 @@ const CreateVolunteerPage: React.FC = () => {
           church_id: data.church_id,
           user_id: data.user_id || user?.id || '',
         });
-        
-        // Set image URI if there's an existing image
         if (data.image_url) {
           setImageUri(data.image_url);
         }
       }
     } catch (error) {
       console.error('Error fetching volunteer data:', error);
-      Alert.alert('Error', 'Failed to load volunteer opportunity data. Please try again.');
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.replace('/auth') }
+        ]);
+      } else {
+        Alert.alert('Error', 'Failed to load volunteer opportunity data. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,41 +120,33 @@ const CreateVolunteerPage: React.FC = () => {
   // Fetch churches where the user is admin or owner
   const fetchUserChurches = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('church_members')
-        .select(`
-          church_id,
-          churches:church_id (
-            id,
-            name
+      const memberships = await crud.select('church_members', {
+        where: { user_id: userId }
+      });
+      if (memberships && memberships.length > 0) {
+        const churchIds = memberships.map((m: any) => m.church_id);
+        const churches = await Promise.all(
+          churchIds.map((id: string) =>
+            crud.selectOne('churches', { where: { id } })
           )
-        `)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const churches = data.map((item: any) => ({
-          id: item.churches.id,
-          name: item.churches.name,
-        }));
-        setUserChurches(churches);
-
-        // Set default church if available
+        );
+        setUserChurches(churches.filter(Boolean));
         if (churches.length > 0 && !formData.church_id) {
-          setFormData((prev) => ({ ...prev, church_id: churches[0].id }));
+          setFormData((prev) => ({ ...prev, church_id: churches[0]?.id }));
         }
       } else {
-        // Create a default church if none exists
-        setUserChurches([{
-          id: '1',
-          name: 'My Church'
-        }]);
+        setUserChurches([{ id: '1', name: 'My Church' }]);
         setFormData((prev) => ({ ...prev, church_id: '1' }));
       }
     } catch (error) {
       console.error('Error fetching user churches:', error);
-      setErrorMessage('Failed to load churches');
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.replace('/auth') }
+        ]);
+      } else {
+        setErrorMessage('Failed to load churches');
+      }
     }
   };
 
@@ -254,14 +223,11 @@ const CreateVolunteerPage: React.FC = () => {
       const { error: uploadError } = await supabase.storage
         .from('volunteer-bucket')
         .upload(filePath, blob);
-        
       if (uploadError) throw uploadError;
-      
       // Get the public URL for the uploaded image
       const { data } = supabase.storage
         .from('volunteer-bucket')
         .getPublicUrl(filePath);
-        
       return data.publicUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -309,30 +275,15 @@ const CreateVolunteerPage: React.FC = () => {
         time: formData.time.toISOString(),
       };
       
-      let error;
-      
       if (isEditMode && volunteerId) {
         // Update existing volunteer opportunity
-        console.log('Updating volunteer opportunity:', volunteerId);
-        const { error: updateError } = await supabase
-          .from('volunteer')
-          .update(volunteerData)
-          .eq('id', volunteerId);
-        
-        error = updateError;
+        await crud.update('volunteer', volunteerData, { id: volunteerId });
         setSuccessMessage('Volunteer opportunity updated successfully!');
       } else {
         // Create new volunteer opportunity
-        console.log('Creating new volunteer opportunity');
-        const { error: insertError } = await supabase
-          .from('volunteer')
-          .insert([volunteerData]);
-        
-        error = insertError;
+        await crud.insert('volunteer', volunteerData);
         setSuccessMessage('Volunteer opportunity created successfully!');
       }
-      
-      if (error) throw error;
       
       // Navigate back to volunteer home page after a short delay
       setTimeout(() => {
@@ -340,7 +291,13 @@ const CreateVolunteerPage: React.FC = () => {
       }, 2000);
     } catch (error) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} volunteer opportunity:`, error);
-      setErrorMessage(`Failed to ${isEditMode ? 'update' : 'create'} volunteer opportunity. Please try again.`);
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.replace('/auth') }
+        ]);
+      } else {
+        setErrorMessage(`Failed to ${isEditMode ? 'update' : 'create'} volunteer opportunity. Please try again.`);
+      }
     } finally {
       setSaving(false);
     }
@@ -560,7 +517,7 @@ const CreateVolunteerPage: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9F5F1',
+    backgroundColor: '#1c1917', // Dark warm black
   },
   container: {
     flex: 1,
@@ -572,8 +529,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2D7CE',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: 'rgba(245, 158, 11, 0.3)', // Warm amber divider
+    backgroundColor: 'rgba(254, 243, 199, 0.06)', // Subtle warm overlay
   },
   backButton: {
     padding: 8,
@@ -581,7 +538,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#A87C5F',
+    color: '#fef3c7', // Warm cream white
   },
   headerSpacer: {
     width: 36, // Same width as back button for balance
@@ -600,7 +557,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B5A50',
+    color: 'rgba(254, 243, 199, 0.65)', // Softer warm cream
   },
   formContainer: {
     padding: 16,
@@ -608,26 +565,26 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: 'rgba(248, 113, 113, 0.1)', // Soft coral red background
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   errorText: {
     flex: 1,
-    color: '#BC6C64',
+    color: '#f87171', // Soft coral red
   },
   successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(125, 155, 106, 0.1)',
+    backgroundColor: 'rgba(52, 211, 153, 0.1)', // Soft mint green background
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   successText: {
     flex: 1,
-    color: '#7D9B6A',
+    color: '#34d399', // Soft mint green
   },
   formGroup: {
     marginBottom: 24,
@@ -636,19 +593,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#6B5A50',
+    color: 'rgba(254, 243, 199, 0.85)', // Warm cream with opacity
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(254, 243, 199, 0.06)', // Subtle warm overlay
     borderWidth: 1,
-    borderColor: '#E2D7CE',
+    borderColor: 'rgba(245, 158, 11, 0.3)', // Warm amber divider
     padding: 14,
     borderRadius: 8,
     fontSize: 16,
-    color: '#A87C5F',
-    shadowColor: 'rgba(45, 36, 31, 0.1)',
+    color: '#fef3c7', // Warm cream white
+    shadowColor: 'rgba(0,0,0,0.5)',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 1,
   },
@@ -657,21 +614,21 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   churchOption: {
-    backgroundColor: '#F2EBE4',
+    backgroundColor: 'rgba(254, 243, 199, 0.06)', // Subtle warm overlay
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E2D7CE',
+    borderColor: 'rgba(245, 158, 11, 0.3)', // Warm amber divider
   },
   churchOptionSelected: {
-    backgroundColor: '#C27F55',
-    borderColor: '#C27F55',
+    backgroundColor: '#f59e0b', // Warm amber
+    borderColor: '#f59e0b',
   },
   churchOptionText: {
-    color: '#6B5A50',
+    color: 'rgba(254, 243, 199, 0.85)', // Warm cream with opacity
     fontWeight: '500',
   },
   churchOptionTextSelected: {
@@ -682,17 +639,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dateTimeButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(254, 243, 199, 0.06)', // Subtle warm overlay
     borderWidth: 1,
-    borderColor: '#E2D7CE',
+    borderColor: 'rgba(245, 158, 11, 0.3)', // Warm amber divider
     padding: 14,
     borderRadius: 8,
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: 'rgba(45, 36, 31, 0.1)',
+    shadowColor: 'rgba(0,0,0,0.5)',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 1,
   },
@@ -700,20 +657,20 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   dateTimeText: {
-    color: '#A87C5F',
+    color: '#fef3c7', // Warm cream white
     fontSize: 15,
   },
   imageUploadButton: {
     width: '100%',
     height: 200,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(254, 243, 199, 0.06)', // Subtle warm overlay
     borderWidth: 1,
-    borderColor: '#E2D7CE',
+    borderColor: 'rgba(245, 158, 11, 0.3)', // Warm amber divider
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: 'rgba(45, 36, 31, 0.1)',
+    shadowColor: 'rgba(0,0,0,0.5)',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 1,
   },
@@ -721,7 +678,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9F5F1',
+    backgroundColor: '#1c1917', // Dark warm black
   },
   imagePreview: {
     width: '100%',
@@ -729,13 +686,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   imageUploadText: {
-    color: '#6B5A50',
+    color: 'rgba(254, 243, 199, 0.85)', // Warm cream with opacity
     fontWeight: '600',
     marginTop: 12,
     fontSize: 16,
   },
   imageHelpText: {
-    color: '#A99686',
+    color: 'rgba(254, 243, 199, 0.65)', // Softer warm cream
     fontSize: 14,
     marginTop: 6,
   },
@@ -757,19 +714,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButton: {
-    backgroundColor: '#C27F55',
+    backgroundColor: '#f59e0b', // Warm amber
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: 'rgba(45, 36, 31, 0.1)',
+    shadowColor: 'rgba(0,0,0,0.6)',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: '#A99686',
+    backgroundColor: '#57534e', // Lighter warm medium brown
   },
   submitButtonText: {
     color: '#FFFFFF',

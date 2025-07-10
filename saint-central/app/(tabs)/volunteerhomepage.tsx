@@ -33,11 +33,19 @@ import {
   MaterialIcons
 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth, User } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCRUD } from '@/utils/crudClient';
-import theme from '@/constants/theme';
+import theme from '@/theme';
 
 const { width, height } = Dimensions.get('window');
+
+// Define User type locally
+type User = {
+  id: string;
+  email?: string;
+  role: string;
+  [key: string]: any;
+};
 
 // Define navigation types
 export type RootStackParamList = {
@@ -267,14 +275,19 @@ const VolunteerHomePage: React.FC = () => {
       
       // Fetch volunteers for the selected church
       const volunteerData = await crud.select('volunteer', {
-        where: { church_id: selectedChurchId },
-        order: 'time DESC'
+        where: { church_id: selectedChurchId }
+        // Temporarily removed order clause to debug the issue
       });
       
       if (volunteerData) {
-        setVolunteers(volunteerData);
-        setFilteredVolunteers(volunteerData);
-        console.log(`Fetched ${volunteerData.length} volunteer opportunities for church ${selectedChurchId}`);
+        // Sort client-side by time in descending order (newest first)
+        const sortedData = volunteerData.sort((a: Volunteer, b: Volunteer) => 
+          new Date(b.time).getTime() - new Date(a.time).getTime()
+        );
+        
+        setVolunteers(sortedData);
+        setFilteredVolunteers(sortedData);
+        console.log(`Fetched ${sortedData.length} volunteer opportunities for church ${selectedChurchId}`);
         
         // After fetching volunteers, fetch user enrollments
         await fetchUserEnrollments();

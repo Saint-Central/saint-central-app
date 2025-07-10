@@ -21,13 +21,20 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5, Feather } from "@expo/vector-icons";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
-import { useAuth, User } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCRUD } from "@/utils/crudClient";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import theme from "@/constants/theme";
+import theme from "@/theme";
 
 // Type definitions based on the schema
+type User = {
+  id: string;
+  email?: string;
+  role: string;
+  [key: string]: any;
+};
+
 type VolunteerEnrollment = {
   id: string;
   user_id: string;
