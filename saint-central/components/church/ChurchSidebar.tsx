@@ -163,7 +163,7 @@ export default function ChurchSidebar({
 
                 {/* Close Button */}
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                  <AntDesign name="close" size={24} color="#FFFFFF" />
+                  <AntDesign name="close" size={24} color={theme.textWhite} />
                 </TouchableOpacity>
               </View>
             </ImageBackground>
@@ -257,6 +257,19 @@ export default function ChurchSidebar({
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo("/coursehomepage")}
+            >
+              <View style={styles.menuIconContainer}>
+                <FontAwesome5 name="graduation-cap" size={20} color={theme.textMedium} />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>Classes</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
+            </TouchableOpacity>
             {/* Mass Schedule Section */}
             {/* <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("schedule")}>
               <View style={styles.menuIconContainer}>
@@ -306,13 +319,13 @@ const styles = StyleSheet.create({
     width: SIDEBAR_WIDTH,
     height: "100%",
     left: 0,
-    backgroundColor: "#FFFFFF",
-    shadowColor: theme.neutral900,
+    backgroundColor: theme.neutral800,
+    shadowColor: "#000000",
     shadowOffset: {
       width: 5,
       height: 0,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 15,
   },
@@ -324,7 +337,7 @@ const styles = StyleSheet.create({
   },
   safeAreaSpacer: {
     height: Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 0,
-    backgroundColor: "rgba(45, 36, 31, 0.4)",
+    backgroundColor: "rgba(28, 25, 23, 0.9)",
     width: "100%",
   },
   headerBackground: {
@@ -334,8 +347,8 @@ const styles = StyleSheet.create({
   headerOverlay: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(45, 36, 31, 0.4)",
-    paddingTop: 70, // Increased padding to move content down more
+    backgroundColor: "rgba(28, 25, 23, 0.75)",
+    paddingTop: 70,
     paddingBottom: 20,
     paddingHorizontal: 20,
     justifyContent: "space-between",
@@ -353,23 +366,23 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(254, 243, 199, 0.3)",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
     borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.8)",
+    borderColor: "rgba(254, 243, 199, 0.75)",
   },
   profileInitial: {
-    color: "white",
+    color: theme.textWhite,
     fontSize: 28,
     fontWeight: "700",
   },
   userName: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 22,
     fontWeight: "700",
-    textShadowColor: "rgba(45, 36, 31, 0.2)",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
@@ -377,7 +390,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(254, 243, 199, 0.2)",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 70, // Move button down to match content
@@ -387,7 +400,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     marginTop: -20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral800,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
   },
@@ -412,7 +425,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: theme.neutral900,
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 4.5,
@@ -427,22 +440,23 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: 4,
   },
   menuDescription: {
     fontSize: 13,
-    color: theme.textMedium,
+    color: theme.textLight,
   },
   divider: {
     height: 1,
-    backgroundColor: theme.divider,
+    backgroundColor: "rgba(245, 158, 11, 0.3)",
     marginVertical: 16,
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: theme.divider,
+    borderTopColor: "rgba(245, 158, 11, 0.3)",
+    backgroundColor: theme.neutral800,
   },
   logoutButton: {
     flexDirection: "row",

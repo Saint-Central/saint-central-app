@@ -21,11 +21,20 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5, Feather } from "@expo/vector-icons";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
-import { supabase } from "../../supabaseClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
+import theme from "@/theme";
 
 // Type definitions based on the schema
+type User = {
+  id: string;
+  email?: string;
+  role: string;
+  [key: string]: any;
+};
+
 type VolunteerEnrollment = {
   id: string;
   user_id: string;
@@ -67,27 +76,6 @@ type RouteParams = {
 
 type VolunteerDetailsScreenRouteProp = RouteProp<{ params: RouteParams }, 'params'>;
 
-// Modern color theme with warm and cozy tones
-const THEME = {
-  primary: "#A87C5F",        // Warm brown for text
-  secondary: "#6B5A50",      // Medium brown for secondary text
-  light: "#A99686",          // Light brown for tertiary text
-  background: "#F9F5F1",     // Light background with warm undertone
-  card: "#FFFFFF",           // White cards
-  accent1: "#F2EBE4",        // Light warm accent
-  accent2: "#E6FFFA",        // Light teal accent
-  accent3: "#FEFCBF",        // Light yellow accent
-  accent4: "#FEE2E2",        // Light red accent
-  border: "#E2D7CE",         // Light borders
-  buttonPrimary: "#C27F55",  // Terracotta for primary buttons
-  buttonSecondary: "#B97A65", // Dusty rust for secondary actions
-  buttonText: "#FFFFFF",     // White text on buttons
-  error: "#BC6C64",          // Dusty rose for errors
-  success: "#7D9B6A",        // Sage green for success
-  warning: "#C78D60",        // Warm amber for warnings
-  shadow: "rgba(45, 36, 31, 0.1)" // Shadow color
-};
-
 interface PrivacySettingsModalProps {
   visible: boolean;
   onClose: () => void;
@@ -102,6 +90,8 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
   enrollment, 
   onSaveComplete 
 }) => {
+  const crud = useCRUD();
+  
   // Initialize privacy settings
   const [settings, setSettings] = useState<PrivacySettings>({
     hide_email: true,
@@ -139,20 +129,11 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
       setLoading(true);
       console.log("Saving settings to database:", settings);
 
-      const { error } = await supabase
-        .from("volunteer_enrollment")
-        .update({
-          hide_email: settings.hide_email,
-          hide_name: settings.hide_name,
-          hide_phone: settings.hide_phone
-        })
-        .eq("id", enrollment.id);
-
-      if (error) {
-        console.error("Error updating privacy settings:", error);
-        Alert.alert("Error", "Failed to update privacy settings: " + error.message);
-        return;
-      }
+      await crud.update("volunteer_enrollment", {
+        hide_email: settings.hide_email,
+        hide_name: settings.hide_name,
+        hide_phone: settings.hide_phone
+      }, { id: enrollment.id });
 
       // Success
       Alert.alert("Success", "Privacy settings updated successfully");
@@ -194,7 +175,7 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           // Switch is ON when hide_email is FALSE (showing email)
           value={!settings.hide_email}
           onValueChange={() => toggleSwitch('hide_email')}
-          trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
+          trackColor={{ false: theme.neutral600, true: theme.primary }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -211,7 +192,7 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           // Switch is ON when hide_phone is FALSE (showing phone)
           value={!settings.hide_phone}
           onValueChange={() => toggleSwitch('hide_phone')}
-          trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
+          trackColor={{ false: theme.neutral600, true: theme.primary }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -228,14 +209,14 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           // Switch is ON when hide_name is FALSE (showing name)
           value={!settings.hide_name}
           onValueChange={() => toggleSwitch('hide_name')}
-          trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
+          trackColor={{ false: theme.neutral600, true: theme.primary }}
           thumbColor="#FFFFFF"
         />
       </View>
 
       <View style={styles.modalButtonContainer}>
         {loading ? (
-          <ActivityIndicator size="small" color="#C27F55" />
+          <ActivityIndicator size="small" color={theme.primary} />
         ) : (
           <>
             <Text 
@@ -261,6 +242,10 @@ export default function VolunteerDetailsPage() {
   const route = useRoute<VolunteerDetailsScreenRouteProp>();
   const navigation = useNavigation();
   const { volunteerId } = route.params;
+  
+  // Auth and CRUD
+  const { user } = useAuth();
+  const crud = useCRUD();
   
   // States for volunteer details and enrollments
   const [volunteer, setVolunteer] = useState<Volunteer | null>(null);
@@ -291,9 +276,9 @@ export default function VolunteerDetailsPage() {
 
   // Configure status bar on component mount
   useEffect(() => {
-    StatusBar.setBarStyle('dark-content');
+    StatusBar.setBarStyle('light-content');
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor(THEME.background);
+      StatusBar.setBackgroundColor(theme.pageBg);
       StatusBar.setTranslucent(false);
     }
   }, []);
@@ -302,19 +287,13 @@ export default function VolunteerDetailsPage() {
   useEffect(() => {
     const getCurrentUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        
-        if (data?.user) {
-          setCurrentUserId(data.user.id);
+        if (user) {
+          setCurrentUserId(user.id);
           
           // Check if the user is enrolled in this volunteer opportunity
-          const { data: enrollmentData } = await supabase
-            .from("volunteer_enrollment")
-            .select("*")
-            .eq("volunteer_id", volunteerId)
-            .eq("user_id", data.user.id)
-            .single();
+          const enrollmentData = await crud.selectOne("volunteer_enrollment", {
+            where: { volunteer_id: volunteerId, user_id: user.id }
+          });
             
           if (enrollmentData) {
             setCurrentUserEnrolled(true);
@@ -334,22 +313,19 @@ export default function VolunteerDetailsPage() {
           }
           
           // Fetch the volunteer opportunity to get church_id
-          const { data: volunteerData } = await supabase
-            .from("volunteer")
-            .select("church_id")
-            .eq("id", volunteerId)
-            .single();
+          const volunteerData = await crud.selectOne("volunteer", {
+            where: { id: volunteerId },
+            select: "church_id"
+          });
             
           if (volunteerData) {
             setChurchId(volunteerData.church_id);
             
             // Now check user's role in this church
-            const { data: memberData } = await supabase
-              .from("church_members")
-              .select("role")
-              .eq("church_id", volunteerData.church_id)
-              .eq("user_id", data.user.id)
-              .single();
+            const memberData = await crud.selectOne("church_members", {
+              where: { church_id: volunteerData.church_id, user_id: user.id },
+              select: "role"
+            });
               
             if (memberData) {
               setCurrentUserRole(memberData.role);
@@ -362,7 +338,7 @@ export default function VolunteerDetailsPage() {
     };
     
     getCurrentUser();
-  }, [volunteerId]);
+  }, [volunteerId, user]);
 
   // Fetch volunteer details
   useEffect(() => {
@@ -371,13 +347,9 @@ export default function VolunteerDetailsPage() {
         setLoading(true);
         
         // Fetch volunteer details
-        const { data, error } = await supabase
-          .from("volunteer")
-          .select("*")
-          .eq("id", volunteerId)
-          .single();
-          
-        if (error) throw error;
+        const data = await crud.selectOne("volunteer", {
+          where: { id: volunteerId }
+        });
         
         if (data) {
           setVolunteer(data);
@@ -398,61 +370,37 @@ export default function VolunteerDetailsPage() {
     try {
       setLoading(true);
       
-      // Join volunteer_enrollment with users table to get user info
-      const { data, error } = await supabase
-        .from("volunteer_enrollment")
-        .select(`
-          id,
-          user_id,
-          volunteer_id,
-          enrollment_date,
-          hide_email,
-          hide_name,
-          hide_phone,
-          users!user_id (
-            id,
-            email,
-            first_name,
-            last_name,
-            profile_image,
-            phone_number
-          )
-        `)
-        .eq("volunteer_id", volunteerId);
-        
-      if (error) throw error;
+      // Get enrollment data first
+      const enrollmentData = await crud.select("volunteer_enrollment", {
+        where: { volunteer_id: volunteerId }
+      });
       
-      if (data) {
-        // Transform the data to match VolunteerEnrollment type
-        const normalizedData = data.map(item => {
-          const userData = Array.isArray(item.users) ? item.users[0] : item.users;
-          
-          // Make sure boolean values are properly set
-          const hide_email = item.hide_email === false ? false : true;
-          const hide_name = item.hide_name === true ? true : false;
-          const hide_phone = item.hide_phone === false ? false : true;
-          
-          return {
-            id: item.id,
-            user_id: item.user_id,
-            volunteer_id: item.volunteer_id,
-            enrollment_date: item.enrollment_date,
-            hide_email,
-            hide_name,
-            hide_phone,
-            user: userData ? {
-              id: userData.id,
-              email: userData.email,
-              first_name: userData.first_name,
-              last_name: userData.last_name,
-              profile_image: userData.profile_image,
-              phone_number: userData.phone_number
-            } : null
-          };
-        });
+      if (enrollmentData) {
+        // Then get user data for each enrollment
+        const enrichedEnrollments = await Promise.all(
+          enrollmentData.map(async (enrollment: any) => {
+            const userData = await crud.selectOne("users", {
+              where: { id: enrollment.user_id },
+              select: "id, email, first_name, last_name, profile_image, phone_number"
+            });
+            
+            // Make sure boolean values are properly set
+            const hide_email = enrollment.hide_email === false ? false : true;
+            const hide_name = enrollment.hide_name === true ? true : false;
+            const hide_phone = enrollment.hide_phone === false ? false : true;
+            
+            return {
+              ...enrollment,
+              hide_email,
+              hide_name,
+              hide_phone,
+              user: userData
+            };
+          })
+        );
         
-        setEnrollments(normalizedData as VolunteerEnrollment[]);
-        setFilteredEnrollments(normalizedData as VolunteerEnrollment[]);
+        setEnrollments(enrichedEnrollments);
+        setFilteredEnrollments(enrichedEnrollments);
       }
     } catch (error) {
       console.error("Error fetching enrollments:", error);
@@ -562,20 +510,11 @@ export default function VolunteerDetailsPage() {
       
       console.log("Saving privacy settings to database:", privacySettings);
 
-      const { error } = await supabase
-        .from("volunteer_enrollment")
-        .update({
-          hide_email: privacySettings.hide_email,
-          hide_name: privacySettings.hide_name,
-          hide_phone: privacySettings.hide_phone
-        })
-        .eq("id", editingEnrollment.id);
-
-      if (error) {
-        console.error("Error updating privacy settings:", error);
-        Alert.alert("Error", "Failed to update privacy settings. Please try again.");
-        return;
-      }
+      await crud.update("volunteer_enrollment", {
+        hide_email: privacySettings.hide_email,
+        hide_name: privacySettings.hide_name,
+        hide_phone: privacySettings.hide_phone
+      }, { id: editingEnrollment.id });
 
       // Refresh the enrollments list to show updated settings
       await fetchEnrollments();
@@ -613,18 +552,14 @@ export default function VolunteerDetailsPage() {
       setLoading(true);
       
       // Add new enrollment - we keep the same default values
-      const { error } = await supabase
-        .from("volunteer_enrollment")
-        .insert([{
-          user_id: currentUserId,
-          volunteer_id: volunteerId,
-          enrollment_date: new Date().toISOString(),
-          hide_email: true,  // Default to hiding email for privacy
-          hide_name: false,  // Default to showing name
-          hide_phone: true,  // Default to hiding phone for privacy
-        }]);
-        
-      if (error) throw error;
+      await crud.insert("volunteer_enrollment", {
+        user_id: currentUserId,
+        volunteer_id: volunteerId,
+        enrollment_date: new Date().toISOString(),
+        hide_email: true,  // Default to hiding email for privacy
+        hide_name: false,  // Default to showing name
+        hide_phone: true,  // Default to hiding phone for privacy
+      });
       
       Alert.alert("Success", "You have successfully signed up for this volunteer opportunity!");
       setCurrentUserEnrolled(true);
@@ -658,7 +593,7 @@ export default function VolunteerDetailsPage() {
     return (
       <View style={styles.memberCard}>
         <LinearGradient
-          colors={["rgba(168, 124, 95, 0.05)", "rgba(194, 127, 85, 0.1)"]}
+          colors={[theme.cardBg, theme.cardBg]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.cardGradient}
@@ -672,7 +607,7 @@ export default function VolunteerDetailsPage() {
               />
             ) : (
               <LinearGradient
-                colors={["#A87C5F", "#C27F55"]}
+                colors={theme.gradientPrimary}
                 style={styles.profileInitialsContainer}
               >
                 <Text style={styles.initialsText}>{getInitials()}</Text>
@@ -699,7 +634,7 @@ export default function VolunteerDetailsPage() {
                 style={styles.actionButton}
                 onPress={() => handlePrivacySettings(item)}
               >
-                <FontAwesome5 name="user-shield" size={18} color="#C27F55" />
+                <FontAwesome5 name="user-shield" size={18} color={theme.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -708,7 +643,7 @@ export default function VolunteerDetailsPage() {
           <View style={styles.memberDetails}>
             {(showEmail || isCurrentUser) && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="envelope" size={14} color="#8A7668" style={styles.icon} />
+                <FontAwesome5 name="envelope" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   {showEmail 
                     ? item.user?.email || 'No email provided'
@@ -720,7 +655,7 @@ export default function VolunteerDetailsPage() {
 
             {(showPhone || isCurrentUser) && item.user?.phone_number && (
               <View style={styles.detailRow}>
-                <FontAwesome5 name="phone" size={14} color="#8A7668" style={styles.icon} />
+                <FontAwesome5 name="phone" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   {showPhone 
                     ? item.user.phone_number
@@ -752,7 +687,7 @@ export default function VolunteerDetailsPage() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Privacy Settings</Text>
               <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
-                <FontAwesome5 name="times" size={20} color="#8A7668" />
+                <FontAwesome5 name="times" size={20} color={theme.textMedium} />
               </TouchableOpacity>
             </View>
 
@@ -778,7 +713,7 @@ export default function VolunteerDetailsPage() {
                       return newSettings;
                     });
                   }}
-                  trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
+                  trackColor={{ false: theme.neutral600, true: theme.primary }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -800,7 +735,7 @@ export default function VolunteerDetailsPage() {
                       return newSettings;
                     });
                   }}
-                  trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
+                  trackColor={{ false: theme.neutral600, true: theme.primary }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -822,13 +757,13 @@ export default function VolunteerDetailsPage() {
                       return newSettings;
                     });
                   }}
-                  trackColor={{ false: "#E2D7CE", true: "#C27F55" }}
+                  trackColor={{ false: theme.neutral600, true: theme.primary }}
                   thumbColor="#FFFFFF"
                 />
               </View>
 
               <View style={styles.privacyNote}>
-                <FontAwesome5 name="info-circle" size={14} color="#8A7668" style={styles.icon} />
+                <FontAwesome5 name="info-circle" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.noteText}>
                   These settings apply to everyone viewing this volunteer opportunity, including admins. Only you will be able to see your own hidden information. When the switch is blue (ON), information is shown to others. When OFF, information is hidden.
                 </Text>
@@ -868,10 +803,11 @@ export default function VolunteerDetailsPage() {
     return (
       <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
-          <FontAwesome5 name="search" size={16} color="#8A7668" style={styles.searchIcon} />
+          <FontAwesome5 name="search" size={16} color={theme.textMedium} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or email..."
+            placeholderTextColor={theme.textLight}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus={true}
@@ -883,7 +819,7 @@ export default function VolunteerDetailsPage() {
             style={styles.clearButton} 
             onPress={() => setSearchQuery("")}
           >
-            <FontAwesome5 name="times-circle" size={16} color="#8A7668" />
+            <FontAwesome5 name="times-circle" size={16} color={theme.textMedium} />
           </TouchableOpacity>
         )}
       </View>
@@ -899,21 +835,21 @@ export default function VolunteerDetailsPage() {
       const title = (volunteer.description?.toLowerCase() || '');
       
       if (title.includes("bible") || title.includes("study")) {
-        return "#9B8557"; // Muted gold
+        return theme.accent1;
       } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
-        return "#B97A65"; // Muted rust
+        return theme.secondary;
       } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
-        return "#C78D60"; // Warm amber
+        return theme.warning;
       } else if (title.includes("prayer") || title.includes("breakfast")) {
-        return "#D8846B"; // Soft coral
+        return theme.accent3;
       } else if (title.includes("meeting") || title.includes("committee")) {
-        return "#A87C5F"; // Warm brown
+        return theme.primary;
       } else if (title.includes("music") || title.includes("choir") || title.includes("practice")) {
-        return "#C27F55"; // Soft terracotta
+        return theme.accent1;
       } else if (title.includes("volunteer") || title.includes("serve") || title.includes("outreach")) {
-        return "#BC6C64"; // Dusty rose
+        return theme.error;
       }
-      return "#8A7668"; // Medium brown
+      return theme.neutral600;
     };
     
     return (
@@ -946,21 +882,21 @@ export default function VolunteerDetailsPage() {
             
             <View style={styles.detailsRow}>
               <View style={styles.detailItem}>
-                <FontAwesome5 name="clock" size={14} color="#8A7668" style={styles.icon} />
+                <FontAwesome5 name="clock" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   {formatDate(volunteer.time)} • {formatTime(volunteer.time)}
                 </Text>
               </View>
               
               <View style={styles.detailItem}>
-                <FontAwesome5 name="map-marker-alt" size={14} color="#8A7668" style={styles.icon} />
+                <FontAwesome5 name="map-marker-alt" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   {volunteer.location || 'Location TBD'}
                 </Text>
               </View>
               
               <View style={styles.detailItem}>
-                <FontAwesome5 name="user" size={14} color="#8A7668" style={styles.icon} />
+                <FontAwesome5 name="user" size={14} color={theme.textMedium} style={styles.icon} />
                 <Text style={styles.detailText}>
                   Coordinator: {volunteer.host || 'TBD'}
                 </Text>
@@ -986,7 +922,7 @@ export default function VolunteerDetailsPage() {
             
             {currentUserEnrolled && (
               <View style={styles.enrolledBadge}>
-                <FontAwesome5 name="check-circle" size={16} color="#7D9B6A" style={{ marginRight: 8 }} />
+                <FontAwesome5 name="check-circle" size={16} color={theme.success} style={{ marginRight: 8 }} />
                 <Text style={styles.enrolledText}>You are signed up</Text>
               </View>
             )}
@@ -999,7 +935,7 @@ export default function VolunteerDetailsPage() {
   if (loading && !refreshing && !volunteer) {
     return (
       <View style={[styles.loadingContainer, {paddingTop: Constants.statusBarHeight}]}>
-        <ActivityIndicator size="large" color="#C27F55" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -1012,10 +948,15 @@ export default function VolunteerDetailsPage() {
           style={styles.backButton} 
           onPress={() => router.push('/volunteerhomepage')}
         >
-          <FontAwesome5 name="arrow-left" size={18} color="#C27F55" />
+          <FontAwesome5 name="arrow-left" size={18} color={theme.primary} />
         </TouchableOpacity>
         <Text style={styles.headerText}>Volunteer Details</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity 
+          style={styles.searchButton}
+          onPress={toggleSearch}
+        >
+          <FontAwesome5 name={searchVisible ? "times" : "search"} size={18} color={theme.primary} />
+        </TouchableOpacity>
       </View>
       
       {/* Search Bar */}
@@ -1045,7 +986,7 @@ export default function VolunteerDetailsPage() {
             <FontAwesome5 
               name={searchQuery ? "search" : "users"} 
               size={50} 
-              color="#E2D7CE" 
+              color={theme.neutral600} 
             />
             <Text style={styles.emptyText}>
               {searchQuery 
@@ -1059,7 +1000,7 @@ export default function VolunteerDetailsPage() {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh} 
-            colors={["#C27F55"]} 
+            colors={[theme.primary]} 
           />
         }
       />
@@ -1073,7 +1014,7 @@ export default function VolunteerDetailsPage() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   header: {
     flexDirection: "row",
@@ -1081,14 +1022,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.cardBg,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderBottomColor: theme.divider,
+    ...theme.shadowLight,
   },
   headerMainContent: {
     flexDirection: "row",
@@ -1100,34 +1037,30 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
   },
   searchButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: THEME.accent1,
+    backgroundColor: theme.cardBg,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   volunteerDetailsContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 0,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadowMedium,
   },
   volunteerImageContainer: {
     width: '100%',
@@ -1160,13 +1093,13 @@ const styles = StyleSheet.create({
   },
   volunteerBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: theme.fontSemiBold,
     color: '#FFFFFF',
   },
   volunteerTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
     marginBottom: 12,
   },
   detailsRow: {
@@ -1179,33 +1112,29 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 15,
-    color: THEME.secondary,
+    color: theme.textMedium,
   },
   enrollButton: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...theme.shadowLight,
   },
   enrollButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
     color: "#FFFFFF",
   },
   enrolledBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(125, 155, 106, 0.1)",
+    backgroundColor: theme.cardBg,
     borderWidth: 1,
-    borderColor: "rgba(125, 155, 106, 0.3)",
+    borderColor: theme.success,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -1214,8 +1143,8 @@ const styles = StyleSheet.create({
   },
   enrolledText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#7D9B6A",
+    fontWeight: theme.fontSemiBold,
+    color: theme.success,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1223,32 +1152,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
   },
   searchBarContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.cardBg,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.divider,
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.accent1,
+    backgroundColor: theme.pageBg,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   searchIcon: {
     marginRight: 8,
@@ -1256,7 +1185,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textWhite,
     padding: 0,
   },
   clearButton: {
@@ -1267,17 +1196,13 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   memberCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.cardBg,
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 8,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...theme.shadowLight,
   },
   cardGradient: {
     padding: 16,
@@ -1303,7 +1228,7 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
     color: "#FFFFFF",
   },
   memberInfo: {
@@ -1311,24 +1236,24 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: THEME.primary,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
     marginBottom: 4,
   },
   currentUserText: {
     fontStyle: "italic",
-    color: THEME.light,
+    color: theme.textLight,
   },
   enrollmentDate: {
     fontSize: 13,
-    color: THEME.light,
+    color: theme.textLight,
   },
   memberDetails: {
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    backgroundColor: theme.pageBg,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   detailRow: {
     flexDirection: "row",
@@ -1342,15 +1267,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 50,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.cardBg,
     margin: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   emptyText: {
     fontSize: 16,
-    color: THEME.light,
+    color: theme.textLight,
     marginTop: 16,
     textAlign: "center",
   },
@@ -1361,20 +1286,13 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "rgba(45, 36, 31, 0.6)",
+    backgroundColor: theme.overlay,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: theme.cardBg,
     margin: 20,
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...theme.shadowHeavy,
     maxHeight: "80%",
   },
   modalHeader: {
@@ -1382,20 +1300,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.divider,
     padding: 16,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
   },
   modalBody: {
     padding: 16,
   },
   description: {
     fontSize: 14,
-    color: THEME.light,
+    color: theme.textLight,
     marginBottom: 20,
     lineHeight: 20,
   },
@@ -1405,7 +1323,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.divider,
   },
   settingInfo: {
     flex: 1,
@@ -1413,17 +1331,17 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: "600",
-    color: THEME.primary,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 12,
-    color: THEME.light,
+    color: theme.textLight,
   },
   privacyNote: {
     flexDirection: "row",
-    backgroundColor: THEME.accent1,
+    backgroundColor: theme.pageBg,
     borderRadius: 8,
     padding: 12,
     marginTop: 20,
@@ -1431,7 +1349,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 12,
-    color: THEME.light,
+    color: theme.textLight,
     flex: 1,
     lineHeight: 18,
   },
@@ -1441,22 +1359,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   cancelButton: {
-    backgroundColor: THEME.accent1,
+    backgroundColor: theme.pageBg,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
     flex: 1,
     marginRight: 8,
     alignItems: "center",
   },
   cancelButtonText: {
-    color: THEME.light,
-    fontWeight: "600",
+    color: theme.textLight,
+    fontWeight: theme.fontSemiBold,
   },
   saveButton: {
-    backgroundColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
@@ -1466,7 +1384,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
   },
   modalButtonContainer: {
     flexDirection: "row",
@@ -1475,8 +1393,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    flex: 1,
+    textAlign: 'center',
   },
   headerSpacer: {
     flex: 1,

@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { supabase } from "../../../supabaseClient";
+import { useCRUD } from "../../../utils/crudClient";
 import { router } from "expo-router";
 
 interface Post {
@@ -77,6 +77,9 @@ const stripHtmlAndTruncate = (content: string, maxLength = 150): string => {
 
 const WomensPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
+  
+  // Initialize CRUD client
+  const { select } = useCRUD();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [activeFilter, setActiveFilter] = useState<string>("all");
@@ -99,32 +102,33 @@ const WomensPage: React.FC = () => {
       try {
         const start = (currentPage - 1) * pageSize;
         const end = currentPage * pageSize - 1;
-        const { data, error, count } = await supabase
-          .from("womens_ministry_posts")
-          .select(
-            `
-            post_id,
-            title,
-            excerpt,
-            image_url,
-            created_at,
-            video_link,
-            author_name,
-            user_id,
-            category
-          `,
-            { count: "exact" },
-          )
-          .order("created_at", { ascending: false })
-          .range(start, end);
+        // Get posts with pagination
+        let data = await select("womens_ministry_posts", {
+          select: "post_id, title, excerpt, image_url, created_at, video_link, author_name, user_id, category",
+          limit: pageSize,
+          offset: start
+        });
+        
+        // Sort client-side by created_at descending
+        if (data && data.length > 0) {
+          data = data.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        }
 
-        if (error) {
-          console.error("Error fetching posts:", error.message);
+        if (!data) {
+          console.error("Error fetching posts: No data returned");
           return;
         }
 
-        if (typeof count === "number") {
-          setTotalPosts(count);
+        // For total count, we need a separate query (CRUD client limitation)
+        // Note: This could be optimized with a count-specific endpoint
+        const allPosts = await select("womens_ministry_posts", {
+          select: "post_id"
+        });
+        
+        if (allPosts) {
+          setTotalPosts(allPosts.length);
         }
 
         const postsTransformed: Post[] = (data as WomensPostRow[]).map((row) => {

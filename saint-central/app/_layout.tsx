@@ -17,19 +17,20 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { supabase } from "../supabaseClient";
 import { registerForPushNotificationsAsync, saveUserPushToken } from "@/utils/notifications";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 // Prevent the splash screen from auto-hiding until ready
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const { session, loading: authLoading } = useAuth();
   const [fontsLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
-  const [loading, setLoading] = useState(true);
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
   const notificationListener = useRef<any>();
   const responseListener = useRef<any>();
@@ -93,29 +94,28 @@ export default function RootLayout() {
     appState.current = nextAppState;
   };
 
+  // Determine initial route once auth loading is complete
   useEffect(() => {
-    if (fontsLoaded) {
-      // Schedule navigation on the next frame to ensure Root Layout is mounted
-      requestAnimationFrame(() => {
-        supabase.auth
-          .getSession()
-          .then(({ data }) => {
-            if (data.session) {
-              router.replace("/(tabs)/home");
-            } else {
-              router.replace("/(auth)/auth");
-            }
-          })
-          .catch((error) => {
-            console.error("Session check error:", error);
-          })
-          .finally(() => {
-            setLoading(false);
-            SplashScreen.hideAsync();
-          });
-      });
+    if (fontsLoaded && !authLoading) {
+      if (session) {
+        console.log("Valid session found, setting initial route to home");
+        setInitialRoute("/(tabs)/home");
+      } else {
+        console.log("No session, setting initial route to auth");
+        setInitialRoute("/(auth)/auth");
+      }
+      SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, router]);
+  }, [fontsLoaded, authLoading, session]);
+
+  // Navigate only after initial route is determined
+  useEffect(() => {
+    if (initialRoute) {
+      router.replace(initialRoute as any);
+    }
+  }, [initialRoute, router]);
+
+  const isLoading = !fontsLoaded || authLoading || !initialRoute;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -124,16 +124,24 @@ export default function RootLayout() {
         merchantIdentifier="merchant.com.saintcentral"
       >
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          {/* Always render Slot so that a navigator is mounted */}
-          <Slot />
-          {loading && (
+          {isLoading ? (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color="#FAC898" />
             </View>
+          ) : (
+            <Slot />
           )}
         </ThemeProvider>
       </StripeProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootLayoutContent />
+    </AuthProvider>
   );
 }
 

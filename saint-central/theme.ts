@@ -1,59 +1,59 @@
 import { Platform } from "react-native";
 
 export default {
-  // New warm and cozy color palette
+  // Christian Dark Theme - Warm and inviting with sacred accents
   // Main colors
-  primary: "#A87C5F", // Warm brown
-  secondary: "#C27F55", // Soft terracotta
-  tertiary: "#D8846B", // Soft coral
+  primary: "#f59e0b", // Warm amber (divine warmth)
+  secondary: "#ef4444", // Warm red (love/passion)
+  tertiary: "#3b82f6", // Softer blue (peace)
 
   // Accent colors
-  accent1: "#9B8557", // Muted gold
-  accent2: "#B97A65", // Muted rust
-  accent3: "#7D9B6A", // Sage green
+  accent1: "#fbbf24", // Soft gold (glory)
+  accent2: "#fef3c7", // Warm cream (light)
+  accent3: "#f87171", // Soft coral (warmth)
 
-  // Neutrals
-  neutral900: "#2D241F", // Almost black with warm undertone
-  neutral800: "#3A2E28",
-  neutral700: "#4E3F37",
-  neutral600: "#6B5A50",
-  neutral500: "#8A7668",
-  neutral400: "#A99686",
-  neutral300: "#C7B9AD",
-  neutral200: "#E2D7CE",
-  neutral100: "#F2EBE4",
-  neutral50: "#F9F5F1", // Almost white with warm undertone
+  // Lighter warm dark neutrals
+  neutral900: "#1c1917", // Lighter warm black
+  neutral800: "#292524", // Lighter warm deep brown
+  neutral700: "#3f3a36", // Lighter warm dark brown
+  neutral600: "#57534e", // Lighter warm medium brown
+  neutral500: "#78716c", // Lighter warm brown
+  neutral400: "#a8a29e", // Warm gray
+  neutral300: "#d6d3d1", // Warm light gray
+  neutral200: "#e7e5e4", // Warm very light gray
+  neutral100: "#f5f5f4", // Warm off white
+  neutral50: "#fafaf9", // Warm white
 
   // Special colors
-  success: "#7D9B6A", // Sage green
-  warning: "#C78D60", // Warm amber
-  error: "#BC6C64", // Dusty rose
-  info: "#6B8A9B", // Muted blue
+  success: "#34d399", // Soft mint green
+  warning: "#fbbf24", // Warm yellow
+  error: "#f87171", // Soft coral red
+  info: "#60a5fa", // Soft sky blue
 
-  // Text
-  textDark: "#3A2E28",
-  textMedium: "#6B5A50",
-  textLight: "#A99686",
-  textWhite: "#F9F5F1",
+  // Text (warm dark theme)
+  textDark: "#1a1815",
+  textMedium: "rgba(254, 243, 199, 0.85)", // Warm cream with opacity
+  textLight: "rgba(254, 243, 199, 0.65)", // Softer warm cream
+  textWhite: "#fef3c7", // Warm cream white
 
-  // UI Elements
-  cardBg: "#FFFFFF",
-  pageBg: "#F9F5F1",
-  divider: "#E2D7CE",
-  overlay: "rgba(45, 36, 31, 0.5)",
-  overlayLight: "rgba(45, 36, 31, 0.2)",
+  // UI Elements (lighter warm dark theme)
+  cardBg: "rgba(254, 243, 199, 0.06)", // Subtle warm overlay
+  pageBg: "#1c1917", // Lighter warm black
+  divider: "rgba(245, 158, 11, 0.3)", // Warm amber divider
+  overlay: "rgba(28, 25, 23, 0.85)", // Lighter warm black overlay
+  overlayLight: "rgba(28, 25, 23, 0.5)", // Light warm black overlay
 
-  // Gradients
-  gradientPrimary: ["#A87C5F", "#C27F55"],
-  gradientSecondary: ["#C27F55", "#D8846B"],
-  gradientSuccess: ["#7D9B6A", "#96B585"],
-  gradientWarning: ["#C78D60", "#D9A97C"],
-  gradientDanger: ["#BC6C64", "#D28A82"],
-  gradientInfo: ["#6B8A9B", "#89A5B3"],
-  gradientLight: ["#F9F5F1", "#F2EBE4"],
-  gradientNeutral: ["#6B5A50", "#8A7668"],
-  gradientCool: ["#7B9DA0", "#A4BEC0"],
-  gradientWarm: ["#C78D60", "#D8846B"],
+  // Gradients (warm dark theme)
+  gradientPrimary: ["#fbbf24", "#f59e0b"], // Warm golden glow
+  gradientSecondary: ["#f87171", "#ef4444"], // Warm coral to red
+  gradientSuccess: ["#34d399", "#10b981"], // Soft mint green
+  gradientWarning: ["#fbbf24", "#f59e0b"], // Warm amber
+  gradientDanger: ["#f87171", "#ef4444"], // Warm coral red
+  gradientInfo: ["#60a5fa", "#3b82f6"], // Soft sky blue
+  gradientLight: ["#fef3c7", "#f5f5f4"], // Warm cream light
+  gradientNeutral: ["#57534e", "#78716c"], // Warm brown blend
+  gradientCool: ["#60a5fa", "#3b82f6"], // Soft blue
+  gradientWarm: ["#fbbf24", "#f87171"], // Golden to coral
 
   // Typography
   fontRegular: "400",
@@ -78,25 +78,25 @@ export default {
   spacing3XL: 48,
   spacing4XL: 64,
 
-  // Effects
+  // Effects (clean dark shadows)
   shadowLight: {
-    shadowColor: "rgba(45,36,31,0.08)",
+    shadowColor: "rgba(0,0,0,0.5)", // Black shadow
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
   shadowMedium: {
-    shadowColor: "rgba(45,36,31,0.1)",
+    shadowColor: "rgba(0,0,0,0.6)", // Deeper black shadow
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 5,
   },
   shadowHeavy: {
-    shadowColor: "rgba(45,36,31,0.12)",
+    shadowColor: "rgba(0,0,0,0.7)", // Deep black shadow
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },

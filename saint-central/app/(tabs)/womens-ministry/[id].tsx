@@ -20,7 +20,8 @@ import {
   AppState,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { supabase } from "../../../supabaseClient";
+import { useCRUD } from "../../../utils/crudClient";
+import { useAuth } from "../../../contexts/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 
@@ -48,6 +49,10 @@ const PostPage = () => {
   // Get iOS status bar height
   const statusBarHeight = Platform.OS === "ios" ? StatusBar.currentHeight || 44 : 0;
   const { id } = useLocalSearchParams<{ id: string }>();
+  
+  // Initialize CRUD client and auth
+  const { selectOne, select, insert, delete: deleteRecord } = useCRUD();
+  const { user } = useAuth();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [webViewHeight, setWebViewHeight] = useState<number>(300);
@@ -102,18 +107,16 @@ const PostPage = () => {
       try {
         setIsLoading(true);
 
-        // Get user session first
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData?.session?.user?.id;
+        // Use the auth context user
+        const userId = user?.id;
         setCurrentUserId(userId || null);
 
         // Get user profile if logged in
         if (userId) {
-          const { data: userData } = await supabase
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", userId)
-            .single();
+          const userData = await selectOne("users", {
+            select: "first_name, last_name",
+            where: { id: userId }
+          });
 
           const fullName = userData
             ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
@@ -130,27 +133,13 @@ const PostPage = () => {
           return;
         }
 
-        const { data, error } = await supabase
-          .from("womens_ministry_posts")
-          .select(
-            `
-            post_id,
-            title,
-            excerpt,
-            image_url,
-            created_at,
-            video_link,
-            category,
-            author_name,
-            user_id
-          `,
-          )
-          .eq("post_id", numericId)
-          .single();
+        const data = await selectOne("womens_ministry_posts", {
+          select: "post_id, title, excerpt, image_url, created_at, video_link, category, author_name, user_id",
+          where: { post_id: numericId }
+        });
 
-        if (error) {
-          console.error("Supabase error:", error.message);
-          setError(error.message);
+        if (!data) {
+          setError("Post not found");
           setIsLoading(false);
           return;
         }
@@ -188,29 +177,28 @@ const PostPage = () => {
   const fetchLikes = async (postId: number, userId: string | null) => {
     try {
       // Get total likes
-      const { count, error } = await supabase
-        .from("likes")
-        .select("*", { count: "exact" })
-        .eq("likeable_id", postId)
-        .eq("likeable_type", "womens_ministry_post");
+      const likesData = await select("likes", {
+        select: "id",
+        where: { 
+          likeable_id: postId,
+          likeable_type: "womens_ministry_post"
+        }
+      });
 
-      if (error) throw error;
-
-      setLikeCount(count || 0);
+      setLikeCount(likesData.length);
 
       // Check if current user liked the post
       if (userId) {
-        const { data, error: likedError } = await supabase
-          .from("likes")
-          .select("*")
-          .eq("likeable_id", postId)
-          .eq("likeable_type", "womens_ministry_post")
-          .eq("user_id", userId)
-          .maybeSingle();
+        const userLike = await selectOne("likes", {
+          select: "id",
+          where: {
+            likeable_id: postId,
+            likeable_type: "womens_ministry_post",
+            user_id: userId
+          }
+        });
 
-        if (likedError) throw likedError;
-
-        setIsLiked(!!data);
+        setIsLiked(!!userLike);
       }
     } catch (err) {
       console.error("Error fetching likes:", err);
@@ -220,32 +208,28 @@ const PostPage = () => {
   // Fetch comments for the post
   const fetchComments = async (postId: number) => {
     try {
-      const { data, error } = await supabase
-        .from("comments")
-        .select(
-          `
-          id,
-          content,
-          created_at,
-          user_id
-        `,
-        )
-        .eq("commentable_id", postId)
-        .eq("commentable_type", "womens_ministry_post")
-        .order("created_at", { ascending: false });
+      const commentsData = await select("comments", {
+        select: "id, content, created_at, user_id",
+        where: {
+          commentable_id: postId,
+          commentable_type: "womens_ministry_post"
+        }
+      });
 
-      if (error) throw error;
+      // Sort comments by created_at descending (newest first)
+      const sortedComments = commentsData.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
       // Format the comments
-      const formattedComments = data.map(async (comment) => {
+      const formattedComments = sortedComments.map(async (comment) => {
         // Get user name for each comment
         let authorName = "Anonymous";
         if (comment.user_id) {
-          const { data: userData } = await supabase
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", comment.user_id)
-            .single();
+          const userData = await selectOne("users", {
+            select: "first_name, last_name",
+            where: { id: comment.user_id }
+          });
 
           if (userData) {
             authorName = `${userData.first_name || ""} ${userData.last_name || ""}`.trim();
@@ -283,27 +267,22 @@ const PostPage = () => {
     try {
       if (isLiked) {
         // Remove like
-        const { error } = await supabase
-          .from("likes")
-          .delete()
-          .eq("likeable_id", post?.id)
-          .eq("likeable_type", "womens_ministry_post")
-          .eq("user_id", currentUserId);
-
-        if (error) throw error;
+        await deleteRecord("likes", {
+          likeable_id: post?.id,
+          likeable_type: "womens_ministry_post",
+          user_id: currentUserId
+        });
 
         setIsLiked(false);
         setLikeCount((prev) => Math.max(0, prev - 1));
       } else {
         // Add like
-        const { error } = await supabase.from("likes").insert({
+        await insert("likes", {
           user_id: currentUserId,
           likeable_id: post?.id,
           likeable_type: "womens_ministry_post",
           created_at: new Date().toISOString(),
         });
-
-        if (error) throw error;
 
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
@@ -330,22 +309,17 @@ const PostPage = () => {
       setIsSubmittingComment(true);
       Keyboard.dismiss();
 
-      const { data, error } = await supabase
-        .from("comments")
-        .insert({
-          user_id: currentUserId,
-          commentable_id: post?.id,
-          commentable_type: "womens_ministry_post",
-          content: newComment.trim(),
-          created_at: new Date().toISOString(),
-        })
-        .select();
-
-      if (error) throw error;
+      const data = await insert("comments", {
+        user_id: currentUserId,
+        commentable_id: post?.id,
+        commentable_type: "womens_ministry_post",
+        content: newComment.trim(),
+        created_at: new Date().toISOString(),
+      });
 
       // Add the new comment to the list
       const newCommentObj: Comment = {
-        id: data[0].id,
+        id: data.id,
         content: newComment.trim(),
         author: currentUserName || "Anonymous",
         date: new Date().toLocaleDateString("en-US", {
@@ -375,9 +349,7 @@ const PostPage = () => {
   // Delete a comment
   const deleteComment = async (commentId: number) => {
     try {
-      const { error } = await supabase.from("comments").delete().eq("id", commentId);
-
-      if (error) throw error;
+      await deleteRecord("comments", { id: commentId });
 
       // Remove the comment from the list
       setComments(comments.filter((comment) => comment.id !== commentId));

@@ -17,11 +17,13 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { AntDesign, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { supabase } from "../../supabaseClient";
-import { User } from "@supabase/supabase-js";
+import { BlurView } from "expo-blur";
 import { Course } from "@/types/course";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
+import theme from "@/theme";
 
 // Define navigation types
 export type RootStackParamList = {
@@ -32,50 +34,33 @@ export type RootStackParamList = {
 // Define types based on schema
 // User church role interface
 type UserChurch = {
-  id: string;
+  id: number;
   name: string;
   role: string;
 };
 
 // Enrollment type to track user enrollments
 type Enrollment = {
-  id: string;
-  course_id: string;
+  id: number;
+  course_id: number;
   user_id: string;
 };
 
-// Modern color theme with spiritual tones - UPDATED WITH RED THEME
-const THEME = {
-  primary: "#2D3748", // Dark slate for text
-  secondary: "#4A5568", // Medium slate for secondary text
-  light: "#A0AEC0", // Light slate for tertiary text
-  background: "#F7FAFC", // Light background
-  card: "#FFFFFF", // White cards
-  accent1: "#FEF2F2", // Light red accent (updated)
-  accent2: "#E6FFFA", // Light teal accent
-  accent3: "#FEFCBF", // Light yellow accent
-  accent4: "#FEE2E2", // Light red accent
-  border: "#E2E8F0", // Light borders
-  buttonPrimary: "#E53E3E", // Red for primary buttons (was purple)
-  buttonSecondary: "#C53030", // Darker red for secondary actions (was indigo)
-  buttonText: "#FFFFFF", // White text on buttons
-  error: "#E53E3E", // Error red
-  success: "#38A169", // Success green
-  warning: "#DD6B20", // Warning orange
-  shadow: "rgba(0, 0, 0, 0.1)", // Shadow color
-};
+// Use the consistent theme from theme.ts
 
 const CourseHomePage: React.FC = () => {
   // Configure status bar on component mount
   useEffect(() => {
-    StatusBar.setBarStyle("dark-content");
+    StatusBar.setBarStyle("light-content");
     if (Platform.OS === "android") {
-      StatusBar.setBackgroundColor(THEME.background);
+      StatusBar.setBackgroundColor(theme.pageBg);
       StatusBar.setTranslucent(false);
     }
   }, []);
 
   const router = useRouter();
+  const { user, loading: authLoading, session } = useAuth();
+  const crud = useCRUD();
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroMaxHeight = 280;
   const churchSelectorHeight = 70;
@@ -83,12 +68,11 @@ const CourseHomePage: React.FC = () => {
   // State variables
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
-  const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
+  const [selectedChurchId, setSelectedChurchId] = useState<number | null>(null);
   const [hasPermissionToCreate, setHasPermissionToCreate] = useState(false);
-  const [enrollingId, setEnrollingId] = useState<string | null>(null);
-  const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [enrollingId, setEnrollingId] = useState<number | null>(null);
+  const [leavingId, setLeavingId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,30 +80,12 @@ const CourseHomePage: React.FC = () => {
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [userEnrollments, setUserEnrollments] = useState<Enrollment[]>([]);
 
-  // Fetch current user on mount
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setUser(data.user);
-          console.log("User authenticated:", data.user.id);
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
-
   // Fetch user's churches after user is loaded
   useEffect(() => {
-    if (user) {
+    if (user && session && !authLoading) {
       fetchUserChurches();
     }
-  }, [user]);
+  }, [user, session, authLoading]);
 
   // Update filtered courses when courses or search query changes
   useEffect(() => {
@@ -150,20 +116,27 @@ const CourseHomePage: React.FC = () => {
       setLoading(true);
 
       // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from("church_members")
-        .select("church_id, role, churches(id, name)")
-        .eq("user_id", user.id);
+      const churchMembers = await crud.select("church_members", {
+        where: { user_id: user.id },
+      });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map((item) => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: string; name: string }).name,
-          role: item.role,
-        }));
+      if (churchMembers && churchMembers.length > 0) {
+        // Fetch church details for each membership
+        const churches: UserChurch[] = [];
+        
+        for (const member of churchMembers) {
+          const church = await crud.selectOne("churches", {
+            where: { id: member.church_id },
+          });
+          
+          if (church) {
+            churches.push({
+              id: church.id,
+              name: church.name,
+              role: member.role,
+            });
+          }
+        }
 
         setUserChurches(churches);
         console.log("User churches:", churches);
@@ -190,16 +163,13 @@ const CourseHomePage: React.FC = () => {
 
     try {
       // Get all enrollments for the current user
-      const { data, error } = await supabase
-        .from("course_enrollment")
-        .select("id, course_id, user_id")
-        .eq("user_id", user.id);
+      const enrollments = await crud.select("course_enrollment", {
+        where: { user_id: user.id },
+      });
 
-      if (error) throw error;
-
-      if (data) {
-        setUserEnrollments(data);
-        console.log(`Fetched ${data.length} enrollments for user ${user.id}`);
+      if (enrollments) {
+        setUserEnrollments(enrollments);
+        console.log(`Fetched ${enrollments.length} enrollments for user ${user.id}`);
       }
     } catch (error) {
       console.error("Error fetching user enrollments:", error);
@@ -240,18 +210,14 @@ const CourseHomePage: React.FC = () => {
       setLoading(true);
 
       // Fetch courses for the selected church
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("church_id", selectedChurchId)
-        .order("time", { ascending: false });
+      const coursesData = await crud.select("courses", {
+        where: { church_id: selectedChurchId },
+      }) as Course[];
 
-      if (error) throw error;
-
-      if (data) {
-        setCourses(data);
-        setFilteredCourses(data);
-        console.log(`Fetched ${data.length} courses for church ${selectedChurchId}`);
+      if (coursesData) {
+        setCourses(coursesData);
+        setFilteredCourses(coursesData);
+        console.log(`Fetched ${coursesData.length} courses for church ${selectedChurchId}`);
 
         // After fetching courses, fetch user enrollments
         await fetchUserEnrollments();
@@ -272,12 +238,12 @@ const CourseHomePage: React.FC = () => {
   };
 
   // Check if user is enrolled in a course
-  const isUserEnrolled = (courseId: string): boolean => {
+  const isUserEnrolled = (courseId: number): boolean => {
     return userEnrollments.some((enrollment) => enrollment.course_id === courseId);
   };
 
   // Handle enrolling in a course
-  const handleEnroll = async (courseId: string) => {
+  const handleEnroll = async (courseId: number) => {
     if (!user) {
       setErrorMessage("Please sign in to enroll in courses");
       return;
@@ -288,34 +254,29 @@ const CourseHomePage: React.FC = () => {
 
     try {
       // Check if already enrolled
-      const { data: existingEnrollment } = await supabase
-        .from("course_enrollment")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("course_id", courseId)
-        .single();
+      const existingEnrollments = await crud.select("course_enrollment", {
+        where: {
+          user_id: user.id,
+          course_id: courseId,
+        },
+        limit: 1,
+      });
 
-      if (existingEnrollment) {
+      if (existingEnrollments && existingEnrollments.length > 0) {
         setErrorMessage("You are already enrolled in this course");
         setEnrollingId(null);
         return;
       }
 
       // Add new enrollment
-      const { error } = await supabase.from("course_enrollment").insert([
-        {
-          user_id: user.id,
-          course_id: courseId,
-          enrollment_date: new Date().toISOString(),
-          hide_email: true,
-          hide_phone: true,
-          hide_name: false,
-        },
-      ]);
-
-      if (error) {
-        throw error;
-      }
+      await crud.insert("course_enrollment", {
+        user_id: user.id,
+        course_id: courseId,
+        enrollment_date: new Date().toISOString(),
+        hide_email: true,
+        hide_phone: true,
+        hide_name: false,
+      });
 
       // Refresh enrollments to update UI
       await fetchUserEnrollments();
@@ -329,7 +290,7 @@ const CourseHomePage: React.FC = () => {
   };
 
   // Handle leaving a course
-  const handleLeave = async (courseId: string) => {
+  const handleLeave = async (courseId: number) => {
     if (!user) {
       setErrorMessage("Please sign in to leave courses");
       return;
@@ -349,11 +310,7 @@ const CourseHomePage: React.FC = () => {
       }
 
       // Delete the enrollment
-      const { error } = await supabase.from("course_enrollment").delete().eq("id", enrollment.id);
-
-      if (error) {
-        throw error;
-      }
+      await crud.delete("course_enrollment", { id: enrollment.id });
 
       // Refresh enrollments to update UI
       await fetchUserEnrollments();
@@ -390,19 +347,10 @@ const CourseHomePage: React.FC = () => {
 
   // Handle course click
   const handleCourseClick = (course: Course) => {
-    if (!course.course_id) {
-      // If no course_id, navigate to backend page
-      router.push({
-        pathname: "/coursesbackendpage",
-        params: { courseId: course.id },
-      });
-      return;
-    }
-
-    // If course_id exists, handle normal course navigation
+    // Navigate to the new course detail page
     router.push({
-      pathname: "/coursehomepage",
-      params: { courseId: course.course_id },
+      pathname: "/course/[id]",
+      params: { id: course.id },
     });
   };
 
@@ -468,696 +416,648 @@ const CourseHomePage: React.FC = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Render search bar
-  const renderSearchBar = () => (
-    <View style={styles.searchContainer}>
-      <Feather name="search" size={18} color={THEME.secondary} style={styles.searchIcon} />
-      <TextInput
-        style={styles.searchInput}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search courses..."
-        placeholderTextColor={THEME.light}
-      />
-      {searchQuery.length > 0 && (
-        <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery("")}>
-          <Feather name="x" size={18} color={THEME.secondary} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  // This function is no longer used since search is handled in the main JSX
 
-  // Render course card
+  // Render modern course card
   const renderCourseCard = ({ item }: { item: Course }) => {
     const { icon, color } = getCourseIconAndColor(item);
     const courseTime = new Date(item.time);
     const isPastCourse = courseTime < new Date();
-    const isCreator = user && item.created_at === user.id;
+    const isCreator = user && item.user_id === user.id;
     const canEdit = hasPermissionToCreate || isCreator;
     const isEnrolled = isUserEnrolled(item.id);
 
     return (
-      <View
+      <TouchableOpacity
         key={item.id.toString()}
-        style={[
-          styles.courseCard,
-          { borderLeftColor: color },
-          isPastCourse && styles.pastCourseCard,
-        ]}
+        style={[styles.modernCourseCard, isPastCourse && styles.pastCourseCard]}
+        onPress={() => handleCourseClick(item)}
+        activeOpacity={0.9}
       >
-        {/* Image now appears at the top of the card without navigation */}
+        <View style={styles.cardHeader}>
+          <View style={[styles.courseIcon, { backgroundColor: color }]}>
+            <Feather name={icon as any} size={18} color={theme.textWhite} />
+          </View>
+          
+          <View style={styles.cardHeaderContent}>
+            <Text style={styles.modernCourseTitle} numberOfLines={2}>
+              {item.description || "Untitled Course"}
+            </Text>
+            <Text style={styles.courseHost}>by {item.host}</Text>
+          </View>
+
+          {isEnrolled && (
+            <View style={styles.enrolledBadge}>
+              <Feather name="check" size={12} color={theme.success} />
+            </View>
+          )}
+        </View>
+
         {item.image_url && (
-          <View style={styles.courseImageContainer}>
-            <Image source={{ uri: item.image_url }} style={styles.courseImage} resizeMode="cover" />
+          <View style={styles.modernImageContainer}>
+            <Image source={{ uri: item.image_url }} style={styles.modernCourseImage} resizeMode="cover" />
             <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.7)"]}
-              style={styles.imageGradient}
+              colors={["transparent", "rgba(0,0,0,0.5)"]}
+              style={styles.modernImageGradient}
             />
           </View>
         )}
 
-        <View style={styles.courseContent}>
-          {/* Only the header is clickable for navigation */}
-          <TouchableOpacity style={styles.courseHeader} onPress={() => handleCourseClick(item)}>
-            <View style={[styles.courseIconContainer, { backgroundColor: color }]}>
-              <Feather name={icon as any} size={20} color="#fff" />
+        <View style={styles.modernCourseInfo}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Feather name="calendar" size={14} color={theme.textLight} />
+              <Text style={styles.infoText}>{formatDate(item.time)}</Text>
             </View>
-            <View style={styles.courseTitleContainer}>
-              <Text style={styles.courseTitle} numberOfLines={1}>
-                {item.description || "Untitled Course"}
-              </Text>
-              <View style={styles.courseTimeLocationContainer}>
-                <View style={styles.dateTimeRow}>
-                  <Feather
-                    name="clock"
-                    size={14}
-                    color={THEME.secondary}
-                    style={styles.smallIcon}
-                  />
-                  <Text style={styles.courseDateTime}>
-                    {formatDate(item.time)} • {formatTime(item.time)}
-                  </Text>
-                </View>
-                <View style={styles.locationRow}>
-                  <Feather
-                    name="map-pin"
-                    size={14}
-                    color={THEME.secondary}
-                    style={styles.smallIcon}
-                  />
-                  <Text style={styles.courseLocation} numberOfLines={1} ellipsizeMode="tail">
-                    {item.location || "Location TBD"}
-                  </Text>
-                  <Text style={styles.hostName}>• {item.host}</Text>
-                </View>
-              </View>
+            <View style={styles.infoItem}>
+              <Feather name="clock" size={14} color={theme.textLight} />
+              <Text style={styles.infoText}>{formatTime(item.time)}</Text>
             </View>
-          </TouchableOpacity>
-
-          {/* Description is no longer clickable for navigation */}
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.descriptionLabel}>About this course:</Text>
-            <Text style={styles.courseDescription} numberOfLines={4}>
-              {item.description}
-            </Text>
           </View>
-
-          <View style={styles.courseActionRow}>
-            {canEdit && (
-              <>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.editActionButton]}
-                  onPress={() => handleEditCourse(item)}
-                >
-                  <Feather name="edit-2" size={16} color={THEME.buttonPrimary} />
-                  <Text style={[styles.actionButtonText, styles.editActionText]}>Edit</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {isEnrolled ? (
-              // Show Leave button if enrolled
-              <TouchableOpacity
-                onPress={() => handleLeave(item.id)}
-                disabled={leavingId === item.id}
-                style={[
-                  styles.actionButton,
-                  styles.leaveActionButton,
-                  leavingId === item.id && styles.leaveActionButtonDisabled,
-                ]}
-              >
-                {leavingId === item.id ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Feather name="user-minus" size={16} color={THEME.buttonText} />
-                    <Text style={[styles.actionButtonText, styles.leaveActionText]}>Leave</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ) : (
-              // Show Enroll button if not enrolled
-              <TouchableOpacity
-                onPress={() => handleEnroll(item.id)}
-                disabled={enrollingId === item.id}
-                style={[
-                  styles.actionButton,
-                  styles.enrollActionButton,
-                  enrollingId === item.id && styles.enrollActionButtonDisabled,
-                ]}
-              >
-                {enrollingId === item.id ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Feather name="user-plus" size={16} color={THEME.buttonText} />
-                    <Text style={[styles.actionButtonText, styles.enrollActionText]}>Enroll</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+          
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Feather name="map-pin" size={14} color={theme.textLight} />
+              <Text style={styles.infoText} numberOfLines={1}>{item.location || "TBD"}</Text>
+            </View>
           </View>
         </View>
-      </View>
+
+        <View style={styles.modernCardActions}>
+          {canEdit && (
+            <View style={styles.adminActionsRow}>
+              <TouchableOpacity
+                style={styles.modernActionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleEditCourse(item);
+                }}
+              >
+                <Feather name="edit-2" size={16} color={theme.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modernActionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push({
+                    pathname: "/course-admin/[id]",
+                    params: { id: item.id },
+                  });
+                }}
+              >
+                <Feather name="users" size={16} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {isEnrolled ? (
+            <TouchableOpacity
+              style={styles.modernLeaveButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleLeave(item.id);
+              }}
+              disabled={leavingId === item.id}
+            >
+              {leavingId === item.id ? (
+                <ActivityIndicator size="small" color={theme.error} />
+              ) : (
+                <Text style={styles.leaveButtonText}>Leave</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.modernEnrollButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEnroll(item.id);
+              }}
+              disabled={enrollingId === item.id}
+            >
+              {enrollingId === item.id ? (
+                <ActivityIndicator size="small" color={theme.textWhite} />
+              ) : (
+                <Text style={styles.modernEnrollText}>Enroll</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Removed ExpoStatusBar - using native StatusBar configuration instead */}
-
-      {/* Fixed Header */}
+      <StatusBar barStyle="light-content" backgroundColor={theme.pageBg} />
+      
+      {/* Modern Header */}
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Church Courses</Text>
-          <View style={styles.headerButtons}>
+        <View style={styles.modernHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Feather name="arrow-left" size={24} color={theme.textWhite} />
+          </TouchableOpacity>
+          
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Courses</Text>
+            <Text style={styles.headerSubtitle}>{filteredCourses.length} available</Text>
+          </View>
+
+          <View style={styles.headerActions}>
             <TouchableOpacity
-              style={styles.headerButton}
+              style={styles.headerActionButton}
+              onPress={() => router.push("/my-enrollments")}
+            >
+              <Feather name="bookmark" size={20} color={theme.textLight} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerActionButton}
               onPress={() => setShowSearch(!showSearch)}
             >
-              <Feather name={showSearch ? "x" : "search"} size={22} color={THEME.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton} onPress={onRefresh}>
-              <Feather name="refresh-cw" size={22} color={THEME.primary} />
+              <Feather name="search" size={20} color={theme.textLight} />
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Search Bar (conditionally shown) */}
-        {showSearch && renderSearchBar()}
       </SafeAreaView>
 
-      {/* Main Scrollable Content */}
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: true,
-        })}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Collapsible Hero Section */}
-        <Animated.View
-          style={[
-            styles.heroSection,
-            {
-              transform: [
-                {
-                  scaleY: scrollY.interpolate({
-                    inputRange: [0, 100],
-                    outputRange: [1, 0],
-                    extrapolate: "clamp",
-                  }),
-                },
-              ],
-              opacity: scrollY.interpolate({
-                inputRange: [0, 80],
-                outputRange: [1, 0],
-                extrapolate: "clamp",
-              }),
-              height: heroMaxHeight,
-              overflow: "hidden",
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={["#E53E3E", "#C53030"]} // Red gradient instead of purple
-            style={styles.heroBackground}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons name="book-open-page-variant" size={36} color="#FFFFFF" />
-            </View>
-            <Text style={styles.heroTitle}>Faith Community Courses</Text>
-            <Text style={styles.heroSubtitle}>
-              Join our transformative Bible studies, workshops, and learning experiences
-            </Text>
-            <TouchableOpacity
-              style={styles.addCourseButton}
-              onPress={handleCreateCourseClick}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.addCourseButtonText}>CREATE COURSE</Text>
-              <AntDesign name="plus" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Collapsible Church Selector */}
-        {userChurches.length > 0 && (
-          <Animated.View
-            style={[
-              styles.churchSelectorContainer,
-              {
-                opacity: scrollY.interpolate({
-                  inputRange: [0, 60],
-                  outputRange: [1, 0],
-                  extrapolate: "clamp",
-                }),
-                transform: [
-                  {
-                    scaleY: scrollY.interpolate({
-                      inputRange: [0, 80],
-                      outputRange: [1, 0],
-                      extrapolate: "clamp",
-                    }),
-                  },
-                ],
-                height: churchSelectorHeight,
-                overflow: "hidden",
-              },
-            ]}
-          >
-            <Text style={styles.selectorLabel}>My Churches:</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.churchSelector}
-            >
-              {userChurches.map((church) => (
-                <TouchableOpacity
-                  key={church.id}
-                  style={[
-                    styles.churchOption,
-                    selectedChurchId === church.id && styles.churchOptionActive,
-                  ]}
-                  onPress={() => setSelectedChurchId(church.id)}
-                >
-                  <Text
-                    style={[
-                      styles.churchOptionText,
-                      selectedChurchId === church.id && styles.churchOptionTextActive,
-                    ]}
-                  >
-                    {church.name}
-                    {church.role === "admin" || church.role === "owner" ? ` (${church.role})` : ""}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* Main Content Area */}
-        <View style={styles.mainContainer}>
-          {/* Courses List */}
-          <View style={styles.listContainer}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={THEME.buttonPrimary} />
-                <Text style={styles.loadingText}>Loading church courses...</Text>
-              </View>
-            ) : filteredCourses.length === 0 ? (
-              <View style={styles.noCoursesContainer}>
-                <Feather name="book-open" size={50} color={THEME.light} />
-                <Text style={styles.noCoursesText}>No church courses found</Text>
-                <Text style={styles.noCoursesSubtext}>
-                  {searchQuery
-                    ? "Try a different search term"
-                    : hasPermissionToCreate
-                      ? "Add your first church course by tapping the button above"
-                      : "There are no upcoming courses for this church"}
-                </Text>
-              </View>
-            ) : (
-              <>{filteredCourses.map((item) => renderCourseCard({ item }))}</>
+      {/* Search Bar */}
+      {showSearch && (
+        <View style={styles.searchSection}>
+          <View style={styles.modernSearchBar}>
+            <Feather name="search" size={18} color={theme.textLight} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search courses..."
+              placeholderTextColor={theme.textLight}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Feather name="x" size={18} color={theme.textLight} />
+              </TouchableOpacity>
             )}
           </View>
-
-          {/* Add some bottom padding for better scrolling experience */}
-          <View style={{ height: 100 }} />
         </View>
-      </Animated.ScrollView>
+      )}
+
+      {/* Church Selector Pills */}
+      {userChurches.length > 0 && (
+        <View style={styles.churchSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.churchPills}
+          >
+            {userChurches.map((church) => (
+              <TouchableOpacity
+                key={church.id}
+                style={[
+                  styles.churchPill,
+                  selectedChurchId === church.id && styles.churchPillActive,
+                ]}
+                onPress={() => setSelectedChurchId(church.id)}
+              >
+                <Text
+                  style={[
+                    styles.churchPillText,
+                    selectedChurchId === church.id && styles.churchPillTextActive,
+                  ]}
+                >
+                  {church.name}
+                </Text>
+                {(church.role === "admin" || church.role === "owner") && (
+                  <View style={styles.adminBadge}>
+                    <Feather name="star" size={10} color={theme.primary} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Quick Stats */}
+      <View style={styles.quickStats}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{userEnrollments.length}</Text>
+          <Text style={styles.statLabel}>Enrolled</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{filteredCourses.length}</Text>
+          <Text style={styles.statLabel}>Available</Text>
+        </View>
+        {hasPermissionToCreate && (
+          <TouchableOpacity
+            style={styles.createCard}
+            onPress={handleCreateCourseClick}
+            activeOpacity={0.8}
+          >
+            <Feather name="plus" size={20} color={theme.textWhite} />
+            <Text style={styles.createLabel}>Create</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Course List */}
+      <ScrollView
+        style={styles.courseList}
+        contentContainerStyle={styles.courseListContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+      >
+        {loading || authLoading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={styles.loadingText}>
+              {authLoading ? "Authenticating..." : "Loading courses..."}
+            </Text>
+          </View>
+        ) : !user || !session ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Feather name="lock" size={32} color={theme.textLight} />
+            </View>
+            <Text style={styles.emptyTitle}>Sign In Required</Text>
+            <Text style={styles.emptySubtitle}>
+              Please sign in to view and enroll in courses
+            </Text>
+          </View>
+        ) : filteredCourses.length === 0 ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Feather name="book-open" size={32} color={theme.textLight} />
+            </View>
+            <Text style={styles.emptyTitle}>No Courses Found</Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery
+                ? "Try adjusting your search terms"
+                : "No courses available at the moment"}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {filteredCourses.map((item) => renderCourseCard({ item }))}
+            <View style={{ height: 80 }} />
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 };
 
-// Styles definition
+// Modern styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: theme.pageBg,
   },
   safeArea: {
-    backgroundColor: THEME.background,
-    zIndex: 1,
+    backgroundColor: theme.pageBg,
   },
-  header: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: THEME.background,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    paddingTop: 0,
-    paddingBottom: 80,
-  },
-  heroSection: {
-    marginHorizontal: 20,
-    marginVertical: 16,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  mainContainer: {
-    backgroundColor: THEME.background,
-  },
-  // Header
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: THEME.primary,
-  },
-  headerButtons: {
+  
+  // Modern header
+  modernHeader: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    backgroundColor: theme.pageBg,
   },
-  headerButton: {
+  backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: THEME.background,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    borderRadius: 20,
+    backgroundColor: theme.cardBg,
   },
-  // Search
-  searchContainer: {
+  headerContent: {
+    flex: 1,
+    marginLeft: theme.spacingM,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: theme.textWhite,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: theme.textLight,
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: theme.spacingS,
+  },
+  headerActionButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: theme.cardBg,
+  },
+  
+  // Search section
+  searchSection: {
+    paddingHorizontal: theme.spacingL,
+    paddingBottom: theme.spacingM,
+  },
+  modernSearchBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 12,
-    backgroundColor: THEME.card,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: THEME.border,
-  },
-  searchIcon: {
-    marginRight: 8,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusMedium,
+    paddingHorizontal: theme.spacingM,
+    height: 48,
+    gap: theme.spacingM,
   },
   searchInput: {
     flex: 1,
-    height: 48,
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textWhite,
   },
-  clearSearchButton: {
-    padding: 8,
+  
+  // Church pills
+  churchSection: {
+    paddingHorizontal: theme.spacingL,
+    paddingBottom: theme.spacingM,
   },
-  // Hero Section
-  heroBackground: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-  },
-  iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    color: "rgba(255, 255, 255, 0.9)",
-    textAlign: "center",
-    marginBottom: 20,
-    maxWidth: 300,
-    lineHeight: 22,
-  },
-  // Add Course Button
-  addCourseButton: {
+  churchPills: {
     flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    gap: theme.spacingS,
+    paddingVertical: theme.spacingS,
   },
-  addCourseButtonText: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    fontWeight: "700",
-    marginRight: 10,
-  },
-  // Church selector styles
-  churchSelectorContainer: {
-    marginVertical: 10,
-    paddingHorizontal: 20,
-  },
-  selectorLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: THEME.primary,
-    marginBottom: 8,
-  },
-  churchSelector: {
+  churchPill: {
     flexDirection: "row",
-    paddingVertical: 4,
-  },
-  churchOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: THEME.background,
+    alignItems: "center",
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingS,
+    backgroundColor: theme.cardBg,
     borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: THEME.border,
+    gap: theme.spacingS,
   },
-  churchOptionActive: {
-    backgroundColor: THEME.buttonPrimary, // Red instead of purple
-    borderColor: THEME.buttonPrimary,
+  churchPillActive: {
+    backgroundColor: theme.primary,
   },
-  churchOptionText: {
-    color: THEME.secondary,
+  churchPillText: {
+    fontSize: 14,
     fontWeight: "500",
+    color: theme.textMedium,
   },
-  churchOptionTextActive: {
-    color: THEME.buttonText,
+  churchPillTextActive: {
+    color: theme.textWhite,
     fontWeight: "600",
   },
-  // List View
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  loadingContainer: {
-    alignItems: "center",
+  adminBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.cardBg,
     justifyContent: "center",
-    paddingVertical: 50,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: THEME.secondary,
-  },
-  noCoursesContainer: {
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: THEME.card,
-    borderRadius: 16,
-    padding: 30,
-    marginVertical: 20,
-    shadowColor: THEME.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  noCoursesText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  noCoursesSubtext: {
-    fontSize: 14,
-    color: THEME.secondary,
-    textAlign: "center",
-    marginHorizontal: 20,
-  },
-  // Course Cards
-  courseCard: {
-    backgroundColor: THEME.card,
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderLeftWidth: 4,
-    overflow: "hidden", // This ensures the image stays within the rounded corners
-  },
-  courseContent: {
-    padding: 16,
-  },
-  pastCourseCard: {
-    opacity: 0.8,
-  },
-  courseHeader: {
+  
+  // Quick stats
+  quickStats: {
     flexDirection: "row",
+    paddingHorizontal: theme.spacingL,
+    gap: theme.spacingM,
+    marginBottom: theme.spacingM,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingL,
     alignItems: "center",
   },
-  courseIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: theme.textWhite,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: theme.textLight,
+    marginTop: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  createCard: {
+    backgroundColor: theme.primary,
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingL,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+    minWidth: 80,
   },
-  courseTitleContainer: {
+  createLabel: {
+    fontSize: 12,
+    color: theme.textWhite,
+    marginTop: 4,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  
+  // Course list
+  courseList: {
     flex: 1,
   },
-  courseTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
-    marginBottom: 4,
+  courseListContent: {
+    paddingHorizontal: theme.spacingL,
+    gap: theme.spacingM,
   },
-  courseTimeLocationContainer: {
-    flexDirection: "column",
-  },
-  dateTimeRow: {
-    flexDirection: "row",
+  
+  // Loading and empty states
+  loadingState: {
     alignItems: "center",
-    marginBottom: 2,
+    justifyContent: "center",
+    paddingVertical: 80,
   },
-  smallIcon: {
-    marginRight: 4,
-  },
-  courseDateTime: {
-    fontSize: 14,
-    color: THEME.secondary,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  courseLocation: {
-    fontSize: 14,
-    color: THEME.secondary,
-  },
-  hostName: {
-    fontSize: 12,
-    color: THEME.light,
-    marginLeft: 4,
-  },
-  // Updated description styles
-  descriptionContainer: {
-    backgroundColor: THEME.accent1, // Updated to light red background
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
-    marginBottom: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: THEME.buttonPrimary, // Red instead of purple
-  },
-  descriptionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: THEME.buttonPrimary, // Red instead of purple
-    marginBottom: 6,
-  },
-  courseDescription: {
+  loadingText: {
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textLight,
+    marginTop: theme.spacingM,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 80,
+    paddingHorizontal: theme.spacingXL,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.cardBg,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: theme.spacingL,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: theme.textWhite,
+    marginBottom: theme.spacingS,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: theme.textLight,
+    textAlign: "center",
     lineHeight: 24,
   },
-  // Updated image styles
-  courseImageContainer: {
-    height: 180,
-    width: "100%",
-    position: "relative",
+  
+  // Modern course cards
+  modernCourseCard: {
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+    ...theme.shadowMedium,
   },
-  courseImage: {
+  pastCourseCard: {
+    opacity: 0.7,
+  },
+  
+  // Card header
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: theme.spacingL,
+    paddingBottom: theme.spacingM,
+  },
+  courseIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: theme.spacingM,
+  },
+  cardHeaderContent: {
+    flex: 1,
+  },
+  modernCourseTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.textWhite,
+    marginBottom: 4,
+    lineHeight: 24,
+  },
+  courseHost: {
+    fontSize: 14,
+    color: theme.textLight,
+  },
+  enrolledBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.cardBg,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: theme.success,
+  },
+  
+  // Modern image
+  modernImageContainer: {
+    height: 140,
+    marginHorizontal: theme.spacingL,
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    marginBottom: theme.spacingM,
+  },
+  modernCourseImage: {
     width: "100%",
     height: "100%",
   },
-  imageGradient: {
+  modernImageGradient: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     height: 60,
   },
-  // Course Action Row
-  courseActionRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    marginTop: 16,
+  
+  // Course info
+  modernCourseInfo: {
+    paddingHorizontal: theme.spacingL,
+    paddingBottom: theme.spacingM,
+    gap: theme.spacingS,
   },
-  actionButton: {
+  infoRow: {
+    flexDirection: "row",
+    gap: theme.spacingL,
+  },
+  infoItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginLeft: 8,
+    gap: theme.spacingS,
+    flex: 1,
   },
-  actionButtonText: {
+  infoText: {
     fontSize: 14,
+    color: theme.textMedium,
+    flex: 1,
+  },
+  
+  // Modern actions
+  modernCardActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: theme.spacingL,
+    paddingBottom: theme.spacingL,
+  },
+  adminActionsRow: {
+    flexDirection: "row",
+    gap: theme.spacingS,
+  },
+  modernActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.cardBg,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.primary,
+  },
+  modernEnrollButton: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    borderRadius: 24,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  modernEnrollText: {
+    fontSize: 16,
     fontWeight: "600",
-    marginLeft: 6,
+    color: theme.textWhite,
   },
-  editActionButton: {
-    backgroundColor: THEME.accent1, // Updated to light red
+  modernLeaveButton: {
+    backgroundColor: "transparent",
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.error,
+    minWidth: 100,
+    alignItems: "center",
   },
-  editActionText: {
-    color: THEME.buttonPrimary, // Red instead of purple
-  },
-  enrollActionButton: {
-    backgroundColor: THEME.success,
-  },
-  enrollActionButtonDisabled: {
-    opacity: 0.7,
-  },
-  enrollActionText: {
-    color: THEME.buttonText,
-  },
-  leaveActionButton: {
-    backgroundColor: THEME.error,
-  },
-  leaveActionButtonDisabled: {
-    opacity: 0.7,
-  },
-  leaveActionText: {
-    color: THEME.buttonText,
+  leaveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.error,
   },
 });
 

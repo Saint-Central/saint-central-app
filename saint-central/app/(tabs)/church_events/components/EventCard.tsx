@@ -258,7 +258,7 @@ const EventCard: React.FC<EventCardProps> = ({
                       <Feather
                         name="calendar"
                         size={14}
-                        color={THEME.textMedium}
+                        color={THEME.primary}
                         style={cardStyles.infoIcon}
                       />
                       <Text style={cardStyles.dateText}>
@@ -270,7 +270,7 @@ const EventCard: React.FC<EventCardProps> = ({
                       <Feather
                         name="clock"
                         size={14}
-                        color={THEME.textMedium}
+                        color={THEME.primary}
                         style={cardStyles.infoIcon}
                       />
                       <Text style={cardStyles.timeText}>{formatEventTime(item.time)}</Text>
@@ -309,7 +309,7 @@ const EventCard: React.FC<EventCardProps> = ({
                   <Feather
                     name="map-pin"
                     size={14}
-                    color={THEME.textMedium}
+                    color={THEME.primary}
                     style={cardStyles.infoIcon}
                   />
                   <Text style={cardStyles.locationText} numberOfLines={1} ellipsizeMode="tail">
@@ -372,7 +372,7 @@ const EventCard: React.FC<EventCardProps> = ({
                   <Feather
                     name="share-2"
                     size={14}
-                    color={THEME.textMedium}
+                    color={THEME.neutral800}
                     style={{ marginRight: 4 }}
                   />
                   <Text style={cardStyles.footerButtonText}>Share</Text>
@@ -382,7 +382,7 @@ const EventCard: React.FC<EventCardProps> = ({
                   <Feather
                     name="info"
                     size={14}
-                    color={THEME.textMedium}
+                    color={THEME.neutral800}
                     style={{ marginRight: 4 }}
                   />
                   <Text style={cardStyles.footerButtonText}>Details</Text>
@@ -466,11 +466,11 @@ const cardStyles = StyleSheet.create({
   },
   dateText: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.neutral800,
   },
   timeText: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.neutral800,
   },
   recurringBadge: {
     width: 24,
@@ -510,7 +510,7 @@ const cardStyles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.neutral800,
   },
   churchName: {
     color: THEME.textLight,
@@ -518,7 +518,7 @@ const cardStyles = StyleSheet.create({
   excerptText: {
     fontSize: 14,
     lineHeight: 20,
-    color: THEME.textDark,
+    color: THEME.neutral700,
     marginBottom: 16,
   },
   recurringInfoContainer: {
@@ -564,7 +564,7 @@ const cardStyles = StyleSheet.create({
   },
   footerButtonText: {
     fontSize: 13,
-    color: THEME.textMedium,
+    color: THEME.neutral800,
   },
   actionButtonsContainer: {
     position: "absolute",

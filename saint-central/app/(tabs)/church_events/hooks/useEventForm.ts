@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { ChurchEvent, EventFormData } from "../types";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
+import { useRouter } from "expo-router";
 import { supabase } from "../../../../supabaseClient";
+import { ChurchEvent, EventFormData } from "../types";
 
 export const useEventForm = (
   currentUserId: string | null,
@@ -10,6 +13,10 @@ export const useEventForm = (
   hasPermissionToCreate: boolean,
   refreshEvents: () => Promise<void>,
 ) => {
+  const { user } = useAuth();
+  const crud = useCRUD();
+  const router = useRouter();
+
   // Form states
   const [formData, setFormData] = useState<EventFormData>({
     title: "",
@@ -59,7 +66,7 @@ export const useEventForm = (
 
   // Open the add event modal
   const openAddModal = () => {
-    if (!currentUserId || !selectedChurchId) {
+    if (!user || !selectedChurchId) {
       Alert.alert("Sign In Required", "Please sign in and select a church to create events.");
       return;
     }
@@ -78,7 +85,7 @@ export const useEventForm = (
 
   // Open the edit event modal
   const openEditModal = (event: ChurchEvent) => {
-    if (!currentUserId || !selectedChurchId) {
+    if (!user || !selectedChurchId) {
       Alert.alert("Error", "You must be logged in and select a church");
       return;
     }
@@ -188,8 +195,7 @@ export const useEventForm = (
       const localUri = result.assets[0].uri;
 
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
+        if (!user) {
           throw new Error("Not authenticated");
         }
 
@@ -202,7 +208,7 @@ export const useEventForm = (
 
         const { error: uploadError, data } = await supabase.storage
           .from("event-images")
-          .upload(`${currentUserId}/${fileName}`, blob, {
+          .upload(`${user.id}/${fileName}`, blob, {
             contentType: `image/${fileExtension}`,
           });
 
@@ -210,14 +216,14 @@ export const useEventForm = (
 
         const { data: urlData } = supabase.storage
           .from("event-images")
-          .getPublicUrl(`${currentUserId}/${fileName}`);
+          .getPublicUrl(`${user.id}/${fileName}`);
 
         if (urlData?.publicUrl) {
           handleFormChange("image_url", urlData.publicUrl);
           Alert.alert("Success", "Image uploaded successfully!");
         }
-      } catch (uploadError) {
-        console.error("Error uploading image:", uploadError);
+      } catch (error) {
+        console.error("Error uploading image:", error);
         Alert.alert(
           "Upload Notice",
           "Using local image only. The image may not be visible to others.",
@@ -234,64 +240,55 @@ export const useEventForm = (
 
   // Submit new event to Supabase
   const handleAddEvent = async () => {
-    if (!currentUserId || !selectedChurchId) {
+    if (!user || !selectedChurchId) {
       Alert.alert("Error", "You must be logged in and select a church");
       return;
     }
 
-    // Form validation
     if (!formData.title.trim()) {
-      Alert.alert("Error", "Event title is required");
-      return;
-    }
-
-    if (!formData.excerpt.trim()) {
-      Alert.alert("Error", "Event description is required");
+      Alert.alert("Error", "Please enter an event title");
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      // Prepare recurrence_days_of_week for DB storage (convert array to number)
-      let daysOfWeekNumber = null;
-      if (
-        formData.is_recurring &&
-        formData.recurrence_type === "weekly" &&
-        formData.recurrence_days_of_week &&
-        formData.recurrence_days_of_week.length > 0
-      ) {
-        daysOfWeekNumber = parseInt(formData.recurrence_days_of_week.join(""), 10);
-      }
+      // Convert recurrence_days_of_week array to number for database storage
+      const daysOfWeekNumber = formData.recurrence_days_of_week
+        ? parseInt(formData.recurrence_days_of_week.join(""), 10)
+        : null;
 
       // Create event in database
-      const { error } = await supabase.from("church_events").insert({
-        title: formData.title,
-        time: formData.time,
-        created_by: currentUserId,
-        image_url: formData.image_url,
-        excerpt: formData.excerpt,
-        video_link: formData.video_link,
-        author_name: formData.author_name,
-        event_location: formData.event_location,
-        is_recurring: formData.is_recurring,
-        recurrence_type: formData.is_recurring ? formData.recurrence_type : null,
-        recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
-        recurrence_end_date: formData.is_recurring ? formData.recurrence_end_date : null,
-        recurrence_days_of_week: daysOfWeekNumber,
-        church_id: selectedChurchId,
+      await crud.insert("church_events", {
+          title: formData.title,
+          time: formData.time,
+          created_by: user.id,
+          image_url: formData.image_url,
+          excerpt: formData.excerpt,
+          video_link: formData.video_link,
+          author_name: formData.author_name,
+          event_location: formData.event_location,
+          is_recurring: formData.is_recurring,
+          recurrence_type: formData.is_recurring ? formData.recurrence_type : null,
+          recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
+          recurrence_end_date: formData.is_recurring ? formData.recurrence_end_date : null,
+          recurrence_days_of_week: daysOfWeekNumber,
+          church_id: selectedChurchId,
       });
 
-      if (error) throw error;
-
-      // Success
+      Alert.alert("Success", "Event created successfully!");
       setShowAddModal(false);
       resetForm();
       await refreshEvents();
-      Alert.alert("Success", "Event created successfully!");
     } catch (error) {
       console.error("Error creating event:", error);
-      Alert.alert("Error", "Failed to create event. Please try again.");
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.push('/auth') }
+        ]);
+      } else {
+        Alert.alert("Error", "Failed to create event. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -299,49 +296,35 @@ export const useEventForm = (
 
   // Update existing event
   const handleEditEvent = async () => {
-    if (!currentUserId || !selectedEvent) {
+    if (!user || !selectedEvent) {
       Alert.alert("Error", "You must be logged in and an event must be selected");
       return;
     }
 
     // Check if user is the creator of the event
-    if (selectedEvent.created_by !== currentUserId && !hasPermissionToCreate) {
+    if (selectedEvent.created_by !== user.id && !hasPermissionToCreate) {
       Alert.alert(
         "Permission Denied",
-        "You can only edit events that you created or if you are a church admin/owner.",
+        "You can only edit events you created or if you are a church admin.",
       );
       return;
     }
 
-    // Form validation
     if (!formData.title.trim()) {
-      Alert.alert("Error", "Event title is required");
-      return;
-    }
-
-    if (!formData.excerpt.trim()) {
-      Alert.alert("Error", "Event description is required");
+      Alert.alert("Error", "Please enter an event title");
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      // Prepare recurrence_days_of_week for DB storage (convert array to number)
-      let daysOfWeekNumber = null;
-      if (
-        formData.is_recurring &&
-        formData.recurrence_type === "weekly" &&
-        formData.recurrence_days_of_week &&
-        formData.recurrence_days_of_week.length > 0
-      ) {
-        daysOfWeekNumber = parseInt(formData.recurrence_days_of_week.join(""), 10);
-      }
+      // Convert recurrence_days_of_week array to number for database storage
+      const daysOfWeekNumber = formData.recurrence_days_of_week
+        ? parseInt(formData.recurrence_days_of_week.join(""), 10)
+        : null;
 
       // Update event in database
-      const { error } = await supabase
-        .from("church_events")
-        .update({
+      await crud.update("church_events", {
           title: formData.title,
           time: formData.time,
           image_url: formData.image_url,
@@ -354,19 +337,21 @@ export const useEventForm = (
           recurrence_interval: formData.is_recurring ? formData.recurrence_interval : null,
           recurrence_end_date: formData.is_recurring ? formData.recurrence_end_date : null,
           recurrence_days_of_week: daysOfWeekNumber,
-        })
-        .eq("id", selectedEvent.id);
+      }, { id: selectedEvent.id });
 
-      if (error) throw error;
-
-      // Success
+      Alert.alert("Success", "Event updated successfully!");
       setShowEditModal(false);
       resetForm();
       await refreshEvents();
-      Alert.alert("Success", "Event updated successfully!");
     } catch (error) {
       console.error("Error updating event:", error);
-      Alert.alert("Error", "Failed to update event. Please try again.");
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.push('/auth') }
+        ]);
+      } else {
+        Alert.alert("Error", "Failed to update event. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -374,38 +359,43 @@ export const useEventForm = (
 
   // Delete event
   const handleDeleteEvent = async (eventId: number) => {
-    if (!currentUserId || !selectedChurchId) {
+    if (!user || !selectedChurchId) {
       Alert.alert("Error", "You must be logged in and select a church");
       return;
     }
 
-    try {
-      Alert.alert("Confirm Delete", "Are you sure you want to delete this event?", [
+    Alert.alert(
+      "Delete Event",
+      "Are you sure you want to delete this event? This action cannot be undone.",
+      [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            setIsSubmitting(true);
+            try {
+              setIsSubmitting(true);
 
-            const { error } = await supabase.from("church_events").delete().eq("id", eventId);
+              await crud.delete("church_events", { id: eventId });
 
-            if (error) throw error;
-
-            // Success - close any open modals
-            if (showEditModal) setShowEditModal(false);
-
-            await refreshEvents();
-            Alert.alert("Success", "Event deleted successfully!");
-            setIsSubmitting(false);
+              Alert.alert("Success", "Event deleted successfully!");
+              await refreshEvents();
+            } catch (error) {
+              console.error("Error deleting event:", error);
+              if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+                Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+                  { text: 'OK', onPress: () => router.push('/auth') }
+                ]);
+              } else {
+                Alert.alert("Error", "Failed to delete event. Please try again.");
+              }
+            } finally {
+              setIsSubmitting(false);
+            }
           },
         },
-      ]);
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      Alert.alert("Error", "Failed to delete event.");
-      setIsSubmitting(false);
-    }
+      ],
+    );
   };
 
   // Full image viewer

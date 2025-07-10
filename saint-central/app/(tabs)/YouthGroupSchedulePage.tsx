@@ -19,8 +19,8 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { supabase } from "../../supabaseClient";
-import { User } from "@supabase/supabase-js";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 import theme from "../../theme"; // Import the theme file
 
 const { width, height } = Dimensions.get("window");
@@ -60,18 +60,12 @@ interface IconAndColor {
   color: string;
 }
 
-// Background colors
-const PARCHMENT_BG = "#F5F7FA"; // Light blue-tinted white
-const CARD_BG = "#FFFFFF"; // White for cards
-const SELECTED_TAB_BG = "#FFFFFF"; // White background for selected tab
-const UNSELECTED_TAB_BG = "rgba(120, 144, 156, 0.15)"; // Light version of neutral500
-
 const YouthGroupSchedulePage: React.FC = () => {
   // Configure status bar on component mount
   useEffect(() => {
-    StatusBar.setBarStyle("dark-content");
+    StatusBar.setBarStyle("light-content");
     if (Platform.OS === "android") {
-      StatusBar.setBackgroundColor(PARCHMENT_BG);
+      StatusBar.setBackgroundColor(theme.pageBg);
       StatusBar.setTranslucent(false);
     }
   }, []);
@@ -79,11 +73,14 @@ const YouthGroupSchedulePage: React.FC = () => {
   const router = useRouter();
   const navigation = useNavigation<NavigationProp>();
   const scrollY = useRef(new Animated.Value(0)).current;
+  
+  // Use custom auth and CRUD
+  const { user, session } = useAuth();
+  const { select, selectOne } = useCRUD();
 
   // State variables
   const [youthGroups, setYouthGroups] = useState<YouthGroup[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<User | null>(null);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
   const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
   const [hasPermissionToCreate, setHasPermissionToCreate] = useState<boolean>(false);
@@ -93,24 +90,6 @@ const YouthGroupSchedulePage: React.FC = () => {
   const [filteredYouthGroups, setFilteredYouthGroups] = useState<YouthGroup[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTabs, setActiveTabs] = useState<"upcoming" | "past">("upcoming");
-
-  // Fetch current user on mount
-  useEffect(() => {
-    const fetchCurrentUser = async (): Promise<void> => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setUser(data.user);
-          console.log("User authenticated:", data.user.id);
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
 
   // Fetch user's churches after user is loaded
   useEffect(() => {
@@ -156,21 +135,28 @@ const YouthGroupSchedulePage: React.FC = () => {
     try {
       setLoading(true);
 
-      // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from("church_members")
-        .select("church_id, role, churches(id, name)")
-        .eq("user_id", user.id);
+      // Get churches where the user is a member using CRUD client
+      const churchMemberships = await select("church_members", {
+        where: { user_id: user.id },
+        select: "church_id, role"
+      });
 
-      if (error) throw error;
+      if (churchMemberships && churchMemberships.length > 0) {
+        // Get church details for each membership
+        const churchPromises = churchMemberships.map(async (membership) => {
+          const church = await selectOne("churches", {
+            where: { id: membership.church_id },
+            select: "id, name"
+          });
+          
+          return church ? {
+            id: church.id,
+            name: church.name,
+            role: membership.role,
+          } : null;
+        });
 
-      if (data && data.length > 0) {
-        // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map((item) => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: string; name: string }).name,
-          role: item.role,
-        }));
+        const churches = (await Promise.all(churchPromises)).filter(Boolean) as UserChurch[];
 
         setUserChurches(churches);
         console.log("User churches:", churches);
@@ -224,27 +210,22 @@ const YouthGroupSchedulePage: React.FC = () => {
     try {
       setLoading(true);
 
-      // Fetch Youth Groups for the selected church
-      const { data, error } = await supabase
-        .from("youth_group_times")
-        .select("*")
-        .eq("church_id", selectedChurchId)
-        .order("date", { ascending: false });
-
-      if (error) throw error;
+      // Fetch Youth Groups for the selected church using CRUD client
+      const data = await select("youth_group_times", {
+        where: { church_id: selectedChurchId }
+      });
 
       if (data) {
         // Transform Youth Group data to include additional fields
-        const enhancedData: YouthGroup[] = await Promise.all(
-          data.map(async (group) => {
-            return {
-              ...group,
-              description: group.description || "Youth Group", // Use description as the main identifier
-              location: group.location || "Church Youth Room",
-              is_recurring: group.is_recurring || false,
-            };
-          }),
-        );
+        const enhancedData: YouthGroup[] = data.map((group) => ({
+          ...group,
+          description: group.description || "Youth Group", // Use description as the main identifier
+          location: group.location || "Church Youth Room",
+          is_recurring: group.is_recurring || false,
+        }));
+
+        // Sort by date (newest first) since we can't use database ordering
+        enhancedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         setYouthGroups(enhancedData);
         // Initial filtering based on active tab
@@ -321,37 +302,37 @@ const YouthGroupSchedulePage: React.FC = () => {
     const description = group.description?.toLowerCase() || "";
 
     if (description.includes("worship") || description.includes("praise")) {
-      return { icon: "music", color: theme.accent1 }; // Muted teal-blue for worship
+      return { icon: "music", color: theme.accent1 }; // Warm gold for worship
     } else if (
       description.includes("games") ||
       description.includes("fun") ||
       description.includes("social")
     ) {
-      return { icon: "smile", color: theme.accent2 }; // Grey-blue for games/social
+      return { icon: "smile", color: theme.accent3 }; // Soft coral for games/social
     } else if (
       description.includes("bible") ||
       description.includes("study") ||
       description.includes("lesson")
     ) {
-      return { icon: "book", color: theme.tertiary }; // Soft slate blue for Bible study
+      return { icon: "book", color: theme.tertiary }; // Soft blue for Bible study
     } else if (
       description.includes("mission") ||
       description.includes("outreach") ||
       description.includes("service")
     ) {
-      return { icon: "heart", color: theme.secondary }; // Soft powder blue for service/missions
+      return { icon: "heart", color: theme.secondary }; // Warm red for service/missions
     } else if (description.includes("prayer") || description.includes("devotion")) {
-      return { icon: "sun", color: theme.error }; // Muted rose for Prayer/Devotions
+      return { icon: "sun", color: theme.warning }; // Warm yellow for Prayer/Devotions
     } else if (description.includes("teen") || description.includes("middle school")) {
-      return { icon: "users", color: theme.secondary }; // Lighter blue-grey for Teens
+      return { icon: "users", color: theme.info }; // Soft blue for Teens
     } else if (
       description.includes("camp") ||
       description.includes("retreat") ||
       description.includes("trip")
     ) {
-      return { icon: "map", color: theme.success }; // Sage with blue undertone for trips
+      return { icon: "map", color: theme.success }; // Soft green for trips
     }
-    return { icon: "users", color: theme.primary }; // Medium blue-grey for default
+    return { icon: "users", color: theme.primary }; // Warm amber for default
   };
 
   // Helper function to handle null image URLs and ensure proper bucket URL
@@ -360,19 +341,14 @@ const YouthGroupSchedulePage: React.FC = () => {
       return "https://via.placeholder.com/400x200?text=Youth+Group";
     }
 
-    // If the URL is already a full URL from the youthgroup-images bucket, return it
-    if (url.includes("youthgroup-images")) {
+    // If the URL is already a full URL, return it
+    if (url.startsWith("http")) {
       return url;
     }
 
-    // If it's a path without the full URL, construct the URL
-    if (!url.startsWith("http")) {
-      // This assumes Supabase storage URLs follow this pattern
-      const { data } = supabase.storage.from("youthgroup-images").getPublicUrl(url);
-      return data.publicUrl;
-    }
-
-    return url;
+    // For custom storage, you might need to construct the URL differently
+    // This is a placeholder - adjust based on your storage solution
+    return `https://storage.your-domain.com/youthgroup-images/${url}`;
   };
 
   // Format date for display
@@ -452,8 +428,8 @@ const YouthGroupSchedulePage: React.FC = () => {
         <View style={styles.cardContent}>
           {/* Title row */}
           <View style={styles.titleRow}>
-            <View style={[styles.groupIconContainer, { backgroundColor: theme.info }]}>
-              <Feather name={icon as any} size={20} color="#FFFFFF" />
+            <View style={[styles.groupIconContainer, { backgroundColor: color + "40" }]}>
+              <Feather name={icon as any} size={20} color={color} />
             </View>
             <View style={styles.titleContainer}>
               <Text style={styles.groupTitle} numberOfLines={1}>
@@ -497,7 +473,7 @@ const YouthGroupSchedulePage: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={PARCHMENT_BG} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.pageBg} />
 
       <ScrollView
         style={styles.scrollView}
@@ -528,7 +504,7 @@ const YouthGroupSchedulePage: React.FC = () => {
           {hasPermissionToCreate && (
             <TouchableOpacity style={styles.createButton} onPress={handleCreateYouthGroupClick}>
               <LinearGradient
-                colors={["#6A89A3", "#4A6A83"]}
+                colors={theme.gradientPrimary}
                 style={styles.gradientButton}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -652,7 +628,7 @@ const YouthGroupSchedulePage: React.FC = () => {
 
       {/* Add refresh button before search toggle button */}
       <TouchableOpacity style={styles.refreshButton} onPress={handleManualRefresh}>
-        <Feather name="refresh-cw" size={22} color="#FFFFFF" />
+        <Feather name="refresh-cw" size={22} color={theme.textWhite} />
       </TouchableOpacity>
 
       {/* Search toggle button */}
@@ -660,130 +636,134 @@ const YouthGroupSchedulePage: React.FC = () => {
         style={styles.searchToggleButton}
         onPress={() => setShowSearch(!showSearch)}
       >
-        <Feather name={showSearch ? "x" : "search"} size={22} color="#FFFFFF" />
+        <Feather name={showSearch ? "x" : "search"} size={22} color={theme.textWhite} />
       </TouchableOpacity>
     </View>
   );
 };
 
-// Clean, minimalist styles with blue-grey theme
+// Christian Dark Theme styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PARCHMENT_BG,
+    backgroundColor: theme.pageBg,
   },
   scrollView: {
     flex: 1,
   },
   scrollViewContent: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
-    paddingBottom: 40,
+    paddingHorizontal: theme.spacingL,
+    paddingTop: Platform.OS === "ios" ? theme.statusBarSpacing + theme.spacingL : theme.spacingXL,
+    paddingBottom: theme.spacingXL,
   },
 
   // Hero Section
   heroSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: theme.spacingXL,
   },
   iconContainer: {
     width: 60,
     height: 60,
-    marginBottom: 16,
+    marginBottom: theme.spacingM,
     justifyContent: "center",
     alignItems: "center",
   },
   heroTitle: {
     fontSize: 32,
     fontWeight: theme.fontBold,
-    color: theme.neutral900,
-    marginBottom: 16,
+    color: theme.textWhite,
+    marginBottom: theme.spacingM,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
   heroVerse: {
     fontSize: 18,
     fontStyle: "italic",
-    color: theme.neutral700,
+    color: theme.textMedium,
     textAlign: "center",
     marginBottom: 4,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacingL,
   },
   verseReference: {
     fontSize: 14,
-    color: theme.neutral600,
-    marginBottom: 30,
+    color: theme.textLight,
+    marginBottom: theme.spacing2XL,
   },
   createButton: {
     minWidth: 250,
-    borderRadius: 50,
+    borderRadius: theme.radiusFull,
     overflow: "hidden",
   },
   gradientButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingXL,
     alignItems: "center",
     justifyContent: "center",
   },
   createButtonText: {
     fontSize: 16,
     fontWeight: theme.fontBold,
-    color: "#FFFFFF",
+    color: theme.textWhite,
     letterSpacing: 1,
   },
 
   // Filter Tabs
   filterTabsContainer: {
     flexDirection: "row",
-    backgroundColor: UNSELECTED_TAB_BG,
-    borderRadius: 30,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.spacing2XL,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: theme.spacingL,
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: theme.spacingS,
     alignItems: "center",
-    borderRadius: 26,
+    borderRadius: theme.spacingXL,
   },
   filterTabActive: {
-    backgroundColor: SELECTED_TAB_BG,
+    backgroundColor: theme.primary,
   },
   filterTabText: {
     fontWeight: theme.fontBold,
-    color: theme.neutral500,
+    color: theme.textLight,
     letterSpacing: 1,
     fontSize: 14,
   },
   filterTabTextActive: {
-    color: theme.neutral900,
+    color: theme.textWhite,
   },
 
   // Church Selection
   churchContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacingL,
   },
   churchCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingL,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: theme.spacingS,
+    borderWidth: 1,
+    borderColor: theme.divider,
     ...theme.shadowLight,
   },
   churchName: {
     fontSize: 24,
     fontWeight: theme.fontBold,
-    color: theme.neutral900,
+    color: theme.textWhite,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
   },
   roleBadge: {
     backgroundColor: theme.info,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 50,
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingS,
+    borderRadius: theme.radiusFull,
   },
   roleBadgeText: {
     fontSize: 12,
@@ -792,29 +772,30 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   churchSelector: {
-    marginTop: 10,
+    marginTop: theme.spacingS,
   },
   churchSelectorContent: {
-    paddingVertical: 10,
+    paddingVertical: theme.spacingS,
   },
   churchOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 20,
+    paddingHorizontal: theme.spacingM,
+    paddingVertical: theme.spacingS,
+    marginRight: theme.spacingS,
+    borderRadius: theme.spacingL,
     borderWidth: 1,
     borderColor: theme.divider,
+    backgroundColor: theme.cardBg,
   },
   churchOptionActive: {
     backgroundColor: theme.accent1,
     borderColor: theme.accent1,
   },
   churchOptionText: {
-    color: theme.neutral600,
+    color: theme.textLight,
     fontWeight: theme.fontMedium,
   },
   churchOptionTextActive: {
-    color: theme.neutral800,
+    color: theme.textDark,
     fontWeight: theme.fontBold,
   },
 
@@ -822,29 +803,31 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: CARD_BG,
-    borderRadius: 50,
-    paddingHorizontal: 16,
-    marginBottom: 20,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusFull,
+    paddingHorizontal: theme.spacingM,
+    marginBottom: theme.spacingL,
     height: 50,
+    borderWidth: 1,
+    borderColor: theme.divider,
     ...theme.shadowLight,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: theme.spacingS,
   },
   searchInput: {
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
   clearSearchButton: {
-    padding: 8,
+    padding: theme.spacingS,
   },
   searchToggleButton: {
     position: "absolute",
-    bottom: 20,
-    right: 20,
+    bottom: theme.spacingL,
+    right: theme.spacingL,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -856,7 +839,7 @@ const styles = StyleSheet.create({
 
   // Youth Group Container
   youthGroupsContainer: {
-    marginBottom: 40,
+    marginBottom: theme.spacingXL,
   },
 
   // Loading State
@@ -866,7 +849,7 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: theme.spacingM,
     fontSize: 16,
     color: theme.textMedium,
     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -876,18 +859,20 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 40,
-    marginVertical: 20,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    padding: theme.spacingXL,
+    marginVertical: theme.spacingL,
+    borderWidth: 1,
+    borderColor: theme.divider,
     ...theme.shadowLight,
   },
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginTop: 16,
-    marginBottom: 8,
+    color: theme.textWhite,
+    marginTop: theme.spacingM,
+    marginBottom: theme.spacingS,
   },
   emptyStateMessage: {
     fontSize: 16,
@@ -899,40 +884,42 @@ const styles = StyleSheet.create({
 
   // Youth Group Card
   youthGroupCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    marginBottom: 16,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusLarge,
+    marginBottom: theme.spacingM,
     overflow: "hidden",
     flexDirection: "row",
+    borderWidth: 1,
+    borderColor: theme.divider,
     ...theme.shadowLight,
   },
   dateContainer: {
     width: 60,
-    backgroundColor: theme.neutral100,
+    backgroundColor: theme.neutral800,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
   },
   dateMonth: {
     fontSize: 12,
-    color: theme.neutral600,
+    color: theme.textLight,
     fontWeight: theme.fontBold,
     textTransform: "uppercase",
     marginBottom: 2,
   },
   dateDay: {
     fontSize: 20,
-    color: theme.neutral800,
+    color: theme.textWhite,
     fontWeight: theme.fontBold,
   },
   cardContent: {
     flex: 1,
-    padding: 16,
+    padding: theme.spacingM,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: theme.spacingS,
   },
   groupIconContainer: {
     width: 36,
@@ -940,7 +927,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: theme.spacingS,
   },
   titleContainer: {
     flex: 1,
@@ -948,46 +935,48 @@ const styles = StyleSheet.create({
   groupTitle: {
     fontSize: 16,
     fontWeight: theme.fontBold,
-    color: theme.neutral900,
+    color: theme.textWhite,
     marginBottom: 2,
   },
   groupTime: {
     fontSize: 14,
-    color: theme.neutral600,
+    color: theme.textMedium,
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: theme.spacingS,
   },
   locationText: {
     marginLeft: 6,
     fontSize: 14,
-    color: theme.neutral700,
+    color: theme.textMedium,
   },
   descriptionText: {
     fontSize: 14,
-    color: theme.neutral600,
-    marginBottom: 12,
+    color: theme.textLight,
+    marginBottom: theme.spacingS,
     lineHeight: 20,
   },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 8,
+    paddingTop: theme.spacingS,
     borderTopWidth: 1,
-    borderTopColor: theme.neutral100,
+    borderTopColor: theme.divider,
   },
   createdByText: {
     fontSize: 12,
-    color: theme.neutral500,
+    color: theme.textLight,
   },
   editButton: {
     paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: theme.neutral100,
-    borderRadius: 50,
+    paddingHorizontal: theme.spacingS,
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusFull,
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
   editButtonText: {
     fontSize: 12,
@@ -996,8 +985,8 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     position: "absolute",
-    bottom: 20,
-    left: 20,
+    bottom: theme.spacingL,
+    left: theme.spacingL,
     width: 56,
     height: 56,
     borderRadius: 28,

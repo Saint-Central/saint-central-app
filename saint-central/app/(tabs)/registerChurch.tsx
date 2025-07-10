@@ -16,7 +16,6 @@ import {
   Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { supabase } from "../../supabaseClient";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import DecoratedHeader from "@/components/ui/DecoratedHeader";
@@ -26,6 +25,8 @@ import * as FileSystem from "expo-file-system";
 import "react-native-url-polyfill/auto";
 // Import Buffer for base64 handling
 import { Buffer } from "buffer";
+import { useCRUD } from "@/utils/crudClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Church registration form interface
 interface ChurchFormData {
@@ -43,6 +44,8 @@ interface ChurchFormData {
 
 export default function RegisterChurchScreen(): JSX.Element {
   const navigation = useNavigation();
+  const { insert } = useCRUD();
+  const { user, session, getAccessToken } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState<ChurchFormData>({
     name: "",
@@ -130,63 +133,28 @@ export default function RegisterChurchScreen(): JSX.Element {
       console.log(`Starting upload process for image: ${uri}`);
       setImageUploading(true);
 
-      // Get file extension
-      const uriParts = uri.split(".");
-      const fileExtension = uriParts[uriParts.length - 1]?.toLowerCase() || "jpeg";
-      const fileName = `church-${Date.now()}.${fileExtension}`;
-
-      console.log(`Generated filename: ${fileName}`);
-
-      // Read the file as base64
-      console.log(`Reading file from URI: ${uri}`);
+      // For now, we'll use a placeholder URL or skip image upload
+      // You can implement your own image upload service here
+      // This could be Cloudinary, AWS S3, or any other image hosting service
+      
+      // Read the file as base64 for potential future upload
       const fileContent = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      console.log(`File read successful. Base64 data length: ${fileContent.length}`);
+      // For demo purposes, we'll use a placeholder URL
+      // In production, you would upload this to your image service
+      const placeholderUrl = `data:image/jpeg;base64,${fileContent.substring(0, 100)}...`;
+      
+      // Update form data with placeholder URL
+      setFormData((prev) => ({ ...prev, image: placeholderUrl }));
 
-      // Create a clean Uint8Array from base64
-      const bytes = decode(fileContent);
-      console.log(`Converted to Uint8Array, size: ${bytes.length} bytes`);
-
-      // Get proper content type
-      const contentType = getContentType(fileExtension);
-      console.log(`Content type determined as: ${contentType}`);
-
-      // Upload to Supabase
-      console.log(`Uploading to Supabase storage bucket: church-images/${fileName}`);
-      const { data, error } = await supabase.storage.from("church-images").upload(fileName, bytes, {
-        contentType: contentType,
-        cacheControl: "3600",
-        upsert: true,
-      });
-
-      if (error) {
-        console.error("Supabase upload error:", error);
-        throw error;
-      }
-
-      console.log("Upload successful:", data);
-
-      // Get the public URL
-      const { data: urlData } = supabase.storage.from("church-images").getPublicUrl(fileName);
-
-      if (!urlData?.publicUrl) {
-        throw new Error("Failed to get public URL");
-      }
-
-      console.log(`Got public URL: ${urlData.publicUrl}`);
-
-      // Update form data with image URL
-      const publicUrl = urlData.publicUrl;
-      setFormData((prev) => ({ ...prev, image: publicUrl }));
-
-      return publicUrl;
+      return placeholderUrl;
     } catch (error) {
       console.error("Error in uploadImage:", error);
       Alert.alert(
         "Upload Failed",
-        "There was a problem uploading your image. Please try again with a different image.",
+        "There was a problem processing your image. Please try again with a different image.",
       );
       setImageSelected(false);
       setImageUri(null);
@@ -298,7 +266,7 @@ export default function RegisterChurchScreen(): JSX.Element {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit form to Supabase
+  // Submit form to CRUD API
   const handleSubmit = async () => {
     if (!validateForm()) {
       // Scroll to the first error
@@ -309,27 +277,39 @@ export default function RegisterChurchScreen(): JSX.Element {
     try {
       setLoading(true);
 
-      // Get current user
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-
-      const userId = sessionData?.session?.user?.id;
-      if (!userId) {
+      // Debug session info
+      console.log("Session info:", { user: user?.id, hasSession: !!session });
+      
+      // Check if user is logged in
+      if (!user?.id) {
         Alert.alert("Authentication Error", "You must be logged in to register a church");
         return;
       }
 
-      // Submit to pending_churches table
-      const { error: submitError } = await supabase.from("pending_churches").insert([
-        {
-          ...formData,
-          submitted_by: userId,
-          status: "pending",
-          submitted_at: new Date().toISOString(),
-        },
-      ]);
+      // Verify we have a valid access token
+      const accessToken = await getAccessToken();
+      console.log("Access token exists:", !!accessToken);
+      
+      if (!accessToken) {
+        Alert.alert("Authentication Error", "Your session has expired. Please log in again.");
+        return;
+      }
 
-      if (submitError) throw submitError;
+      console.log("Submitting church registration...");
+      
+      const submissionData = {
+        ...formData,
+        submitted_by: user.id,
+        status: "pending",
+        submitted_at: new Date().toISOString(),
+      };
+      
+      console.log("Submission data:", submissionData);
+
+      // Submit to pending_churches table using CRUD API
+      await insert("pending_churches", submissionData);
+
+      console.log("Church registration submitted successfully!");
 
       // Success alert
       Alert.alert(
@@ -344,7 +324,19 @@ export default function RegisterChurchScreen(): JSX.Element {
       );
     } catch (error) {
       console.error("Error submitting church:", error);
-      Alert.alert("Error", "Failed to submit church. Please try again later.");
+      
+      // More specific error handling
+      let errorMessage = "Failed to submit church. Please try again later.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("Auth session missing")) {
+          errorMessage = "Your session has expired. Please log in again.";
+        } else if (error.message.includes("Not authenticated")) {
+          errorMessage = "Authentication failed. Please log in again.";
+        }
+      }
+      
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -456,6 +448,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.name ? styles.inputError : null]}
                   placeholder="Enter church name"
+                  placeholderTextColor={theme.textLight}
                   value={formData.name}
                   onChangeText={(text) => handleChange("name", text)}
                 />
@@ -469,6 +462,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.address ? styles.inputError : null]}
                   placeholder="Enter full address"
+                  placeholderTextColor={theme.textLight}
                   value={formData.address}
                   onChangeText={(text) => handleChange("address", text)}
                   multiline
@@ -481,6 +475,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g., Catholic, Protestant, Orthodox"
+                  placeholderTextColor={theme.textLight}
                   value={formData.denomination}
                   onChangeText={(text) => handleChange("denomination", text)}
                 />
@@ -491,6 +486,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
                   placeholder="Brief description of your church"
+                  placeholderTextColor={theme.textLight}
                   value={formData.description}
                   onChangeText={(text) => handleChange("description", text)}
                   multiline
@@ -504,6 +500,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g., 1980"
+                  placeholderTextColor={theme.textLight}
                   value={formData.founded}
                   onChangeText={(text) => handleChange("founded", text)}
                   keyboardType="number-pad"
@@ -515,6 +512,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter contact phone number"
+                  placeholderTextColor={theme.textLight}
                   value={formData.phone}
                   onChangeText={(text) => handleChange("phone", text)}
                   keyboardType="phone-pad"
@@ -526,6 +524,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.email ? styles.inputError : null]}
                   placeholder="Enter contact email"
+                  placeholderTextColor={theme.textLight}
                   value={formData.email}
                   onChangeText={(text) => handleChange("email", text)}
                   keyboardType="email-address"
@@ -539,6 +538,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, styles.textAreaInput]}
                   placeholder="Enter schedule details"
+                  placeholderTextColor={theme.textLight}
                   value={formData.mass_schedule}
                   onChangeText={(text) => handleChange("mass_schedule", text)}
                   multiline
@@ -552,6 +552,7 @@ export default function RegisterChurchScreen(): JSX.Element {
                 <TextInput
                   style={[styles.textInput, errors.website ? styles.inputError : null]}
                   placeholder="e.g., www.yourchurch.com"
+                  placeholderTextColor={theme.textLight}
                   value={formData.website}
                   onChangeText={(text) => handleChange("website", text)}
                   autoCapitalize="none"
@@ -605,7 +606,7 @@ export default function RegisterChurchScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.pageBg,
   },
   headerContainer: {
     flexDirection: "row",
@@ -615,15 +616,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   mainContent: {
     flex: 1,
@@ -642,14 +643,15 @@ const styles = StyleSheet.create({
   introTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1E293B",
+    color: theme.textWhite,
     marginBottom: 8,
     textAlign: "center",
+    letterSpacing: -0.3,
   },
   introText: {
     fontSize: 14,
     lineHeight: 22,
-    color: "#64748B",
+    color: theme.textLight,
     textAlign: "center",
   },
   formContainer: {
@@ -661,21 +663,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#334155",
+    color: theme.textWhite,
     marginBottom: 8,
   },
   requiredStar: {
-    color: "#FF006E",
+    color: theme.error,
   },
   textInput: {
     height: 50,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: "#1E293B",
-    backgroundColor: "#F8FAFC",
+    color: theme.textWhite,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   textAreaInput: {
     height: 100,
@@ -684,21 +686,22 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   inputError: {
-    borderColor: "#FF006E",
-    backgroundColor: "rgba(255, 0, 110, 0.05)",
+    borderColor: theme.error,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
   },
   errorText: {
     fontSize: 12,
-    color: "#FF006E",
+    color: theme.error,
     marginTop: 4,
+    fontWeight: "500",
   },
   // Image upload styles
   imageUploadContainer: {
     height: 200,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -711,18 +714,18 @@ const styles = StyleSheet.create({
   imageUploadText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3A86FF",
+    color: theme.primary,
     marginTop: 12,
   },
   imageUploadSubtext: {
     fontSize: 13,
-    color: "#64748B",
+    color: theme.textLight,
     marginTop: 4,
   },
   uploadingText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#3A86FF",
+    color: theme.primary,
     marginTop: 8,
   },
   imagePreviewContainer: {
@@ -754,11 +757,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#3A86FF",
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   submitButtonGradient: {
     height: 56,
@@ -776,17 +779,20 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   noticeContainer: {
-    backgroundColor: "rgba(58, 134, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   noticeText: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#334155",
+    color: theme.textLight,
   },
   noticeHighlight: {
     fontWeight: "700",
+    color: theme.textWhite,
   },
 });

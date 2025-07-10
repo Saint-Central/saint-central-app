@@ -223,7 +223,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
 
   // Use custom hooks
   const {
-    currentUser,
+    user,
     userChurches,
     selectedChurchId,
     setSelectedChurchId,
@@ -237,6 +237,12 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     fetchEvents,
     onRefresh,
   } = useChurchEvents(churchId);
+
+  // DEBUG LOGGING
+  console.log("DEBUG: user", user);
+  console.log("DEBUG: selectedChurchId", selectedChurchId);
+  console.log("DEBUG: userChurches", userChurches);
+  console.log("DEBUG: hasPermissionToCreate", hasPermissionToCreate);
 
   const {
     selectedDate,
@@ -279,7 +285,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     handleEditEvent,
     handleDeleteEvent,
     openImageViewer,
-  } = useEventForm(currentUser?.id || null, selectedChurchId, hasPermissionToCreate, fetchEvents);
+  } = useEventForm(user?.id || null, selectedChurchId, hasPermissionToCreate, fetchEvents);
 
   // Local state
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
@@ -662,16 +668,20 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
               )}
 
               {!loading && filteredEvents.length === 0 && (
-                <View style={simpleStyles.centeredContent}>
-                  <Text style={simpleStyles.noEventsText}>No events found</Text>
+                <View style={simpleStyles.noEventsContainer}>
+                  <Text style={simpleStyles.noEventsText}>No events found.</Text>
                   <Text style={simpleStyles.noEventsSubtext}>
-                    {searchQuery
-                      ? "Try adjusting your search criteria"
-                      : "There are no events scheduled yet"}
+                    There are no events for this church yet. Check back soon!
                   </Text>
+                  {/* Show Create Event button for admins in empty state */}
                   {hasPermissionToCreate && (
-                    <TouchableOpacity style={simpleStyles.createButton} onPress={openAddModal}>
-                      <Text style={simpleStyles.createButtonText}>Create Event</Text>
+                    <TouchableOpacity
+                      style={[simpleStyles.addEventButton, { marginTop: 20 }]}
+                      onPress={openAddModal}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={simpleStyles.addEventButtonText}>Create New Event</Text>
+                      <Feather name="plus-circle" size={20} color="#FFFFFF" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -689,7 +699,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
                     >
                       <EventCard
                         item={item}
-                        currentUserId={currentUser?.id}
+                        currentUserId={user?.id}
                         hasPermissionToCreate={hasPermissionToCreate}
                         onEdit={handleSelectEventForEdit}
                         onDelete={handleDeleteEvent}
@@ -732,8 +742,8 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
             onClose={() => setShowDetailModal(false)}
             onEdit={
               hasPermissionToCreate ||
-              (!!currentUser?.id &&
-                (detailEvent.created_by === currentUser.id ||
+              (!!user?.id &&
+                (detailEvent.created_by === user.id ||
                   userChurches.some(
                     (church) =>
                       church.id === detailEvent.church_id &&
@@ -744,8 +754,8 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
             }
             onDelete={
               hasPermissionToCreate ||
-              (!!currentUser?.id &&
-                (detailEvent.created_by === currentUser.id ||
+              (!!user?.id &&
+                (detailEvent.created_by === user.id ||
                   userChurches.some(
                     (church) =>
                       church.id === detailEvent.church_id &&
@@ -1296,6 +1306,11 @@ const simpleStyles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
+  },
+  noEventsContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

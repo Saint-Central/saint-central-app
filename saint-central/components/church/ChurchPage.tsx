@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,8 +9,9 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,14 +20,18 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolate,
+  runOnJS,
+  withSequence,
+  withRepeat,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Church, ChurchEvent } from "@/types/church";
 import ChurchPageContent from "@/components/church/ChurchPageContent";
 import ChurchPageHeader from "@/components/church/ChurchPageHeader";
 import ChurchSidebar from "@/components/church/ChurchSidebar";
 import theme from "@/theme";
-import { supabase } from "../../supabaseClient";
+import { useCRUD } from "@/utils/crudClient";
 import { router, useRouter } from "expo-router";
 import Error from "@/components/ui/Error";
 import useScreen from "@/hooks/useScreen";
@@ -34,14 +39,16 @@ import { Course } from "@/types/course";
 import Button from "@/components/ui/Button";
 import { useChurchContext } from "@/contexts/church";
 import { isAdminOrOwner } from "@/data/user";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   userData: { username: string; profileImage: string };
 };
 
-const TABS = ["Home", "Events", "Courses", "Community"];
+const TABS = ["Home", "Events", "Ministries", "Fellowship"];
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 // Spring animation config
 const springConfig = {
@@ -62,19 +69,27 @@ export default function ChurchPage({ userData }: Props) {
   const [isMinistriesLoading, setIsMinistriesLoading] = useState<boolean>(false);
   const [eventsError, setEventsError] = useState<string>("");
   const [ministriesError, setMinistriesError] = useState<string>("");
+  const hasFetchedDataRef = useRef(false);
 
+  const { selectOne, select } = useCRUD();
   const { SCREEN_WIDTH, isTablet } = useScreen();
+  const insets = useSafeAreaInsets();
 
   // Shared values for animations
   const scrollY = useSharedValue(0);
   const sidebarAnim = useSharedValue(0);
   const appearAnim = useSharedValue(0);
+  const tabContentAnim = useSharedValue(1);
+  const tabSlideAnim = useSharedValue(0);
+  const fixedButtonScale = useSharedValue(1);
+  const fixedButtonRotation = useSharedValue(0);
+  const headerShimmerAnim = useSharedValue(0);
 
   const {
     data: { church, member },
   } = useChurchContext();
 
-  // Function to fetch events from Supabase - MODIFIED to load all events
+  // Function to fetch events using CRUD API
   const fetchEvents = useCallback(async () => {
     if (!church?.id) return;
 
@@ -82,27 +97,22 @@ export default function ChurchPage({ userData }: Props) {
       setIsEventsLoading(true);
       setEventsError("");
 
-      // Modified query to load all events without date filtering
-      const { data, error } = await supabase
-        .from("church_events")
-        .select("*")
-        .eq("church_id", church.id)
-        .order("time", { ascending: true });
+      const events = await select("church_events", {
+        select: "*",
+        where: { church_id: church.id },
+        order: "time",
+      });
 
-      if (error) {
-        throw error;
-      }
-
-      setEvents(data || []);
+      setEvents(events || []);
     } catch (error) {
       console.error("Error fetching events:", error);
       setEventsError("Failed to load events. Please try again later.");
     } finally {
       setIsEventsLoading(false);
     }
-  }, [church?.id]);
+  }, [church?.id, select]);
 
-  // Function to fetch ministries from Supabase
+  // Function to fetch courses using CRUD API
   const fetchMinistries = useCallback(async () => {
     if (!church?.id) return;
 
@@ -110,32 +120,28 @@ export default function ChurchPage({ userData }: Props) {
       setIsMinistriesLoading(true);
       setMinistriesError("");
 
-      // Use Supabase client to fetch ministries
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("church_id", church.id)
-        .order("time");
+      const courses = await select("courses", {
+        select: "*",
+        where: { church_id: church.id },
+        order: "time",
+      });
 
-      if (error) {
-        throw error;
-      }
-
-      setCourses(data || []);
+      setCourses(courses || []);
     } catch (error) {
-      console.error("Error fetching ministries:", error);
-      setMinistriesError("Failed to load ministries. Please try again later.");
+      console.error("Error fetching courses:", error);
+      setMinistriesError("Failed to load courses. Please try again later.");
     } finally {
       setIsMinistriesLoading(false);
     }
-  }, [church?.id]);
+  }, [church?.id, select]);
 
   useEffect(() => {
-    if (church?.id) {
+    if (church?.id && !hasFetchedDataRef.current) {
+      hasFetchedDataRef.current = true;
       fetchEvents();
       fetchMinistries();
     }
-  }, [church?.id, fetchEvents, fetchMinistries]);
+  }, [church?.id]);
 
   // Animate page elements on mount
   useEffect(() => {
@@ -145,7 +151,14 @@ export default function ChurchPage({ userData }: Props) {
       stiffness: 300,
       mass: 1,
     });
-  }, [appearAnim]);
+    
+    // Start header shimmer animation
+    headerShimmerAnim.value = withRepeat(
+      withTiming(1, { duration: 3000 }),
+      -1,
+      false
+    );
+  }, [appearAnim, headerShimmerAnim]);
 
   // Handle sidebar animation
   useEffect(() => {
@@ -156,21 +169,96 @@ export default function ChurchPage({ userData }: Props) {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Scroll event handler
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+  // Ultra-smooth scroll handler
+  const scrollHandler = useAnimatedScrollHandler(
+    {
+      onScroll: (event) => {
+        // Use spring animation for ultra-smooth value updates
+        scrollY.value = withSpring(event.contentOffset.y, {
+          damping: 50,
+          stiffness: 400,
+          mass: 0.8,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        });
+      },
     },
+    []
+  );
+
+  // Ultra-smooth header animation
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    // Extended range for ultra-smooth interpolation
+    const progress = interpolate(
+      scrollY.value, 
+      [0, 80, 120], 
+      [0, 0.8, 1], 
+      Extrapolate.CLAMP
+    );
+    
+    // Natural easing curves for smoothness
+    const easedProgress = interpolate(
+      progress,
+      [0, 1],
+      [0, 1],
+      Extrapolate.CLAMP,
+      'easeOutCubic'
+    );
+    
+    // Smooth transforms with natural motion
+    const translateY = interpolate(easedProgress, [0, 1], [-20, 0]);
+    const scale = interpolate(easedProgress, [0, 1], [0.98, 1]);
+    
+    return {
+      opacity: easedProgress,
+      transform: [{ translateY }, { scale }],
+    };
   });
 
-  // Animated styles for header
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 50], [0, 1], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 50], [0.96, 1], Extrapolate.CLAMP);
-
+  // Ultra-smooth backdrop animation
+  const headerBackdropStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      scrollY.value, 
+      [0, 60, 120], 
+      [0, 0.5, 1], 
+      Extrapolate.CLAMP
+    );
+    
+    const easedOpacity = interpolate(
+      progress,
+      [0, 1],
+      [0, 0.95],
+      Extrapolate.CLAMP,
+      'easeOutQuart'
+    );
+    
     return {
-      opacity,
-      transform: [{ scale }],
+      opacity: easedOpacity,
+    };
+  });
+
+  // Ultra-smooth content animation
+  const headerContentStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      scrollY.value, 
+      [40, 100, 120], 
+      [0, 0.7, 1], 
+      Extrapolate.CLAMP
+    );
+    
+    const easedProgress = interpolate(
+      progress,
+      [0, 1],
+      [0, 1],
+      Extrapolate.CLAMP,
+      'easeOutQuint'
+    );
+    
+    const translateY = interpolate(easedProgress, [0, 1], [3, 0]);
+    
+    return {
+      opacity: easedProgress,
+      transform: [{ translateY }],
     };
   });
 
@@ -199,14 +287,60 @@ export default function ChurchPage({ userData }: Props) {
     };
   });
 
-  // Tab handling
+  // Tab content animation
+  const tabContentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: tabContentAnim.value,
+      transform: [
+        {
+          translateY: interpolate(tabContentAnim.value, [0, 1], [30, 0]),
+        },
+        {
+          translateX: interpolate(tabSlideAnim.value, [-1, 0, 1], [-SCREEN_WIDTH * 0.1, 0, SCREEN_WIDTH * 0.1]),
+        },
+        {
+          scale: interpolate(tabContentAnim.value, [0, 1], [0.92, 1]),
+        },
+      ],
+    };
+  });
+
+  // Tab handling with animation
   const handleTabPress = (tabIndex: number) => {
-    setActiveTab(TABS[tabIndex]);
+    const currentIndex = TABS.indexOf(activeTab);
+    const direction = tabIndex > currentIndex ? 1 : -1;
+    
+    // Function to change tab state (needs to run on JS thread)
+    const changeTab = () => {
+      setActiveTab(TABS[tabIndex]);
+    };
+    
+    // Animate out current content with slide
+    tabContentAnim.value = withTiming(0, { duration: 200 });
+    tabSlideAnim.value = withTiming(-direction * 0.3, { duration: 200 }, (finished) => {
+      if (finished) {
+        // Change tab and reset slide position using runOnJS
+        runOnJS(changeTab)();
+        tabSlideAnim.value = direction * 0.3;
+        
+        // Animate in new content
+        tabContentAnim.value = withSpring(1, {
+          damping: 18,
+          stiffness: 280,
+          mass: 0.9,
+        });
+        tabSlideAnim.value = withSpring(0, {
+          damping: 18,
+          stiffness: 280,
+          mass: 0.9,
+        });
+      }
+    });
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar translucent={false} backgroundColor="#FFFFFF" barStyle="dark-content" />
+    <View style={styles.safeArea}>
+      <StatusBar translucent={true} backgroundColor="transparent" barStyle="light-content" />
 
       <ChurchSidebar
         isOpen={sidebarOpen}
@@ -227,31 +361,146 @@ export default function ChurchPage({ userData }: Props) {
       )}
 
       {/* Fixed Header with Hamburger */}
-      <View style={styles.fixedHeader}>
-        <TouchableOpacity style={styles.fixedHeaderButton} onPress={toggleSidebar}>
-          <Ionicons name="menu" size={24} color={theme.primary} />
-        </TouchableOpacity>
+      <View style={[styles.fixedHeader, { top: insets.top }]}>
+        <AnimatedTouchableOpacity 
+          style={[
+            styles.fixedHeaderButton,
+            useAnimatedStyle(() => ({
+              transform: [
+                { scale: fixedButtonScale.value },
+                { rotate: `${fixedButtonRotation.value}deg` }
+              ],
+            }))
+          ]} 
+          onPress={() => {
+            fixedButtonRotation.value = withSequence(
+              withSpring(-5, { damping: 10, stiffness: 200 }),
+              withSpring(5, { damping: 10, stiffness: 200 }),
+              withSpring(0, { damping: 15, stiffness: 400 })
+            );
+            toggleSidebar();
+          }}
+          onPressIn={() => {
+            fixedButtonScale.value = withSpring(0.9, { damping: 15, stiffness: 400 });
+          }}
+          onPressOut={() => {
+            fixedButtonScale.value = withSpring(1, { damping: 15, stiffness: 400 });
+          }}
+          activeOpacity={1}
+        >
+          <Animated.View
+            style={useAnimatedStyle(() => ({
+              transform: [{ rotate: `${interpolate(sidebarAnim.value, [0, 1], [0, 90])}deg` }],
+            }))}
+          >
+            <Ionicons name="menu" size={24} color={theme.primary} />
+          </Animated.View>
+        </AnimatedTouchableOpacity>
       </View>
 
+      {/* Safe Area Overlay with ultra-smooth animation */}
+      <Animated.View 
+        style={[
+          styles.safeAreaOverlay, 
+          useAnimatedStyle(() => {
+            const progress = interpolate(
+              scrollY.value, 
+              [0, 60, 120], 
+              [0, 0.3, 1], 
+              Extrapolate.CLAMP
+            );
+            
+            const easedOpacity = interpolate(
+              progress,
+              [0, 1],
+              [0, 1],
+              Extrapolate.CLAMP,
+              'easeOutQuart'
+            );
+            
+            return {
+              opacity: easedOpacity,
+              backgroundColor: theme.neutral900,
+            };
+          }),
+          { height: insets.top }
+        ]} 
+      />
+
       {/* Main content with animations */}
-      <View style={styles.overlayBackgroundFill} />
       <Animated.View style={[styles.mainContainer, contentAnimatedStyle]}>
-        {/* Floating header */}
-        <Animated.View style={[styles.headerContainer, headerAnimatedStyle]}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerSpacer} />
+        {/* Enhanced Floating Sticky Header */}
+        <Animated.View style={[styles.headerContainer, headerAnimatedStyle, { top: insets.top }]}>
+          {/* Glass morphism backdrop */}
+          <Animated.View style={[styles.headerBackdrop, headerBackdropStyle]}>
+            {Platform.OS === 'ios' && (
+              <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
+          </Animated.View>
+          
+          {/* Gradient overlay */}
+          <LinearGradient
+            colors={['rgba(28,25,23,0.95)', 'rgba(28,25,23,0.85)', 'rgba(41,37,36,0.8)']}
+            style={styles.headerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+          
+          {/* Header content with animation */}
+          <Animated.View style={[styles.headerContent, headerContentStyle]}>
+            {/* Empty space for hamburger menu */}
+            <View style={styles.headerMenuSpacer} />
 
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {church?.name}
-            </Text>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {church?.name}
+              </Text>
+              <View style={styles.headerSubtitleContainer}>
+                <View style={styles.onlineIndicator} />
+                <Text style={styles.headerSubtitle}>Active Now</Text>
+              </View>
+            </View>
 
-            <View style={styles.headerSpacer} />
-          </View>
+            <TouchableOpacity 
+              style={styles.headerActionButton}
+              activeOpacity={0.7}
+            >
+              <View style={styles.headerIconContainer}>
+                <Ionicons name="notifications-outline" size={22} color={theme.accent2} />
+                <View style={styles.headerNotificationDot} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {/* Bottom border with animated shimmer */}
+          <Animated.View style={[styles.headerBorder, headerBackdropStyle]}>
+            <Animated.View
+              style={[
+                styles.headerBorderGradient,
+                useAnimatedStyle(() => ({
+                  transform: [{
+                    translateX: interpolate(
+                      headerShimmerAnim.value,
+                      [0, 1],
+                      [-200, 400]
+                    ),
+                  }],
+                }))
+              ]}
+            >
+              <LinearGradient
+                colors={['transparent', 'rgba(254,243,199,0.3)', 'rgba(254,243,199,0.5)', 'rgba(254,243,199,0.3)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ flex: 1, width: 200 }}
+              />
+            </Animated.View>
+          </Animated.View>
         </Animated.View>
 
         {/* Page content */}
         <AnimatedScrollView
-          style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+          style={{ flex: 1, backgroundColor: theme.pageBg }}
           contentContainerStyle={[
             styles.scrollViewContent,
             isTablet && styles.tabletScrollViewContent,
@@ -260,35 +509,63 @@ export default function ChurchPage({ userData }: Props) {
           scrollEventThrottle={16}
           onScroll={scrollHandler}
         >
-          {/* Church Page Header */}
+          {/* Enhanced Church Page Header with Hero Image */}
           <ChurchPageHeader userData={userData} onPressMenu={toggleSidebar} />
 
-          {/* Tabs navigation */}
-          <View style={[styles.tabsContainer, isTablet && styles.tabletTabsContainer]}>
-            {TABS.map((tab, index) => (
-              <TouchableOpacity
-                key={tab}
-                style={styles.tabButton}
-                onPress={() => handleTabPress(index)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    isTablet && styles.tabletTabText,
-                    activeTab === tab && styles.activeTabText,
-                  ]}
-                >
-                  {tab}
-                </Text>
+          {/* Modern Tab Navigation */}
+          <View style={[styles.modernTabsContainer, isTablet && styles.tabletTabsContainer]}>
+            {TABS.map((tab, index) => {
+              const tabButtonPressAnim = useSharedValue(1);
+              
+              const tabButtonAnimatedStyle = useAnimatedStyle(() => {
+                return {
+                  transform: [{ scale: tabButtonPressAnim.value }],
+                };
+              });
 
-                {activeTab === tab && <View style={styles.activeTabIndicator} />}
-              </TouchableOpacity>
-            ))}
+              const handleTabPressIn = () => {
+                tabButtonPressAnim.value = withSpring(0.96, springConfig);
+              };
+
+              const handleTabPressOut = () => {
+                tabButtonPressAnim.value = withSpring(1, springConfig);
+              };
+
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[styles.modernTabButton, activeTab === tab && styles.modernActiveTab]}
+                  onPress={() => handleTabPress(index)}
+                  onPressIn={handleTabPressIn}
+                  onPressOut={handleTabPressOut}
+                  activeOpacity={1}
+                >
+                  <Animated.View style={[StyleSheet.absoluteFill, tabButtonAnimatedStyle]}>
+                    {activeTab === tab && (
+                      <LinearGradient
+                        colors={[theme.primary, theme.accent1]}
+                        style={styles.modernActiveTabIndicator}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      />
+                    )}
+                  </Animated.View>
+                  <Text
+                    style={[
+                      styles.modernTabText,
+                      isTablet && styles.tabletTabText,
+                      activeTab === tab && styles.modernActiveTabText,
+                    ]}
+                  >
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Dynamic content based on active tab */}
-          <View style={[styles.tabContent, isTablet && styles.tabletTabContent]}>
+          <Animated.View style={[styles.tabContent, isTablet && styles.tabletTabContent, tabContentAnimatedStyle]}>
             {activeTab === "Home" && <ChurchPageContent userData={userData} />}
 
             {activeTab === "Events" && (
@@ -300,50 +577,53 @@ export default function ChurchPage({ userData }: Props) {
               />
             )}
 
-            {activeTab === "Courses" && isAdminOrOwner(member) && (
-              <View style={{ alignItems: "center" }}>
-                <Button
-                  onPress={() => {
-                    router.push({
-                      pathname: "/create-course",
-                      params: {
-                        churchId: member.church_id,
-                        userId: member.user_id,
-                        role: member.role,
-                      },
-                    });
-                  }}
-                  size="md"
-                  style={{ width: "65%" }}
-                >
-                  <Text
-                    style={{
-                      color: theme.textWhite,
-                      fontWeight: theme.fontSemiBold,
+            {activeTab === "Ministries" && isAdminOrOwner(member) && (
+              <View style={styles.adminSection}>
+                <View style={styles.adminCard}>
+                  <MaterialCommunityIcons name="shield-account" size={24} color={theme.primary} />
+                  <Text style={styles.adminCardTitle}>Admin Controls</Text>
+                  <Button
+                    onPress={() => {
+                      router.push({
+                        pathname: "/create-course",
+                        params: {
+                          churchId: member.church_id,
+                          userId: member.user_id,
+                          role: member.role,
+                        },
+                      });
                     }}
+                    size="md"
+                    style={styles.adminButton}
                   >
-                    Create Course (Admin)
-                  </Text>
-                </Button>
+                    <Text style={styles.adminButtonText}>Create Ministry</Text>
+                  </Button>
+                </View>
               </View>
             )}
-            {activeTab === "Courses" && (
+            {activeTab === "Ministries" && (
               <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
             )}
 
-            {activeTab === "Community" && (
-              <View style={styles.comingSoonContainer}>
-                <FontAwesome5 name="users" size={42} color={theme.primary} />
-                <Text style={styles.comingSoonTitle}>Community Coming Soon</Text>
-                <Text style={styles.comingSoonText}>
-                  Connect with our community members and join discussions
-                </Text>
+            {activeTab === "Fellowship" && (
+              <View style={styles.modernComingSoonContainer}>
+                <LinearGradient
+                  colors={[theme.primary + "20", theme.accent1 + "15"]}
+                  style={styles.comingSoonGradient}
+                >
+                  <FontAwesome5 name="users" size={48} color={theme.primary} />
+                  <Text style={styles.modernComingSoonTitle}>Fellowship Coming Soon</Text>
+                  <Text style={styles.modernComingSoonText}>
+                    Connect with our church family and grow in faith together. 
+                    This feature will include prayer groups, social events, and community discussions.
+                  </Text>
+                </LinearGradient>
               </View>
             )}
-          </View>
+          </Animated.View>
         </AnimatedScrollView>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 }
 // Events Tab Content
@@ -426,7 +706,7 @@ const CoursesTab = ({
         <View style={styles.emptyIconContainer}>
           <FontAwesome5 name="church" size={36} color={theme.primary} />
         </View>
-        <Text style={styles.emptyTitle}>No Courses Found</Text>
+        <Text style={styles.emptyTitle}>No Ministries Found</Text>
       </View>
     );
   }
@@ -434,7 +714,7 @@ const CoursesTab = ({
   return (
     <View style={styles.coursesContainer}>
       <View style={styles.sectionHeaderContainer}>
-        <Text style={styles.sectionTitle}>Our Courses</Text>
+        <Text style={styles.sectionTitle}>Our Ministries</Text>
         <View style={styles.sectionHeaderLine} />
       </View>
       <View style={styles.ministriesGrid}>
@@ -514,12 +794,12 @@ const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) =>
               />
             ) : (
               <LinearGradient
-                colors={[theme.neutral100, theme.neutral200]}
+                colors={[theme.neutral700, theme.neutral600]}
                 style={isTablet ? styles.tabletEventImage : styles.eventImage}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <FontAwesome5 name="calendar-alt" size={28} color={theme.neutral400} />
+                <FontAwesome5 name="calendar-alt" size={28} color={theme.primary} />
               </LinearGradient>
             )}
           </View>
@@ -537,7 +817,7 @@ const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) =>
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <Ionicons name="repeat" size={12} color="#FFFFFF" />
+                  <Ionicons name="repeat" size={12} color={theme.textWhite} />
                   <Text style={styles.recurringText}>Recurring</Text>
                 </LinearGradient>
               )}
@@ -614,7 +894,10 @@ const CourseCard = ({ course }: { course: Course }) => {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => {
-        console.log(course);
+        router.push({
+          pathname: "/course/[id]",
+          params: { id: course.id },
+        });
       }}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
@@ -633,19 +916,19 @@ const CourseCard = ({ course }: { course: Course }) => {
               />
             ) : (
               <LinearGradient
-                colors={[theme.neutral100, theme.neutral200]}
+                colors={[theme.neutral700, theme.neutral600]}
                 style={isTablet ? styles.tabletCourseImage : styles.courseImage}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <FontAwesome5 name="church" size={28} color={theme.neutral400} />
+                <FontAwesome5 name="church" size={28} color={theme.primary} />
               </LinearGradient>
             )}
           </View>
 
           <View style={styles.courseDetailsContainer}>
             <Text style={styles.courseTitle} numberOfLines={2}>
-              Course title
+              {course.title || "Ministry"}
             </Text>
             {course.description && (
               <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
@@ -654,7 +937,7 @@ const CourseCard = ({ course }: { course: Course }) => {
             )}
             <View style={styles.courseFooter}>
               <Button size="xs">
-                <Text style={styles.joinButtonText}>Join Course</Text>
+                <Text style={styles.joinButtonText}>Join Ministry</Text>
                 <View style={styles.arrowContainer}>
                   <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
                 </View>
@@ -670,21 +953,20 @@ const CourseCard = ({ course }: { course: Course }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.pageBg,
   },
-  overlayBackgroundFill: {
+  safeAreaOverlay: {
     position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
-    top: 0,
-    height: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.neutral900,
     zIndex: 99,
   },
   mainContainer: {
     flex: 1,
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.pageBg,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -693,53 +975,143 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     position: "absolute",
+    left: 0,
+    right: 0,
+    height: 64,
+    zIndex: 100,
+    overflow: "hidden",
+  },
+  headerBackdrop: {
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 48,
-    zIndex: 100,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(203, 213, 225, 0.3)",
+    bottom: 0,
+    backgroundColor: "rgba(28,25,23,0.3)",
+  },
+  headerGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: theme.spacingL,
+    paddingHorizontal: theme.spacingM,
     height: "100%",
-    paddingTop: 4,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
-  fixedHeader: {
-    position: "absolute",
-    top: 60,
-    left: 0,
-    paddingLeft: theme.spacingL,
-    paddingTop: 0,
-    zIndex: 101, // Higher than other headers
+  headerMenuSpacer: {
+    width: 52, // Same width as the menu button to maintain alignment
   },
-  fixedHeaderButton: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
+  headerActionButton: {
+    padding: 8,
+    position: "relative",
+  },
+  headerIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(254,243,199,0.08)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: theme.neutral200,
+    borderColor: "rgba(254,243,199,0.12)",
+    position: "relative",
+  },
+  headerNotificationDot: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    backgroundColor: theme.error,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "rgba(28,25,23,0.9)",
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: theme.textWhite,
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  headerSubtitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: theme.textLight,
+    opacity: 0.8,
+  },
+  onlineIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.success,
+  },
+  headerBorder: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    overflow: "hidden",
+  },
+  headerBorderGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 200,
+  },
+  fixedHeader: {
+    position: "absolute",
+    left: 0,
+    paddingLeft: theme.spacingM,
+    paddingTop: 8,
+    zIndex: 101, // Higher than other headers
+  },
+  fixedHeaderButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(254, 243, 199, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(254, 243, 199, 0.2)",
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   headerSpacer: {
     width: 36,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-    maxWidth: "70%",
-  },
   scrollViewContent: {
-    paddingTop: 48,
+    paddingTop: 0,
     paddingBottom: 100,
   },
   tabletScrollViewContent: {
@@ -751,46 +1123,93 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: "row",
     marginHorizontal: theme.spacingL,
-    marginTop: theme.spacingXL,
-    marginBottom: theme.spacingM,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
+    marginTop: theme.spacingM,
+    marginBottom: theme.spacingL,
+    backgroundColor: "rgba(254, 243, 199, 0.08)",
+    borderRadius: 10,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.35)",
+  },
+  // Modern Tab Styles
+  modernTabsContainer: {
+    flexDirection: "row",
+    marginHorizontal: theme.spacingL,
+    marginTop: theme.spacingL,
+    marginBottom: theme.spacingL,
+    backgroundColor: "rgba(254, 243, 199, 0.06)",
+    borderRadius: 16,
     padding: 4,
-    ...theme.shadowLight,
+    borderWidth: 1,
+    borderColor: "rgba(254, 243, 199, 0.08)",
   },
   tabletTabsContainer: {
     marginHorizontal: 0,
     maxWidth: 500,
     alignSelf: "center",
   },
-  tabButton: {
+  modernTabButton: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
-    position: "relative",
     justifyContent: "center",
+    borderRadius: 12,
+    position: "relative",
+  },
+  modernActiveTab: {
+    // Style handled by gradient
+  },
+  modernTabText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.textLight,
+    textAlign: "center",
+    position: "relative",
+    zIndex: 1,
+  },
+  modernActiveTabText: {
+    color: theme.textWhite,
+    fontWeight: "600",
+  },
+  modernActiveTabIndicator: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: theme.fontMedium,
-    color: theme.textMedium,
+    fontSize: 15,
+    fontWeight: "400",
+    color: theme.textLight,
     textAlign: "center",
   },
   tabletTabText: {
     fontSize: 16,
   },
   activeTabText: {
-    color: theme.primary,
-    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
+    fontWeight: "500",
   },
   activeTabIndicator: {
     position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     bottom: 0,
-    height: 3,
-    width: "70%",
-    backgroundColor: theme.primary,
-    borderRadius: theme.radiusFull,
-    marginLeft: -10,
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+    borderRadius: 8,
   },
   tabContent: {
     paddingHorizontal: theme.spacingL,
@@ -839,7 +1258,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: theme.spacingS,
   },
   emptyText: {
@@ -865,6 +1284,36 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontSemiBold,
     fontSize: 14,
   },
+  // Admin Section
+  adminSection: {
+    paddingHorizontal: theme.spacingL,
+    marginBottom: theme.spacingL,
+  },
+  adminCard: {
+    backgroundColor: "rgba(254, 243, 199, 0.08)",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+    alignItems: "center",
+    gap: 12,
+  },
+  adminCardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textWhite,
+  },
+  adminButton: {
+    width: "100%",
+    maxWidth: 200,
+  },
+  adminButtonText: {
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
+    fontSize: 14,
+  },
+
+  // Coming Soon Styles
   comingSoonContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -874,16 +1323,45 @@ const styles = StyleSheet.create({
   comingSoonTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: "#FFFFFF",
     marginTop: theme.spacingL,
     marginBottom: theme.spacingS,
   },
   comingSoonText: {
     fontSize: 16,
     fontWeight: theme.fontRegular,
-    color: theme.textMedium,
+    color: "rgba(255,255,255,0.7)",
     textAlign: "center",
     lineHeight: 24,
+  },
+
+  // Modern Coming Soon
+  modernComingSoonContainer: {
+    paddingHorizontal: theme.spacingL,
+    marginTop: theme.spacingL,
+  },
+  comingSoonGradient: {
+    borderRadius: 20,
+    padding: 32,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(254, 243, 199, 0.08)",
+  },
+  modernComingSoonTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: theme.textWhite,
+    marginTop: 16,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modernComingSoonText: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: theme.textLight,
+    textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 280,
   },
 
   // Section headers
@@ -895,7 +1373,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginRight: theme.spacingM,
     letterSpacing: -0.5,
   },
@@ -917,12 +1395,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: theme.radiusMedium,
+    backgroundColor: "rgba(254, 243, 199, 0.06)",
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: theme.neutral200,
-    ...theme.shadowLight,
+    borderColor: "rgba(245, 158, 11, 0.35)",
   },
   eventCardContent: {
     flexDirection: "row",
@@ -963,7 +1440,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     flex: 1,
   },
   recurringBadge: {
@@ -976,7 +1453,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   recurringText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontSize: 10,
     fontWeight: theme.fontSemiBold,
     marginLeft: 4,
@@ -1034,7 +1511,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   viewDetailsText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
     fontSize: 12,
   },
@@ -1056,12 +1533,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: theme.radiusMedium,
+    backgroundColor: "rgba(254, 243, 199, 0.06)",
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: theme.neutral200,
-    ...theme.shadowLight,
+    borderColor: "rgba(245, 158, 11, 0.35)",
   },
   courseCardContent: {
     flexDirection: "row",
@@ -1096,7 +1572,7 @@ const styles = StyleSheet.create({
   courseTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: 8,
   },
   courseDescription: {
@@ -1116,7 +1592,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   joinButtonText: {
-    color: "#FFFFFF",
+    color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
     fontSize: 12,
   },

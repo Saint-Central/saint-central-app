@@ -17,12 +17,14 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { AntDesign, Feather, MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { supabase } from "../../supabaseClient";
-import { User } from "@supabase/supabase-js";
 import { LinearGradient } from "expo-linear-gradient";
-import theme from "../../theme"; // Updated import path
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+// Import the new auth and CRUD utilities
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
+import theme from "@/theme";
 
 // Recurring type options
 export type RecurringType = "none" | "daily" | "weekly" | "monthly" | "yearly";
@@ -47,13 +49,20 @@ interface YouthGroup {
   location?: string;
   is_recurring: boolean;
   title: string;
-  recurring_type?: RecurringType; // Added recurring type field
+  recurring_type?: RecurringType;
 }
 
 interface UserChurch {
   id: string;
   name: string;
   role: string;
+}
+
+interface User {
+  id: string;
+  email?: string;
+  role: string;
+  [key: string]: any;
 }
 
 const CreateYouthGroupPage: React.FC = () => {
@@ -63,8 +72,11 @@ const CreateYouthGroupPage: React.FC = () => {
   const youthGroupId = params.youthGroupId as string | undefined;
   const isEditMode = !!youthGroupId;
 
+  // Use the new auth and CRUD hooks
+  const { user, loading: authLoading } = useAuth();
+  const { select, selectOne, insert, update } = useCRUD();
+
   // State variables
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
@@ -86,74 +98,108 @@ const CreateYouthGroupPage: React.FC = () => {
     recurring_type: "none",
   });
 
-  // Date picker state - removed time picker state
+  // Date picker state
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
 
-  // Fetch current user on mount
+  // Set default creator when user is available
   useEffect(() => {
-    const fetchCurrentUser = async (): Promise<void> => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setUser(data.user);
-          // Set a default creator name but don't force it
-          if (!formData.created_by) {
-            setFormData((prevData) => ({
-              ...prevData,
-              created_by: data.user.email || "Youth Group Leader",
-            }));
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-        Alert.alert("Error", "Failed to authenticate user");
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
+    console.log("User changed:", user);
+    console.log("Auth loading:", authLoading);
+    
+    if (user && !formData.created_by) {
+      console.log("Setting default creator for user:", user.email);
+      setFormData((prevData) => ({
+        ...prevData,
+        created_by: user.email || "Youth Group Leader",
+      }));
+    }
+  }, [user, authLoading]);
 
   // Fetch user's churches after user is loaded
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
+      // Test basic CRUD functionality first
+      testCRUDConnection();
       fetchUserChurches();
     }
-  }, [user]);
+  }, [user, authLoading]);
+
+  // Test CRUD connection
+  const testCRUDConnection = async () => {
+    try {
+      console.log("Testing CRUD connection...");
+      console.log("User ID for testing:", user?.id);
+      
+      // Try a simple query to test if CRUD is working
+      const testResult = await select("church_members", { limit: 1 });
+      console.log("CRUD test successful:", testResult);
+      
+      // Try to get all church members (to see table structure)
+      const allMembers = await select("church_members", { limit: 5 });
+      console.log("Sample church members:", allMembers);
+      
+    } catch (error) {
+      console.error("CRUD test failed:", error);
+      console.error("CRUD error type:", typeof error);
+      console.error("CRUD error message:", error instanceof Error ? error.message : error);
+    }
+  };
 
   // Load Youth Group data if in edit mode
   useEffect(() => {
-    if (isEditMode && user) {
+    if (isEditMode && user && !authLoading) {
       fetchYouthGroupData();
     }
-  }, [isEditMode, user]);
+  }, [isEditMode, user, authLoading]);
 
   // Fetch user's churches with role information
   const fetchUserChurches = async (): Promise<void> => {
     if (!user) return;
 
     try {
-      // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from("church_members")
-        .select("church_id, role, churches(id, name)")
-        .eq("user_id", user.id);
+      setLoading(true);
+      console.log("Fetching churches for user:", user.id);
 
-      if (error) throw error;
+      // First, get church memberships for the user
+      const churchMembers = await select("church_members", {
+        select: "church_id, role",
+        where: { user_id: user.id }
+      });
 
-      if (data && data.length > 0) {
-        // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map((item) => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: string; name: string }).name,
-          role: item.role,
-        }));
+      console.log("Church members data:", churchMembers);
+
+      if (churchMembers && churchMembers.length > 0) {
+        // Get church details for each church the user is a member of
+        const churchIds = churchMembers.map(member => member.church_id);
+        console.log("Church IDs:", churchIds);
+
+        // Fetch church details
+        const churchDetails = await select("churches", {
+          select: "id, name",
+          where: { id: churchIds }
+        });
+
+        console.log("Church details:", churchDetails);
+
+        // Combine member data with church details
+        const churches: UserChurch[] = churchMembers.map((member) => {
+          const church = churchDetails.find(c => c.id === member.church_id);
+          return {
+            id: member.church_id,
+            name: church?.name || `Church ${member.church_id}`,
+            role: member.role,
+          };
+        });
+
+        console.log("Combined churches:", churches);
 
         // Filter churches where user has admin or owner role
         const adminChurches = churches.filter(
           (church) =>
             church.role.toLowerCase() === "admin" || church.role.toLowerCase() === "owner",
         );
+
+        console.log("Admin churches:", adminChurches);
 
         setUserChurches(adminChurches);
 
@@ -167,10 +213,15 @@ const CreateYouthGroupPage: React.FC = () => {
             church_id: adminChurches[0].id,
           }));
         }
+      } else {
+        console.log("No church memberships found for user");
+        setHasPermission(false);
       }
     } catch (error) {
       console.error("Error fetching user churches:", error);
-      Alert.alert("Error", "Failed to load church information");
+      console.error("Error details:", error);
+      Alert.alert("Error", `Failed to load church information: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setHasPermission(false);
     } finally {
       setLoading(false);
     }
@@ -182,40 +233,43 @@ const CreateYouthGroupPage: React.FC = () => {
 
     try {
       setLoading(true);
+      console.log("Fetching youth group data for ID:", youthGroupId);
 
-      const { data, error } = await supabase
-        .from("youth_group_times")
-        .select("*")
-        .eq("id", youthGroupId)
-        .single();
+      const youthGroupData = await selectOne("youth_group_times", {
+        where: { id: youthGroupId }
+      });
 
-      if (error) throw error;
+      console.log("Youth group data:", youthGroupData);
 
-      if (data) {
+      if (youthGroupData) {
         // Populate form with existing data
         setFormData({
-          id: data.id,
-          date: data.date,
-          time: data.time,
-          image: data.image,
-          church_id: data.church_id,
-          created_by: data.created_by,
-          description: data.description || "",
-          location: data.location || "",
-          is_recurring: data.is_recurring || false,
-          title: data.title || "",
-          recurring_type: data.recurring_type || "none",
+          id: youthGroupData.id,
+          date: youthGroupData.date,
+          time: youthGroupData.time,
+          image: youthGroupData.image,
+          church_id: youthGroupData.church_id,
+          created_by: youthGroupData.created_by,
+          description: youthGroupData.description || "",
+          location: youthGroupData.location || "",
+          is_recurring: youthGroupData.is_recurring || false,
+          title: youthGroupData.title || "",
+          recurring_type: youthGroupData.recurring_type || "none",
         });
+      } else {
+        console.log("No youth group data found for ID:", youthGroupId);
+        Alert.alert("Error", "Youth Group not found");
       }
     } catch (error) {
       console.error("Error fetching Youth Group data:", error);
-      Alert.alert("Error", "Failed to load Youth Group information");
+      console.error("Error details:", error);
+      Alert.alert("Error", `Failed to load Youth Group information: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update form field - fixed type to accept string, null, or boolean
+  // Update form field
   const updateField = (
     field: keyof YouthGroup,
     value: string | null | boolean | number | RecurringType,
@@ -254,7 +308,8 @@ const CreateYouthGroupPage: React.FC = () => {
     }
   };
 
-  // Handle image selection and upload to youthgroup-images bucket
+  // Handle image selection and upload
+  // Note: This still uses a storage service - you may need to adapt this to your new backend
   const pickImage = async (): Promise<void> => {
     if (!user) {
       Alert.alert("Error", "You must be signed in to upload images");
@@ -270,40 +325,18 @@ const CreateYouthGroupPage: React.FC = () => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Show loading indicator
         setUploadingImage(true);
         setErrorMessage(null);
 
-        // Get the selected image URI
-        const uri = result.assets[0].uri;
-
-        // Convert image to blob
-        const response = await fetch(uri);
-        const blob = await response.blob();
-
-        // Generate a unique filename
-        const fileExt = uri.substring(uri.lastIndexOf(".") + 1);
-        const fileName = `youth-group-${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`; // Safe to use user.id as we checked above
-
-        // Upload to youthgroup-images bucket
-        const { data, error } = await supabase.storage
-          .from("youthgroup-images")
-          .upload(filePath, blob, {
-            contentType: `image/${fileExt}`,
-            upsert: false,
-          });
-
-        if (error) {
-          Alert.alert("Upload Error", `Failed to upload image: ${error.message}`);
-          throw error;
-        }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage.from("youthgroup-images").getPublicUrl(filePath);
-
+        // For now, just use a placeholder URL or implement your own image upload logic
+        // You'll need to implement image upload to your new backend
+        const imageUrl = `https://placeholder.com/youth-group-image-${Date.now()}`;
+        
         // Update form with image URL
-        updateField("image", urlData.publicUrl);
+        updateField("image", imageUrl);
+        
+        // TODO: Implement actual image upload to your new backend
+        Alert.alert("Note", "Image upload needs to be implemented for the new backend");
       }
     } catch (error) {
       console.error("Error picking/uploading image:", error);
@@ -313,7 +346,7 @@ const CreateYouthGroupPage: React.FC = () => {
     }
   };
 
-  // Improved form validation - checks all required fields
+  // Improved form validation
   const validateForm = (): boolean => {
     if (!formData.title || formData.title.trim() === "") {
       setErrorMessage("Please enter a title");
@@ -371,28 +404,26 @@ const CreateYouthGroupPage: React.FC = () => {
       setSaving(true);
       setErrorMessage(null);
 
-      if (isEditMode) {
-        // Update existing Youth Group
-        const { error } = await supabase
-          .from("youth_group_times")
-          .update({
-            date: formData.date,
-            time: formData.time,
-            image: formData.image,
-            church_id: formData.church_id,
-            created_by: formData.created_by || "Youth Group Leader",
-            description: formData.description,
-            location: formData.location,
-            is_recurring: formData.is_recurring,
-            title: formData.title,
-            recurring_type: formData.recurring_type,
-          })
-          .eq("id", youthGroupId);
+      const youthGroupData = {
+        date: formData.date,
+        time: formData.time,
+        image: formData.image,
+        church_id: formData.church_id,
+        created_by: formData.created_by || "Youth Group Leader",
+        description: formData.description,
+        location: formData.location,
+        is_recurring: formData.is_recurring,
+        title: formData.title,
+        recurring_type: formData.recurring_type,
+      };
 
-        if (error) {
-          Alert.alert("Save Error", `Failed to update Youth Group: ${error.message}`);
-          throw error;
-        }
+      console.log("Saving youth group data:", youthGroupData);
+
+      if (isEditMode) {
+        console.log("Updating youth group with ID:", youthGroupId);
+        // Update existing Youth Group
+        const result = await update("youth_group_times", youthGroupData, { id: youthGroupId });
+        console.log("Update result:", result);
 
         Alert.alert("Success", "Youth Group updated successfully", [
           {
@@ -401,26 +432,10 @@ const CreateYouthGroupPage: React.FC = () => {
           },
         ]);
       } else {
+        console.log("Creating new youth group");
         // Create new Youth Group
-        const { error } = await supabase.from("youth_group_times").insert([
-          {
-            date: formData.date,
-            time: formData.time,
-            image: formData.image,
-            church_id: formData.church_id,
-            created_by: formData.created_by || "Youth Group Leader",
-            description: formData.description,
-            location: formData.location,
-            is_recurring: formData.is_recurring,
-            title: formData.title,
-            recurring_type: formData.recurring_type,
-          },
-        ]);
-
-        if (error) {
-          Alert.alert("Save Error", `Failed to create Youth Group: ${error.message}`);
-          throw error;
-        }
+        const result = await insert("youth_group_times", youthGroupData);
+        console.log("Insert result:", result);
 
         Alert.alert("Success", "Youth Group created successfully", [
           {
@@ -431,23 +446,45 @@ const CreateYouthGroupPage: React.FC = () => {
       }
     } catch (error) {
       console.error("Error saving Youth Group:", error);
-      setErrorMessage("Failed to save Youth Group. Please try again.");
+      console.error("Error details:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to save Youth Group. Please try again.";
+      Alert.alert("Save Error", errorMsg);
+      setErrorMessage(errorMsg);
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle cancel - updated to use router.push
+  // Handle cancel
   const handleCancel = (): void => {
     router.push({ pathname: "/(tabs)/YouthGroupSchedulePage" });
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.accent1} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.noPermissionContainer}>
+            <Feather name="alert-circle" size={60} color={theme.error} />
+            <Text style={styles.noPermissionTitle}>Authentication Required</Text>
+            <Text style={styles.noPermissionText}>
+              You must be signed in to create or edit Youth Groups. Please log in and try again.
+            </Text>
+            <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
+              <Text style={styles.backButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -480,7 +517,7 @@ const CreateYouthGroupPage: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
-            <AntDesign name="arrowleft" size={24} color={theme.accent1} />
+            <AntDesign name="arrowleft" size={24} color={theme.tertiary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {isEditMode ? "Edit Youth Group" : "New Youth Group"}
@@ -513,7 +550,7 @@ const CreateYouthGroupPage: React.FC = () => {
 
           {/* Form Fields */}
           <View style={styles.formCard}>
-            {/* Title (improved) */}
+            {/* Title */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Title*</Text>
               <View style={styles.enhancedInputContainer}>
@@ -574,7 +611,7 @@ const CreateYouthGroupPage: React.FC = () => {
               )}
             </View>
 
-            {/* Time - UPDATED to use direct text input */}
+            {/* Time */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Time*</Text>
               <View style={styles.enhancedInputContainer}>
@@ -648,7 +685,7 @@ const CreateYouthGroupPage: React.FC = () => {
               </View>
             </View>
 
-            {/* Creator - Allow custom input */}
+            {/* Creator */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Creator</Text>
               <View style={styles.enhancedInputContainer}>
@@ -695,11 +732,10 @@ const CreateYouthGroupPage: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Recurring Option - Enhanced with multiple choices */}
+            {/* Recurring Option */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Recurring Schedule</Text>
 
-              {/* Recurring options */}
               <View style={styles.recurringOptionsContainer}>
                 <TouchableOpacity
                   style={[
@@ -711,7 +747,7 @@ const CreateYouthGroupPage: React.FC = () => {
                   <Ionicons
                     name="calendar-outline"
                     size={20}
-                    color={formData.recurring_type === "none" ? theme.textWhite : theme.textDark}
+                    color={formData.recurring_type === "none" ? theme.textWhite : theme.textMedium}
                   />
                   <Text
                     style={[
@@ -733,7 +769,7 @@ const CreateYouthGroupPage: React.FC = () => {
                   <Ionicons
                     name="today-outline"
                     size={20}
-                    color={formData.recurring_type === "daily" ? theme.textWhite : theme.textDark}
+                    color={formData.recurring_type === "daily" ? theme.textWhite : theme.textMedium}
                   />
                   <Text
                     style={[
@@ -755,7 +791,7 @@ const CreateYouthGroupPage: React.FC = () => {
                   <Ionicons
                     name="calendar"
                     size={20}
-                    color={formData.recurring_type === "weekly" ? theme.textWhite : theme.textDark}
+                    color={formData.recurring_type === "weekly" ? theme.textWhite : theme.textMedium}
                   />
                   <Text
                     style={[
@@ -777,7 +813,7 @@ const CreateYouthGroupPage: React.FC = () => {
                   <Ionicons
                     name="calendar-number-outline"
                     size={20}
-                    color={formData.recurring_type === "monthly" ? theme.textWhite : theme.textDark}
+                    color={formData.recurring_type === "monthly" ? theme.textWhite : theme.textMedium}
                   />
                   <Text
                     style={[
@@ -799,7 +835,7 @@ const CreateYouthGroupPage: React.FC = () => {
                   <Ionicons
                     name="calendar-clear"
                     size={20}
-                    color={formData.recurring_type === "yearly" ? theme.textWhite : theme.textDark}
+                    color={formData.recurring_type === "yearly" ? theme.textWhite : theme.textMedium}
                   />
                   <Text
                     style={[
@@ -812,7 +848,6 @@ const CreateYouthGroupPage: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Help text based on selection */}
               <Text style={styles.helperText}>
                 {formData.recurring_type === "none" && "This is a one-time Youth Group event."}
                 {formData.recurring_type === "daily" &&
@@ -891,7 +926,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.tertiary,
   },
   headerRightPlaceholder: {
     width: 40,
@@ -948,10 +983,9 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
+    color: theme.textWhite,
     marginBottom: 8,
   },
-  // Enhanced input styling
   enhancedInputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -968,9 +1002,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
-  // Original input styling
   textInput: {
     backgroundColor: theme.pageBg,
     borderRadius: theme.radiusSmall,
@@ -978,7 +1011,7 @@ const styles = StyleSheet.create({
     borderColor: theme.divider,
     padding: 12,
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
   textAreaInput: {
     height: 120,
@@ -996,7 +1029,7 @@ const styles = StyleSheet.create({
   },
   dateTimeText: {
     fontSize: 16,
-    color: theme.textDark,
+    color: theme.textWhite,
     flex: 1,
   },
   singleChurchContainer: {
@@ -1036,21 +1069,6 @@ const styles = StyleSheet.create({
   churchOptionTextActive: {
     color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
-  },
-  creatorInfoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: theme.overlayLight,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.primary,
-    padding: 12,
-  },
-  creatorInfoText: {
-    fontSize: 16,
-    color: theme.textDark,
-    marginLeft: 10,
-    flex: 1,
   },
   imagePickerButton: {
     height: 180,
@@ -1096,8 +1114,6 @@ const styles = StyleSheet.create({
     color: theme.accent1,
     fontWeight: theme.fontMedium,
   },
-
-  // New recurring options styling
   recurringOptionsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1122,50 +1138,13 @@ const styles = StyleSheet.create({
   recurringOptionText: {
     marginLeft: 8,
     fontSize: 14,
-    color: theme.textDark,
+    color: theme.textMedium,
     fontWeight: theme.fontMedium,
   },
   recurringOptionTextActive: {
     color: theme.textWhite,
     fontWeight: theme.fontSemiBold,
   },
-
-  // Old switch styling (kept for reference)
-  switchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: theme.pageBg,
-    borderRadius: theme.radiusSmall,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    padding: 12,
-  },
-  switchLabel: {
-    fontSize: 16,
-    color: theme.textDark,
-    flex: 1,
-  },
-  toggleButton: {
-    width: 50,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.divider,
-    padding: 2,
-  },
-  toggleButtonActive: {
-    backgroundColor: theme.primary,
-  },
-  toggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: theme.cardBg,
-  },
-  toggleThumbActive: {
-    transform: [{ translateX: 22 }],
-  },
-
   helperText: {
     fontSize: 14,
     color: theme.textLight,

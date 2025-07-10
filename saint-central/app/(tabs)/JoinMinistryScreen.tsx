@@ -10,7 +10,8 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { supabase } from "../../supabaseClient";
+import { useCRUD } from "../../utils/crudClient";
+import { useAuth } from "../../contexts/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 
@@ -26,6 +27,10 @@ export default function JoinMinistryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const ministryId = typeof params.ministryId === "string" ? parseInt(params.ministryId) : 0;
+  
+  // Initialize CRUD client and auth
+  const { selectOne, insert } = useCRUD();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [ministry, setMinistry] = useState<Ministry | null>(null);
@@ -40,13 +45,8 @@ export default function JoinMinistryScreen() {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.log("[DEBUG] Join Screen - No user found or error:", userError);
+      if (!user) {
+        console.log("[DEBUG] Join Screen - No user found");
         Alert.alert("Error", "Please log in to continue");
         router.back();
         return;
@@ -56,16 +56,16 @@ export default function JoinMinistryScreen() {
       console.log(`[DEBUG] Join Screen - User ID: ${user.id}`);
 
       // Check if user is already a member
-      const { data: membershipData, error: membershipError } = await supabase
-        .from("ministry_members")
-        .select("role")
-        .eq("ministry_id", ministryId)
-        .eq("user_id", user.id)
-        .eq("role", "member")
-        .maybeSingle();
+      const membershipData = await selectOne("ministry_members", {
+        select: "role",
+        where: {
+          ministry_id: ministryId,
+          user_id: user.id,
+          role: "member"
+        }
+      });
 
       console.log("[DEBUG] Join Screen - Raw membership query result:", membershipData);
-      console.log("[DEBUG] Join Screen - Membership error:", membershipError);
 
       // If user is already a member, redirect to ministry detail
       if (membershipData) {
@@ -80,25 +80,22 @@ export default function JoinMinistryScreen() {
       console.log("[DEBUG] Join Screen - No active membership found, continuing to join screen");
 
       // Get church ID
-      const { data: churchMember, error: churchError } = await supabase
-        .from("church_members")
-        .select("church_id")
-        .eq("user_id", user.id)
-        .single();
+      const churchMember = await selectOne("church_members", {
+        select: "church_id",
+        where: { user_id: user.id }
+      });
 
       if (churchMember) {
         setUserChurchId(churchMember.church_id);
       }
 
       // Load ministry details
-      const { data: ministryData, error: ministryError } = await supabase
-        .from("ministries")
-        .select("*")
-        .eq("id", ministryId)
-        .single();
+      const ministryData = await selectOne("ministries", {
+        where: { id: ministryId }
+      });
 
-      if (ministryError) {
-        console.error("[JOIN] Error loading ministry:", ministryError);
+      if (!ministryData) {
+        console.error("[JOIN] Error loading ministry: Ministry not found");
         Alert.alert("Error", "Could not load ministry details");
         router.back();
         return;
@@ -117,11 +114,7 @@ export default function JoinMinistryScreen() {
     try {
       setJoiningMinistry(true);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) {
+      if (!user) {
         Alert.alert("Error", "Please log in to continue");
         return;
       }
@@ -132,19 +125,13 @@ export default function JoinMinistryScreen() {
       }
 
       // Insert membership record
-      const { error: joinError } = await supabase.from("ministry_members").insert({
+      await insert("ministry_members", {
         ministry_id: ministryId,
         user_id: user.id,
         church_id: userChurchId,
         joined_at: new Date().toISOString(),
         role: "member",
       });
-
-      if (joinError) {
-        console.error("Error joining ministry:", joinError);
-        Alert.alert("Error", "Could not join ministry. Please try again.");
-        return;
-      }
 
       // Navigate to ministry details
       router.replace({

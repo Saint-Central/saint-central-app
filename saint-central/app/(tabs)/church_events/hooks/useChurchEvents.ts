@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { Alert } from "react-native";
-import { supabase } from "../../../../supabaseClient";
-import { User } from "@supabase/supabase-js";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
+import { useRouter } from "expo-router";
 import { ChurchEvent, UserChurch } from "../types";
 
 export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
+  const { user } = useAuth();
+  const crud = useCRUD();
+  const router = useRouter();
+
   // User state
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
   const [selectedChurchId, setSelectedChurchId] = useState<number | null>(
     initialChurchId
@@ -24,29 +28,12 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch current user on mount
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setCurrentUser(data.user);
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
-
   // Fetch user's churches after user is loaded
   useEffect(() => {
-    if (currentUser) {
+    if (user) {
       fetchUserChurches();
     }
-  }, [currentUser]);
+  }, [user]);
 
   // Update filtered events when events or search query changes
   useEffect(() => {
@@ -87,13 +74,11 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
       const directFetch = async () => {
         try {
           setLoading(true);
-          const { data, error } = await supabase
-            .from("church_events")
-            .select("*, churches(id, name)")
-            .eq("church_id", numericChurchId)
-            .order("time", { ascending: true });
-
-          if (error) throw error;
+          const data = await crud.select("church_events", {
+            select: "*",
+            where: { church_id: numericChurchId },
+            order: "time"
+          });
 
           console.log(`Initial fetch: got ${data?.length || 0} events`);
 
@@ -114,6 +99,11 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
           setFilteredEvents(processedEvents);
         } catch (error) {
           console.error("Error in initial fetch:", error);
+          if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+            Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+              { text: 'OK', onPress: () => router.push('/auth') }
+            ]);
+          }
         } finally {
           setLoading(false);
         }
@@ -125,26 +115,30 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
 
   // Fetch user's churches with role information
   const fetchUserChurches = async () => {
-    if (!currentUser) return;
+    if (!user) return;
 
     try {
       setLoading(true);
 
       // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from("church_members")
-        .select("church_id, role, churches(id, name)")
-        .eq("user_id", currentUser.id);
+      const memberships = await crud.select("church_members", {
+        where: { user_id: user.id }
+      });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map((item) => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: number; name: string }).name,
-          role: item.role,
-        }));
+      if (memberships && memberships.length > 0) {
+        // Fetch church details for each membership
+        const churches = await Promise.all(
+          memberships.map(async (membership: any) => {
+            const church = await crud.selectOne("churches", {
+              where: { id: membership.church_id }
+            });
+            return {
+              id: membership.church_id,
+              name: church?.name || 'Unknown Church',
+              role: membership.role,
+            };
+          })
+        );
 
         setUserChurches(churches);
 
@@ -158,7 +152,13 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
       }
     } catch (error) {
       console.error("Error fetching user churches:", error);
-      Alert.alert("Error", "Failed to load church information");
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.push('/auth') }
+        ]);
+      } else {
+        Alert.alert("Error", "Failed to load church information");
+      }
     } finally {
       setLoading(false);
     }
@@ -166,7 +166,7 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
 
   // Check if user has permission to create/edit events
   const checkPermissions = () => {
-    if (!currentUser || !selectedChurchId) {
+    if (!user || !selectedChurchId) {
       setHasPermissionToCreate(false);
       return;
     }
@@ -194,13 +194,17 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
       console.log("Fetching events for church ID:", selectedChurchId);
 
       // Fetch events for the selected church
-      const { data, error } = await supabase
-        .from("church_events")
-        .select("*, churches(id, name)")
-        .eq("church_id", selectedChurchId)
-        .order("time", { ascending: true });
+      const data = await crud.select("church_events", {
+        select: "*",
+        where: { church_id: selectedChurchId },
+        order: "time"
+      });
 
-      if (error) throw error;
+      if (data?.length === 0) {
+        setEvents([]);
+        setFilteredEvents([]);
+        return;
+      }
 
       console.log(`Fetched ${data?.length || 0} events from Supabase`);
 
@@ -223,7 +227,13 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
       setFilteredEvents(processedEvents);
     } catch (error) {
       console.error("Error fetching events:", error);
-      Alert.alert("Error", "Failed to load church events");
+      if (error instanceof Error && (error.message.includes('Auth session missing') || error.message.includes('Please log in'))) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.', [
+          { text: 'OK', onPress: () => router.push('/auth') }
+        ]);
+      } else {
+        Alert.alert("Error", "Failed to load church events");
+      }
     } finally {
       setLoading(false);
     }
@@ -237,7 +247,7 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
   }, [selectedChurchId]);
 
   return {
-    currentUser,
+    user,
     userChurches,
     selectedChurchId,
     setSelectedChurchId,

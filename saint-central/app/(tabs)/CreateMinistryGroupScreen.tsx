@@ -16,7 +16,8 @@ import {
   Platform,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { supabase } from "../../supabaseClient";
+import { useCRUD } from "../../utils/crudClient";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Ionicons,
   MaterialIcons,
@@ -62,6 +63,10 @@ const CreateMinistryScreen = (): JSX.Element => {
   const route = useRoute();
   const { selectedPresetId } = route.params as RouteParams || {};
   
+  // Initialize CRUD client and auth
+  const { selectOne, insert } = useCRUD();
+  const { user } = useAuth();
+  
   // State for ministry data
   const [ministryData, setMinistryData] = useState<MinistryData>({
     name: "",
@@ -82,33 +87,23 @@ const CreateMinistryScreen = (): JSX.Element => {
   useEffect(() => {
     const setupScreen = async () => {
       try {
-        // Get current user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) {
-          console.error("Error getting user:", userError);
-          throw userError;
-        }
-
         if (!user) {
           console.error("No user logged in");
-          throw new Error("No user logged in");
+          Alert.alert("Authentication Required", "Please log in to create a ministry.");
+          navigation.navigate('MinistriesScreen', { refresh: false });
+          return;
         }
         
         setUserId(user.id);
         
         // Get user's church
-        const { data: memberData, error: memberError } = await supabase
-          .from("church_members")
-          .select("church_id")
-          .eq("user_id", user.id)
-          .single();
+        const memberData = await selectOne("church_members", {
+          select: "church_id",
+          where: { user_id: user.id }
+        });
 
-        if (memberError) {
-          console.error("Error fetching membership:", memberError);
+        if (!memberData) {
+          console.error("Error fetching membership - user not a church member");
           Alert.alert(
             "Church Membership Required", 
             "You need to be a member of a church to create a ministry."
@@ -142,7 +137,7 @@ const CreateMinistryScreen = (): JSX.Element => {
     };
     
     setupScreen();
-  }, []);
+  }, [user]);
   
   // Pick an image from the gallery
   const pickImage = async () => {
@@ -202,28 +197,22 @@ const CreateMinistryScreen = (): JSX.Element => {
     try {
       setLoading(true);
       
-      // Create the ministry in Supabase
-      const { data: newMinistry, error: ministryError } = await supabase
-        .from("ministries")
-        .insert({
-          name: ministryData.name,
-          description: ministryData.description || `${ministryData.name} ministry`,
-          image_url: ministryData.image_url,
-          church_id: churchId,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-        
-      if (ministryError) {
-        console.error("Error creating ministry:", ministryError);
-        throw ministryError;
+      // Create the ministry
+      const newMinistry = await insert("ministries", {
+        name: ministryData.name,
+        description: ministryData.description || `${ministryData.name} ministry`,
+        image_url: ministryData.image_url,
+        church_id: churchId,
+        created_at: new Date().toISOString()
+      });
+      
+      if (!newMinistry || !newMinistry.id) {
+        throw new Error("Failed to create ministry - no ID returned");
       }
       
       // Add creator as member 
-      const { error: memberError } = await supabase
-        .from("ministry_members")
-        .insert({
+      try {
+        await insert("ministry_members", {
           ministry_id: newMinistry.id,
           user_id: userId,
           church_id: churchId,
@@ -231,7 +220,9 @@ const CreateMinistryScreen = (): JSX.Element => {
           member_status: 'leader'
         });
         
-      if (memberError) {
+        // Success message
+        Alert.alert("Success", "Ministry created successfully!");
+      } catch (memberError) {
         console.error("Error adding creator as member:", memberError);
         // Continue anyway - we'll at least have the ministry
         
@@ -239,9 +230,6 @@ const CreateMinistryScreen = (): JSX.Element => {
           "Ministry Created", 
           "Ministry was created successfully, but there was an issue adding you as a leader. You may need to join the ministry separately."
         );
-      } else {
-        // Success message
-        Alert.alert("Success", "Ministry created successfully!");
       }
       
       // Navigate to the ministries screen

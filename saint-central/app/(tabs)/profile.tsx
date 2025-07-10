@@ -14,9 +14,8 @@ import {
   Platform,
   StatusBar as RNStatusBar,
   ScrollView,
+  ImageBackground,
 } from "react-native";
-import { supabase } from "../../supabaseClient";
-import { Session } from "@supabase/supabase-js";
 import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons, Ionicons, FontAwesome5, Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,8 +24,17 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import LottieView from "lottie-react-native";
 import theme from "@/theme";
 import { NotificationSettings } from "../../components/NotificationSettings";
+import { useAuth } from "@/contexts/AuthContext";
+
+// API Configuration
+const AUTH_API_BASE = "https://auth-worker.colinmcherney.workers.dev";
+const CRUD_API_BASE = "https://crud-worker.colinmcherney.workers.dev";
+const STORAGE_API_BASE = "https://storage-worker.colinmcherney.workers.dev";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface UserProfile {
   id: string;
@@ -115,8 +123,93 @@ const denominations = [
   },
 ];
 
+// API Helper Functions
+const apiCall = async (
+  url: string,
+  options: RequestInit = {},
+  getAccessToken: () => Promise<string | null>,
+) => {
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Network error" }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// Storage API upload function using base64 data
+const uploadToStorageBase64 = async (
+  base64Data: string,
+  fileName: string,
+  getAccessToken: () => Promise<string | null>,
+) => {
+  try {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new Error("No access token available");
+    }
+
+    console.log("Base64 data size:", base64Data.length);
+
+    // Upload via storage API with base64 data
+    const uploadResponse = await fetch(`${STORAGE_API_BASE}/storage/upload`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        operation: "UPLOAD",
+        bucket: "profile-images",
+        fileName: fileName,
+        contentType: "image/jpeg",
+        data: base64Data,
+        encoding: "base64",
+        options: {
+          upsert: true,
+          cacheControl: "max-age=31536000",
+        },
+      }),
+    });
+
+    if (!uploadResponse.ok) {
+      const error = await uploadResponse.json().catch(() => ({ error: "Network error" }));
+      throw new Error(error.error || "Failed to upload via storage API");
+    }
+
+    const uploadData = await uploadResponse.json();
+    console.log("Storage API response:", uploadData);
+
+    if (!uploadData.success) {
+      throw new Error("Upload failed: " + (uploadData.error || "Unknown error"));
+    }
+
+    // With the updated storage worker, we should get a direct public URL
+    return uploadData.publicUrl || uploadData.signedUrl || uploadData.url;
+  } catch (error) {
+    console.error("Storage upload error:", error);
+    throw error;
+  }
+};
+
 export default function MeScreen() {
-  const [session, setSession] = useState<Session | null>(null);
+  const { user, session, signOut, getAccessToken } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -132,58 +225,48 @@ export default function MeScreen() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [denominationModalVisible, setDenominationModalVisible] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const router = useRouter();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
+  const profileScale = useRef(new Animated.Value(0.8)).current;
 
-  // Header animations based on scroll
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-
-  const headerElevation = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [0, 15],
+  const profileImageScale = scrollY.interpolate({
+    inputRange: [-100, 0, 100],
+    outputRange: [1.3, 1, 0.8],
     extrapolate: "clamp",
   });
 
   useEffect(() => {
     // Animate content fade in
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-
-    // Get the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    // Set up auth state change listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    // Clean up subscription on unmount
-    return () => subscription.unsubscribe();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(profileScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (session) {
+      if (user) {
         fetchUserProfile();
-      } else if (session === null && !loading) {
+      } else if (!user && !loading) {
         router.push("/(auth)/auth");
       }
       return () => {};
-    }, [session]),
+    }, [user]),
   );
 
   const fetchUserProfile = async () => {
@@ -191,20 +274,26 @@ export default function MeScreen() {
       setLoading(true);
       setError("");
 
-      if (!session?.user) {
+      if (!user?.id) {
         router.push("/(auth)/auth");
         return;
       }
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+      const response = await apiCall(
+        CRUD_API_BASE,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "SELECT",
+            table: "users",
+            where: { id: user.id },
+          }),
+        },
+        getAccessToken,
+      );
 
-      if (error) {
-        setError(error.message);
-      } else if (data) {
+      if (response.success && response.data.length > 0) {
+        const data = response.data[0];
         setUserProfile(data);
         setEditForm({
           first_name: data.first_name || "",
@@ -212,6 +301,11 @@ export default function MeScreen() {
           profile_image: data.profile_image || "",
           denomination: data.denomination || "",
         });
+
+        // Set profile image URL directly from database
+        setProfileImageUrl(data.profile_image);
+      } else {
+        setError("Profile not found");
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -239,88 +333,68 @@ export default function MeScreen() {
         return;
       }
 
-      // Launch image picker
+      // Launch image picker with reasonable quality for profile images
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
-        base64: true, // Request base64 data to avoid blob conversion issues
+        quality: 0.7, // Good quality for profile images
+        base64: true, // Get base64 directly from picker
+        exif: false, // Don't include EXIF data to reduce size
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Show processing indicator
-        setLoading(true);
+        const imageAsset = result.assets[0];
+        const base64Data = imageAsset.base64;
+
+        if (!base64Data) {
+          Alert.alert("Error", "Failed to process image");
+          return;
+        }
 
         try {
-          const imageAsset = result.assets[0];
-          const imageUri = imageAsset.uri;
-          const base64Data = imageAsset.base64;
+          // Start loading
+          setIsUploading(true);
 
-          // Show selected image immediately for better UX
+          // Generate unique filename
+          const timestamp = Date.now();
+          const userId = user?.id || "anonymous";
+          const fileName = `profile_${userId}_${timestamp}.jpg`;
+
+          // Upload using base64 data directly with improved storage worker
+          const uploadedImageUrl = await uploadToStorageBase64(
+            base64Data,
+            fileName,
+            getAccessToken,
+          );
+
+          // Update form with the URL (for saving to database)
           setEditForm((prev) => ({
             ...prev,
-            profile_image: imageUri,
+            profile_image: uploadedImageUrl,
           }));
 
-          // Generate a unique file path
-          const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpeg";
-          const fileName = `profile-${Date.now()}.${fileExt}`;
-          const filePath = `${session?.user.id}/${fileName}`;
-
-          if (!base64Data) {
-            throw new Error("Failed to get image data");
-          }
-
-          // Upload directly using base64 data
-          const { error: uploadError } = await supabase.storage
-            .from("profile-images")
-            .upload(filePath, decode(base64Data), {
-              contentType: `image/${fileExt}`,
-              upsert: true,
-            });
-
-          if (uploadError) {
-            console.error("Upload error:", uploadError);
-            throw new Error(`Upload failed: ${uploadError.message}`);
-          }
-
-          // Get the public URL
-          const { data } = supabase.storage.from("profile-images").getPublicUrl(filePath);
-
-          // Update form with new image URL
-          setEditForm((prev) => ({
-            ...prev,
-            profile_image: data.publicUrl,
-          }));
-
-          // Save the updated profile immediately
-          await supabase
-            .from("users")
-            .update({
-              profile_image: data.publicUrl,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", session?.user.id);
+          // Update profile image URL for immediate display
+          setProfileImageUrl(uploadedImageUrl);
 
           // Enable editing mode if not already in it
           if (!isEditing) {
             setIsEditing(true);
           }
 
-          Alert.alert(
-            "Image Uploaded",
-            "Your profile image has been uploaded. Click 'Save Changes' to update your profile.",
-            [{ text: "OK" }],
-          );
-        } catch (err) {
-          console.error("Upload process error:", err);
-          Alert.alert("Upload Failed", "Please try again later");
+          // Stop loading and show success
+          setIsUploading(false);
+          setShowSuccessModal(true);
 
-          // Keep the local image for user experience
-          // No need to revert the form state
-        } finally {
-          setLoading(false);
+          // Haptic feedback for success
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (uploadError) {
+          setIsUploading(false);
+          console.error("Upload error:", uploadError);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert("Upload Failed", "Failed to upload image. Please try again.", [
+            { text: "OK" },
+          ]);
         }
       }
     } catch (err) {
@@ -329,44 +403,44 @@ export default function MeScreen() {
     }
   };
 
-  // Helper function to decode base64
-  function decode(base64: string) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  }
-
   const handleSubmit = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (!session?.user) return;
+      if (!user?.id) return;
 
-      const { data, error } = await supabase
-        .from("users")
-        .update({
-          first_name: editForm.first_name,
-          last_name: editForm.last_name,
-          profile_image: editForm.profile_image,
-          denomination: editForm.denomination,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", session.user.id)
-        .select();
+      const response = await apiCall(
+        CRUD_API_BASE,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            operation: "UPDATE",
+            table: "users",
+            where: { id: user.id },
+            data: {
+              first_name: editForm.first_name,
+              last_name: editForm.last_name,
+              profile_image: editForm.profile_image,
+              denomination: editForm.denomination,
+              updated_at: new Date().toISOString(),
+            },
+          }),
+        },
+        getAccessToken,
+      );
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setUserProfile(data[0]);
+      if (response.success && response.data.length > 0) {
+        const data = response.data[0];
+        setUserProfile(data);
         setEditForm({
-          first_name: data[0].first_name || "",
-          last_name: data[0].last_name || "",
-          profile_image: data[0].profile_image || "",
-          denomination: data[0].denomination || "",
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          profile_image: data.profile_image || "",
+          denomination: data.denomination || "",
         });
+
+        // Update profile image URL directly from database
+        setProfileImageUrl(data.profile_image);
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -400,17 +474,15 @@ export default function MeScreen() {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (!session?.user) return;
+      if (!user?.id) return;
 
-      const userId = session.user.id;
+      const userId = user.id;
 
       // Delete data from all tables that might contain user data
-      // Using a common pattern where user_id links to the user
       const tables = [
         "comments",
         "culture_posts",
         "faith_posts",
-        "friends",
         "intentions",
         "lent_tasks",
         "likes",
@@ -422,56 +494,85 @@ export default function MeScreen() {
 
       // Process all deletions
       for (const table of tables) {
-        let error;
-
-        // Special case for friends table which has user_id_1 and user_id_2
-        if (table === "friends") {
-          // Delete records where user is either user_id_1 or user_id_2
-          const { error: error1 } = await supabase.from(table).delete().eq("user_id_1", userId);
-
-          const { error: error2 } = await supabase.from(table).delete().eq("user_id_2", userId);
-
-          error = error1 || error2;
-        } else {
-          // For other tables, assume user_id is the standard column
-          const { error: deleteError } = await supabase.from(table).delete().eq("user_id", userId);
-
-          error = deleteError;
+        try {
+          await apiCall(
+            CRUD_API_BASE,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                operation: "DELETE",
+                table: table,
+                where: { user_id: userId },
+              }),
+            },
+            getAccessToken,
+          );
+        } catch (error) {
+          console.error(`Error deleting from ${table}:`, error);
+          // Continue with other tables
         }
+      }
 
-        // Log errors but continue with other tables
-        if (error) {
-          console.error(`Error deleting from ${table}: ${error.message}`);
-        }
+      // Handle friends table which has user_id_1 and user_id_2
+      try {
+        await apiCall(
+          CRUD_API_BASE,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: "friends",
+              where: { user_id_1: userId },
+            }),
+          },
+          getAccessToken,
+        );
+      } catch (error) {
+        console.error("Error deleting friends (user_id_1):", error);
+      }
+
+      try {
+        await apiCall(
+          CRUD_API_BASE,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: "friends",
+              where: { user_id_2: userId },
+            }),
+          },
+          getAccessToken,
+        );
+      } catch (error) {
+        console.error("Error deleting friends (user_id_2):", error);
       }
 
       // Delete the user record last
-      const { error: deleteUserError } = await supabase.from("users").delete().eq("id", userId);
-
-      if (deleteUserError) {
-        console.error(`Error deleting user: ${deleteUserError.message}`);
-      }
-
-      // Call the Edge Function to delete the authentication record
       try {
-        const { error: edgeFunctionError } = await supabase.functions.invoke("delete-user", {
-          body: { userId },
-        });
-
-        if (edgeFunctionError) {
-          console.error(`Error calling delete-user function: ${edgeFunctionError.message}`);
-          // Continue with logout even if auth deletion fails
-        }
-      } catch (edgeError) {
-        console.error("Edge function error:", edgeError);
-        // Continue with logout even if auth deletion fails
+        await apiCall(
+          CRUD_API_BASE,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              operation: "DELETE",
+              table: "users",
+              where: { id: userId },
+            }),
+          },
+          getAccessToken,
+        );
+      } catch (error) {
+        console.error("Error deleting user:", error);
       }
+
+      // Use AuthContext signOut method
+      await signOut();
 
       // If we made it here, successfully deleted account data
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Sign out and redirect to home page
-      await supabase.auth.signOut();
+      // Redirect to auth page
       router.push("/(auth)/auth");
     } catch (err: unknown) {
       setLoading(false);
@@ -488,7 +589,7 @@ export default function MeScreen() {
   const handleLogout = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await supabase.auth.signOut();
+      await signOut();
       router.push("/(auth)/auth");
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -506,16 +607,6 @@ export default function MeScreen() {
     return (first + last).toUpperCase() || userProfile.email[0].toUpperCase();
   };
 
-  // Card decorations (subtle visual elements)
-  const CardDecoration = () => (
-    <View style={styles.cardDecoration}>
-      <View style={[styles.decorationDot, styles.decorationDot1]} />
-      <View style={[styles.decorationDot, styles.decorationDot2]} />
-      <View style={[styles.decorationDot, styles.decorationDot3]} />
-    </View>
-  );
-
-  // Add a getSelectedDenominationName helper function before the render
   const getSelectedDenominationName = () => {
     if (!editForm.denomination) return "";
     const selected = denominations.find((d) => d.id === editForm.denomination);
@@ -528,23 +619,41 @@ export default function MeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar style="dark" />
-        <ActivityIndicator size="large" color={theme.primary} />
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <StatusBar style="light" />
+        <LinearGradient
+          colors={[theme.neutral900, theme.neutral800]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.loadingContent}>
+          <LottieView
+            source={require("@/assets/lottie/loading.json")}
+            autoPlay
+            loop
+            style={styles.loadingAnimation}
+          />
+          <Text style={styles.loadingText}>Loading your profile...</Text>
+        </View>
+      </View>
     );
   }
 
   if (error) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
+        <LinearGradient
+          colors={[theme.neutral900, theme.neutral800]}
+          style={StyleSheet.absoluteFillObject}
+        />
         <View style={styles.errorBox}>
-          <Ionicons name="alert-circle-outline" size={40} color="#FF006E" />
+          <Ionicons name="alert-circle-outline" size={50} color={theme.error} />
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.errorButton} onPress={() => router.back()}>
-            <Text style={styles.errorButtonText}>Go Back</Text>
+            <LinearGradient colors={theme.gradientDanger} style={styles.errorButtonGradient}>
+              <Text style={styles.errorButtonText}>Go Back</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -554,13 +663,19 @@ export default function MeScreen() {
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
+        <LinearGradient
+          colors={[theme.neutral900, theme.neutral800]}
+          style={StyleSheet.absoluteFillObject}
+        />
         <View style={styles.warningBox}>
-          <Ionicons name="information" size={40} color="#4361EE" />
+          <Ionicons name="information-circle-outline" size={50} color={theme.info} />
           <Text style={styles.warningTitle}>No Profile Found</Text>
           <Text style={styles.warningText}>We couldn't find your user profile.</Text>
           <TouchableOpacity style={styles.warningButton} onPress={() => router.back()}>
-            <Text style={styles.warningButtonText}>Go Back</Text>
+            <LinearGradient colors={theme.gradientInfo} style={styles.warningButtonGradient}>
+              <Text style={styles.warningButtonText}>Go Back</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -568,456 +683,369 @@ export default function MeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={styles.container}>
+      <StatusBar style="light" />
 
-      {/* Floating header */}
-      <Animated.View
-        style={[
-          styles.headerBackground,
-          {
-            opacity: headerOpacity,
-            elevation: headerElevation,
-            shadowOpacity: headerOpacity,
-          },
-        ]}
+      {/* Background Image */}
+      <ImageBackground
+        source={require("@/assets/images/rainforest2.png")}
+        style={styles.backgroundImage}
+        resizeMode="cover"
       >
-        <BlurView intensity={85} tint="light" style={styles.blurView} />
-        <Animated.View
-          style={[
-            styles.floatingTitleContainer,
-            {
-              opacity: headerOpacity,
-              transform: [
-                {
-                  translateY: headerOpacity.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [10, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.titleWrapper}>
-            <LinearGradient
-              colors={theme.gradientPrimary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.titleAccent}
-            />
-            <Text style={styles.floatingTitle}>My Profile</Text>
-          </View>
-        </Animated.View>
-      </Animated.View>
+        <LinearGradient
+          colors={["rgba(28, 25, 23, 0.5)", "rgba(28, 25, 23, 0.75)", "rgba(28, 25, 23, 0.9)"]}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </ImageBackground>
 
       <Animated.ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: false,
-        })}
         scrollEventThrottle={16}
       >
-        {/* Header with edit button */}
-        <Animated.View
-          style={[
-            styles.header,
-            {
-              opacity: fadeAnim,
-              transform: [
-                {
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.headerLeft}>{/* Removed back button as requested */}</View>
-
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setIsEditing(!isEditing);
-            }}
-          >
-            <LinearGradient
-              colors={theme.gradientPrimary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.editGradient}
-            >
-              <MaterialCommunityIcons
-                name={isEditing ? "close" : "pencil-outline"}
-                size={22}
-                color="#FFFFFF"
-              />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Profile Header with Avatar */}
-        <Animated.View
-          style={[
-            styles.profileHeader,
-            {
-              opacity: fadeAnim,
-              transform: [
-                {
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.avatarContainer}>
-            {userProfile.profile_image ? (
-              <Image source={{ uri: userProfile.profile_image }} style={styles.avatarImage} />
-            ) : (
-              <LinearGradient
-                colors={theme.gradientPrimary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.avatarGradient}
-              >
-                <Text style={styles.avatarText}>{getInitials()}</Text>
-              </LinearGradient>
-            )}
-          </View>
-          <Text style={styles.profileName}>
-            {userProfile.first_name
-              ? `${userProfile.first_name} ${userProfile.last_name || ""}`
-              : "My Profile"}
-          </Text>
-          <Text style={styles.profileEmail}>{userProfile.email}</Text>
-        </Animated.View>
-
-        {isEditing ? (
+        <SafeAreaView edges={["top"]}>
+          {/* Profile Header */}
           <Animated.View
             style={[
-              styles.card,
+              styles.profileSection,
               {
                 opacity: fadeAnim,
                 transform: [
                   {
                     translateY: fadeAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [20, 0],
+                      outputRange: [30, 0],
                     }),
                   },
                 ],
               },
             ]}
           >
-            <LinearGradient
-              colors={[
-                `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-                  theme.primary.substring(3, 5),
-                  16,
-                )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.05)`,
-                `rgba(${parseInt(theme.secondary.substring(1, 3), 16)}, ${parseInt(
-                  theme.secondary.substring(3, 5),
-                  16,
-                )}, ${parseInt(theme.secondary.substring(5, 7), 16)}, 0.1)`,
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.cardGradient}
+            {/* Edit Button */}
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsEditing(!isEditing);
+              }}
             >
-              <CardDecoration />
+              <BlurView intensity={80} tint="dark" style={styles.editButtonBlur}>
+                <LinearGradient
+                  colors={isEditing ? theme.gradientDanger : theme.gradientPrimary}
+                  style={styles.editButtonGradient}
+                >
+                  <MaterialCommunityIcons
+                    name={isEditing ? "close" : "pencil-outline"}
+                    size={20}
+                    color={theme.textWhite}
+                  />
+                </LinearGradient>
+              </BlurView>
+            </TouchableOpacity>
 
-              {/* Edit Form */}
-              <View style={styles.formContainer}>
-                <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
+            {/* Avatar */}
+            <Animated.View
+              style={[
+                styles.avatarContainer,
+                {
+                  transform: [{ scale: profileScale }, { scale: profileImageScale }],
+                },
+              ]}
+            >
+              <View style={styles.avatarGlow} />
+              {profileImageUrl ? (
+                <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} />
+              ) : (
+                <LinearGradient
+                  colors={theme.gradientWarm}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.avatarPlaceholder}
+                >
+                  <Text style={styles.avatarText}>{getInitials()}</Text>
+                </LinearGradient>
+              )}
+              {isEditing && (
+                <TouchableOpacity
+                  style={styles.cameraButton}
+                  onPress={pickImage}
+                  activeOpacity={0.8}
+                >
+                  <BlurView intensity={90} tint="dark" style={styles.cameraButtonBlur}>
+                    <FontAwesome5 name="camera" size={16} color={theme.textWhite} />
+                  </BlurView>
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+
+            {/* Name and Email */}
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>
+                {userProfile.first_name
+                  ? `${userProfile.first_name} ${userProfile.last_name || ""}`
+                  : "Welcome"}
+              </Text>
+              <Text style={styles.profileEmail}>{userProfile.email}</Text>
+              {userProfile.denomination && (
+                <View style={styles.denominationBadge}>
                   <LinearGradient
                     colors={theme.gradientPrimary}
+                    style={styles.denominationBadgeGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    style={styles.imagePickerGradient}
                   >
-                    <FontAwesome5 name="camera" size={16} color="#FFFFFF" />
-                    <Text style={styles.imagePickerText}>
-                      {editForm.profile_image ? "Change Profile Photo" : "Add Profile Photo"}
+                    <FontAwesome5 name="church" size={12} color={theme.textWhite} />
+                    <Text style={styles.denominationBadgeText}>
+                      {denominations.find((d) => d.id === userProfile.denomination)?.name ||
+                        userProfile.denomination}
                     </Text>
                   </LinearGradient>
-                </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </Animated.View>
 
-                <View style={styles.sectionContainer}>
-                  <View style={styles.sectionHeader}>
-                    <FontAwesome5 name="user-edit" size={16} color="#3A86FF" />
-                    <Text style={styles.sectionTitle}>Edit Profile</Text>
-                  </View>
+          {/* Content Cards */}
+          <Animated.View
+            style={[
+              styles.contentContainer,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [40, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {isEditing ? (
+              /* Edit Form */
+              <View style={styles.editFormContainer}>
+                <View style={styles.formHeader}>
+                  <LinearGradient colors={theme.gradientPrimary} style={styles.formHeaderAccent} />
+                  <Text style={styles.formHeaderText}>Edit Profile</Text>
+                </View>
 
+                <View style={styles.formFields}>
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>First Name</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={editForm.first_name}
-                      onChangeText={(text) => setEditForm({ ...editForm, first_name: text })}
-                      placeholderTextColor="#94A3B8"
-                      placeholder="Enter your first name"
-                    />
+                    <View style={styles.inputWrapper}>
+                      <TextInput
+                        style={styles.input}
+                        value={editForm.first_name}
+                        onChangeText={(text) => setEditForm({ ...editForm, first_name: text })}
+                        placeholderTextColor={theme.textLight}
+                        placeholder="Your first name"
+                      />
+                      <View style={styles.inputIcon}>
+                        <FontAwesome5 name="user" size={14} color={theme.primary} />
+                      </View>
+                    </View>
                   </View>
+
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Last Name</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={editForm.last_name}
-                      onChangeText={(text) => setEditForm({ ...editForm, last_name: text })}
-                      placeholderTextColor="#94A3B8"
-                      placeholder="Enter your last name"
-                    />
+                    <View style={styles.inputWrapper}>
+                      <TextInput
+                        style={styles.input}
+                        value={editForm.last_name}
+                        onChangeText={(text) => setEditForm({ ...editForm, last_name: text })}
+                        placeholderTextColor={theme.textLight}
+                        placeholder="Your last name"
+                      />
+                      <View style={styles.inputIcon}>
+                        <FontAwesome5 name="user" size={14} color={theme.primary} />
+                      </View>
+                    </View>
                   </View>
+
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Denomination</Text>
                     <TouchableOpacity
-                      style={styles.denominationSelector}
+                      style={styles.inputWrapper}
                       onPress={() => setDenominationModalVisible(true)}
                     >
-                      <Text style={styles.denominationText}>
-                        {getSelectedDenominationName() || "Select your denomination"}
-                      </Text>
-                      <Feather name="chevron-down" size={18} color={theme.textMedium} />
+                      <View style={styles.denominationSelector}>
+                        <Text
+                          style={[
+                            styles.denominationText,
+                            !editForm.denomination && styles.placeholderText,
+                          ]}
+                        >
+                          {getSelectedDenominationName() || "Select your denomination"}
+                        </Text>
+                        <Feather name="chevron-down" size={18} color={theme.primary} />
+                      </View>
+                      <View style={styles.inputIcon}>
+                        <FontAwesome5 name="church" size={14} color={theme.primary} />
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <View style={styles.actionsContainer}>
-                  <TouchableOpacity style={styles.actionButton} onPress={handleSubmit}>
-                    <LinearGradient
-                      colors={theme.gradientPrimary}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.actionGradient}
-                    >
-                      <MaterialCommunityIcons
-                        name="content-save-outline"
-                        size={18}
-                        color="#FFFFFF"
-                        style={styles.actionIcon}
-                      />
-                      <Text style={styles.actionText}>Save Changes</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSubmit}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={theme.gradientPrimary}
+                    style={styles.saveButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <MaterialCommunityIcons name="content-save" size={20} color={theme.textWhite} />
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.deleteButton}
+                  style={styles.deleteAccountButton}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     setDeleteModalVisible(true);
                   }}
                 >
-                  <LinearGradient
-                    colors={[theme.error, theme.error]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.deleteGradient}
-                  >
-                    <MaterialCommunityIcons
-                      name="delete-outline"
-                      size={18}
-                      color="#FFFFFF"
-                      style={styles.deleteIcon}
+                  <View style={styles.deleteAccountContent}>
+                    <MaterialCommunityIcons name="delete-forever" size={18} color={theme.error} />
+                    <Text style={styles.deleteAccountText}>Delete Account</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Profile Details */
+              <>
+                <View style={styles.detailsSection}>
+                  <View style={styles.sectionHeader}>
+                    <LinearGradient
+                      colors={theme.gradientPrimary}
+                      style={styles.sectionHeaderAccent}
                     />
-                    <Text style={styles.deleteText}>Delete Account</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </Animated.View>
-        ) : (
-          <Animated.View
-            style={[
-              styles.card,
-              {
-                opacity: fadeAnim,
-                transform: [
-                  {
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={[
-                `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-                  theme.primary.substring(3, 5),
-                  16,
-                )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.05)`,
-                `rgba(${parseInt(theme.secondary.substring(1, 3), 16)}, ${parseInt(
-                  theme.secondary.substring(3, 5),
-                  16,
-                )}, ${parseInt(theme.secondary.substring(5, 7), 16)}, 0.1)`,
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.cardGradient}
+                    <FontAwesome5 name="info-circle" size={16} color={theme.primary} />
+                    <Text style={styles.sectionHeaderText}>Profile Details</Text>
+                  </View>
+
+                  <View style={styles.detailsList}>
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailIconWrapper}>
+                        <LinearGradient
+                          colors={theme.gradientPrimary}
+                          style={styles.detailIconGradient}
+                        >
+                          <FontAwesome5 name="fingerprint" size={12} color={theme.textWhite} />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.detailTextWrapper}>
+                        <Text style={styles.detailLabel}>Unique ID</Text>
+                        <Text style={styles.detailValue}>{userProfile.id.slice(0, 8)}...</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailIconWrapper}>
+                        <LinearGradient
+                          colors={theme.gradientSuccess}
+                          style={styles.detailIconGradient}
+                        >
+                          <FontAwesome5 name="calendar-plus" size={12} color={theme.textWhite} />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.detailTextWrapper}>
+                        <Text style={styles.detailLabel}>Joined</Text>
+                        <Text style={styles.detailValue}>
+                          {userProfile.created_at
+                            ? new Date(userProfile.created_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Recently"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailIconWrapper}>
+                        <LinearGradient
+                          colors={theme.gradientInfo}
+                          style={styles.detailIconGradient}
+                        >
+                          <FontAwesome5 name="sync" size={12} color={theme.textWhite} />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.detailTextWrapper}>
+                        <Text style={styles.detailLabel}>Last Updated</Text>
+                        <Text style={styles.detailValue}>
+                          {userProfile.updated_at
+                            ? new Date(userProfile.updated_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Today"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.sectionDivider} />
+
+                {/* Settings Section */}
+                <View style={styles.settingsSection}>
+                  <TouchableOpacity
+                    style={styles.settingItem}
+                    onPress={toggleNotificationSettings}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.settingLeft}>
+                      <View style={styles.settingIconWrapper}>
+                        <LinearGradient
+                          colors={theme.gradientPrimary}
+                          style={styles.settingIconGradient}
+                        >
+                          <Ionicons name="notifications" size={18} color={theme.textWhite} />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.settingTextWrapper}>
+                        <Text style={styles.settingTitle}>Notifications</Text>
+                        <Text style={styles.settingSubtitle}>
+                          Manage your notification preferences
+                        </Text>
+                      </View>
+                    </View>
+                    <Feather name="chevron-right" size={20} color={theme.primary} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* Logout Button */}
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={handleLogout}
+              activeOpacity={0.8}
             >
-              <CardDecoration />
-
-              {/* Account Details Section */}
-              <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="user-circle" size={16} color="#3A86FF" />
-                  <Text style={styles.sectionTitle}>Account Details</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="id-card" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>ID</Text>
-                    <Text style={styles.detailValue}>{userProfile.id}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="user" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>First Name</Text>
-                    <Text style={styles.detailValue}>{userProfile.first_name || "Not set"}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="user" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>Last Name</Text>
-                    <Text style={styles.detailValue}>{userProfile.last_name || "Not set"}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="church" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>Denomination</Text>
-                    <Text style={styles.detailValue}>{userProfile.denomination || "Not set"}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Contact Section */}
-              <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="envelope" size={16} color="#3A86FF" />
-                  <Text style={styles.sectionTitle}>Contact</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="envelope" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>Email</Text>
-                    <Text style={styles.detailValue}>{userProfile.email}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Timeline Section */}
-              <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                  <FontAwesome5 name="clock" size={16} color="#3A86FF" />
-                  <Text style={styles.sectionTitle}>Timeline</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="calendar-plus" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>Created</Text>
-                    <Text style={styles.detailValue}>
-                      {userProfile.created_at
-                        ? new Date(userProfile.created_at).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "N/A"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <View style={styles.detailIconContainer}>
-                    <FontAwesome5 name="calendar-check" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.detailContent}>
-                    <Text style={styles.detailLabel}>Last Updated</Text>
-                    <Text style={styles.detailValue}>
-                      {userProfile.updated_at
-                        ? new Date(userProfile.updated_at).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "N/A"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Settings Section */}
-              <View style={styles.settingsSection}>
-                <Text style={styles.sectionTitle}>Settings</Text>
-                <TouchableOpacity style={styles.settingItem} onPress={toggleNotificationSettings}>
-                  <Ionicons
-                    name="notifications-outline"
-                    size={22}
-                    color="#4A55A2"
-                    style={styles.settingIcon}
-                  />
-                  <View style={styles.settingTextContainer}>
-                    <Text style={styles.settingLabel}>Notification Settings</Text>
-                    <Text style={styles.settingDescription}>
-                      Manage your notification preferences
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
+              <LinearGradient
+                colors={theme.gradientWarm}
+                style={styles.logoutGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Ionicons name="log-out" size={22} color={theme.textWhite} />
+                <Text style={styles.logoutText}>Sign Out</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </Animated.View>
-        )}
-
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <LinearGradient
-            colors={theme.gradientInfo}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.logoutGradient}
-          >
-            <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* Bottom spacing */}
-        <View style={styles.bottomSpacing} />
+        </SafeAreaView>
       </Animated.ScrollView>
 
-      {/* First Delete Account Confirmation Modal */}
+      {/* Modals */}
+      {/* Delete Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -1025,34 +1053,47 @@ export default function MeScreen() {
         onRequestClose={() => setDeleteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delete Account</Text>
-            <Text style={styles.modalMessage}>
-              Are you sure you want to delete your account? This action cannot be undone and all
-              your data will be permanently removed.
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setDeleteModalVisible(false);
-                }}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleShowDeleteConfirmModal}
-              >
-                <Text style={styles.modalConfirmButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <Animated.View style={styles.modalContent}>
+            <LinearGradient
+              colors={[theme.neutral800, theme.neutral700]}
+              style={styles.modalGradient}
+            >
+              <View style={styles.modalIconWrapper}>
+                <LinearGradient colors={theme.gradientDanger} style={styles.modalIconGradient}>
+                  <Ionicons name="warning" size={40} color={theme.textWhite} />
+                </LinearGradient>
+              </View>
+              <Text style={styles.modalTitle}>Delete Account?</Text>
+              <Text style={styles.modalMessage}>
+                This action cannot be undone. All your data will be permanently removed from our
+                platform.
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.modalCancelButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setDeleteModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalDeleteButton}
+                  onPress={handleShowDeleteConfirmModal}
+                >
+                  <LinearGradient colors={theme.gradientDanger} style={styles.modalDeleteGradient}>
+                    <Text style={styles.modalDeleteText}>Continue</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
         </View>
       </Modal>
 
-      {/* Second Delete Account Confirmation Modal with text input */}
+      {/* Delete Confirmation Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -1060,39 +1101,47 @@ export default function MeScreen() {
         onRequestClose={() => setDeleteConfirmModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Final Confirmation</Text>
-            <Text style={styles.modalMessage}>
-              To confirm deletion, please type "delete my account" below.
-            </Text>
-            <TextInput
-              style={styles.deleteConfirmInput}
-              value={deleteConfirmText}
-              onChangeText={setDeleteConfirmText}
-              placeholder="Type 'delete my account'"
-              placeholderTextColor="#94A3B8"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setDeleteConfirmModalVisible(false);
-                }}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirmButton} onPress={handleDeleteAccount}>
-                <Text style={styles.modalConfirmButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <Animated.View style={styles.modalContent}>
+            <LinearGradient
+              colors={[theme.neutral800, theme.neutral700]}
+              style={styles.modalGradient}
+            >
+              <Text style={styles.modalTitle}>Final Confirmation</Text>
+              <Text style={styles.modalMessage}>
+                To confirm deletion, please type "delete my account" below.
+              </Text>
+              <TextInput
+                style={styles.deleteConfirmInput}
+                value={deleteConfirmText}
+                onChangeText={setDeleteConfirmText}
+                placeholder="Type 'delete my account'"
+                placeholderTextColor={theme.textLight}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.modalCancelButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setDeleteConfirmModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalDeleteButton} onPress={handleDeleteAccount}>
+                  <LinearGradient colors={theme.gradientDanger} style={styles.modalDeleteGradient}>
+                    <Text style={styles.modalDeleteText}>Delete Forever</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
         </View>
       </Modal>
 
-      {/* Denomination Picker Modal */}
+      {/* Denomination Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1100,67 +1149,82 @@ export default function MeScreen() {
         onRequestClose={() => setDenominationModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.denominationModalContent}>
-            <View style={styles.denominationModalHeader}>
-              <Text style={styles.denominationModalTitle}>Select Denomination</Text>
-              <TouchableOpacity
-                onPress={() => setDenominationModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <Feather name="x" size={24} color={theme.textDark} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.denominationList}>
-              {denominations.map((item) => (
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <Animated.View style={styles.denominationModal}>
+            <LinearGradient
+              colors={[theme.neutral800, theme.neutral700]}
+              style={styles.denominationModalGradient}
+            >
+              <View style={styles.denominationHeader}>
+                <Text style={styles.denominationTitle}>Select Denomination</Text>
                 <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.denominationItem,
-                    editForm.denomination === item.id && styles.selectedDenominationItem,
-                  ]}
-                  onPress={() => {
-                    setEditForm({ ...editForm, denomination: item.id });
-                    setDenominationModalVisible(false);
-                  }}
+                  onPress={() => setDenominationModalVisible(false)}
+                  style={styles.denominationClose}
                 >
-                  <View style={styles.denominationIconContainer}>
-                    <Feather
-                      name={item.icon as any}
-                      size={20}
-                      color={editForm.denomination === item.id ? theme.textWhite : theme.primary}
-                    />
-                  </View>
-                  <View style={styles.denominationTextContainer}>
-                    <Text
-                      style={[
-                        styles.denominationItemName,
-                        editForm.denomination === item.id && styles.selectedDenominationText,
-                      ]}
-                    >
-                      {item.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.denominationItemDescription,
-                        editForm.denomination === item.id && styles.selectedDenominationText,
-                      ]}
-                    >
-                      {item.description}
-                    </Text>
-                  </View>
-                  {editForm.denomination === item.id && (
-                    <Feather
-                      name="check"
-                      size={20}
-                      color={theme.textWhite}
-                      style={styles.checkIcon}
-                    />
-                  )}
+                  <BlurView intensity={80} tint="dark" style={styles.denominationCloseBlur}>
+                    <Feather name="x" size={20} color={theme.textWhite} />
+                  </BlurView>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              </View>
+              <ScrollView style={styles.denominationList} showsVerticalScrollIndicator={false}>
+                {denominations.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.denominationItem,
+                      editForm.denomination === item.id && styles.denominationItemSelected,
+                    ]}
+                    onPress={() => {
+                      setEditForm({ ...editForm, denomination: item.id });
+                      setDenominationModalVisible(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <View style={styles.denominationItemLeft}>
+                      <View
+                        style={[
+                          styles.denominationIcon,
+                          editForm.denomination === item.id && styles.denominationIconSelected,
+                        ]}
+                      >
+                        <Feather
+                          name={item.icon as any}
+                          size={20}
+                          color={
+                            editForm.denomination === item.id ? theme.textWhite : theme.primary
+                          }
+                        />
+                      </View>
+                      <View style={styles.denominationInfo}>
+                        <Text
+                          style={[
+                            styles.denominationName,
+                            editForm.denomination === item.id && styles.denominationNameSelected,
+                          ]}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.denominationDescription,
+                            editForm.denomination === item.id &&
+                              styles.denominationDescriptionSelected,
+                          ]}
+                        >
+                          {item.description}
+                        </Text>
+                      </View>
+                    </View>
+                    {editForm.denomination === item.id && (
+                      <Feather name="check-circle" size={20} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+                {/* Extra space at bottom to ensure last item is fully visible */}
+                <View style={{ height: theme.spacing4XL }} />
+              </ScrollView>
+            </LinearGradient>
+          </Animated.View>
         </View>
       </Modal>
 
@@ -1175,404 +1239,114 @@ export default function MeScreen() {
           <NotificationSettings onClose={toggleNotificationSettings} />
         </Modal>
       )}
-    </SafeAreaView>
+
+      {/* Upload Loading Modal */}
+      {isUploading && (
+        <Modal visible={isUploading} transparent={true} animationType="fade">
+          <View style={styles.uploadOverlay}>
+            <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <View style={styles.uploadContent}>
+              <LinearGradient colors={theme.gradientPrimary} style={styles.uploadGradient}>
+                <ActivityIndicator size="large" color={theme.textWhite} />
+                <Text style={styles.uploadText}>Uploading Image...</Text>
+                <Text style={styles.uploadSubtext}>Please wait while we process your photo</Text>
+              </LinearGradient>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successOverlay}>
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <Animated.View style={styles.successContent}>
+            <LinearGradient colors={theme.gradientSuccess} style={styles.successGradient}>
+              <View style={styles.successIconWrapper}>
+                <Ionicons name="checkmark-circle" size={60} color={theme.textWhite} />
+              </View>
+              <Text style={styles.successTitle}>Success!</Text>
+              <Text style={styles.successMessage}>
+                Your image has been uploaded. Remember to save your changes to update your profile.
+              </Text>
+              <TouchableOpacity
+                style={styles.successButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowSuccessModal(false);
+                }}
+              >
+                <LinearGradient colors={theme.gradientPrimary} style={styles.successButtonGradient}>
+                  <Text style={styles.successButtonText}>Got it!</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </LinearGradient>
+          </Animated.View>
+        </View>
+      </Modal>
+    </View>
   );
 }
-
-const { width, height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.pageBg,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: theme.spacingXL,
-    paddingTop:
-      Platform.OS === "ios" ? theme.spacingXL : RNStatusBar.currentHeight || theme.spacingXL,
-    paddingBottom: theme.spacing3XL,
-  },
-  headerBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: Platform.OS === "ios" ? 100 : 80,
-    zIndex: 100,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
-    shadowColor: theme.textMedium,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-  },
-  blurView: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  floatingTitleContainer: {
+  backgroundImage: {
     position: "absolute",
     width: "100%",
-    paddingHorizontal: theme.spacingXL,
-    top: Platform.OS === "ios" ? 55 : 30,
-    height: 30,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
+    height: "100%",
   },
-  titleWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: 24,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 120, // Increased padding to ensure content is above nav bar
   },
-  titleAccent: {
-    width: 4,
-    height: 20,
-    borderRadius: theme.radiusSmall / 2,
-    marginRight: theme.spacingM,
-  },
-  floatingTitle: {
-    fontSize: 20,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-    letterSpacing: 0.5,
-    lineHeight: 24,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: theme.spacingXL,
-    marginTop: theme.spacingXL,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radiusFull,
-    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.1)`,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  editButton: {
-    zIndex: 10,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    borderRadius: theme.radiusFull,
-    overflow: "hidden",
-  },
-  editGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radiusFull,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileHeader: {
-    alignItems: "center",
-    marginBottom: theme.spacingXL,
-  },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: theme.radiusFull,
-    marginBottom: theme.spacingL,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: "hidden",
-  },
-  avatarImage: {
-    width: 100,
-    height: 100,
-    borderRadius: theme.radiusFull,
-  },
-  avatarGradient: {
-    width: 100,
-    height: 100,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 36,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textWhite,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginBottom: theme.spacingXS,
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: theme.textMedium,
-  },
-  card: {
-    borderRadius: theme.radiusLarge,
-    overflow: "hidden",
-    marginBottom: theme.spacingXL,
-    shadowColor: theme.textLight,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  cardGradient: {
-    borderRadius: theme.radiusLarge,
-    padding: theme.spacingXL,
-    borderWidth: 1,
-    borderColor: theme.divider,
-  },
-  cardDecoration: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 60,
-    height: 60,
-  },
-  decorationDot: {
-    position: "absolute",
-    borderRadius: theme.radiusFull,
-  },
-  decorationDot1: {
-    width: 12,
-    height: 12,
-    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.2)`,
-    top: 15,
-    right: 15,
-  },
-  decorationDot2: {
-    width: 8,
-    height: 8,
-    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.15)`,
-    top: 30,
-    right: 22,
-  },
-  decorationDot3: {
-    width: 6,
-    height: 6,
-    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.1)`,
-    top: 24,
-    right: 35,
-  },
-  formContainer: {
-    gap: theme.spacingL,
-  },
-  imagePickerButton: {
-    marginBottom: theme.spacingL,
-    borderRadius: theme.radiusMedium,
-    overflow: "hidden",
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  imagePickerGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: theme.spacingM,
-    paddingHorizontal: theme.spacingXL,
-  },
-  imagePickerText: {
-    color: theme.textWhite,
-    marginLeft: theme.spacingS,
-    fontWeight: theme.fontSemiBold,
-    fontSize: 15,
-  },
-  sectionContainer: {
-    marginBottom: theme.spacingXL,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.spacingL,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginLeft: theme.spacingS,
-  },
-  inputGroup: {
-    marginBottom: theme.spacingL,
-  },
-  inputLabel: {
-    fontSize: 14,
-    marginBottom: theme.spacingS,
-    color: theme.textMedium,
-    fontWeight: theme.fontMedium,
-  },
-  input: {
-    backgroundColor: theme.neutral50,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    color: theme.textDark,
-    fontSize: 16,
-  },
-  actionsContainer: {
-    marginBottom: theme.spacingL,
-  },
-  actionButton: {
-    borderRadius: theme.radiusMedium,
-    overflow: "hidden",
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  actionGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: theme.spacingL,
-  },
-  actionIcon: {
-    marginRight: theme.spacingS,
-  },
-  actionText: {
-    color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
-    fontSize: 16,
-  },
-  deleteButton: {
-    borderRadius: theme.radiusMedium,
-    overflow: "hidden",
-    shadowColor: theme.error,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  deleteGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: theme.spacingL,
-  },
-  deleteIcon: {
-    marginRight: theme.spacingS,
-  },
-  deleteText: {
-    color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
-    fontSize: 16,
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: theme.neutral50,
-    borderRadius: theme.radiusMedium,
-    padding: theme.spacingL,
-    marginBottom: theme.spacingS,
-  },
-  detailIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radiusFull,
-    backgroundColor: theme.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: theme.spacingL,
-  },
-  detailContent: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: theme.textMedium,
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 15,
-    color: theme.textDark,
-    fontWeight: theme.fontMedium,
-  },
-  logoutButton: {
-    borderRadius: theme.radiusMedium,
-    overflow: "hidden",
-    marginTop: theme.spacingS,
-    marginBottom: theme.spacingXL,
-    shadowColor: theme.accent2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-    alignSelf: "center",
-    width: "80%",
-  },
-  logoutGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: theme.spacingL,
-  },
-  logoutText: {
-    color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
-    fontSize: 16,
-    marginLeft: theme.spacingS,
-  },
-  bottomSpacing: {
-    height: 40,
-  },
+
+  // Loading & Error States
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.pageBg,
   },
+  loadingContent: {
+    alignItems: "center",
+  },
+  loadingAnimation: {
+    width: 150,
+    height: 150,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: theme.textMedium,
+    fontWeight: theme.fontMedium,
+    marginTop: theme.spacingL,
+  },
+
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.pageBg,
     padding: theme.spacingXL,
   },
   errorBox: {
-    width: "100%",
     alignItems: "center",
-    backgroundColor: `rgba(${parseInt(theme.error.substring(1, 3), 16)}, ${parseInt(
-      theme.error.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.error.substring(5, 7), 16)}, 0.05)`,
-    borderWidth: 1,
-    borderColor: `rgba(${parseInt(theme.error.substring(1, 3), 16)}, ${parseInt(
-      theme.error.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.error.substring(5, 7), 16)}, 0.1)`,
+    padding: theme.spacing2XL,
+    backgroundColor: theme.cardBg,
     borderRadius: theme.radiusLarge,
-    padding: theme.spacingXL,
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
   errorTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginTop: theme.spacingM,
+    color: theme.textWhite,
+    marginTop: theme.spacingL,
     marginBottom: theme.spacingS,
   },
   errorText: {
@@ -1582,36 +1356,32 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacingXL,
   },
   errorButton: {
-    backgroundColor: theme.primary,
-    paddingHorizontal: theme.spacingXL,
-    paddingVertical: theme.spacingM,
     borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  errorButtonGradient: {
+    paddingHorizontal: theme.spacing2XL,
+    paddingVertical: theme.spacingM,
   },
   errorButtonText: {
     color: theme.textWhite,
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
   },
+
   warningBox: {
-    width: "100%",
     alignItems: "center",
-    backgroundColor: `rgba(${parseInt(theme.accent1.substring(1, 3), 16)}, ${parseInt(
-      theme.accent1.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.accent1.substring(5, 7), 16)}, 0.05)`,
-    borderWidth: 1,
-    borderColor: `rgba(${parseInt(theme.accent1.substring(1, 3), 16)}, ${parseInt(
-      theme.accent1.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.accent1.substring(5, 7), 16)}, 0.1)`,
+    padding: theme.spacing2XL,
+    backgroundColor: theme.cardBg,
     borderRadius: theme.radiusLarge,
-    padding: theme.spacingXL,
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
   warningTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
-    marginTop: theme.spacingM,
+    color: theme.textWhite,
+    marginTop: theme.spacingL,
     marginBottom: theme.spacingS,
   },
   warningText: {
@@ -1621,218 +1391,623 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacingXL,
   },
   warningButton: {
-    backgroundColor: theme.primary,
-    paddingHorizontal: theme.spacingXL,
-    paddingVertical: theme.spacingM,
     borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  warningButtonGradient: {
+    paddingHorizontal: theme.spacing2XL,
+    paddingVertical: theme.spacingM,
   },
   warningButtonText: {
     color: theme.textWhite,
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
   },
+
+  // Profile Section
+  profileSection: {
+    alignItems: "center",
+    paddingTop: Platform.OS === "ios" ? 120 : 100,
+    paddingBottom: theme.spacing2XL,
+  },
+  editButton: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 120 : 100,
+    right: theme.spacingXL,
+    zIndex: 10,
+    borderRadius: theme.radiusFull,
+    overflow: "hidden",
+  },
+  editButtonBlur: {
+    padding: 2,
+  },
+  editButtonGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.radiusFull,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Avatar
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    marginBottom: theme.spacingXL,
+    position: "relative",
+  },
+  avatarGlow: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: theme.radiusFull,
+    backgroundColor: theme.primary,
+    opacity: 0.15,
+    top: -10,
+    left: -10,
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: theme.radiusFull,
+    borderWidth: 4,
+    borderColor: theme.accent2,
+  },
+  avatarPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: theme.radiusFull,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 4,
+    borderColor: theme.accent2,
+  },
+  avatarText: {
+    fontSize: 42,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+  },
+  cameraButton: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderRadius: theme.radiusFull,
+    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: theme.neutral900,
+  },
+  cameraButtonBlur: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(245, 158, 11, 0.8)",
+  },
+
+  // Profile Info
+  profileInfo: {
+    alignItems: "center",
+  },
+  profileName: {
+    fontSize: 28,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    marginBottom: theme.spacingS,
+    textAlign: "center",
+  },
+  profileEmail: {
+    fontSize: 16,
+    color: theme.textMedium,
+    marginBottom: theme.spacingM,
+  },
+  denominationBadge: {
+    borderRadius: theme.radiusFull,
+    overflow: "hidden",
+  },
+  denominationBadgeGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingS,
+    gap: theme.spacingS,
+  },
+  denominationBadgeText: {
+    fontSize: 14,
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
+  },
+
+  // Content Container
+  contentContainer: {
+    paddingHorizontal: theme.spacingXL,
+  },
+
+  // Form Styles
+  editFormContainer: {
+    marginBottom: theme.spacing2XL,
+  },
+  formHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacingXL,
+  },
+  formHeaderAccent: {
+    width: 4,
+    height: 24,
+    borderRadius: 2,
+    marginRight: theme.spacingM,
+  },
+  formHeaderText: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+  },
+  formFields: {
+    gap: theme.spacingL,
+    marginBottom: theme.spacingXL,
+  },
+  inputGroup: {
+    gap: theme.spacingS,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: theme.textMedium,
+    fontWeight: theme.fontMedium,
+    marginLeft: theme.spacingS,
+  },
+  inputWrapper: {
+    position: "relative",
+  },
+  input: {
+    backgroundColor: "rgba(254, 243, 199, 0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(254, 243, 199, 0.08)",
+    borderRadius: theme.radiusMedium,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingL,
+    paddingRight: 50,
+    color: theme.textWhite,
+    fontSize: 16,
+  },
+  inputIcon: {
+    position: "absolute",
+    right: theme.spacingL,
+    top: "50%",
+    transform: [{ translateY: -7 }],
+  },
+  denominationSelector: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "rgba(254, 243, 199, 0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(254, 243, 199, 0.08)",
+    borderRadius: theme.radiusMedium,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingL,
+    paddingRight: 50,
+  },
+  denominationText: {
+    fontSize: 16,
+    color: theme.textWhite,
+  },
+  placeholderText: {
+    color: theme.textLight,
+  },
+
+  // Buttons
+  saveButton: {
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    marginBottom: theme.spacingL,
+  },
+  saveButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.spacingL,
+    gap: theme.spacingS,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
+  },
+  deleteAccountButton: {
+    alignItems: "center",
+  },
+  deleteAccountContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacingS,
+  },
+  deleteAccountText: {
+    fontSize: 14,
+    color: theme.error,
+    fontWeight: theme.fontMedium,
+  },
+
+  // Details Section
+  detailsSection: {
+    marginBottom: theme.spacing3XL,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacingXL,
+  },
+  sectionHeaderAccent: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    marginRight: theme.spacingM,
+  },
+  sectionHeaderText: {
+    fontSize: 18,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    marginLeft: theme.spacingS,
+  },
+  detailsList: {
+    gap: theme.spacingL,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacingM,
+  },
+  detailIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radiusFull,
+    overflow: "hidden",
+  },
+  detailIconGradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailTextWrapper: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: theme.textLight,
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 15,
+    color: theme.textWhite,
+    fontWeight: theme.fontMedium,
+  },
+
+  // Settings
+  settingsSection: {
+    marginBottom: theme.spacing3XL,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "rgba(254, 243, 199, 0.05)",
+    marginVertical: theme.spacing2XL,
+    marginHorizontal: theme.spacingXL,
+  },
+  settingItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(254, 243, 199, 0.03)",
+    borderRadius: theme.radiusMedium,
+    padding: theme.spacingL,
+    borderWidth: 1,
+    borderColor: "rgba(254, 243, 199, 0.08)",
+  },
+  settingLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacingM,
+    flex: 1,
+  },
+  settingIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.radiusFull,
+    overflow: "hidden",
+  },
+  settingIconGradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  settingTextWrapper: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
+    marginBottom: 2,
+  },
+  settingSubtitle: {
+    fontSize: 14,
+    color: theme.textMedium,
+  },
+
+  // Logout Button
+  logoutButton: {
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+    marginBottom: theme.spacing3XL, // Extra margin to ensure it's above nav bar
+  },
+  logoutGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.spacingL,
+    gap: theme.spacingS,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
+  },
+
+  // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.overlay,
     justifyContent: "center",
     alignItems: "center",
     padding: theme.spacingXL,
   },
   modalContent: {
-    backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusLarge,
-    padding: theme.spacingXL,
     width: "100%",
     maxWidth: 400,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 10,
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+  },
+  modalGradient: {
+    padding: theme.spacing2XL,
+    alignItems: "center",
+  },
+  modalIconWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: theme.radiusFull,
+    overflow: "hidden",
+    marginBottom: theme.spacingXL,
+  },
+  modalIconGradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: theme.fontBold,
-    color: theme.error,
-    marginBottom: theme.spacingL,
+    color: theme.textWhite,
+    marginBottom: theme.spacingM,
     textAlign: "center",
   },
   modalMessage: {
     fontSize: 16,
     color: theme.textMedium,
-    marginBottom: theme.spacingXL,
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 24,
+    marginBottom: theme.spacingXL,
   },
   modalButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: theme.spacingM,
+    width: "100%",
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: theme.neutral100,
-    borderRadius: theme.radiusMedium,
     paddingVertical: theme.spacingM,
-    marginRight: theme.spacingS,
     alignItems: "center",
+    backgroundColor: theme.cardBg,
+    borderRadius: theme.radiusMedium,
+    borderWidth: 1,
+    borderColor: theme.divider,
   },
-  modalCancelButtonText: {
-    color: theme.textDark,
-    fontWeight: theme.fontSemiBold,
+  modalCancelText: {
     fontSize: 16,
-  },
-  modalConfirmButton: {
-    flex: 1,
-    backgroundColor: theme.error,
-    borderRadius: theme.radiusMedium,
-    paddingVertical: theme.spacingM,
-    marginLeft: theme.spacingS,
-    alignItems: "center",
-  },
-  modalConfirmButtonText: {
+    fontWeight: theme.fontSemiBold,
     color: theme.textWhite,
-    fontWeight: theme.fontSemiBold,
+  },
+  modalDeleteButton: {
+    flex: 1,
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  modalDeleteGradient: {
+    paddingVertical: theme.spacingM,
+    alignItems: "center",
+  },
+  modalDeleteText: {
     fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
   },
   deleteConfirmInput: {
-    backgroundColor: theme.neutral50,
+    width: "100%",
+    backgroundColor: theme.cardBg,
     borderWidth: 1,
     borderColor: theme.divider,
     borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    color: theme.textDark,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingL,
+    color: theme.textWhite,
     fontSize: 16,
     marginBottom: theme.spacingXL,
   },
-  denominationSelector: {
-    backgroundColor: theme.neutral50,
-    borderWidth: 1,
-    borderColor: theme.divider,
-    borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  denominationText: {
-    color: theme.textDark,
-    fontSize: 16,
-  },
-  denominationModalContent: {
-    backgroundColor: theme.cardBg,
-    borderRadius: theme.radiusLarge,
-    padding: 0,
+
+  // Denomination Modal
+  denominationModal: {
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 500,
     maxHeight: "80%",
-    borderWidth: 1,
-    borderColor: theme.divider,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 10,
+    borderRadius: theme.radiusLarge,
     overflow: "hidden",
   },
-  denominationModalHeader: {
+  denominationModalGradient: {
+    paddingTop: theme.spacingXL,
+  },
+  denominationHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: theme.spacingL,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.divider,
+    paddingHorizontal: theme.spacingXL,
+    marginBottom: theme.spacingL,
   },
-  denominationModalTitle: {
-    fontSize: 18,
+  denominationTitle: {
+    fontSize: 22,
     fontWeight: theme.fontBold,
-    color: theme.textDark,
+    color: theme.textWhite,
   },
-  closeButton: {
-    width: 40,
-    height: 40,
+  denominationClose: {
+    width: 36,
+    height: 36,
     borderRadius: theme.radiusFull,
-    backgroundColor: theme.neutral100,
+    overflow: "hidden",
+  },
+  denominationCloseBlur: {
+    width: "100%",
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: theme.cardBg,
   },
   denominationList: {
-    paddingVertical: theme.spacingM,
-    paddingHorizontal: theme.spacingL,
-    maxHeight: 500,
+    paddingHorizontal: theme.spacingXL,
+    paddingBottom: theme.spacing3XL, // Increased padding to ensure last item shows
   },
   denominationItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.neutral50,
+    justifyContent: "space-between",
+    backgroundColor: theme.cardBg,
     borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    marginBottom: theme.spacingS,
+    padding: theme.spacingL,
+    marginBottom: theme.spacingM,
     borderWidth: 1,
     borderColor: theme.divider,
   },
-  selectedDenominationItem: {
-    backgroundColor: theme.primary,
+  denominationItemSelected: {
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
     borderColor: theme.primary,
   },
-  denominationIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radiusFull,
-    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.1)`,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: theme.spacingM,
-  },
-  denominationTextContainer: {
-    flex: 1,
-  },
-  denominationItemName: {
-    fontSize: 15,
-    fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
-    marginBottom: 2,
-  },
-  denominationItemDescription: {
-    fontSize: 13,
-    color: theme.textMedium,
-  },
-  selectedDenominationText: {
-    color: theme.textWhite,
-  },
-  checkIcon: {
-    marginLeft: theme.spacingS,
-  },
-  settingsSection: {
-    marginBottom: theme.spacingXL,
-  },
-  settingItem: {
+  denominationItemLeft: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.neutral50,
-    borderRadius: theme.radiusMedium,
-    padding: theme.spacingM,
-    marginBottom: theme.spacingS,
-    borderWidth: 1,
-    borderColor: theme.divider,
-  },
-  settingIcon: {
-    marginRight: theme.spacingM,
-  },
-  settingTextContainer: {
+    gap: theme.spacingM,
     flex: 1,
   },
-  settingLabel: {
+  denominationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radiusFull,
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  denominationIconSelected: {
+    backgroundColor: theme.primary,
+  },
+  denominationInfo: {
+    flex: 1,
+  },
+  denominationName: {
     fontSize: 16,
     fontWeight: theme.fontSemiBold,
-    color: theme.textDark,
+    color: theme.textWhite,
+    marginBottom: 2,
   },
-  settingDescription: {
+  denominationNameSelected: {
+    color: theme.textWhite,
+  },
+  denominationDescription: {
     fontSize: 14,
     color: theme.textMedium,
+  },
+  denominationDescriptionSelected: {
+    color: theme.textLight,
+  },
+
+  // Upload Modal
+  uploadOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uploadContent: {
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+  },
+  uploadGradient: {
+    paddingVertical: theme.spacing3XL,
+    paddingHorizontal: theme.spacing3XL,
+    alignItems: "center",
+  },
+  uploadText: {
+    fontSize: 20,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    marginTop: theme.spacingL,
+  },
+  uploadSubtext: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: theme.spacingS,
+  },
+
+  // Success Modal
+  successOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: theme.spacingXL,
+  },
+  successContent: {
+    width: "100%",
+    maxWidth: 350,
+    borderRadius: theme.radiusLarge,
+    overflow: "hidden",
+  },
+  successGradient: {
+    padding: theme.spacing2XL,
+    alignItems: "center",
+  },
+  successIconWrapper: {
+    marginBottom: theme.spacingL,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    marginBottom: theme.spacingM,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: theme.spacingXL,
+  },
+  successButton: {
+    borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  successButtonGradient: {
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacing2XL,
+  },
+  successButtonText: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
   },
 });

@@ -1,17 +1,18 @@
 import { Tabs } from "expo-router";
 import React, { useEffect } from "react";
-import { Platform, View, StyleSheet, TouchableOpacity } from "react-native";
+import { Platform, View, StyleSheet, TouchableOpacity, Text, Dimensions } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-  Easing,
+  interpolate,
 } from "react-native-reanimated";
-import { BlurView } from "expo-blur";
-import { FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { ParamListBase, TabNavigationState } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 import theme from "@/theme";
 
 interface TabBarProps {
@@ -20,186 +21,179 @@ interface TabBarProps {
   navigation: any;
 }
 
-interface AnimatedTabIconProps {
+interface SimpleTabIconProps {
   name: "home" | "discover" | "Bible" | "profile";
   focused: boolean;
   index: number;
-  activeIndex: number;
 }
 
-const ICON_SIZE = 20;
+const ICON_SIZE = 24;
 
-// Animated tab icon with smooth transitions
-const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({ name, focused }) => {
-  // Animation values with improved configurations
-  const scale = useSharedValue(1);
-  const circleScale = useSharedValue(0);
-  const circleOpacity = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const rotation = useSharedValue(0);
-  const textOpacity = useSharedValue(0);
-
-  // Enhance animations with rotation and improved timing
+// Simple tab with minimal animations
+const SimpleTabIcon: React.FC<SimpleTabIconProps> = ({ name, focused, index }) => {
+  const iconScale = useSharedValue(1);
+  const iconOpacity = useSharedValue(focused ? 1 : 0.6);
+  const textOpacity = useSharedValue(focused ? 1 : 0);
+  
   useEffect(() => {
-    // Animation configuration for more fluid movements
-    const springConfig = {
-      damping: 12,
-      stiffness: 80,
-      mass: 0.5,
-      overshootClamping: false,
-    };
-
     if (focused) {
-      scale.value = withSpring(1.05, springConfig);
-      circleScale.value = withSpring(1, springConfig);
-      circleOpacity.value = withTiming(1, {
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-      });
-      translateY.value = withSpring(-4, springConfig);
-      rotation.value = withTiming(0, { duration: 300 });
-      textOpacity.value = withTiming(1, {
-        duration: 250,
-        easing: Easing.out(Easing.quad),
-      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      iconScale.value = withSpring(1.1, { damping: 15, stiffness: 200 });
+      iconOpacity.value = withTiming(1, { duration: 200 });
+      textOpacity.value = withTiming(1, { duration: 200 });
     } else {
-      scale.value = withSpring(1, springConfig);
-      circleScale.value = withSpring(0, springConfig);
-      circleOpacity.value = withTiming(0, {
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
-      });
-      translateY.value = withSpring(0, springConfig);
-      rotation.value = withTiming(0, { duration: 300 });
-      textOpacity.value = withTiming(0, { duration: 150 });
+      iconScale.value = withSpring(1, { damping: 15, stiffness: 200 });
+      iconOpacity.value = withTiming(0.6, { duration: 200 });
+      textOpacity.value = withTiming(0, { duration: 200 });
     }
-  }, [circleOpacity, circleScale, focused, rotation, scale, textOpacity, translateY]);
+  }, [focused]);
 
-  // Animated styles
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value },
-      { rotate: `${rotation.value}deg` },
-    ],
-    zIndex: 2,
+    transform: [{ scale: iconScale.value }],
+    opacity: iconOpacity.value,
   }));
 
   const textStyle = useAnimatedStyle(() => ({
     opacity: textOpacity.value,
-    transform: [
-      { translateY: withTiming(focused ? 0 : 5, { duration: 200 }) },
-      { scale: textOpacity.value * 0.2 + 0.8 },
-    ],
   }));
 
-  // Refined icon selection with improved naming
-  const icon = {
-    home: {
-      icon: <FontAwesome5 name="home" size={ICON_SIZE} color="#FFFFFF" />,
-      label: "Home",
+  // Icon mapping
+  const iconData = {
+    home: { 
+      icon: <Ionicons name="home" size={ICON_SIZE} color={focused ? theme.accent1 : theme.textLight} />,
+      label: "Home"
     },
-    discover: {
-      icon: <FontAwesome5 name="compass" size={ICON_SIZE} color="#FFFFFF" />,
-      label: "Explore",
+    discover: { 
+      icon: <Ionicons name="search" size={ICON_SIZE} color={focused ? theme.accent1 : theme.textLight} />,
+      label: "Explore"
     },
-    Bible: {
-      icon: <FontAwesome5 name="bible" size={ICON_SIZE} color="#FFFFFF" />,
-      label: "Bible",
+    Bible: { 
+      icon: <Ionicons name="book" size={ICON_SIZE} color={focused ? theme.accent1 : theme.textLight} />,
+      label: "Bible"
     },
-    profile: {
-      icon: <FontAwesome5 name="user" size={ICON_SIZE} color="#FFFFFF" />,
-      label: "Profile",
+    profile: { 
+      icon: <Ionicons name="person" size={ICON_SIZE} color={focused ? theme.accent1 : theme.textLight} />,
+      label: "Profile"
     },
   };
 
   return (
-    <View style={styles.iconContainer}>
-      <Animated.View style={[iconStyle, { opacity: focused ? 1 : 0.7 }]}>
-        {icon[name].icon}
+    <View style={styles.tabContainer}>
+      {/* Icon */}
+      <Animated.View style={iconStyle}>
+        {iconData[name].icon}
       </Animated.View>
-      <Animated.Text style={[styles.tabLabel, textStyle]}>{icon[name].label}</Animated.Text>
+      
+      {/* Text label - only shown when focused */}
+      {focused && (
+        <Animated.Text style={[styles.tabLabel, textStyle]}>
+          {iconData[name].label}
+        </Animated.Text>
+      )}
+      
     </View>
   );
 };
 
-const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
-  // TODO: fix this by not polluting the app router with components in the root routes
+const SimpleModernTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
+  const insets = useSafeAreaInsets();
   const visibleTabs = ["home", "discover", "Bible", "profile"];
-
-  // Track if Comments screen is active to keep Home tab selected
+  const { width: screenWidth } = Dimensions.get('window');
+  
+  // Sliding underline indicator
+  const underlineX = useSharedValue(0);
+  
+  // Track if Comments screen is active
   const isCommentsScreen = state.routes.some(
     (route) => route.name === "" && state.index === state.routes.indexOf(route),
   );
 
+  // Calculate underline position based on active tab
+  useEffect(() => {
+    const activeIndex = visibleTabs.findIndex(tab => {
+      const routeIndex = state.routes.findIndex(route => route.name === tab);
+      return state.index === routeIndex || (tab === "home" && isCommentsScreen);
+    });
+    
+    if (activeIndex !== -1) {
+      // Calculate tab width (screen width minus padding divided by 4 tabs)
+      const tabWidth = (screenWidth - 32) / 4; // 32px total horizontal padding (16px each side)
+      const targetX = activeIndex * tabWidth + (tabWidth / 2) - 15; // Center the 30px underline in the tab
+      underlineX.value = withSpring(targetX, { damping: 15, stiffness: 200 });
+    }
+  }, [state.index, isCommentsScreen, screenWidth]);
+
+  const underlineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: underlineX.value }],
+  }));
+
   return (
-    <View style={styles.tabBarContainer}>
-      <View style={styles.tabBarShadow}>
-        <View style={styles.tabBarWrapper}>
-          {/* Solid background with gradient overlay */}
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              Platform.OS === "ios" ? styles.blurView : styles.androidBar,
-            ]}
-          >
-            <LinearGradient
-              colors={[theme.neutral800, theme.neutral900]}
-              style={StyleSheet.absoluteFill}
-            />
-            {Platform.OS === "ios" && (
-              <BlurView
-                intensity={15}
-                tint="dark"
-                style={[StyleSheet.absoluteFill, { opacity: 0.6 }]}
+    <View style={styles.container}>
+      {/* Simplified Background */}
+      <LinearGradient
+        colors={[
+          `${theme.neutral900}f8`, 
+          `${theme.neutral800}f5`
+        ]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      
+      {/* Simple Top border */}
+      <View style={styles.topBorder} />
+      
+      {/* Tab buttons */}
+      <View style={[styles.tabRow, { 
+        height: 48 + insets.bottom,
+        paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 4, 0) : 4 
+      }]}>
+        {state.routes.map((route, index) => {
+          if (!visibleTabs.includes(route.name)) {
+            return null;
+          }
+
+          const isFocused = state.index === index || (route.name === "home" && isCommentsScreen);
+
+          const onPress = () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            
+            const event = navigation.emit({
+              type: "tabPress",
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              style={styles.tabButton}
+              onPress={onPress}
+              activeOpacity={0.8}
+            >
+              <SimpleTabIcon
+                name={route.name as SimpleTabIconProps["name"]}
+                focused={isFocused}
+                index={index}
               />
-            )}
-          </View>
-
-          {/* Solid accent line for more defined appearance */}
-          <LinearGradient colors={[theme.primary, theme.secondary]} style={styles.accentLine} />
-
-          {/* Tab buttons with improved spacing */}
-          <View style={styles.tabButtonsRow}>
-            {state.routes.map((route, index) => {
-              if (!visibleTabs.includes(route.name)) {
-                return null;
-              }
-
-              // Check if this tab is focused OR if it's home and comments screen is active
-              const isFocused =
-                state.index === index || (route.name === "home" && isCommentsScreen);
-
-              const onPress = () => {
-                const event = navigation.emit({
-                  type: "tabPress",
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-
-                if (!event.defaultPrevented) {
-                  navigation.navigate(route.name);
-                }
-              };
-
-              return (
-                <TouchableOpacity
-                  key={route.key}
-                  style={styles.tabButton}
-                  onPress={onPress}
-                  activeOpacity={0.65}
-                >
-                  <AnimatedTabIcon
-                    name={route.name as AnimatedTabIconProps["name"]}
-                    focused={isFocused}
-                    index={index}
-                    activeIndex={state.index}
-                  />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+            </TouchableOpacity>
+          );
+        })}
+        
+        {/* Sliding underline indicator positioned under text */}
+        <Animated.View style={[styles.slidingUnderline, underlineStyle]}>
+          <LinearGradient
+            colors={[theme.accent1, theme.accent2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.slidingUnderlineGradient}
+          />
+        </Animated.View>
       </View>
     </View>
   );
@@ -208,12 +202,12 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
 export default function TabLayout() {
   return (
     <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={(props) => <SimpleModernTabBar {...props} />}
       screenOptions={{
         headerShown: false,
       }}
     >
-      {/* Main visible tabs - FeedScreen is directly specified, no need for duplicate home */}
+      {/* Main visible tabs */}
       <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
       <Tabs.Screen name="Bible" options={{ title: "Bible" }} />
@@ -231,7 +225,6 @@ export default function TabLayout() {
       <Tabs.Screen name="events" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="community" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="church_events" options={{ tabBarButton: () => null }} />
-      {/* Removed the bible-detail screen since we're using Bible as a main tab */}
       <Tabs.Screen name="Lent2025" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/index" options={{ tabBarButton: () => null }} />
       <Tabs.Screen name="faith/[id]" options={{ tabBarButton: () => null }} />
@@ -247,108 +240,78 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBarContainer: {
+  container: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "transparent",
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.neutral900,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  tabBarShadow: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 10,
-    width: "100%",
-  },
-  tabBarWrapper: {
-    width: "100%",
-    height: Platform.OS === "ios" ? 85 : 65,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    overflow: "hidden",
-  },
-  blurView: {
-    borderTopLeftRadius: theme.radiusMedium,
-    borderTopRightRadius: theme.radiusMedium,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderWidth: 0,
-    borderTopWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    backgroundColor: "rgba(35, 35, 35, 0.95)",
-  },
-  androidBar: {
-    backgroundColor: theme.neutral800,
-    borderTopLeftRadius: theme.radiusMedium,
-    borderTopRightRadius: theme.radiusMedium,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderWidth: 0,
-    borderTopWidth: 1,
-    borderColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.2)`,
-  },
-  accentLine: {
+  
+  topBorder: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 2,
-    zIndex: 1,
-    borderRadius: 0,
+    height: 1,
+    backgroundColor: `${theme.accent2}40`,
   },
-  tabButtonsRow: {
+  
+  tabRow: {
     flexDirection: "row",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 12,
-    paddingBottom: Platform.OS === "ios" ? 20 : 0,
+    alignItems: "flex-start",
+    justifyContent: "space-evenly",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    position: "relative",
   },
+  
   tabButton: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    height: "100%",
+    height: 40,
+    backgroundColor: "transparent",
   },
-  iconContainer: {
+  
+  tabContainer: {
     justifyContent: "center",
     alignItems: "center",
-    height: 54,
     width: 60,
+    height: 40,
+    position: "relative",
   },
-  focusCircle: {
-    position: "absolute",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: `rgba(${parseInt(theme.primary.substring(1, 3), 16)}, ${parseInt(
-      theme.primary.substring(3, 5),
-      16,
-    )}, ${parseInt(theme.primary.substring(5, 7), 16)}, 0.6)`,
-    zIndex: 1,
-  },
-  shimmerCircle: {
-    position: "absolute",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    zIndex: 0,
-  },
+  
   tabLabel: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: theme.fontMedium,
-    marginTop: 2,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    letterSpacing: 0.3,
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: "600",
+    color: theme.accent1,
+    letterSpacing: 0.2,
+  },
+  
+  slidingUnderline: {
+    position: "absolute",
+    top: 50, // paddingTop(8) + icon center(20) + icon half(12) + text marginTop(4) + text height(10) + small gap(6)
+    width: 30,
+    height: 2,
+    borderRadius: 1,
+    left: 16, // Start from the left padding
+  },
+  
+  slidingUnderlineGradient: {
+    flex: 1,
+    borderRadius: 1,
   },
 });

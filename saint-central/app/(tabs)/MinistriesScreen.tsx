@@ -20,7 +20,8 @@ import {
 } from "react-native";
 import LottieView from "lottie-react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { supabase } from "../../supabaseClient";
+import { useCRUD } from "../../utils/crudClient";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Ionicons,
   MaterialIcons,
@@ -157,6 +158,10 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   const router = useRouter();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, "home">>();
+  
+  // Initialize CRUD client and auth
+  const { select, selectOne, insert, delete: deleteRecord } = useCRUD();
+  const { user } = useAuth();
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [sectionedMinistries, setSectionedMinistries] = useState<MinistrySection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -316,17 +321,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       setLoading(true);
       console.log("Fetching ministries data...");
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("Error getting user:", userError);
-        throw userError;
-      }
-
       if (!user) {
         console.error("No user logged in");
         throw new Error("No user logged in");
@@ -335,46 +329,46 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       console.log("Current user ID:", user.id);
 
       // Check if user is a church member and get their church_id
-      const { data: churchMember, error: churchMemberError } = await supabase
-        .from("church_members")
-        .select("church_id, role")
-        .eq("user_id", user.id)
-        .single();
+      const churchMember = await selectOne("church_members", {
+        select: "church_id, role",
+        where: { user_id: user.id }
+      });
 
-      if (churchMemberError) {
-        console.error("Error fetching church member data:", churchMemberError);
+      if (!churchMember) {
+        console.error("Error fetching church member data - user not a church member");
         setIsAdmin(false);
+        setUserChurchId(null);
       } else {
         console.log("Church member data:", churchMember);
-        setUserChurchId(churchMember?.church_id);
-        setIsAdmin(churchMember?.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
+        setUserChurchId(churchMember.church_id);
+        setIsAdmin(churchMember.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
       }
 
       // Fetch ministries that belong to the user's church
-      const { data: ministriesData, error: ministriesError } = await supabase
-        .from("ministries")
-        .select("*")
-        .eq("church_id", churchMember?.church_id || 0)
-        .order("created_at", { ascending: false });
-
-      if (ministriesError) {
-        console.error("Error fetching ministries data:", ministriesError);
-        throw ministriesError;
+      let ministriesData = await select("ministries", {
+        where: { church_id: churchMember?.church_id || 0 }
+      });
+      
+      // Sort client-side by created_at descending
+      if (ministriesData && ministriesData.length > 0) {
+        ministriesData = ministriesData.sort((a: any, b: any) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       }
 
       console.log("Fetched ministries:", ministriesData?.length);
 
       // Fetch member counts for each ministry
-      const { data: memberCounts, error: countError } = await supabase
-        .from("ministry_members")
-        .select("ministry_id")
-        .in(
-          "ministry_id",
-          ministriesData.map((m) => m.id),
-        );
-
-      if (countError) {
-        console.error("Error fetching member counts:", countError);
+      let memberCounts = [];
+      if (ministriesData && ministriesData.length > 0) {
+        const ministryIds = ministriesData.map((m) => m.id);
+        // Note: This may need to be adjusted based on your CRUD client's support for 'in' queries
+        // For now, we'll fetch all ministry members and filter client-side
+        memberCounts = await select("ministry_members", {
+          select: "ministry_id"
+        });
+        // Filter to only the ministries we care about
+        memberCounts = memberCounts.filter((count: any) => ministryIds.includes(count.ministry_id));
       }
 
       // Count members for each ministry
@@ -385,18 +379,16 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         }, {}) || {};
 
       // Fetch user's memberships with full details
-      const { data: membershipData, error: membershipError } = await supabase
-        .from("ministry_members")
-        .select("ministry_id, role, church_id")
-        .eq("user_id", user.id)
-        .eq("church_id", churchMember?.church_id)
-        .eq("role", "member"); // Only get active memberships
+      const membershipData = await select("ministry_members", {
+        select: "ministry_id, role, church_id",
+        where: {
+          user_id: user.id,
+          church_id: churchMember?.church_id,
+          role: "member"
+        }
+      });
 
-      if (membershipError) {
-        console.error("Error fetching ministry memberships:", membershipError);
-      } else {
-        console.log("User memberships:", membershipData);
-      }
+      console.log("User memberships:", membershipData);
 
       const memberMinistryIds = membershipData?.map((item) => item.ministry_id) || [];
       console.log("Member ministry IDs:", memberMinistryIds);
@@ -431,27 +423,22 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   // Navigate to ministry detail screen
   const navigateToMinistryDetail = async (ministryId: number) => {
     try {
-      // Get the current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
+      if (!user) {
         Alert.alert("Error", "Please log in to continue");
         return;
       }
 
       console.log(`[DEBUG] Checking membership - User ID: ${user.id}, Ministry ID: ${ministryId}`);
 
-      // Direct table query to check for member role
-      const { data: membershipData, error: membershipError } = await supabase
-        .from("ministry_members")
-        .select("role")
-        .eq("ministry_id", ministryId)
-        .eq("user_id", user.id)
-        .eq("role", "member")
-        .maybeSingle();
+      // Check for member role
+      const membershipData = await selectOne("ministry_members", {
+        select: "role",
+        where: {
+          ministry_id: ministryId,
+          user_id: user.id,
+          role: "member"
+        }
+      });
 
       console.log("[DEBUG] Membership query result:", membershipData);
 
@@ -520,17 +507,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("Error getting user:", userError);
-        throw userError;
-      }
-
       if (!user) {
         Alert.alert("Error", "You must be logged in to join a ministry");
         return;
@@ -541,18 +517,13 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         return;
       }
 
-      const { error } = await supabase.from("ministry_members").insert({
+      await insert("ministry_members", {
         ministry_id: ministryId,
         user_id: user.id,
         church_id: userChurchId,
         joined_at: new Date().toISOString(),
         role: "member",
       });
-
-      if (error) {
-        console.error("Error joining ministry:", error);
-        throw error;
-      }
 
       // Refresh the ministries list
       fetchData();
@@ -571,32 +542,15 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
 
-      // Get current user
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("Error getting user:", userError);
-        throw userError;
-      }
-
       if (!user) {
         Alert.alert("Error", "You must be logged in to leave a ministry");
         return;
       }
 
-      const { error } = await supabase
-        .from("ministry_members")
-        .delete()
-        .eq("ministry_id", ministryId)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error leaving ministry:", error);
-        throw error;
-      }
+      await deleteRecord("ministry_members", {
+        ministry_id: ministryId,
+        user_id: user.id
+      });
 
       // Refresh the ministries list
       fetchData();
@@ -624,34 +578,19 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             setLoading(true);
 
             // First, delete all ministry members
-            const { error: membersError } = await supabase
-              .from("ministry_members")
-              .delete()
-              .eq("ministry_id", ministryId);
-
-            if (membersError) {
-              console.error("Error deleting ministry members:", membersError);
-              throw membersError;
-            }
+            await deleteRecord("ministry_members", {
+              ministry_id: ministryId
+            });
 
             // Then, delete any ministry messages
-            const { error: messagesError } = await supabase
-              .from("ministry_messages")
-              .delete()
-              .eq("ministry_id", ministryId);
-
-            if (messagesError) {
-              console.error("Error deleting ministry messages:", messagesError);
-              throw messagesError;
-            }
+            await deleteRecord("ministry_messages", {
+              ministry_id: ministryId
+            });
 
             // Finally, delete the ministry itself
-            const { error } = await supabase.from("ministries").delete().eq("id", ministryId);
-
-            if (error) {
-              console.error("Error deleting ministry:", error);
-              throw error;
-            }
+            await deleteRecord("ministries", {
+              id: ministryId
+            });
 
             // Refresh ministries list
             fetchData();
