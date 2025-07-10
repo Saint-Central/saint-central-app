@@ -33,8 +33,9 @@ import {
   MaterialIcons
 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../../supabaseClient';
-import { User } from '@supabase/supabase-js';
+import { useAuth, User } from '@/contexts/AuthContext';
+import { useCRUD } from '@/utils/crudClient';
+import theme from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,6 +58,7 @@ export type Volunteer = {
   image_url?: string;
   church_id: string;
   created_at: string;
+  user_id: string;
 };
 
 // User church role interface
@@ -73,33 +75,12 @@ type Enrollment = {
   user_id: string;
 };
 
-// Modern color theme with warm and cozy tones
-const THEME = {
-  primary: "#A87C5F",        // Warm brown for main text
-  secondary: "#6B5A50",      // Medium brown for secondary text
-  light: "#A99686",          // Light brown for tertiary text
-  background: "#F9F5F1",     // Light background with warm undertone
-  card: "#FFFFFF",           // White cards
-  accent1: "#F2EBE4",        // Light warm accent
-  accent2: "#E6FFFA",        // Light teal accent
-  accent3: "#FEFCBF",        // Light yellow accent
-  accent4: "#FEE2E2",        // Light red accent
-  border: "#E2D7CE",         // Light borders
-  buttonPrimary: "#C27F55",  // Terracotta for primary buttons
-  buttonSecondary: "#B97A65", // Dusty rust for secondary actions
-  buttonText: "#FFFFFF",     // White text on buttons
-  error: "#BC6C64",          // Dusty rose for errors
-  success: "#7D9B6A",        // Sage green for success
-  warning: "#C78D60",        // Warm amber for warnings
-  shadow: "rgba(45, 36, 31, 0.1)" // Shadow color
-};
-
 const VolunteerHomePage: React.FC = () => {
   // Configure status bar on component mount
   useEffect(() => {
-    StatusBar.setBarStyle('dark-content');
+    StatusBar.setBarStyle('light-content');
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor(THEME.background);
+      StatusBar.setBackgroundColor(theme.pageBg);
       StatusBar.setTranslucent(false);
     }
   }, []);
@@ -110,6 +91,10 @@ const VolunteerHomePage: React.FC = () => {
   const headerHeight = 60;
   const heroMaxHeight = 280;
   const churchSelectorHeight = 70;
+
+  // Auth and CRUD
+  const { user, loading: authLoading } = useAuth();
+  const crud = useCRUD();
 
   // Animated values for collapsible sections
   const heroHeight = scrollY.interpolate({
@@ -139,7 +124,6 @@ const VolunteerHomePage: React.FC = () => {
   // State variables
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [userChurches, setUserChurches] = useState<UserChurch[]>([]);
   const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
   const [hasPermissionToCreate, setHasPermissionToCreate] = useState(false);
@@ -151,25 +135,6 @@ const VolunteerHomePage: React.FC = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [filteredVolunteers, setFilteredVolunteers] = useState<Volunteer[]>([]);
   const [userEnrollments, setUserEnrollments] = useState<Enrollment[]>([]);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
-
-  // Fetch current user on mount
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (data && data.user) {
-          setUser(data.user);
-          console.log("User authenticated:", data.user.id);
-        }
-      } catch (error) {
-        console.error("Error fetching current user:", error);
-      }
-    };
-
-    fetchCurrentUser();
-  }, []);
 
   // Fetch user's churches after user is loaded
   useEffect(() => {
@@ -206,21 +171,27 @@ const VolunteerHomePage: React.FC = () => {
     try {
       setLoading(true);
       
-      // Get churches where the user is a member
-      const { data, error } = await supabase
-        .from('church_members')
-        .select('church_id, role, churches(id, name)')
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        // Transform the data into UserChurch format
-        const churches: UserChurch[] = data.map(item => ({
-          id: item.church_id,
-          name: (item.churches as unknown as { id: string; name: string }).name,
-          role: item.role
-        }));
+      // Get churches where the user is a member with role information
+      const churchMembers = await crud.select('church_members', {
+        where: { user_id: user.id },
+        select: '*'
+      });
+
+      if (churchMembers && churchMembers.length > 0) {
+        // Get church details for each membership
+        const churchPromises = churchMembers.map(async (member: any) => {
+          const church = await crud.selectOne('churches', {
+            where: { id: member.church_id },
+            select: 'id, name'
+          });
+          return church ? {
+            id: church.id,
+            name: church.name,
+            role: member.role
+          } : null;
+        });
+
+        const churches = (await Promise.all(churchPromises)).filter(Boolean) as UserChurch[];
         
         setUserChurches(churches);
         console.log("User churches:", churches);
@@ -247,16 +218,14 @@ const VolunteerHomePage: React.FC = () => {
     
     try {
       // Get all enrollments for the current user
-      const { data, error } = await supabase
-        .from('volunteer_enrollment')
-        .select('id, volunteer_id, user_id')
-        .eq('user_id', user.id);
+      const enrollments = await crud.select('volunteer_enrollment', {
+        where: { user_id: user.id },
+        select: 'id, volunteer_id, user_id'
+      });
       
-      if (error) throw error;
-      
-      if (data) {
-        setUserEnrollments(data);
-        console.log(`Fetched ${data.length} enrollments for user ${user.id}`);
+      if (enrollments) {
+        setUserEnrollments(enrollments);
+        console.log(`Fetched ${enrollments.length} enrollments for user ${user.id}`);
       }
     } catch (error) {
       console.error("Error fetching user enrollments:", error);
@@ -297,18 +266,15 @@ const VolunteerHomePage: React.FC = () => {
       setLoading(true);
       
       // Fetch volunteers for the selected church
-      const { data, error } = await supabase
-        .from("volunteer")
-        .select("*")
-        .eq("church_id", selectedChurchId)
-        .order("time", { ascending: false });
+      const volunteerData = await crud.select('volunteer', {
+        where: { church_id: selectedChurchId },
+        order: 'time DESC'
+      });
       
-      if (error) throw error;
-      
-      if (data) {
-        setVolunteers(data);
-        setFilteredVolunteers(data);
-        console.log(`Fetched ${data.length} volunteer opportunities for church ${selectedChurchId}`);
+      if (volunteerData) {
+        setVolunteers(volunteerData);
+        setFilteredVolunteers(volunteerData);
+        console.log(`Fetched ${volunteerData.length} volunteer opportunities for church ${selectedChurchId}`);
         
         // After fetching volunteers, fetch user enrollments
         await fetchUserEnrollments();
@@ -345,12 +311,9 @@ const VolunteerHomePage: React.FC = () => {
 
     try {
       // Check if already enrolled
-      const { data: existingEnrollment } = await supabase
-        .from('volunteer_enrollment')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('volunteer_id', volunteerId)
-        .single();
+      const existingEnrollment = await crud.selectOne('volunteer_enrollment', {
+        where: { user_id: user.id, volunteer_id: volunteerId }
+      });
 
       if (existingEnrollment) {
         setErrorMessage('You are already signed up for this opportunity');
@@ -359,20 +322,14 @@ const VolunteerHomePage: React.FC = () => {
       }
 
       // Add new enrollment
-      const { error } = await supabase.from('volunteer_enrollment').insert([
-        {
-          user_id: user.id,
-          volunteer_id: volunteerId,
-          enrollment_date: new Date().toISOString(),
-          hide_email: true,
-          hide_phone: true,
-          hide_name: false,
-        },
-      ]);
-
-      if (error) {
-        throw error;
-      }
+      await crud.insert('volunteer_enrollment', {
+        user_id: user.id,
+        volunteer_id: volunteerId,
+        enrollment_date: new Date().toISOString(),
+        hide_email: true,
+        hide_phone: true,
+        hide_name: false,
+      });
 
       // Refresh enrollments to update UI
       await fetchUserEnrollments();
@@ -406,14 +363,7 @@ const VolunteerHomePage: React.FC = () => {
       }
 
       // Delete the enrollment
-      const { error } = await supabase
-        .from('volunteer_enrollment')
-        .delete()
-        .eq('id', enrollment.id);
-
-      if (error) {
-        throw error;
-      }
+      await crud.delete('volunteer_enrollment', { id: enrollment.id });
 
       // Refresh enrollments to update UI
       await fetchUserEnrollments();
@@ -487,25 +437,24 @@ const VolunteerHomePage: React.FC = () => {
 
   // Get volunteer icon and color based on description
   const getVolunteerIconAndColor = (volunteer: Volunteer): { icon: string, color: string } => {
-    // FIX: Added null/undefined check with optional chaining and empty string fallback
     const title = (volunteer.description?.toLowerCase() || '');
     
     if (title.includes("bible") || title.includes("study")) {
-      return { icon: "book", color: "#9B8557" }; // Muted gold
+      return { icon: "book", color: theme.accent1 };
     } else if (title.includes("sunday") || title.includes("service") || title.includes("worship")) {
-      return { icon: "home", color: "#B97A65" }; // Muted rust
+      return { icon: "home", color: theme.secondary };
     } else if (title.includes("youth") || title.includes("meetup") || title.includes("young")) {
-      return { icon: "message-circle", color: "#C78D60" }; // Warm amber
+      return { icon: "message-circle", color: theme.warning };
     } else if (title.includes("prayer") || title.includes("breakfast")) {
-      return { icon: "coffee", color: "#D8846B" }; // Soft coral
+      return { icon: "coffee", color: theme.accent3 };
     } else if (title.includes("meeting") || title.includes("committee")) {
-      return { icon: "users", color: "#A87C5F" }; // Warm brown
+      return { icon: "users", color: theme.primary };
     } else if (title.includes("music") || title.includes("choir") || title.includes("practice")) {
-      return { icon: "music", color: "#C27F55" }; // Soft terracotta
+      return { icon: "music", color: theme.accent1 };
     } else if (title.includes("volunteer") || title.includes("serve") || title.includes("outreach")) {
-      return { icon: "heart", color: "#BC6C64" }; // Dusty rose
+      return { icon: "heart", color: theme.error };
     }
-    return { icon: "calendar", color: "#8A7668" }; // Medium brown
+    return { icon: "calendar", color: theme.neutral600 };
   };
 
   // Helper function to handle null image URLs
@@ -533,20 +482,20 @@ const VolunteerHomePage: React.FC = () => {
   // Render search bar
   const renderSearchBar = () => (
     <View style={styles.searchContainer}>
-      <Feather name="search" size={18} color={THEME.secondary} style={styles.searchIcon} />
+      <Feather name="search" size={18} color={theme.textMedium} style={styles.searchIcon} />
       <TextInput
         style={styles.searchInput}
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Search volunteer opportunities..."
-        placeholderTextColor={THEME.light}
+        placeholderTextColor={theme.textLight}
       />
       {searchQuery.length > 0 && (
         <TouchableOpacity
           style={styles.clearSearchButton}
           onPress={() => setSearchQuery("")}
         >
-          <Feather name="x" size={18} color={THEME.secondary} />
+          <Feather name="x" size={18} color={theme.textMedium} />
         </TouchableOpacity>
       )}
     </View>
@@ -557,7 +506,7 @@ const VolunteerHomePage: React.FC = () => {
     const { icon, color } = getVolunteerIconAndColor(item);
     const volunteerTime = new Date(item.time);
     const isPastVolunteer = volunteerTime < new Date();
-    const isCreator = user && item.created_at === user.id;
+    const isCreator = user && item.user_id === user.id;
     const canEdit = hasPermissionToCreate || isCreator;
     const isEnrolled = isUserEnrolled(item.id);
     
@@ -600,13 +549,13 @@ const VolunteerHomePage: React.FC = () => {
               </Text>
               <View style={styles.volunteerTimeLocationContainer}>
                 <View style={styles.dateTimeRow}>
-                  <Feather name="clock" size={14} color={THEME.secondary} style={styles.smallIcon} />
+                  <Feather name="clock" size={14} color={theme.textMedium} style={styles.smallIcon} />
                   <Text style={styles.volunteerDateTime}>
                     {formatDate(item.time)} • {formatTime(item.time)}
                   </Text>
                 </View>
                 <View style={styles.locationRow}>
-                  <Feather name="map-pin" size={14} color={THEME.secondary} style={styles.smallIcon} />
+                  <Feather name="map-pin" size={14} color={theme.textMedium} style={styles.smallIcon} />
                   <Text style={styles.volunteerLocation} numberOfLines={1} ellipsizeMode="tail">
                     {item.location || "Location TBD"}
                   </Text>
@@ -633,7 +582,7 @@ const VolunteerHomePage: React.FC = () => {
                   style={[styles.actionButton, styles.editActionButton]}
                   onPress={() => handleEditVolunteer(item)}
                 >
-                  <Feather name="edit-2" size={16} color={THEME.buttonPrimary} />
+                  <Feather name="edit-2" size={16} color={theme.primary} />
                   <Text style={[styles.actionButtonText, styles.editActionText]}>Edit</Text>
                 </TouchableOpacity>
               </>
@@ -654,7 +603,7 @@ const VolunteerHomePage: React.FC = () => {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Feather name="user-minus" size={16} color={THEME.buttonText} />
+                    <Feather name="user-minus" size={16} color={theme.textWhite} />
                     <Text style={[styles.actionButtonText, styles.leaveActionText]}>Leave</Text>
                   </>
                 )}
@@ -674,7 +623,7 @@ const VolunteerHomePage: React.FC = () => {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Feather name="user-plus" size={16} color={THEME.buttonText} />
+                    <Feather name="user-plus" size={16} color={theme.textWhite} />
                     <Text style={[styles.actionButtonText, styles.enrollActionText]}>Sign Up</Text>
                   </>
                 )}
@@ -688,8 +637,6 @@ const VolunteerHomePage: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Removed ExpoStatusBar - using native StatusBar configuration instead */}
-      
       {/* Fixed Header */}
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
@@ -699,13 +646,13 @@ const VolunteerHomePage: React.FC = () => {
               style={styles.headerButton}
               onPress={() => setShowSearch(!showSearch)}
             >
-              <Feather name={showSearch ? "x" : "search"} size={22} color={THEME.primary} />
+              <Feather name={showSearch ? "x" : "search"} size={22} color={theme.primary} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.headerButton}
               onPress={onRefresh}
             >
-              <Feather name="refresh-cw" size={22} color={THEME.primary} />
+              <Feather name="refresh-cw" size={22} color={theme.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -750,7 +697,7 @@ const VolunteerHomePage: React.FC = () => {
           ]}
         >
           <LinearGradient
-            colors={['#A87C5F', '#C27F55']} // Warm brown to terracotta gradient
+            colors={theme.gradientPrimary}
             style={styles.heroBackground}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -827,12 +774,12 @@ const VolunteerHomePage: React.FC = () => {
           <View style={styles.listContainer}>
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={THEME.buttonPrimary} />
+                <ActivityIndicator size="large" color={theme.primary} />
                 <Text style={styles.loadingText}>Loading volunteer opportunities...</Text>
               </View>
             ) : filteredVolunteers.length === 0 ? (
               <View style={styles.noVolunteersContainer}>
-                <Feather name="heart" size={50} color={THEME.light} />
+                <Feather name="heart" size={50} color={theme.textLight} />
                 <Text style={styles.noVolunteersText}>No volunteer opportunities found</Text>
                 <Text style={styles.noVolunteersSubtext}>
                   {searchQuery ? "Try a different search term" : 
@@ -859,21 +806,21 @@ const VolunteerHomePage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   safeArea: {
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
     zIndex: 1,
   },
   header: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: THEME.border,
+    borderBottomColor: theme.divider,
   },
   scrollView: {
     flex: 1,
@@ -887,20 +834,16 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    ...theme.shadowMedium,
   },
   mainContainer: {
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   // Header
   headerTitle: {
     fontSize: 26,
-    fontWeight: "700",
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -910,7 +853,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.cardBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
@@ -922,11 +865,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 8,
     marginBottom: 12,
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBg,
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   searchIcon: {
     marginRight: 8,
@@ -935,7 +878,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textWhite,
   },
   clearSearchButton: {
     padding: 8,
@@ -960,7 +903,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 24,
-    fontWeight: "800",
+    fontWeight: theme.fontBold,
     color: "#FFFFFF",
     textAlign: "center",
     marginBottom: 8,
@@ -988,7 +931,7 @@ const styles = StyleSheet.create({
   addVolunteerButtonText: {
     fontSize: 16,
     color: "#FFFFFF",
-    fontWeight: "700",
+    fontWeight: theme.fontBold,
     marginRight: 10,
   },
   // Church selector styles
@@ -998,8 +941,8 @@ const styles = StyleSheet.create({
   },
   selectorLabel: {
     fontSize: 15,
-    fontWeight: "600",
-    color: THEME.primary,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
     marginBottom: 8,
   },
   churchSelector: {
@@ -1009,23 +952,23 @@ const styles = StyleSheet.create({
   churchOption: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.cardBg,
     borderRadius: 20,
     marginRight: 10,
     borderWidth: 1,
-    borderColor: THEME.border,
+    borderColor: theme.divider,
   },
   churchOptionActive: {
-    backgroundColor: THEME.buttonPrimary,
-    borderColor: THEME.buttonPrimary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   churchOptionText: {
-    color: THEME.secondary,
-    fontWeight: "500",
+    color: theme.textMedium,
+    fontWeight: theme.fontMedium,
   },
   churchOptionTextActive: {
-    color: THEME.buttonText,
-    fontWeight: "600",
+    color: theme.textWhite,
+    fontWeight: theme.fontSemiBold,
   },
   // List View
   listContainer: {
@@ -1040,46 +983,38 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textMedium,
   },
   noVolunteersContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     padding: 30,
     marginVertical: 20,
-    shadowColor: THEME.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...theme.shadowLight,
   },
   noVolunteersText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
     marginTop: 16,
     marginBottom: 8,
   },
   noVolunteersSubtext: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textMedium,
     textAlign: 'center',
     marginHorizontal: 20,
   },
   // Volunteer Cards
   volunteerCard: {
-    backgroundColor: THEME.card,
+    backgroundColor: theme.cardBg,
     borderRadius: 16,
     marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadowMedium,
     borderLeftWidth: 4,
-    overflow: 'hidden', // This ensures the image stays within the rounded corners
+    overflow: 'hidden',
   },
   volunteerContent: {
     padding: 16,
@@ -1104,8 +1039,8 @@ const styles = StyleSheet.create({
   },
   volunteerTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: THEME.primary,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
     marginBottom: 4,
   },
   volunteerTimeLocationContainer: {
@@ -1121,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   volunteerDateTime: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textMedium,
   },
   locationRow: {
     flexDirection: 'row',
@@ -1129,32 +1064,32 @@ const styles = StyleSheet.create({
   },
   volunteerLocation: {
     fontSize: 14,
-    color: THEME.secondary,
+    color: theme.textMedium,
   },
   hostName: {
     fontSize: 12,
-    color: THEME.light,
+    color: theme.textLight,
     marginLeft: 4,
   },
   // Updated description styles
   descriptionContainer: {
-    backgroundColor: THEME.accent1,
+    backgroundColor: theme.cardBg,
     borderRadius: 12,
     padding: 12,
     marginTop: 16,
     marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: THEME.buttonPrimary,
+    borderLeftColor: theme.primary,
   },
   descriptionLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: THEME.buttonPrimary,
+    fontWeight: theme.fontSemiBold,
+    color: theme.primary,
     marginBottom: 6,
   },
   volunteerDescription: {
     fontSize: 16,
-    color: THEME.primary,
+    color: theme.textWhite,
     lineHeight: 24,
   },
   // Updated image styles
@@ -1191,32 +1126,32 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: theme.fontSemiBold,
     marginLeft: 6,
   },
   editActionButton: {
-    backgroundColor: THEME.accent1,
+    backgroundColor: theme.cardBg,
   },
   editActionText: {
-    color: THEME.buttonPrimary,
+    color: theme.primary,
   },
   enrollActionButton: {
-    backgroundColor: THEME.success,
+    backgroundColor: theme.success,
   },
   enrollActionButtonDisabled: {
     opacity: 0.7,
   },
   enrollActionText: {
-    color: THEME.buttonText,
+    color: theme.textWhite,
   },
   leaveActionButton: {
-    backgroundColor: THEME.error,
+    backgroundColor: theme.error,
   },
   leaveActionButtonDisabled: {
     opacity: 0.7,
   },
   leaveActionText: {
-    color: THEME.buttonText,
+    color: theme.textWhite,
   },
 });
 
