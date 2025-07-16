@@ -397,8 +397,8 @@ const cardStyles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 15,
     elevation: 5,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
+    borderWidth: 2,
+    borderColor: "#E5E5E5",
   },
   cardContent: {
     borderRadius: 20,
@@ -425,27 +425,29 @@ const cardStyles = StyleSheet.create({
     position: "absolute",
     top: 16,
     right: 16,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
   },
   dateBadgeDay: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: "#000000",
     lineHeight: 18,
   },
   dateBadgeMonth: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#666",
+    color: "#555",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -467,6 +469,7 @@ const cardStyles = StyleSheet.create({
   cardHeader: {
     padding: 20,
     paddingBottom: 16,
+    backgroundColor: "#F8F8F8",
   },
   headerMain: {
     flexDirection: "row",
@@ -486,7 +489,7 @@ const cardStyles = StyleSheet.create({
   eventTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: "#000000",
     lineHeight: 26,
     marginBottom: 8,
     letterSpacing: -0.3,
@@ -523,6 +526,7 @@ const cardStyles = StyleSheet.create({
   detailsContainer: {
     paddingHorizontal: 20,
     paddingBottom: 4,
+    backgroundColor: "#FFFFFF",
   },
   locationContainer: {
     flexDirection: "row",
@@ -553,7 +557,7 @@ const cardStyles = StyleSheet.create({
   excerptText: {
     fontSize: 15,
     lineHeight: 22,
-    color: "#4a4a4a",
+    color: "#2a2a2a",
     marginBottom: 16,
     fontWeight: "400",
   },
@@ -605,9 +609,9 @@ const cardStyles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.06)",
-    backgroundColor: "rgba(0,0,0,0.01)",
+    borderTopWidth: 2,
+    borderTopColor: "#E5E5E5",
+    backgroundColor: "#F0F0F0",
   },
   footerButton: {
     flexDirection: "row",
@@ -626,7 +630,7 @@ const cardStyles = StyleSheet.create({
   footerDivider: {
     width: 1,
     height: 16,
-    backgroundColor: "rgba(0,0,0,0.1)",
+    backgroundColor: "#C0C0C0",
     marginHorizontal: 16,
   },
   actionButtonsContainer: {
