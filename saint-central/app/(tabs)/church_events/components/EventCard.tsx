@@ -70,7 +70,7 @@ const EventCard: React.FC<EventCardProps> = ({
 
   // Card press animation
   const handlePressIn = () => {
-    scale.value = withSpring(0.98, { damping: 15, stiffness: 150 });
+    scale.value = withSpring(0.97, { damping: 15, stiffness: 150 });
   };
 
   const handlePressOut = () => {
@@ -163,13 +163,13 @@ const EventCard: React.FC<EventCardProps> = ({
     return {
       transform: [{ scale: scale.value }, { translateX: translateX.value }],
       opacity: cardOpacity.value,
-      // Add shadow and border effects when swiped
-      shadowOpacity: isSwipeActive ? 0.15 : 0.1,
-      shadowRadius: isSwipeActive ? 15 : 10,
-      elevation: isSwipeActive ? 5 : 3,
-      // Add right border highlight when swiped
-      borderRightWidth: isSwipeActive ? 3 : 0,
-      borderRightColor: THEME.primary + "50", // Semi-transparent version of primary color
+      // Enhanced shadow and border effects when swiped
+      shadowOpacity: isSwipeActive ? 0.25 : 0.15,
+      shadowRadius: isSwipeActive ? 20 : 15,
+      elevation: isSwipeActive ? 8 : 5,
+      // Add subtle glow effect when swiped
+      borderRightWidth: isSwipeActive ? 2 : 0,
+      borderRightColor: color + "80", // Semi-transparent version of event color
     };
   });
 
@@ -208,22 +208,22 @@ const EventCard: React.FC<EventCardProps> = ({
       <Animated.View style={[cardStyles.actionButtonsContainer, actionButtonsStyle]}>
         {canEdit && (
           <TouchableOpacity
-            style={[cardStyles.actionButton, { backgroundColor: THEME.primary }]}
+            style={[cardStyles.actionButton, { backgroundColor: color }]}
             onPress={() => {
               resetSwipe();
               onEdit(item);
             }}
           >
-            <Feather name="edit-2" size={20} color="#FFFFFF" />
+            <Feather name="edit-2" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         )}
 
         {canEdit && (
           <TouchableOpacity
-            style={[cardStyles.actionButton, { backgroundColor: "#E53935" }]}
+            style={[cardStyles.actionButton, { backgroundColor: "#FF4757" }]}
             onPress={handleDelete}
           >
-            <Feather name="trash-2" size={20} color="#FFFFFF" />
+            <Feather name="trash-2" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         )}
       </Animated.View>
@@ -239,54 +239,10 @@ const EventCard: React.FC<EventCardProps> = ({
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             onPress={handleCardPress}
-            style={[cardStyles.cardContent, { opacity: isPastEvent ? 0.8 : 1 }]}
+            style={[cardStyles.cardContent, { opacity: isPastEvent ? 0.75 : 1 }]}
             activeOpacity={0.95}
           >
-            {/* Card Header with colored accent */}
-            <View style={cardStyles.cardHeader}>
-              <View style={[cardStyles.colorAccent, { backgroundColor: color }]} />
-              <View style={cardStyles.headerContent}>
-                <View style={[cardStyles.iconCircle, { backgroundColor: color }]}>
-                  <Feather name={icon as any} size={20} color="#fff" />
-                </View>
-                <View style={cardStyles.headerTextContainer}>
-                  <Text style={cardStyles.eventTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <View style={cardStyles.dateTimeContainer}>
-                    <View style={cardStyles.dateTimeRow}>
-                      <Feather
-                        name="calendar"
-                        size={14}
-                        color={THEME.primary}
-                        style={cardStyles.infoIcon}
-                      />
-                      <Text style={cardStyles.dateText}>
-                        {formatEventDay(item.time)}, {formatEventMonth(item.time)}{" "}
-                        {formatEventDate(item.time)}
-                      </Text>
-                    </View>
-                    <View style={cardStyles.dateTimeRow}>
-                      <Feather
-                        name="clock"
-                        size={14}
-                        color={THEME.primary}
-                        style={cardStyles.infoIcon}
-                      />
-                      <Text style={cardStyles.timeText}>{formatEventTime(item.time)}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {item.is_recurring && (
-                <View style={cardStyles.recurringBadge}>
-                  <MaterialIcons name="repeat" size={14} color="#fff" />
-                </View>
-              )}
-            </View>
-
-            {/* Event Image (if available) */}
+            {/* Event Image with gradient overlay */}
             {item.image_url && (
               <TouchableOpacity
                 style={cardStyles.imageContainer}
@@ -297,97 +253,127 @@ const EventCard: React.FC<EventCardProps> = ({
                   style={cardStyles.image}
                   resizeMode="cover"
                 />
-                <View style={cardStyles.imageOverlay} />
+                <View style={[cardStyles.imageGradient, { backgroundColor: color + "40" }]} />
+                
+                {/* Floating date badge */}
+                <View style={cardStyles.dateBadge}>
+                  <Text style={cardStyles.dateBadgeDay}>{formatEventDate(item.time)}</Text>
+                  <Text style={cardStyles.dateBadgeMonth}>{formatEventMonth(item.time).substring(0, 3)}</Text>
+                </View>
+
+                {/* Recurring badge on image */}
+                {item.is_recurring && (
+                  <View style={[cardStyles.recurringImageBadge, { backgroundColor: color }]}>
+                    <MaterialIcons name="repeat" size={14} color="#fff" />
+                  </View>
+                )}
               </TouchableOpacity>
             )}
 
-            {/* Event Details */}
-            <View style={cardStyles.detailsContainer}>
-              {/* Location */}
-              <View style={cardStyles.locationContainer}>
-                <View style={cardStyles.locationRow}>
-                  <Feather
-                    name="map-pin"
-                    size={14}
-                    color={THEME.primary}
-                    style={cardStyles.infoIcon}
-                  />
-                  <Text style={cardStyles.locationText} numberOfLines={1} ellipsizeMode="tail">
-                    {item.author_name || "Location TBD"}
-                    {item.churches && (
-                      <Text style={cardStyles.churchName}> • {item.churches.name}</Text>
-                    )}
+            {/* Card Header */}
+            <View style={cardStyles.cardHeader}>
+              <View style={cardStyles.headerMain}>
+                <View style={[cardStyles.iconCircle, { backgroundColor: color + "15" }]}>
+                  <Feather name={icon as any} size={20} color={color} />
+                </View>
+                
+                <View style={cardStyles.headerTextContainer}>
+                  <Text style={cardStyles.eventTitle} numberOfLines={2}>
+                    {item.title}
                   </Text>
+                  
+                  <View style={cardStyles.timeContainer}>
+                    <View style={cardStyles.timeRow}>
+                      <Feather name="clock" size={12} color={color} />
+                      <Text style={[cardStyles.timeText, { color: color }]}>
+                        {formatEventTime(item.time)}
+                      </Text>
+                    </View>
+                    <Text style={cardStyles.dayText}>
+                      {formatEventDay(item.time)}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
-              {/* Excerpt */}
+              {!item.image_url && item.is_recurring && (
+                <View style={[cardStyles.recurringBadge, { backgroundColor: color }]}>
+                  <MaterialIcons name="repeat" size={12} color="#fff" />
+                </View>
+              )}
+            </View>
+
+            {/* Event Details */}
+            <View style={cardStyles.detailsContainer}>
+              {/* Location with enhanced styling */}
+              <View style={cardStyles.locationContainer}>
+                <View style={[cardStyles.locationBadge, { backgroundColor: color + "10" }]}>
+                  <Feather name="map-pin" size={12} color={color} />
+                  <Text style={[cardStyles.locationText, { color: color }]} numberOfLines={1}>
+                    {item.author_name || "Location TBD"}
+                  </Text>
+                </View>
+                {item.churches && (
+                  <Text style={cardStyles.churchName}>• {item.churches.name}</Text>
+                )}
+              </View>
+
+              {/* Excerpt with better typography */}
               {item.excerpt && (
-                <Text style={cardStyles.excerptText} numberOfLines={2}>
+                <Text style={cardStyles.excerptText} numberOfLines={3}>
                   {item.excerpt}
                 </Text>
               )}
 
-              {/* Recurring info badge */}
+              {/* Recurring info with enhanced design */}
               {item.is_recurring && (
-                <View style={cardStyles.recurringInfoContainer}>
-                  <MaterialIcons name="repeat" size={14} color={color} style={{ marginRight: 4 }} />
-                  <Text style={cardStyles.recurringInfoText}>
+                <View style={[cardStyles.recurringInfoContainer, { backgroundColor: color + "08" }]}>
+                  <View style={[cardStyles.recurringDot, { backgroundColor: color }]} />
+                  <Text style={[cardStyles.recurringInfoText, { color: color }]}>
                     {item.recurrence_type === "daily" && `Repeats daily`}
                     {item.recurrence_type === "weekly" &&
-                      `Repeats weekly on ${item.recurrence_days_of_week?.map((day) => getDayName(day).substring(0, 3)).join(", ")}`}
-                    {item.recurrence_type === "monthly" && `Repeats monthly`}
-                    {item.recurrence_type === "yearly" && `Repeats yearly`}
+                      `Every ${item.recurrence_days_of_week?.map((day) => getDayName(day).substring(0, 3)).join(", ")}`}
+                    {item.recurrence_type === "monthly" && `Monthly event`}
+                    {item.recurrence_type === "yearly" && `Annual event`}
                   </Text>
                 </View>
               )}
 
-              {/* Video link button (if available) */}
+              {/* Enhanced video button */}
               {item.video_link && (
                 <TouchableOpacity
-                  style={cardStyles.videoButton}
+                  style={[cardStyles.videoButton, { backgroundColor: color }]}
                   onPress={() => Linking.openURL(item.video_link!)}
                 >
-                  <Feather
-                    name="play-circle"
-                    size={16}
-                    color="#FFFFFF"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text style={cardStyles.videoButtonText}>Watch Video</Text>
+                  <View style={cardStyles.videoButtonContent}>
+                    <Feather name="play" size={14} color="#FFFFFF" />
+                    <Text style={cardStyles.videoButtonText}>Watch Live</Text>
+                  </View>
                 </TouchableOpacity>
               )}
+            </View>
 
-              {/* Footer actions */}
-              <View style={cardStyles.cardFooter}>
-                <TouchableOpacity
-                  style={cardStyles.footerButton}
-                  onPress={() => {
-                    const message = `${item.title}\n${formatEventDay(item.time)}, ${formatEventMonth(item.time)} ${formatEventDate(item.time)} at ${formatEventTime(item.time)}\nLocation: ${item.author_name || "TBD"}\n\n${item.excerpt}`;
-                    Linking.openURL(
-                      `mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(message)}`,
-                    );
-                  }}
-                >
-                  <Feather
-                    name="share-2"
-                    size={14}
-                    color={THEME.neutral800}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={cardStyles.footerButtonText}>Share</Text>
-                </TouchableOpacity>
+            {/* Enhanced Footer */}
+            <View style={cardStyles.cardFooter}>
+              <TouchableOpacity
+                style={cardStyles.footerButton}
+                onPress={() => {
+                  const message = `${item.title}\n${formatEventDay(item.time)}, ${formatEventMonth(item.time)} ${formatEventDate(item.time)} at ${formatEventTime(item.time)}\nLocation: ${item.author_name || "TBD"}\n\n${item.excerpt}`;
+                  Linking.openURL(
+                    `mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(message)}`,
+                  );
+                }}
+              >
+                <Feather name="share-2" size={14} color={THEME.neutral600} />
+                <Text style={cardStyles.footerButtonText}>Share</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity style={cardStyles.footerButton} onPress={handleCardPress}>
-                  <Feather
-                    name="info"
-                    size={14}
-                    color={THEME.neutral800}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={cardStyles.footerButtonText}>Details</Text>
-                </TouchableOpacity>
-              </View>
+              <View style={cardStyles.footerDivider} />
+
+              <TouchableOpacity style={cardStyles.footerButton} onPress={handleCardPress}>
+                <Feather name="arrow-right" size={14} color={color} />
+                <Text style={[cardStyles.footerButtonText, { color: color, fontWeight: '600' }]}>Details</Text>
+              </TouchableOpacity>
             </View>
           </AnimatedTouchable>
         </Animated.View>
@@ -399,90 +385,27 @@ const EventCard: React.FC<EventCardProps> = ({
 const cardStyles = StyleSheet.create({
   cardContainer: {
     position: "relative",
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: "visible",
+    marginBottom: 20,
+    marginHorizontal: 4,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: THEME.cardBg,
+    backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
   cardContent: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
   },
-  cardHeader: {
-    flexDirection: "row",
-    padding: 16,
-    position: "relative",
-  },
-  colorAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 6,
-    height: "100%",
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 0,
-  },
-  headerContent: {
-    flexDirection: "row",
-    flex: 1,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  headerTextContainer: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  eventTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.textDark,
-    marginBottom: 8,
-  },
-  dateTimeContainer: {
-    flexDirection: "column",
-  },
-  dateTimeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  infoIcon: {
-    marginRight: 6,
-  },
-  dateText: {
-    fontSize: 14,
-    color: THEME.neutral800,
-  },
-  timeText: {
-    fontSize: 14,
-    color: THEME.neutral800,
-  },
-  recurringBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: THEME.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-  },
   imageContainer: {
-    height: 160,
+    height: 180,
     overflow: "hidden",
     position: "relative",
   },
@@ -490,108 +413,245 @@ const cardStyles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  imageOverlay: {
+  imageGradient: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: 60,
-    backgroundColor: "rgba(0,0,0,0.2)",
+    height: 80,
+    opacity: 0.3,
   },
-  detailsContainer: {
-    padding: 16,
+  dateBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  locationContainer: {
-    marginBottom: 12,
+  dateBadgeDay: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#1a1a1a",
+    lineHeight: 18,
   },
-  locationRow: {
+  dateBadgeMonth: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  recurringImageBadge: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardHeader: {
+    padding: 20,
+    paddingBottom: 16,
+  },
+  headerMain: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    lineHeight: 26,
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  timeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  timeRow: {
     flexDirection: "row",
     alignItems: "center",
   },
-  locationText: {
+  timeText: {
     fontSize: 14,
-    color: THEME.neutral800,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  dayText: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "500",
+  },
+  recurringBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "absolute",
+    top: 20,
+    right: 20,
+  },
+  detailsContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 4,
+  },
+  locationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    flexWrap: "wrap",
+  },
+  locationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  locationText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   churchName: {
-    color: THEME.textLight,
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "500",
   },
   excerptText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: THEME.neutral700,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#4a4a4a",
     marginBottom: 16,
+    fontWeight: "400",
   },
   recurringInfoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.03)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     marginBottom: 16,
   },
+  recurringDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 8,
+  },
   recurringInfoText: {
-    fontSize: 13,
-    color: THEME.textMedium,
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   videoButton: {
+    borderRadius: 14,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  videoButtonContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: THEME.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   videoButtonText: {
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 14,
+    marginLeft: 8,
+    letterSpacing: 0.3,
   },
   cardFooter: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 8,
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.05)",
+    borderTopColor: "rgba(0,0,0,0.06)",
+    backgroundColor: "rgba(0,0,0,0.01)",
   },
   footerButton: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
+    flex: 1,
+    justifyContent: "center",
   },
   footerButtonText: {
     fontSize: 13,
-    color: THEME.neutral800,
+    color: "#666",
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  footerDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    marginHorizontal: 16,
   },
   actionButtonsContainer: {
     position: "absolute",
-    right: 8,
+    right: 12,
     top: "50%",
-    marginTop: -60,
+    marginTop: -50,
     zIndex: 10,
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    height: 120,
-    paddingRight: 8,
+    height: 100,
   },
   actionButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: THEME.primary,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-    transform: [{ scale: 0.95 }],
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
 
