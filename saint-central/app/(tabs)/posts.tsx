@@ -79,42 +79,63 @@ const apiCall = async (url: string, options: RequestInit = {}) => {
   return data;
 };
 
-// Rich Text Editor Component
+// Rich Text Editor Component - Completely Fixed Version
 const QuillEditor = ({ value, onContentChange, placeholder = "Share your story or message..." }: {
   value: string;
   onContentChange: (content: string) => void;
   placeholder?: string;
 }) => {
   const webviewRef = useRef<WebView>(null);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastContentRef = useRef<string>(value);
+  const contentRef = useRef<string>(value);
+  const isInitializedRef = useRef<boolean>(false);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Memoize the content change handler to prevent unnecessary re-renders
+  // Only update parent when user stops typing for a while or loses focus
+  const updateParentContent = useCallback(() => {
+    if (contentRef.current !== value) {
+      onContentChange(contentRef.current);
+    }
+  }, [onContentChange, value]);
+
+  // Update content ref immediately but delay parent update
   const handleContentChange = useCallback((content: string) => {
+    if (!isInitializedRef.current) return;
+    
+    contentRef.current = content;
+    
     // Clear existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
     }
     
-    // Only update if content actually changed
-    if (content !== lastContentRef.current) {
-      lastContentRef.current = content;
-      
-      // Debounce the callback to prevent keyboard from closing
-      debounceTimeoutRef.current = setTimeout(() => {
-        onContentChange(content);
-      }, 300); // 300ms delay
-    }
-  }, [onContentChange]);
+    // Update parent after user stops typing for 2 seconds
+    updateTimeoutRef.current = setTimeout(() => {
+      updateParentContent();
+    }, 2000);
+  }, [updateParentContent]);
 
-  // Cleanup timeout on unmount
+  // Force update parent when component unmounts or when needed
   useEffect(() => {
     return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
       }
+      // Force final update on unmount
+      updateParentContent();
     };
+  }, [updateParentContent]);
+
+  // Method to get current content (for form submission)
+  const getCurrentContent = useCallback(() => {
+    return contentRef.current;
   }, []);
+
+  // Expose method to parent
+  useEffect(() => {
+    if (webviewRef.current) {
+      (webviewRef.current as any).getCurrentContent = getCurrentContent;
+    }
+  }, [getCurrentContent]);
 
   const html = `
 <!DOCTYPE html>
@@ -140,6 +161,7 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
         border-top-right-radius: 12px;
         border-bottom: 1px solid #404040;
         background-color: #333;
+        padding: 12px 16px;
       }
       .ql-container {
         border-bottom-left-radius: 12px;
@@ -159,20 +181,200 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
         content: attr(data-placeholder);
         font-style: italic;
       }
-      .ql-toolbar .ql-stroke {
-        stroke: #ccc;
+      
+      /* Enhanced toolbar button styling */
+      .ql-toolbar button {
+        border-radius: 6px !important;
+        margin: 0 1px !important;
+        padding: 6px 7px !important;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        border: none !important;
+        background-color: transparent !important;
+        position: relative !important;
+        overflow: hidden !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
       }
-      .ql-toolbar .ql-fill {
-        fill: #ccc;
+      
+      /* Make toolbar icons appropriately sized for single line */
+      .ql-toolbar button svg {
+        width: 16px !important;
+        height: 16px !important;
+        position: relative;
+        z-index: 1;
       }
+      
       .ql-toolbar .ql-picker-label {
-        color: #ccc;
+        min-height: 32px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 6px 7px !important;
       }
+      
+      .ql-toolbar .ql-picker-label svg {
+        width: 16px !important;
+        height: 16px !important;
+      }
+      
       .ql-toolbar button:hover {
-        background-color: #444;
+        background-color: rgba(124, 58, 237, 0.1) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2) !important;
       }
+      
+      .ql-toolbar button:active {
+        transform: translateY(0) !important;
+        transition: all 0.05s !important;
+      }
+      
       .ql-toolbar button.ql-active {
-        background-color: #7C3AED;
+        background-color: #7C3AED !important;
+        color: white !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4) !important;
+      }
+      
+      .ql-toolbar button.ql-active:hover {
+        background-color: #6D28D9 !important;
+        box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5) !important;
+      }
+      
+      /* Smooth icon transitions */
+      .ql-toolbar .ql-stroke {
+        stroke: #ccc !important;
+        transition: stroke 0.15s ease !important;
+      }
+      
+      .ql-toolbar .ql-fill {
+        fill: #ccc !important;
+        transition: fill 0.15s ease !important;
+      }
+      
+      .ql-toolbar button:hover .ql-stroke {
+        stroke: #7C3AED !important;
+      }
+      
+      .ql-toolbar button:hover .ql-fill {
+        fill: #7C3AED !important;
+      }
+      
+      .ql-toolbar button.ql-active .ql-stroke {
+        stroke: white !important;
+      }
+      
+      .ql-toolbar button.ql-active .ql-fill {
+        fill: white !important;
+      }
+      
+      /* Enhanced picker styling */
+      .ql-toolbar .ql-picker-label {
+        color: #ccc !important;
+        border-radius: 6px !important;
+        padding: 6px 8px !important;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      }
+      
+      .ql-toolbar .ql-picker-label:hover {
+        background-color: rgba(124, 58, 237, 0.1) !important;
+        color: #7C3AED !important;
+        transform: translateY(-1px) !important;
+      }
+      
+      .ql-toolbar .ql-picker.ql-expanded .ql-picker-label {
+        background-color: #7C3AED !important;
+        color: white !important;
+      }
+      
+      /* Dropdown animations */
+      .ql-toolbar .ql-picker-options {
+        background-color: #2a2a2a !important;
+        border: 1px solid #404040 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+        animation: slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      }
+      
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      .ql-toolbar .ql-picker-item {
+        color: #ccc !important;
+        transition: all 0.15s ease !important;
+        padding: 8px 12px !important;
+        border-radius: 4px !important;
+        margin: 2px !important;
+      }
+      
+      .ql-toolbar .ql-picker-item:hover {
+        background-color: rgba(124, 58, 237, 0.1) !important;
+        color: #7C3AED !important;
+      }
+      
+      /* Link tooltip styling */
+      .ql-tooltip {
+        background-color: #2a2a2a !important;
+        border: 1px solid #404040 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+        color: white !important;
+      }
+      
+      .ql-tooltip input {
+        background-color: #1a1a1a !important;
+        border: 1px solid #404040 !important;
+        border-radius: 6px !important;
+        color: white !important;
+        padding: 8px 12px !important;
+        transition: border-color 0.15s ease !important;
+      }
+      
+      .ql-tooltip input:focus {
+        border-color: #7C3AED !important;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
+      }
+      
+      .ql-tooltip a.ql-action {
+        color: #7C3AED !important;
+        transition: color 0.15s ease !important;
+      }
+      
+      .ql-tooltip a.ql-action:hover {
+        color: #6D28D9 !important;
+      }
+      
+      /* Add ripple effect for button presses */
+      .ql-toolbar button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(124, 58, 237, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.3s, height 0.3s;
+        z-index: 0;
+      }
+      
+      .ql-toolbar button:active::before {
+        width: 40px;
+        height: 40px;
+      }
+      
+      .ql-toolbar button svg {
+        position: relative;
+        z-index: 1;
       }
     </style>
   </head>
@@ -180,6 +382,9 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
     <div id="editor-container"></div>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script>
+      let isInitialized = false;
+      let currentContent = '';
+      
       const quill = new Quill('#editor-container', {
         theme: 'snow',
         placeholder: '${placeholder}',
@@ -197,48 +402,76 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
       const initialContent = '${value.replace(/'/g, "\\'")}';
       if (initialContent && initialContent !== '') {
         quill.root.innerHTML = initialContent;
+        currentContent = initialContent;
       }
       
-      // Track content changes with debouncing
-      let contentChangeTimeout;
-      quill.on('text-change', function() {
-        // Clear existing timeout
-        if (contentChangeTimeout) {
-          clearTimeout(contentChangeTimeout);
-        }
+      // Mark as initialized
+      setTimeout(() => {
+        isInitialized = true;
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'ready'
+        }));
+      }, 100);
+      
+      // Lightweight focus preservation for toolbar interactions
+      const toolbar = document.querySelector('.ql-toolbar');
+      if (toolbar) {
+        // Prevent toolbar from stealing focus but keep formatting snappy
+        toolbar.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+        });
         
-        // Debounce the content change notification
-        contentChangeTimeout = setTimeout(() => {
-          const content = quill.root.innerHTML;
-          if (content !== '<p><br></p>') {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'content-change',
-              content: content
-            }));
-          } else {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'content-change',
-              content: ''
-            }));
-          }
-        }, 100); // Short debounce for immediate feedback, but not every keystroke
+        // Quick refocus after toolbar interaction without interfering with formatting speed
+        toolbar.addEventListener('click', function(e) {
+          // Very fast refocus - no delay to keep formatting responsive
+          setTimeout(() => quill.focus(), 1);
+        });
+      }
+      
+      // Handle content changes - send immediately for responsiveness
+      quill.on('text-change', function() {
+        if (!isInitialized) return;
+        
+        const content = quill.root.innerHTML;
+        const processedContent = content === '<p><br></p>' ? '' : content;
+        
+        // Update current content and send to React Native immediately
+        currentContent = processedContent;
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'content-change',
+          content: processedContent
+        }));
       });
       
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'ready'
-      }));
+      // Simple blur handling - only update parent on real blur
+      quill.root.addEventListener('blur', function(e) {
+        // Check if blur is due to toolbar interaction
+        const relatedTarget = e.relatedTarget;
+        const toolbar = document.querySelector('.ql-toolbar');
+        
+        if (!(relatedTarget && toolbar && toolbar.contains(relatedTarget))) {
+          // Real blur event, update parent
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'blur',
+            content: currentContent
+          }));
+        }
+      });
       
       // Handle messages from React Native
       document.addEventListener("message", function(event) {
         const data = JSON.parse(event.data);
         if (data.type === "getContent") {
-          const content = quill.root.innerHTML;
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'content',
-            content: content !== '<p><br></p>' ? content : ''
+            content: currentContent
           }));
         } else if (data.type === "setContent") {
-          quill.root.innerHTML = data.content || '';
+          const newContent = data.content || '';
+          if (newContent !== currentContent) {
+            currentContent = newContent;
+            quill.root.innerHTML = newContent;
+          }
         }
       });
     </script>
@@ -251,11 +484,19 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'content-change') {
         handleContentChange(data.content);
+      } else if (data.type === 'ready') {
+        isInitializedRef.current = true;
+      } else if (data.type === 'blur') {
+        // Update parent immediately on blur
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+        }
+        updateParentContent();
       }
     } catch (error) {
       console.log('Editor message error:', error);
     }
-  }, [handleContentChange]);
+  }, [handleContentChange, updateParentContent]);
 
   return (
     <View style={styles.editorContainer}>
@@ -275,10 +516,15 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
           scalesPageToFit={false}
           style={styles.webview}
           scrollEnabled={false}
-          // These props help prevent unnecessary re-renders
           cacheEnabled={false}
-          incognito={false}
+          incognito={true}
           sharedCookiesEnabled={false}
+          keyboardDisplayRequiresUserAction={false}
+          hideKeyboardAccessoryView={false}
+          // Critical: Prevent re-renders
+          onShouldStartLoadWithRequest={() => true}
+          onLoadEnd={() => {}}
+          onLoadStart={() => {}}
         />
       </View>
     </View>
@@ -538,7 +784,8 @@ export default function PostsScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth(); // Get user from AuthContext
+  const { user } = useAuth();
+  const editorRef = useRef<WebView>(null);
 
   const headerAnimation = useRef(new Animated.Value(-50)).current;
   const contentAnimation = useRef(new Animated.Value(0)).current;
@@ -559,18 +806,27 @@ export default function PostsScreen() {
     ]).start();
   }, []);
 
-  // Memoize the content change handler to prevent unnecessary re-renders
+  // Handle content change with delayed update
   const handleContentChange = useCallback((content: string) => {
     setFormData(prev => ({ ...prev, excerpt: content }));
   }, []);
+
+  // Get current content from editor for validation and submission
+  const getCurrentEditorContent = useCallback(() => {
+    if (editorRef.current && (editorRef.current as any).getCurrentContent) {
+      return (editorRef.current as any).getCurrentContent();
+    }
+    return formData.excerpt;
+  }, [formData.excerpt]);
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
 
     if (!formData.title.trim()) newErrors.title = "Title is required";
     
-    // For rich text editor, check if content exists (strip HTML for validation)
-    const textContent = formData.excerpt.replace(/<[^>]*>/g, '').trim();
+    // Get current content from editor for validation
+    const currentContent = getCurrentEditorContent();
+    const textContent = currentContent.replace(/<[^>]*>/g, '').trim();
     if (!textContent) newErrors.excerpt = "Description is required";
     
     if (!formData.authorName.trim()) newErrors.authorName = "Author name is required";
@@ -613,13 +869,15 @@ export default function PostsScreen() {
     try {
       console.log("📝 [POST SUBMIT] Starting post submission...");
       console.log("📝 [POST SUBMIT] User ID:", user.id);
-      console.log("📝 [POST SUBMIT] Form data:", formData);
 
+      // Get the latest content from editor
+      const currentContent = getCurrentEditorContent();
+      
       // Prepare post data for pending_posts table
       const postData = {
         user_id: user.id,
         title: formData.title.trim(),
-        excerpt: formData.excerpt, // This now contains rich HTML content
+        excerpt: currentContent, // Use current content from editor
         author_name: formData.authorName.trim(),
         image_url: formData.imageUrl.trim() || null,
         video_link: formData.videoLink.trim() || null,
@@ -675,7 +933,12 @@ export default function PostsScreen() {
     }
   };
 
-  const isFormValid = formData.title && formData.excerpt.replace(/<[^>]*>/g, '').trim() && formData.authorName && formData.category;
+  // Check form validity using current editor content
+  const isFormValid = () => {
+    const currentContent = getCurrentEditorContent();
+    const textContent = currentContent.replace(/<[^>]*>/g, '').trim();
+    return formData.title.trim() && textContent && formData.authorName.trim() && formData.category;
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -769,7 +1032,7 @@ export default function PostsScreen() {
           <SubmitButton
             onPress={handleSubmit}
             loading={loading}
-            disabled={!isFormValid}
+            disabled={!isFormValid()}
           />
 
           {/* Info Card */}
