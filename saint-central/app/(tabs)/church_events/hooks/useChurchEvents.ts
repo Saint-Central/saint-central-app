@@ -56,9 +56,16 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
     console.log("selectedChurchId changed to:", selectedChurchId);
     if (selectedChurchId) {
       fetchEvents();
-      checkPermissions();
+      checkPermissionsForChurch(selectedChurchId);
     }
   }, [selectedChurchId]);
+
+  // Check permissions whenever userChurches changes
+  useEffect(() => {
+    if (selectedChurchId && userChurches.length > 0) {
+      checkPermissionsForChurch(selectedChurchId);
+    }
+  }, [userChurches, selectedChurchId]);
 
   // Initial fetch of events when component mounts, if we have an initialChurchId
   useEffect(() => {
@@ -119,11 +126,14 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
 
     try {
       setLoading(true);
+      console.log("Fetching user churches for user ID:", user.id);
 
       // Get churches where the user is a member
       const memberships = await crud.select("church_members", {
         where: { user_id: user.id }
       });
+
+      console.log("User memberships:", memberships);
 
       if (memberships && memberships.length > 0) {
         // Fetch church details for each membership
@@ -132,6 +142,7 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
             const church = await crud.selectOne("churches", {
               where: { id: membership.church_id }
             });
+            console.log(`Church ${membership.church_id}: role = ${membership.role}`);
             return {
               id: membership.church_id,
               name: church?.name || 'Unknown Church',
@@ -140,15 +151,16 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
           })
         );
 
+        console.log("User churches with roles:", churches);
         setUserChurches(churches);
 
         // Select the first church by default if none is selected
         if (!selectedChurchId && churches.length > 0) {
           setSelectedChurchId(churches[0].id);
         }
-
-        // Check permissions after setting churches
-        checkPermissions();
+      } else {
+        console.log("No church memberships found for user");
+        setUserChurches([]);
       }
     } catch (error) {
       console.error("Error fetching user churches:", error);
@@ -164,17 +176,56 @@ export const useChurchEvents = (initialChurchId?: string | string[] | null) => {
     }
   };
 
-  // Check if user has permission to create/edit events
-  const checkPermissions = () => {
-    if (!user || !selectedChurchId) {
+  // Check if user has permission to create/edit events for a specific church
+  const checkPermissionsForChurch = async (churchId: number) => {
+    console.log(`Checking permissions for church ID: ${churchId}`);
+    
+    if (!user) {
+      console.log("No user, setting permission to false");
       setHasPermissionToCreate(false);
       return;
     }
 
-    const church = userChurches.find((c) => c.id === selectedChurchId);
-    const role = church?.role?.toLowerCase() || "";
+    try {
+      // First check if we have the user's churches loaded
+      if (userChurches.length > 0) {
+        const church = userChurches.find((c) => c.id === churchId);
+        const role = church?.role?.toLowerCase() || "";
+        console.log(`Found church in userChurches, role: ${role}`);
+        setHasPermissionToCreate(role === "admin" || role === "owner");
+        return;
+      }
 
-    setHasPermissionToCreate(role === "admin" || role === "owner");
+      // If userChurches is not loaded yet, fetch the specific membership
+      console.log("User churches not loaded, fetching specific membership");
+      const membership = await crud.selectOne("church_members", {
+        where: { 
+          user_id: user.id,
+          church_id: churchId
+        }
+      });
+
+      console.log("Specific membership:", membership);
+      
+      if (membership) {
+        const role = membership.role?.toLowerCase() || "";
+        console.log(`User role for church ${churchId}: ${role}`);
+        setHasPermissionToCreate(role === "admin" || role === "owner");
+      } else {
+        console.log(`No membership found for user in church ${churchId}`);
+        setHasPermissionToCreate(false);
+      }
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      setHasPermissionToCreate(false);
+    }
+  };
+
+  // Legacy function for backward compatibility
+  const checkPermissions = () => {
+    if (selectedChurchId) {
+      checkPermissionsForChurch(selectedChurchId);
+    }
   };
 
   // Fetch events for selected church
