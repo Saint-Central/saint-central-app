@@ -8,8 +8,9 @@ import {
   Animated,
   Platform,
   TextInput,
-  Alert,
   KeyboardAvoidingView,
+  Modal,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -146,35 +147,32 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
     <style>
       body {
         margin: 0;
-        padding: 16px;
-        background-color: #1a1a1a;
+        padding: 0;
+        background-color: transparent;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
       #editor-container {
         height: 280px;
-        background-color: #2a2a2a;
-        border-radius: 12px;
-        border: 1px solid #404040;
+        background-color: transparent;
+        border: none;
       }
       .ql-toolbar {
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-        border-bottom: 1px solid #404040;
-        background-color: #333;
-        padding: 12px 16px;
+        border: none;
+        background-color: transparent;
+        padding: 8px 0;
       }
       .ql-container {
-        border-bottom-left-radius: 12px;
-        border-bottom-right-radius: 12px;
-        background-color: #2a2a2a;
+        border: none;
+        background-color: transparent;
         color: white;
         font-size: 16px;
       }
       .ql-editor {
         color: white;
         min-height: 200px;
-        padding: 16px;
+        padding: 12px 0;
         line-height: 1.5;
+        border: none;
       }
       .ql-editor.ql-blank::before {
         color: rgba(255, 255, 255, 0.5);
@@ -499,34 +497,33 @@ const QuillEditor = ({ value, onContentChange, placeholder = "Share your story o
   }, [handleContentChange, updateParentContent]);
 
   return (
-    <View style={styles.editorContainer}>
-      <Text style={styles.editorLabel}>
+    <View style={styles.borderlessEditorContainer}>
+      <Text style={styles.borderlessInputLabel}>
         <MaterialCommunityIcons name="text-box" size={16} color={theme.textLight} />
         {"  "}Description
       </Text>
-      <View style={styles.editorWrapper}>
-        <WebView
-          ref={webviewRef}
-          originWhitelist={['*']}
-          source={{ html }}
-          onMessage={handleMessage}
-          javaScriptEnabled
-          domStorageEnabled
-          startInLoadingState={false}
-          scalesPageToFit={false}
-          style={styles.webview}
-          scrollEnabled={false}
-          cacheEnabled={false}
-          incognito={true}
-          sharedCookiesEnabled={false}
-          keyboardDisplayRequiresUserAction={false}
-          hideKeyboardAccessoryView={false}
-          // Critical: Prevent re-renders
-          onShouldStartLoadWithRequest={() => true}
-          onLoadEnd={() => {}}
-          onLoadStart={() => {}}
-        />
-      </View>
+      <WebView
+        ref={webviewRef}
+        originWhitelist={['*']}
+        source={{ html }}
+        onMessage={handleMessage}
+        javaScriptEnabled
+        domStorageEnabled
+        startInLoadingState={false}
+        scalesPageToFit={false}
+        style={styles.borderlessWebview}
+        scrollEnabled={false}
+        cacheEnabled={false}
+        incognito={true}
+        sharedCookiesEnabled={false}
+        keyboardDisplayRequiresUserAction={false}
+        hideKeyboardAccessoryView={false}
+        // Critical: Prevent re-renders
+        onShouldStartLoadWithRequest={() => true}
+        onLoadEnd={() => {}}
+        onLoadStart={() => {}}
+      />
+      <View style={styles.underline} />
     </View>
   );
 };
@@ -556,7 +553,7 @@ const categories = [
   },
 ];
 
-// Form Input Component
+// Borderless Form Input Component
 const FormInput = ({ 
   label, 
   value, 
@@ -578,54 +575,28 @@ const FormInput = ({
   autoCapitalize?: any;
   icon?: string;
 }) => {
-  const focusAnim = useRef(new Animated.Value(0)).current;
-  const [isFocused, setIsFocused] = useState(false);
-
-  const handleFocus = () => {
-    setIsFocused(true);
-    Animated.timing(focusAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleBlur = () => {
-    setIsFocused(false);
-    Animated.timing(focusAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const borderColor = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.divider, theme.primary],
-  });
-
   return (
-    <View style={styles.inputContainer}>
-      <Text style={styles.inputLabel}>
+    <View style={styles.borderlessInputContainer}>
+      <Text style={styles.borderlessInputLabel}>
         {icon && <MaterialCommunityIcons name={icon as any} size={16} color={theme.textLight} />}
         {icon && "  "}
         {label}
       </Text>
-      <Animated.View style={[styles.inputWrapper, { borderColor }]}>
-        <TextInput
-          style={[styles.textInput, multiline && styles.textInputMultiline]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={theme.textLight}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          multiline={multiline}
-          numberOfLines={numberOfLines}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-        />
-      </Animated.View>
+      <TextInput
+        style={[
+          styles.borderlessTextInput,
+          multiline && styles.borderlessTextInputMultiline
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textLight}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+      />
+      <View style={styles.underline} />
     </View>
   );
 };
@@ -717,6 +688,262 @@ const CategorySelector = ({ selectedCategory, onSelectCategory }: {
   );
 };
 
+// Modern Enhanced Modal Component
+const CustomModal = ({ 
+  visible, 
+  title, 
+  message, 
+  type = "info", 
+  onClose, 
+  onConfirm,
+  confirmText = "OK",
+  showCancel = false,
+  cancelText = "Cancel"
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  type?: "success" | "error" | "info" | "warning";
+  onClose: () => void;
+  onConfirm?: () => void;
+  confirmText?: string;
+  showCancel?: boolean;
+  cancelText?: string;
+}) => {
+  const slideAnimation = useRef(new Animated.Value(0)).current;
+  const opacityAnimation = useRef(new Animated.Value(0)).current;
+  const scaleAnimation = useRef(new Animated.Value(0.3)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+  const iconPulse = useRef(new Animated.Value(1)).current;
+  
+  // Modern bounce animation for modal entrance
+  useEffect(() => {
+    if (visible) {
+      // Reset animations
+      slideAnimation.setValue(0);
+      opacityAnimation.setValue(0);
+      scaleAnimation.setValue(0.3);
+      
+      Animated.parallel([
+        Animated.timing(opacityAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnimation, {
+          toValue: 1,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnimation, {
+          toValue: 1,
+          tension: 80,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Icon pulse animation for success/error states
+      if (type === "success" || type === "error") {
+        Animated.sequence([
+          Animated.timing(iconPulse, {
+            toValue: 1.2,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(iconPulse, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    } else {
+      Animated.parallel([
+        Animated.timing(opacityAnimation, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnimation, {
+          toValue: 0.8,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, type]);
+
+  const getIconAndColor = () => {
+    switch (type) {
+      case "success":
+        return { 
+          icon: "check-circle", 
+          color: "#10B981", 
+          bgColor: "rgba(16, 185, 129, 0.1)",
+          gradientColors: ["#10B981", "#059669"]
+        };
+      case "error":
+        return { 
+          icon: "close-circle", 
+          color: "#EF4444", 
+          bgColor: "rgba(239, 68, 68, 0.1)",
+          gradientColors: ["#EF4444", "#DC2626"]
+        };
+      case "warning":
+        return { 
+          icon: "alert", 
+          color: "#F59E0B", 
+          bgColor: "rgba(245, 158, 11, 0.1)",
+          gradientColors: ["#F59E0B", "#D97706"]
+        };
+      default:
+        return { 
+          icon: "information", 
+          color: theme.primary, 
+          bgColor: "rgba(124, 58, 237, 0.1)",
+          gradientColors: [theme.primary, "#6D28D9"]
+        };
+    }
+  };
+
+  const { icon, color, bgColor, gradientColors } = getIconAndColor();
+
+  const handleButtonPressIn = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleButtonPressOut = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleConfirm = () => {
+    if (onConfirm) {
+      onConfirm();
+    } else {
+      onClose();
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <Animated.View 
+        style={[
+          styles.modalOverlay,
+          { opacity: opacityAnimation }
+        ]}
+      >
+        <TouchableOpacity 
+          style={styles.modalBackdrop} 
+          activeOpacity={1} 
+          onPress={onClose}
+        />
+        <Animated.View 
+          style={[
+            styles.modernModalContainer,
+            {
+              opacity: opacityAnimation,
+              transform: [
+                { scale: scaleAnimation },
+                {
+                  translateY: slideAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          {/* Modern glassmorphism background */}
+          <LinearGradient
+            colors={['rgba(26, 26, 26, 0.95)', 'rgba(42, 42, 42, 0.95)']}
+            style={styles.modernModalGradient}
+          >
+            {/* Top accent bar */}
+            <LinearGradient
+              colors={gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalAccentBar}
+            />
+            
+            <View style={styles.modernModalContent}>
+              {/* Enhanced icon with background */}
+              <Animated.View 
+                style={[
+                  styles.modernModalIcon,
+                  { backgroundColor: bgColor, transform: [{ scale: iconPulse }] }
+                ]}
+              >
+                <MaterialCommunityIcons name={icon as any} size={36} color={color} />
+                
+                {/* Subtle glow effect for success/error */}
+                {(type === "success" || type === "error") && (
+                  <View style={[styles.iconGlow, { backgroundColor: color }]} />
+                )}
+              </Animated.View>
+              
+              {/* Title with better typography */}
+              <Text style={styles.modernModalTitle}>{title}</Text>
+              
+              {/* Message with improved readability */}
+              <Text style={styles.modernModalMessage}>{message}</Text>
+              
+              {/* Enhanced buttons */}
+              <View style={styles.modernModalButtons}>
+                {showCancel && (
+                  <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                    <TouchableOpacity
+                      style={styles.modernModalButtonCancel}
+                      onPress={onClose}
+                      onPressIn={handleButtonPressIn}
+                      onPressOut={handleButtonPressOut}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.modernModalButtonTextCancel}>{cancelText}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                )}
+                
+                <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                  <TouchableOpacity
+                    style={styles.modernModalButtonConfirm}
+                    onPress={handleConfirm}
+                    onPressIn={handleButtonPressIn}
+                    onPressOut={handleButtonPressOut}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={gradientColors}
+                      style={styles.modernModalButtonGradient}
+                    >
+                      <Text style={styles.modernModalButtonTextConfirm}>{confirmText}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+};
+
 // Submit Button Component
 const SubmitButton = ({ onPress, loading, disabled }: {
   onPress: () => void;
@@ -781,6 +1008,16 @@ export default function PostsScreen() {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [modal, setModal] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info" as "success" | "error" | "info" | "warning",
+    onConfirm: undefined as (() => void) | undefined,
+    confirmText: "OK",
+    showCancel: false,
+    cancelText: "Cancel"
+  });
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -789,6 +1026,31 @@ export default function PostsScreen() {
 
   const headerAnimation = useRef(new Animated.Value(-50)).current;
   const contentAnimation = useRef(new Animated.Value(0)).current;
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "info" | "warning" = "info",
+    onConfirm?: () => void,
+    confirmText: string = "OK",
+    showCancel: boolean = false,
+    cancelText: string = "Cancel"
+  ) => {
+    setModal({
+      visible: true,
+      title,
+      message,
+      type,
+      onConfirm,
+      confirmText,
+      showCancel,
+      cancelText
+    });
+  };
+
+  const hideModal = () => {
+    setModal(prev => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -855,12 +1117,12 @@ export default function PostsScreen() {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert("Validation Error", "Please fill in all required fields correctly.");
+      showModal("Validation Error", "Please fill in all required fields correctly.", "warning");
       return;
     }
 
     if (!user) {
-      Alert.alert("Authentication Error", "Please sign in to submit a post.");
+      showModal("Authentication Error", "Please sign in to submit a post.", "error");
       return;
     }
 
@@ -903,15 +1165,15 @@ export default function PostsScreen() {
       if (response.success) {
         console.log("✅ [POST SUBMIT] Post submitted successfully!");
         
-        Alert.alert(
+        showModal(
           "Success! 🎉",
           "Your post has been submitted for review. You'll be notified once it's approved!",
-          [
-            {
-              text: "OK",
-              onPress: () => router.back(),
-            },
-          ]
+          "success",
+          () => {
+            hideModal();
+            setTimeout(() => router.back(), 100);
+          },
+          "OK"
         );
       } else {
         throw new Error(response.error || "Failed to submit post");
@@ -927,7 +1189,7 @@ export default function PostsScreen() {
         errorMessage = "Too many submissions. Please wait a moment and try again.";
       }
       
-      Alert.alert("Error", errorMessage);
+      showModal("Error", errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -1046,6 +1308,19 @@ export default function PostsScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </Animated.View>
+
+      {/* Custom Modal */}
+      <CustomModal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onClose={hideModal}
+        onConfirm={modal.onConfirm}
+        confirmText={modal.confirmText}
+        showCancel={modal.showCancel}
+        cancelText={modal.cancelText}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1094,31 +1369,35 @@ const styles = StyleSheet.create({
 
   // Form Section
   formSection: {
-    gap: 20,
+    gap: 24,
     marginBottom: 40,
   },
-  inputContainer: {
-    gap: 8,
+  borderlessInputContainer: {
+    marginBottom: 8,
   },
-  inputLabel: {
+  borderlessInputLabel: {
     fontSize: 16,
     fontWeight: theme.fontMedium,
     color: theme.textLight,
+    marginBottom: 12,
   },
-  inputWrapper: {
-    borderWidth: 2,
-    borderRadius: 12,
-    backgroundColor: theme.cardBg,
-  },
-  textInput: {
-    padding: 16,
+  borderlessTextInput: {
+    backgroundColor: "transparent",
+    padding: 0,
+    paddingVertical: 12,
     fontSize: 16,
     color: theme.textWhite,
-    minHeight: 48,
-  },
-  textInputMultiline: {
-    minHeight: 100,
+    minHeight: 44,
     textAlignVertical: "top",
+  },
+  borderlessTextInputMultiline: {
+    minHeight: 120,
+    paddingVertical: 16,
+  },
+  underline: {
+    height: 1,
+    backgroundColor: theme.divider,
+    marginTop: 4,
   },
 
   // Category Selection
@@ -1239,30 +1518,160 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Rich Text Editor
-  editorContainer: {
-    marginBottom: 20,
-  },
-  editorLabel: {
-    fontSize: 16,
-    fontWeight: theme.fontMedium,
-    color: theme.textLight,
+  // Borderless Rich Text Editor
+  borderlessEditorContainer: {
     marginBottom: 8,
   },
-  editorWrapper: {
-    height: 320,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: theme.cardBg,
-    borderWidth: 1,
-    borderColor: theme.divider,
-  },
-  webview: {
+  borderlessWebview: {
     backgroundColor: "transparent",
-    flex: 1,
+    height: 280,
   },
 
   bottomSpacer: {
     height: 100,
+  },
+
+  // Enhanced Modern Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backdropFilter: "blur(10px)",
+  },
+  modalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modernModalContainer: {
+    width: Dimensions.get("window").width * 0.88,
+    maxWidth: 420,
+    borderRadius: 24,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.35,
+        shadowRadius: 25,
+      },
+      android: {
+        elevation: 20,
+      },
+    }),
+  },
+  modernModalGradient: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  modalAccentBar: {
+    height: 4,
+    width: "100%",
+  },
+  modernModalContent: {
+    padding: 28,
+    alignItems: "center",
+  },
+  modernModalIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    position: "relative",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  iconGlow: {
+    position: "absolute",
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    opacity: 0.1,
+    top: -5,
+    left: -5,
+  },
+  modernModalTitle: {
+    fontSize: 22,
+    fontWeight: theme.fontBold,
+    color: theme.textWhite,
+    textAlign: "center",
+    marginBottom: 12,
+    letterSpacing: 0.5,
+  },
+  modernModalMessage: {
+    fontSize: 16,
+    color: theme.textLight,
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 28,
+    paddingHorizontal: 8,
+  },
+  modernModalButtons: {
+    flexDirection: "row",
+    gap: 16,
+    width: "100%",
+    justifyContent: "center",
+  },
+  modernModalButtonCancel: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  modernModalButtonConfirm: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  modernModalButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modernModalButtonTextCancel: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: theme.textWhite,
+    letterSpacing: 0.5,
+  },
+  modernModalButtonTextConfirm: {
+    fontSize: 16,
+    fontWeight: theme.fontSemiBold,
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
 });
