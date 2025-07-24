@@ -174,6 +174,7 @@ const ShareStorySection = () => {
 const QuickActionButton = ({ action, index }: { action: any; index: number }) => {
   const scale = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
 
   useEffect(() => {
     Animated.parallel([
@@ -195,6 +196,25 @@ const QuickActionButton = ({ action, index }: { action: any; index: number }) =>
 
   const IconComponent = action.iconSet === "FontAwesome5" ? FontAwesome5 : MaterialCommunityIcons;
 
+  const handlePress = () => {
+    switch (action.title) {
+      case "Prayer":
+        router.push("/PrayerIntentions" as any);
+        break;
+      case "Events":
+        router.push("/events" as any);
+        break;
+      case "Donate":
+        router.push("/donate" as any);
+        break;
+      case "Social":
+        router.push("/community" as any);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <Animated.View
       style={[
@@ -205,7 +225,7 @@ const QuickActionButton = ({ action, index }: { action: any; index: number }) =>
         },
       ]}
     >
-      <TouchableOpacity activeOpacity={0.7}>
+      <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
         <LinearGradient
           colors={action.gradient}
           style={styles.quickActionButton}
