@@ -29,6 +29,7 @@ import { supabase } from "../../supabaseClient";
 import { Link, router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCRUD } from "@/utils/crudClient";
+import NewIntentionModal from './NewIntentionModal';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android") {
@@ -2199,245 +2200,22 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </Animated.View>
         )}
-        <Modal
+        <NewIntentionModal
           visible={showIntentionModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowIntentionModal(false)}
-        >
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-          >
-            <View style={styles.modalOverlay}>
-              <ScrollView style={styles.modalScrollView}>
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>New Intention</Text>
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Type</Text>
-                    <View style={styles.pickerContainer}>
-                      {[
-                        "prayer",
-                        "resolution",
-                        "goal",
-                        "spiritual",
-                        "family",
-                        "health",
-                        "work",
-                        "friends",
-                        "world",
-                        "personal",
-                        "other",
-                      ].map((type) => (
-                        <TouchableOpacity
-                          key={type}
-                          style={[
-                            styles.typeOption,
-                            newIntention.type === type && styles.selectedTypeOption,
-                          ]}
-                          onPress={() =>
-                            setNewIntention({
-                              ...newIntention,
-                              type: type as IntentionType,
-                            })
-                          }
-                        >
-                          <Text style={styles.typeOptionText}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Visibility</Text>
-                    <TouchableOpacity
-                      style={styles.dropdown}
-                      onPress={() => setShowVisibilityDropdownNew(!showVisibilityDropdownNew)}
-                    >
-                      <View style={styles.dropdownContent}>
-                        {
-                          visibilityOptions.find(
-                            (option) => option.label === newIntention.visibility,
-                          )?.icon
-                        }
-                        <Text style={[styles.dropdownText, { marginLeft: 8 }]}>
-                          {newIntention.visibility}
-                        </Text>
-                      </View>
-                      <Feather
-                        name={showVisibilityDropdownNew ? "chevron-up" : "chevron-down"}
-                        size={18}
-                        color="#fbbf24"
-                      />
-                    </TouchableOpacity>
-                    {showVisibilityDropdownNew && (
-                      <View style={styles.dropdownOptions}>
-                        {visibilityOptions.map((option) => (
-                          <TouchableOpacity
-                            key={option.label}
-                            style={styles.dropdownOption}
-                            onPress={() => {
-                              setNewIntention({
-                                ...newIntention,
-                                visibility: option.label as
-                                  | "Friends"
-                                  | "Certain Groups"
-                                  | "Just Me"
-                                  | "Friends & Groups"
-                                  | "Certain Friends",
-                                selectedGroups:
-                                  option.label === "Certain Groups"
-                                    ? newIntention.selectedGroups
-                                    : [],
-                                selectedFriends:
-                                  option.label === "Certain Friends"
-                                    ? newIntention.selectedFriends
-                                    : [],
-                              });
-                              setShowVisibilityDropdownNew(false);
-                            }}
-                          >
-                            <View style={styles.dropdownOptionContent}>
-                              {option.icon}
-                              <Text style={styles.dropdownOptionText}>{option.label}</Text>
-                            </View>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                    {newIntention.visibility === "Certain Groups" && (
-                      <View style={styles.groupSelectorContainer}>
-                        <Text style={styles.groupSelectorLabel}>Select Groups:</Text>
-                        <View style={styles.groupSelectorList}>
-                          {userGroups.map((group) => (
-                            <TouchableOpacity
-                              key={group.id}
-                              style={[
-                                styles.groupOption,
-                                newIntention.selectedGroups &&
-                                newIntention.selectedGroups.includes(group.id)
-                                  ? styles.groupOptionSelected
-                                  : null,
-                              ]}
-                              onPress={() => toggleNewGroupSelection(group.id)}
-                            >
-                              <Text style={styles.groupOptionText}>{group.name}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                    {newIntention.visibility === "Certain Friends" && (
-                      <View style={styles.friendSelectorContainer}>
-                        <Text style={styles.friendSelectorLabel}>
-                          Select Friends ({friends.length})
-                        </Text>
-                        <ScrollView
-                          style={styles.friendSelectorList}
-                          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
-                          showsVerticalScrollIndicator={true}
-                        >
-                          {friends.length === 0 ? (
-                            <Text
-                              style={[
-                                styles.friendOptionText,
-                                { textAlign: "center", marginTop: 10 },
-                              ]}
-                            >
-                              No friends found. Add friends to share intentions with them.
-                            </Text>
-                          ) : (
-                            friends.map((friend) => (
-                              <TouchableOpacity
-                                key={friend.id}
-                                style={[
-                                  styles.friendOption,
-                                  newIntention.selectedFriends.includes(friend.friend.id)
-                                    ? styles.friendOptionSelected
-                                    : null,
-                                ]}
-                                onPress={() => toggleNewFriendSelection(friend.friend.id)}
-                              >
-                                <Text style={styles.friendOptionText}>
-                                  {friend.friend.first_name} {friend.friend.last_name}
-                                </Text>
-                              </TouchableOpacity>
-                            ))
-                          )}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Title</Text>
-                    <TextInput
-                      style={styles.formInput}
-                      value={newIntention.title}
-                      onChangeText={(text) => setNewIntention({ ...newIntention, title: text })}
-                      placeholder="Enter title..."
-                      placeholderTextColor="rgba(254, 243, 199, 0.4)"
-                      inputAccessoryViewID="accessoryViewID"
-                    />
-                  </View>
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Description</Text>
-                    <View style={styles.textInputContainer}>
-                      <TextInput
-                        style={[
-                          styles.formTextarea,
-                          createDescriptionFocused && styles.formTextareaFocused,
-                        ]}
-                        value={newIntention.description}
-                        onChangeText={(text) =>
-                          setNewIntention({ ...newIntention, description: text })
-                        }
-                        placeholder="Enter description..."
-                        placeholderTextColor="rgba(254, 243, 199, 0.4)"
-                        multiline={true}
-                        numberOfLines={4}
-                        textAlignVertical="top"
-                        inputAccessoryViewID="accessoryViewID"
-                        onFocus={() => setCreateDescriptionFocused(true)}
-                        onBlur={() => setCreateDescriptionFocused(false)}
-                      />
-                      {createDescriptionFocused && (
-                        <TouchableOpacity
-                          style={styles.closeButton}
-                          onPress={() => {
-                            Keyboard.dismiss();
-                            setCreateDescriptionFocused(false);
-                          }}
-                        >
-                          <Feather name="check" size={20} color="#fbbf24" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-
-                  <InputAccessoryView nativeID="accessoryViewID">
-                    <View style={styles.accessory}>
-                      <TouchableOpacity onPress={() => Keyboard.dismiss()}>
-                        <Text style={styles.accessoryText}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </InputAccessoryView>
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => setShowIntentionModal(false)}
-                    >
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.createButton} onPress={handleCreateIntention}>
-                      <Text style={styles.createButtonText}>Create</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+          onClose={() => setShowIntentionModal(false)}
+          newIntention={newIntention}
+          setNewIntention={setNewIntention}
+          showVisibilityDropdown={showVisibilityDropdownNew}
+          setShowVisibilityDropdown={setShowVisibilityDropdownNew}
+          visibilityOptions={visibilityOptions}
+          userGroups={userGroups}
+          friends={friends}
+          createDescriptionFocused={createDescriptionFocused}
+          setCreateDescriptionFocused={setCreateDescriptionFocused}
+          toggleNewGroupSelection={toggleNewGroupSelection}
+          toggleNewFriendSelection={toggleNewFriendSelection}
+          onCreateIntention={handleCreateIntention}
+        />
         <Modal
           visible={showEditModal && editingIntention !== null}
           transparent={true}
