@@ -29,7 +29,8 @@ import { supabase } from "../../supabaseClient";
 import { Link, router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCRUD } from "@/utils/crudClient";
-import NewIntentionModal from './NewIntentionModal';
+import { usePrayerIntentions } from "@/contexts/PrayerIntentionsContext";
+import NewIntentionModal, { NewIntention } from './NewIntentionModal';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android") {
@@ -286,7 +287,7 @@ const IntentionCard: React.FC<IntentionCardProps> = ({
         </View>
         <View style={styles.intentionHeaderText}>
           <Text style={styles.intentionAuthor}>
-            {item.user.first_name} {item.user.last_name}
+            {item.user?.first_name || 'Unknown'} {item.user?.last_name || 'User'}
             {item.user_id === currentUserId && <Text style={styles.authorTag}> • You</Text>}
           </Text>
           <View style={styles.intentionMeta}>
@@ -428,12 +429,21 @@ export default function CommunityScreen() {
   
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [users, setUsers] = useState<UserData[]>([]);
-  const [intentions, setIntentions] = useState<Intention[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeTab] = useState<TabType>("all");
   const [intentionsFilter, setIntentionsFilter] = useState<"all" | "mine" | "friends" | "groups">(
     "all",
   );
+
+  // Use shared prayer intentions context
+  const {
+    intentions,
+    loading: isLoading,
+    refreshing,
+    addIntention,
+    updateIntention,
+    refreshIntentions,
+    getFilteredIntentions,
+  } = usePrayerIntentions();
   const [showIntentionModal, setShowIntentionModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editingIntention, setEditingIntention] = useState<Intention | null>(null);
@@ -442,14 +452,7 @@ export default function CommunityScreen() {
   const [sentRequests, setSentRequests] = useState<FriendRequestSent[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequestIncoming[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [newIntention, setNewIntention] = useState<{
-    title: string;
-    description: string;
-    type: IntentionType;
-    visibility: "Friends" | "Certain Groups" | "Just Me" | "Friends & Groups" | "Certain Friends";
-    selectedGroups: (number | string)[];
-    selectedFriends: (number | string)[];
-  }>({
+  const [newIntention, setNewIntention] = useState<NewIntention>({
     title: "",
     description: "",
     type: "prayer",
@@ -582,7 +585,7 @@ export default function CommunityScreen() {
 
   useEffect(() => {
     if (intentionsFilter === "all" && !groupsLoaded) return;
-    fetchIntentions();
+    refreshIntentions();
   }, [intentionsFilter, activeTab, groupsLoaded]);
 
 
@@ -704,277 +707,12 @@ export default function CommunityScreen() {
     }
   };
 
-  const fetchIntentions = async (type?: IntentionType): Promise<void> => {
-    try {
-      setIsLoading(true);
-      if (!user) throw new Error("Not authenticated");
-
-      // First, fetch all intentions using crudClient
-      const whereClause = type ? { type } : {};
-      const allIntentions = await select("intentions", {
-        where: whereClause
-      });
-      
-      // Sort by created_at descending (newest first)
-      allIntentions.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Then fetch user data for each intention
-      const userIds = [...new Set(allIntentions.map((intention: any) => intention.user_id))];
-      const users = userIds.length > 0 ? await select("users", {
-        where: { id: userIds }
-      }) : [];
-
-      // Create a user lookup map
-      const userMap = users.reduce((acc: any, user: any) => {
-        acc[user.id] = user;
-        return acc;
-      }, {});
-
-      // Combine intentions with user data
-      const intentionsWithUsers = allIntentions.map((intention: any) => ({
-        ...intention,
-        user: userMap[intention.user_id] || { first_name: 'Unknown', last_name: 'User' }
-      }));
-
-      // Get user's friends using crudClient
-      const sentFriends = await select("friends", {
-        where: { user_id_1: user.id, status: "accepted" },
-        select: "user_id_2"
-      });
-
-      const receivedFriends = await select("friends", {
-        where: { user_id_2: user.id, status: "accepted" },
-        select: "user_id_1"
-      });
-
-      // Create a set of friend IDs
-      const friendIds = new Set<string>();
-      if (sentFriends) {
-        sentFriends.forEach((row: { user_id_2: string }) => {
-          friendIds.add(row.user_id_2);
-        });
-      }
-      if (receivedFriends) {
-        receivedFriends.forEach((row: { user_id_1: string }) => {
-          friendIds.add(row.user_id_1);
-        });
-      }
-
-      // Get user's group memberships and group members using crudClient
-      const userGroupIds = userGroups.map((group) => group.id);
-      const groupMembers = userGroupIds.length > 0 ? await select("group_members", {
-        where: { group_id: userGroupIds }, // This will need IN query support
-        select: "user_id, group_id"
-      }) : [];
-
-      // Create a map of group ID to member IDs
-      const groupMembersMap = new Map<string, Set<string>>();
-      if (groupMembers) {
-        groupMembers.forEach((member: { user_id: string; group_id: string }) => {
-          if (!groupMembersMap.has(member.group_id)) {
-            groupMembersMap.set(member.group_id, new Set<string>());
-          }
-          groupMembersMap.get(member.group_id)?.add(member.user_id);
-        });
-      }
-
-      // Filter intentions based on visibility settings
-      const filteredIntentions = intentionsWithUsers?.filter((intention: any) => {
-        // Parse selected groups
-        const selectedGroups = parseSelectedGroups(intention.selected_groups);
-
-        // Current user's own intentions always visible
-        if (intention.user_id === user.id) {
-          return true;
-        }
-
-        // Apply intentionsFilter specific filtering
-        if (intentionsFilter === "mine") {
-          return intention.user_id === user.id;
-        } else if (intentionsFilter === "friends") {
-          // In friends filter, only show posts from friends that are visible to friends
-          return (
-            friendIds.has(intention.user_id) &&
-            (intention.visibility === "Friends" || intention.visibility === "Friends & Groups")
-          );
-        } else if (intentionsFilter === "groups") {
-          // In groups filter, show only posts from group members that are visible to groups
-          let isInSameGroup = false;
-          // Check if post owner is in any of user's groups
-          for (const groupId of userGroupIds) {
-            const membersOfGroup = groupMembersMap.get(groupId);
-            if (membersOfGroup && membersOfGroup.has(intention.user_id)) {
-              isInSameGroup = true;
-              break;
-            }
-          }
-
-          // For "Certain Groups", check if the current user is in one of the selected groups
-          if (intention.visibility === "Certain Groups") {
-            // If no groups are selected, don't show the post
-            if (!selectedGroups || selectedGroups.length === 0) return false;
-
-            // Convert all to strings for consistent comparison
-            const userGroupIdsStr = userGroupIds.map((id) => String(id));
-            const selectedGroupsStr = selectedGroups.map((id) => String(id));
-
-            // Debug log (remove in production)
-            console.log("User groups:", userGroupIdsStr);
-            console.log("Post selected groups:", selectedGroupsStr);
-
-            // Check if there's any overlap between user's groups and post's selected groups
-            const isInSelectedGroup = selectedGroupsStr.some((groupId) =>
-              userGroupIdsStr.includes(groupId),
-            );
-
-            return isInSelectedGroup;
-          }
-
-          return (
-            isInSameGroup &&
-            (intention.visibility === "Friends & Groups" ||
-              intention.visibility === "Certain Groups")
-          );
-        } else if (intentionsFilter === "all") {
-          // In "all" filter, show:
-          // 1. All of the user's own posts
-          // 2. Posts visible to the user based on visibility settings
-
-          switch (intention.visibility) {
-            case "Just Me":
-              // Only visible to creator
-              return intention.user_id === user.id;
-
-            case "Friends":
-              // Visible to creator and friends
-              return intention.user_id === user.id || friendIds.has(intention.user_id);
-
-            case "Certain Friends":
-              // Visible to creator and selected friends
-              if (intention.user_id === user.id) return true;
-              const selectedFriends = parseSelectedFriends(intention.selected_friends);
-              return selectedFriends.includes(user.id);
-
-            case "Certain Groups":
-              // Visible to creator and members of selected groups
-              if (intention.user_id === user.id) return true;
-
-              // If no groups are selected, only show to creator
-              if (!selectedGroups || selectedGroups.length === 0)
-                return intention.user_id === user.id;
-
-              // Convert all to strings for consistent comparison
-              const userGroupIdsStr = userGroupIds.map((id) => String(id));
-              const selectedGroupsStr = selectedGroups.map((id) => String(id));
-
-              // Check if there's any overlap between user's groups and post's selected groups
-              return selectedGroupsStr.some((groupId) => userGroupIdsStr.includes(groupId));
-
-            case "Friends & Groups":
-              // Visible to creator, friends, and group members
-              if (intention.user_id === user.id || friendIds.has(intention.user_id)) {
-                return true;
-              }
-
-              // Check if user is in same group as post creator
-              for (const groupId of userGroupIds) {
-                const membersOfGroup = groupMembersMap.get(groupId);
-                if (membersOfGroup && membersOfGroup.has(intention.user_id)) {
-                  return true;
-                }
-              }
-              return false;
-
-            default:
-              return false;
-          }
-        }
-
-        return false;
-      });
-
-      // Get like and comment counts, check if user has liked each intention
-      const intentionsWithCounts = await Promise.all(
-        (filteredIntentions || []).map(async (intention: any) => {
-          // Get likes count using crudClient
-          const likes = await select("likes", {
-            where: { likeable_id: intention.id, likeable_type: "intentions" }
-          });
-          const likesCount = likes.length;
-
-          // Get comments count using crudClient  
-          const comments = await select("comments", {
-            where: { commentable_id: intention.id, commentable_type: "intentions" }
-          });
-          const commentsCount = comments.length;
-
-          // Check if user has liked this intention
-          const userLike = await select("likes", {
-            where: { 
-              likeable_id: intention.id,
-              likeable_type: "intentions",
-              user_id: user.id
-            },
-            limit: 1
-          });
-
-          let groupInfo = null;
-          if (userGroups.length > 0) {
-            const showGroupInfo =
-              (intentionsFilter === "groups" && intention.user_id !== user.id) ||
-              (intention.user_id !== user.id && !(await isUserFriend(user.id, intention.user_id)));
-            if (showGroupInfo) {
-              const userGroupData = await select("group_members", {
-                where: { user_id: intention.user_id },
-                select: "group_id"
-              });
-              const currentUserGroups = await select("group_members", {
-                where: { user_id: user.id },
-                select: "group_id"
-              });
-              if (userGroupData && currentUserGroups) {
-                const userGroupIds = userGroupData.map((g) => g.group_id);
-                const currentUserGroupIds = currentUserGroups.map((g) => g.group_id);
-                const sharedGroupIds = userGroupIds.filter((id) =>
-                  currentUserGroupIds.includes(id),
-                );
-                if (sharedGroupIds.length > 0) {
-                  const groupData = await select("groups", {
-                    where: { id: sharedGroupIds[0] },
-                    limit: 1
-                  });
-                  if (groupData && groupData.length > 0) {
-                    groupInfo = groupData[0];
-                  }
-                }
-              }
-            }
-          }
-
-          return {
-            ...intention,
-            likes_count: likesCount,
-            comments_count: commentsCount,
-            is_liked: userLike.length > 0,
-            group_info: groupInfo,
-            selectedGroups: parseSelectedGroups(intention.selected_groups),
-            selectedFriends: parseSelectedFriends(intention.selected_friends),
-          };
-        }),
-      );
-
-      setIntentions(intentionsWithCounts || []);
-    } catch (error: any) {
-      console.error("Error fetching intentions:", error);
-      setIntentions([]);
-      setNotification({
-        message:
-          "Error fetching intentions: " + (error instanceof Error ? error.message : String(error)),
-        type: "error",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  // Filter intentions based on the community filter
+  const getDisplayIntentions = () => {
+    return getFilteredIntentions({
+      visibility: intentionsFilter === "all" ? undefined : intentionsFilter,
+      type: activeTab === "all" ? undefined : (activeTab as any), // Convert TabType to IntentionType when needed
+    });
   };
 
   const fetchComments = async (intentionId: string): Promise<void> => {
@@ -1022,7 +760,6 @@ export default function CommunityScreen() {
 
   const fetchFriendRequests = async (): Promise<void> => {
     try {
-      setIsLoading(true);
       if (!user) throw new Error("Not authenticated");
       // Fetch sent friend requests using crudClient
       const sent = await select("friends", {
@@ -1090,8 +827,6 @@ export default function CommunityScreen() {
           (error instanceof Error ? error.message : JSON.stringify(error)),
         type: "error",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -1195,6 +930,10 @@ export default function CommunityScreen() {
 
   const handleLikeIntention = async (intentionId: string, isLiked: boolean): Promise<void> => {
     try {
+      // Find the current intention
+      const currentIntention = intentions.find(i => i.id === intentionId);
+      if (!currentIntention) throw new Error("Intention not found");
+      
       Vibration.vibrate(50);
       const scaleAnim = getLikeScaleAnimation(intentionId);
       const opacityAnim = getLikeOpacityAnimation(intentionId);
@@ -1267,19 +1006,12 @@ export default function CommunityScreen() {
           likeable_type: "intentions",
         });
       }
-      setIntentions(
-        intentions.map((intention) =>
-          intention.id === intentionId
-            ? {
-                ...intention,
-                is_liked: !isLiked,
-                likes_count: isLiked
-                  ? (intention.likes_count || 1) - 1
-                  : (intention.likes_count || 0) + 1,
-              }
-            : intention,
-        ),
-      );
+      await updateIntention(intentionId, {
+        is_liked: !isLiked,
+        likes_count: isLiked
+          ? (currentIntention.likes_count || 1) - 1
+          : (currentIntention.likes_count || 0) + 1,
+      });
     } catch (error: any) {
       console.error("Error toggling like:", error);
       setNotification({
@@ -1297,6 +1029,10 @@ export default function CommunityScreen() {
       return;
     }
     try {
+      // Find the current intention
+      const currentIntention = intentions.find(i => i.id === intentionId);
+      if (!currentIntention) throw new Error("Intention not found");
+      
       if (!user) throw new Error("Not authenticated");
       // Create comment using crudClient
       const data = await insert("comments", {
@@ -1317,16 +1053,9 @@ export default function CommunityScreen() {
         }
       };
       setComments([...comments, commentWithUser]);
-      setIntentions(
-        intentions.map((intention) =>
-          intention.id === intentionId
-            ? {
-                ...intention,
-                comments_count: (intention.comments_count || 0) + 1,
-              }
-            : intention,
-        ),
-      );
+      await updateIntention(intentionId, {
+        comments_count: (currentIntention.comments_count || 0) + 1,
+      });
       setNewComment("");
     } catch (error: any) {
       console.error("Error adding comment:", error);
@@ -1353,18 +1082,21 @@ export default function CommunityScreen() {
     }
     try {
       if (!user) throw new Error("Not authenticated");
-      // Create intention using crudClient
-      await insert("intentions", {
-        user_id: user.id,
+      
+      // Use shared context to add intention
+      await addIntention({
         title: newIntention.title,
         description: newIntention.description,
         type: newIntention.type,
         visibility: newIntention.visibility,
         selected_groups:
-          newIntention.visibility === "Certain Groups" ? newIntention.selectedGroups : [],
+          newIntention.visibility === "Certain Groups" ? newIntention.selectedGroups.map(String) : [],
         selected_friends:
-          newIntention.visibility === "Certain Friends" ? newIntention.selectedFriends : [],
+          newIntention.visibility === "Certain Friends" ? newIntention.selectedFriends.map(String) : [],
+        completed: false,
+        favorite: false,
       });
+      
       setShowIntentionModal(false);
       setNewIntention({
         title: "",
@@ -1378,7 +1110,7 @@ export default function CommunityScreen() {
         message: "Intention created successfully!",
         type: "success",
       });
-      fetchIntentions();
+      refreshIntentions();
     } catch (error: any) {
       console.error("Error creating intention:", error);
       setNotification({
@@ -1432,7 +1164,7 @@ export default function CommunityScreen() {
         message: "Intention updated successfully!",
         type: "success",
       });
-      fetchIntentions();
+      refreshIntentions();
     } catch (error: any) {
       console.error("Error updating intention:", error);
       setNotification({
@@ -1462,7 +1194,7 @@ export default function CommunityScreen() {
         type: "success",
       });
       setDeleteModal({ isOpen: false, intentionId: null });
-      fetchIntentions();
+      refreshIntentions();
     } catch (error: any) {
       console.error("Error deleting intention:", error);
       setNotification({
@@ -1477,7 +1209,6 @@ export default function CommunityScreen() {
   const handleSearch = async (): Promise<void> => {
     if (!searchQuery.trim()) return;
     try {
-      setIsLoading(true);
       const { data, error } = await supabase
         .from("users")
         .select("*, created_at")
@@ -1494,8 +1225,6 @@ export default function CommunityScreen() {
           "Error fetching users: " + (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -1986,7 +1715,7 @@ export default function CommunityScreen() {
         </Animated.View>
         {!showFriendsSearch && (
           <Animated.FlatList
-            data={intentions}
+            data={getDisplayIntentions()}
             renderItem={renderIntentionCard}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.intentionList}
@@ -1995,7 +1724,7 @@ export default function CommunityScreen() {
             onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
               useNativeDriver: true,
             })}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchIntentions} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshIntentions} />}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>

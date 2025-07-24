@@ -1,14 +1,20 @@
 import { useState, useEffect } from "react";
-import { Dimensions, Animated } from "react-native";
-import { useSharedValue, withTiming, withDelay, Easing, runOnJS } from "react-native-reanimated";
+import { Dimensions } from "react-native";
+import { 
+  useSharedValue, 
+  withTiming, 
+  withDelay, 
+  Easing, 
+  runOnJS, 
+  SharedValue 
+} from "react-native-reanimated";
 import { CalendarDay, ChurchEvent, CalendarViewType } from "../types";
 import { generateCalendarData } from "../utils/calendarUtils";
 import { getDateKey } from "../utils/dateUtils";
 
 const { height } = Dimensions.get("window");
 
-// Use React Native's Animated API for day animations to avoid hook issues
-// This is a safer approach as it doesn't involve creating hooks conditionally
+// Use Reanimated for all animations for better performance
 export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
   // Calendar states
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -18,13 +24,13 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
   const [showDateDetail, setShowDateDetail] = useState(false);
   const [selectedDayEvents, setSelectedDayEvents] = useState<ChurchEvent[]>([]);
 
-  // Use Reanimated for global animations
+  // Use Reanimated for all animations
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(50);
   const detailSlideAnim = useSharedValue(height);
 
-  // Use React Native's Animated API for day animations to avoid hook issues
-  const [dayAnimations, setDayAnimations] = useState<Record<string, Animated.Value>>({});
+  // Use a single shared value for calendar entrance animation
+  const calendarEntranceAnim = useSharedValue(0);
 
   // Update calendar when month or events change
   useEffect(() => {
@@ -45,32 +51,12 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
 
       setCalendarData(weeks);
 
-      // Initialize animations for new days
-      const newAnimations = { ...dayAnimations };
-
-      calendarDataFlat.forEach((day) => {
-        const dateKey = getDateKey(day.date);
-        if (!newAnimations[dateKey]) {
-          newAnimations[dateKey] = new Animated.Value(0);
-        }
+      // Animate calendar entrance with Reanimated
+      calendarEntranceAnim.value = 0;
+      calendarEntranceAnim.value = withTiming(1, {
+        duration: 600,
+        easing: Easing.out(Easing.quad),
       });
-
-      if (Object.keys(newAnimations).length !== Object.keys(dayAnimations).length) {
-        setDayAnimations(newAnimations);
-      }
-
-      // Animate the day cells
-      Animated.stagger(
-        20,
-        calendarDataFlat.map((day) => {
-          const dateKey = getDateKey(day.date);
-          return Animated.timing(newAnimations[dateKey], {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          });
-        }),
-      ).start();
     }
   }, [currentMonth, events, loading]);
 
@@ -134,7 +120,7 @@ export const useCalendar = (events: ChurchEvent[], loading: boolean) => {
     setShowDateDetail,
     selectedDayEvents,
     setSelectedDayEvents,
-    dayAnimations,
+    calendarEntranceAnim,
     fadeAnim,
     slideAnim,
     detailSlideAnim,

@@ -13,15 +13,16 @@ import {
   Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { IntentionType, IntentionVisibility } from '@/contexts/PrayerIntentionsContext';
 
 // Types
-interface NewIntention {
-  type: string;
-  visibility: string;
+export interface NewIntention {
+  type: IntentionType;
+  visibility: IntentionVisibility;
   title: string;
   description: string;
-  selectedGroups: string[];
-  selectedFriends: string[];
+  selectedGroups: (string | number)[];
+  selectedFriends: (string | number)[];
 }
 
 interface UserData {

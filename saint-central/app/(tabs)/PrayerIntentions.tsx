@@ -19,56 +19,13 @@ import {
   Easing,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { supabase } from "../../supabaseClient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
+import { usePrayerIntentions, IntentionType, IntentionVisibility } from "@/contexts/PrayerIntentionsContext";
 
-// Interfaces
-export interface PrayerIntention {
-  id: string;
-  user_id: string;
-  title: string;
-  description?: string;
-  type: IntentionType;
-  created_at: Date;
-  visibility: IntentionVisibility;
-  selected_groups?: string[];
-  selected_friends?: string[];
-  completed: boolean;
-  favorite: boolean;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  description: string;
-  created_at: Date;
-  created_by: string;
-}
-
-export type IntentionType =
-  | "prayer"
-  | "goal"
-  | "resolution"
-  | "spiritual"
-  | "family"
-  | "health"
-  | "work"
-  | "friends"
-  | "world"
-  | "personal"
-  | "other";
-
-export type IntentionVisibility =
-  | "Just Me"
-  | "Friends"
-  | "Friends & Groups"
-  | "Certain Friends"
-  | "Certain Groups";
-
+// Additional types specific to this component
 export type IntentionsTabView = "all" | "active" | "completed";
 export type IntentionsSorting = "newest" | "oldest" | "alphabetical";
 export type IntentionsFilter = IntentionType | "all";
@@ -276,39 +233,6 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: "light" | "dark" 
   );
 };
 
-interface Friend {
-  id: string;
-  username: string;
-  status: string;
-  created_at: string;
-}
-
-interface FriendshipWithUser {
-  friend_id: string;
-  users: {
-    id: string;
-    username: string;
-  };
-}
-
-type SupabaseFriendship = {
-  friend_id: string;
-  users: {
-    id: string;
-    username: string;
-  };
-};
-
-interface SupabaseFriend {
-  id: string;
-  friend: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    profile_image: string | null;
-    created_at: string;
-  };
-}
 
 const PrayerIntentions: React.FC<IntentionsProps> = ({
   themeStyles = defaultThemes.light,
@@ -319,14 +243,25 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Navigation
   const navigation = useNavigation();
 
-  // State management
-  const [intentions, setIntentions] = useState<PrayerIntention[]>([]);
-  const [intentionsLoading, setIntentionsLoading] = useState<boolean>(true);
+  // Use shared context instead of local state
+  const {
+    intentions,
+    loading: intentionsLoading,
+    refreshing,
+    userGroups,
+    userFriends,
+    addIntention,
+    toggleFavorite,
+    toggleCompleted,
+    deleteIntention: contextDeleteIntention,
+    refreshIntentions,
+    getFilteredIntentions,
+  } = usePrayerIntentions();
+
+  // Local UI state
   const [intentionsTabView, setIntentionsTabView] = useState<IntentionsTabView>("all");
   const [showNewIntentionModal, setShowNewIntentionModal] = useState<boolean>(false);
   const [showIntentionFilterModal, setShowIntentionFilterModal] = useState<boolean>(false);
-  const [offlineMode, setOfflineMode] = useState<boolean>(false);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   // New intention form state - all in one form now
   const [newIntentionTitle, setNewIntentionTitle] = useState<string>("");
@@ -339,12 +274,6 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [newIntentionFriends, setNewIntentionFriends] = useState<string[]>([]);
-  const [loadingFriends, setLoadingFriends] = useState(false);
-  const [userFriends, setUserFriends] = useState<Friend[]>([]);
-
-  // Group state management
-  const [userGroups, setUserGroups] = useState<Group[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState<boolean>(false);
 
   // Intention filtering and sorting state
   const [intentionFilter, setIntentionFilter] = useState<IntentionsFilter>("all");
@@ -354,196 +283,15 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const intentionFavoriteScale = useRef(new Animated.Value(1)).current;
   const modalSlideUp = useRef(new Animated.Value(100)).current;
 
-  // Reference to store the Supabase subscription
-  const supabaseSubscription = useRef<any>(null);
 
-  // Setup real-time subscription to listen for changes to the intentions table
-  const setupRealtimeSubscription = async () => {
-    try {
-      // First, clean up any existing subscription
-      if (supabaseSubscription.current) {
-        console.log("Cleaning up existing subscription...");
-        supabase.channel("intentions-changes").unsubscribe();
-        supabaseSubscription.current = null;
-      }
 
-      console.log("Setting up real-time subscription for intentions...");
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.log("User not logged in, skipping real-time subscription");
-        return;
-      }
-
-      // Create a unique channel name with the user ID to avoid conflicts
-      const channelName = `intentions-changes-${user.id}`;
-
-      // Subscribe to all changes to the intentions table
-      supabaseSubscription.current = supabase
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*", // Listen for all events (INSERT, UPDATE, DELETE)
-            schema: "public",
-            table: "intentions",
-          },
-          (payload) => {
-            console.log("Intentions change received:", payload);
-
-            // Handle different types of changes
-            if (payload.eventType === "INSERT") {
-              handleNewIntention(payload.new);
-            } else if (payload.eventType === "UPDATE") {
-              handleUpdatedIntention(payload.new);
-            } else if (payload.eventType === "DELETE") {
-              handleDeletedIntention(payload.old);
-            }
-          },
-        )
-        .subscribe((status) => {
-          console.log("Subscription status:", status);
-
-          if (status === "SUBSCRIBED") {
-            console.log("Successfully subscribed to intentions table");
-          } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-            console.log("Subscription closed or error occurred, will attempt to reconnect");
-            // Could implement reconnection logic here if needed
-          }
-        });
-
-      console.log("Set up real-time subscription:", supabaseSubscription.current);
-    } catch (error) {
-      console.error("Error setting up real-time subscription:", error);
-      // Clean up in case of error
-      supabaseSubscription.current = null;
-    }
-  };
-
-  // Load intentions on component mount and setup real-time subscription
+  // Component initialization - context handles data fetching
   useEffect(() => {
-    loadIntentions();
-    setupRealtimeSubscription();
-    fetchUserGroups();
-    fetchUserFriends();
-
-    // Cleanup subscription when component unmounts
-    return () => {
-      if (supabaseSubscription.current) {
-        console.log("Cleaning up subscription on unmount");
-        supabase.channel("intentions-changes").unsubscribe();
-        supabaseSubscription.current = null;
-      }
-    };
+    // Any component-specific initialization can go here
+    // The context handles all data fetching automatically
   }, []);
 
-  // Fetch user's groups from Supabase
-  const fetchUserGroups = async () => {
-    try {
-      setLoadingGroups(true);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.log("User not logged in or error, skipping group fetch");
-        setLoadingGroups(false);
-        return;
-      }
-
-      // First get the user's group memberships
-      const { data: memberships, error: membershipError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
-
-      if (membershipError) throw membershipError;
-
-      if (!memberships || memberships.length === 0) {
-        setUserGroups([]);
-        setLoadingGroups(false);
-        return;
-      }
-
-      // Get the group IDs from memberships
-      const groupIds = memberships.map((membership) => membership.group_id);
-
-      // Fetch the groups based on the IDs
-      const { data: groups, error: groupsError } = await supabase
-        .from("groups")
-        .select("*")
-        .in("id", groupIds);
-
-      if (groupsError) throw groupsError;
-
-      // Format the data
-      const formattedGroups: Group[] = (groups || []).map((group) => ({
-        ...group,
-        created_at: new Date(group.created_at),
-      }));
-
-      setUserGroups(formattedGroups);
-    } catch (error) {
-      console.error("Error fetching user groups:", error);
-      setUserGroups([]);
-    } finally {
-      setLoadingGroups(false);
-    }
-  };
-
-  // Fetch user's friends
-  const fetchUserFriends = async () => {
-    try {
-      setLoadingFriends(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoadingFriends(false);
-        return;
-      }
-
-      const { data, error: friendsError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          friend:users!friends_user_id_2_fkey(
-            id,
-            first_name,
-            last_name,
-            profile_image,
-            created_at
-          )
-        `)
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted");
-
-      if (friendsError) throw friendsError;
-
-      if (data) {
-        const formattedFriends: Friend[] = data.map((friend: any) => ({
-          id: friend.friend.id,
-          username: `${friend.friend.first_name} ${friend.friend.last_name}`,
-          status: "accepted",
-          created_at: friend.friend.created_at,
-        }));
-
-        setUserFriends(formattedFriends);
-      }
-    } catch (error) {
-      console.error("Error fetching friends:", error);
-      showFeedback("Failed to load friends");
-    } finally {
-      setLoadingFriends(false);
-    }
-  };
 
   // Toggle group selection helper function
   const toggleGroupSelection = (groupId: string) => {
@@ -561,23 +309,6 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     );
   };
 
-  // Handle a new intention being inserted
-  const handleNewIntention = async (newIntention: any) => {
-    // Removed realtime subscription handling
-    return;
-  };
-
-  // Handle an intention being updated
-  const handleUpdatedIntention = (updatedIntention: any) => {
-    // Removed realtime subscription handling
-    return;
-  };
-
-  // Handle an intention being deleted
-  const handleDeletedIntention = (deletedIntention: any) => {
-    // Removed realtime subscription handling
-    return;
-  };
 
   // Get color for intention type
   const getIntentionColor = (type: IntentionType): string => {
@@ -626,161 +357,13 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     return colors[readingTheme][type];
   };
 
-  // Load prayer intentions from Supabase
-  const loadIntentions = async () => {
-    setIntentionsLoading(true);
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.log("User not logged in or error, using offline mode");
-        setOfflineMode(true);
-        loadIntentionsFromStorage();
-        return;
-      }
-
-      // Get user's friends
-      const { data: sentFriends, error: sentError } = await supabase
-        .from("friends")
-        .select("user_id_2")
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted");
-      if (sentError) throw sentError;
-
-      const { data: receivedFriends, error: receivedError } = await supabase
-        .from("friends")
-        .select("user_id_1")
-        .eq("user_id_2", user.id)
-        .eq("status", "accepted");
-      if (receivedError) throw receivedError;
-
-      // Create a set of friend IDs
-      const friendIds = new Set();
-      if (sentFriends) {
-        sentFriends.forEach((friend) => friendIds.add(friend.user_id_2));
-      }
-      if (receivedFriends) {
-        receivedFriends.forEach((friend) => friendIds.add(friend.user_id_1));
-      }
-
-      // Get user's groups
-      const { data: userGroups, error: groupsError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
-      if (groupsError) throw groupsError;
-
-      const userGroupIds = userGroups ? userGroups.map((g) => g.group_id) : [];
-
-      // Fetch all intentions
-      const { data, error } = await supabase
-        .from("intentions")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-
-      // Filter intentions based on visibility
-      const filteredData = await Promise.all(
-        data.map(async (item) => {
-          // Always show user's own intentions
-          if (item.user_id === user.id) return item;
-
-          // Check visibility settings
-          switch (item.visibility) {
-            case "Just Me":
-              return null;
-            case "Friends":
-              return friendIds.has(item.user_id) ? item : null;
-            case "Certain Friends":
-              return item.selected_friends?.includes(user.id) ? item : null;
-            case "Certain Groups":
-              // Check if user is in any of the selected groups
-              const creatorGroups = await supabase
-                .from("group_members")
-                .select("group_id")
-                .eq("user_id", item.user_id);
-              
-              if (creatorGroups.error) return null;
-              
-              const creatorGroupIds = creatorGroups.data.map(g => g.group_id);
-              return creatorGroupIds.some(groupId => userGroupIds.includes(groupId)) ? item : null;
-            default:
-              return null;
-          }
-        })
-      );
-
-      // Remove null values and format the data
-      const formattedIntentions = filteredData
-        .filter((item) => item !== null)
-        .map((item) => ({
-          id: item.id,
-          user_id: item.user_id,
-          title: item.title,
-          description: item.description || "",
-          type: item.type as IntentionType,
-          created_at: new Date(item.created_at),
-          visibility: item.visibility as IntentionVisibility,
-          selected_groups: item.selected_groups || [],
-          selected_friends: item.selected_friends || [],
-          completed: item.completed || false,
-          favorite: item.favorite || false,
-        }));
-
-      setIntentions(formattedIntentions);
-
-      // Also save to AsyncStorage as backup
-      await AsyncStorage.setItem("prayerIntentions", JSON.stringify(formattedIntentions));
-    } catch (error) {
-      console.error("Error loading intentions from Supabase:", error);
-      loadIntentionsFromStorage();
-      setOfflineMode(true);
-    } finally {
-      setIntentionsLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  // Refresh intentions list
+  // Refresh intentions list using context
   const handleRefresh = () => {
-    setRefreshing(true);
-    loadIntentions();
+    refreshIntentions();
   };
 
-  // Load intentions from AsyncStorage (offline fallback)
-  const loadIntentionsFromStorage = async () => {
-    try {
-      const savedIntentions = await AsyncStorage.getItem("prayerIntentions");
-      if (savedIntentions) {
-        const parsedIntentions = JSON.parse(savedIntentions);
-        // Convert string dates back to Date objects
-        const formattedIntentions = parsedIntentions.map((intention: any) => ({
-          ...intention,
-          created_at: new Date(intention.created_at),
-        }));
-        setIntentions(formattedIntentions);
-      }
-    } catch (error) {
-      console.error("Error loading intentions from storage:", error);
-      setIntentions([]);
-    }
-  };
-
-  // Save intentions to AsyncStorage
-  const saveIntentionsToStorage = async (intentionsToSave: PrayerIntention[]) => {
-    try {
-      await AsyncStorage.setItem("prayerIntentions", JSON.stringify(intentionsToSave));
-    } catch (error) {
-      console.error("Error saving intentions to storage:", error);
-    }
-  };
-
-  // Add new prayer intention
-  const addIntention = async () => {
+  // Add new prayer intention using context
+  const addNewIntention = async () => {
     if (isSubmitting) return;
 
     try {
@@ -793,23 +376,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         return;
       }
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        setOfflineMode(true);
-        showFeedback("You're in offline mode. This will be saved locally.");
-      }
-
-      // Prepare data for Supabase
+      // Prepare data for context
       const intentionData = {
-        user_id: user?.id || "offline-user",
         title: newIntentionTitle,
         description: newIntentionDescription,
         type: newIntentionType,
-        created_at: new Date().toISOString(),
         visibility: newIntentionVisibility,
         selected_groups: newIntentionVisibility === "Certain Groups" ? newIntentionGroups : [],
         selected_friends: newIntentionVisibility === "Certain Friends" ? newIntentionFriends : [],
@@ -817,41 +388,8 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         favorite: newIntentionFavorite,
       };
 
-      // Create new intention object for local state
-      const newIntention: PrayerIntention = {
-        ...intentionData,
-        id: Math.random().toString(36).substr(2, 9), // Temporary ID
-        created_at: new Date(),
-      };
-
-      // Add to state immediately for UI responsiveness
-      const updatedIntentions = [newIntention, ...intentions];
-      setIntentions(updatedIntentions);
-
-      // If online, save to Supabase
-      if (!offlineMode && user) {
-        const { data, error } = await supabase.from("intentions").insert([intentionData]).select();
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          // Update the local state with the returned ID
-          setIntentions((prev) => {
-            const updated = [...prev];
-            const index = updated.findIndex((i) => i.id === newIntention.id);
-            if (index !== -1) {
-              updated[index] = {
-                ...updated[index],
-                id: data[0].id,
-              };
-            }
-            return updated;
-          });
-        }
-      }
-
-      // Save to AsyncStorage as backup
-      await saveIntentionsToStorage(updatedIntentions);
+      // Use context to add intention
+      await addIntention(intentionData);
 
       // Provide haptic feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -882,90 +420,44 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     setIsSubmitting(false);
   };
 
-  // Toggle intention completed status
+  // Toggle intention completed status using context
   const toggleIntentionCompleted = async (id: string) => {
     try {
-      // Find the intention
-      const intention = intentions.find((i) => i.id === id);
-      if (!intention) return;
-
-      // Update state first for responsive UI
-      const updatedIntentions = intentions.map((i) =>
-        i.id === id ? { ...i, completed: !i.completed } : i,
-      );
-      setIntentions(updatedIntentions);
-
       // Show animation and haptic feedback
       animateIntentionFavorite();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      if (offlineMode) {
-        // Save to AsyncStorage
-        await saveIntentionsToStorage(updatedIntentions);
-        showFeedback(
-          `Intention marked as ${!intention.completed ? "completed" : "active"} (offline mode)`,
-        );
-        return;
-      }
+      // Use context to toggle completed status
+      await toggleCompleted(id);
 
-      // If online, update in Supabase
-      const { error } = await supabase
-        .from("intentions")
-        .update({ completed: !intention.completed })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      showFeedback(`Intention marked as ${!intention.completed ? "completed" : "active"}`);
+      const intention = intentions.find((i) => i.id === id);
+      showFeedback(`Intention marked as ${intention?.completed ? "active" : "completed"}`);
     } catch (error) {
       console.error("Error toggling intention completed status:", error);
       showFeedback("Failed to update intention status");
     }
   };
 
-  // Toggle intention favorite status
+  // Toggle intention favorite status using context
   const toggleIntentionFavorite = async (id: string) => {
     try {
-      // Find the intention
-      const intention = intentions.find((i) => i.id === id);
-      if (!intention) return;
-
-      // Update state first
-      const updatedIntentions = intentions.map((i) =>
-        i.id === id ? { ...i, favorite: !i.favorite } : i,
-      );
-      setIntentions(updatedIntentions);
-
       // Show animation and haptic feedback
       animateIntentionFavorite();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      if (offlineMode) {
-        // Save to AsyncStorage
-        await saveIntentionsToStorage(updatedIntentions);
-        showFeedback(
-          `Intention ${!intention.favorite ? "favorited" : "unfavorited"} (offline mode)`,
-        );
-        return;
-      }
+      // Use context to toggle favorite status
+      await toggleFavorite(id);
 
-      // If online, update in Supabase
-      const { error } = await supabase
-        .from("intentions")
-        .update({ favorite: !intention.favorite })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      showFeedback(`Intention ${!intention.favorite ? "favorited" : "unfavorited"}`);
+      const intention = intentions.find((i) => i.id === id);
+      showFeedback(`Intention ${intention?.favorite ? "unfavorited" : "favorited"}`);
     } catch (error) {
       console.error("Error toggling intention favorite status:", error);
       showFeedback("Failed to update intention favorite status");
     }
   };
 
-  // Delete intention
-  const deleteIntention = async (id: string) => {
+  // Delete intention using context
+  const deleteIntentionHandler = async (id: string) => {
     try {
       // Confirm deletion
       Alert.alert(
@@ -977,26 +469,17 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-              // Remove from state first
-              const updatedIntentions = intentions.filter((i) => i.id !== id);
-              setIntentions(updatedIntentions);
+              try {
+                // Use context to delete intention
+                await contextDeleteIntention(id);
 
-              // Haptic feedback
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-              if (offlineMode) {
-                // Save to AsyncStorage
-                await saveIntentionsToStorage(updatedIntentions);
-                showFeedback("Intention deleted (offline mode)");
-                return;
+                // Haptic feedback
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                showFeedback("Intention deleted successfully");
+              } catch (error) {
+                console.error("Error deleting intention:", error);
+                showFeedback("Failed to delete intention");
               }
-
-              // If online, delete from Supabase
-              const { error } = await supabase.from("intentions").delete().eq("id", id);
-
-              if (error) throw error;
-
-              showFeedback("Intention deleted successfully");
             },
           },
         ],
@@ -1008,22 +491,15 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     }
   };
 
-  // Get filtered and sorted intentions
-  const getFilteredIntentions = useCallback(() => {
-    // First filter by tab view (all, active, completed)
-    let filtered = intentions.filter((i) => {
-      if (intentionsTabView === "all") return true;
-      if (intentionsTabView === "active") return !i.completed;
-      if (intentionsTabView === "completed") return i.completed;
-      return true;
+  // Get filtered and sorted intentions using context
+  const getDisplayIntentions = useCallback(() => {
+    // Use context filtering for type
+    let filtered = getFilteredIntentions({
+      type: intentionFilter === "all" ? undefined : intentionFilter,
+      completed: intentionsTabView === "all" ? undefined : intentionsTabView === "completed",
     });
 
-    // Then filter by type if not "all"
-    if (intentionFilter !== "all") {
-      filtered = filtered.filter((i) => i.type === intentionFilter);
-    }
-
-    // Then sort
+    // Apply local sorting
     return filtered.sort((a, b) => {
       if (intentionSorting === "newest") {
         return b.created_at.getTime() - a.created_at.getTime();
@@ -1034,7 +510,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       // Alphabetical
       return a.title.localeCompare(b.title);
     });
-  }, [intentions, intentionsTabView, intentionFilter, intentionSorting]);
+  }, [getFilteredIntentions, intentionsTabView, intentionFilter, intentionSorting]);
 
   // Animation for intention favorite action
   const animateIntentionFavorite = () => {
@@ -1361,7 +837,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   >
                     Select Groups
                   </Text>
-                  {loadingGroups ? (
+                  {false ? (
                     <ActivityIndicator
                       size="small"
                       color={themeStyles.accentColor}
@@ -1441,7 +917,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   >
                     Select Friends
                   </Text>
-                  {loadingFriends ? (
+                  {false ? (
                     <ActivityIndicator
                       size="small"
                       color={themeStyles.accentColor}
@@ -1488,7 +964,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                               },
                             ]}
                           >
-                            {friend.username}
+                            {`${friend.first_name} ${friend.last_name}`}
                           </Text>
                           {newIntentionFriends.includes(friend.id) && (
                             <Feather
@@ -1587,7 +1063,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       opacity: newIntentionTitle.trim() && !isSubmitting ? 1 : 0.7,
                     },
                   ]}
-                  onPress={addIntention}
+                  onPress={addNewIntention}
                   disabled={!newIntentionTitle.trim() || isSubmitting}
                 >
                   {isSubmitting ? (
@@ -1912,7 +1388,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               Loading your prayer intentions...
             </Text>
           </View>
-        ) : getFilteredIntentions().length === 0 ? (
+        ) : getDisplayIntentions().length === 0 ? (
           <View style={styles.emptyIntentionsContainer}>
             <Feather
               name="user"
@@ -1944,7 +1420,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
           </View>
         ) : (
           <FlatList
-            data={getFilteredIntentions()}
+            data={getDisplayIntentions()}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View
@@ -2089,7 +1565,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
                   <TouchableOpacity
                     style={styles.intentionDeleteButton}
-                    onPress={() => deleteIntention(item.id)}
+                    onPress={() => deleteIntentionHandler(item.id)}
                   >
                     <Feather name="trash-2" size={14} color={`${themeStyles.textColor}60`} />
                   </TouchableOpacity>

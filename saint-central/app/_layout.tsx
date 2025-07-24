@@ -19,6 +19,7 @@ import * as Notifications from "expo-notifications";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { registerForPushNotificationsAsync, saveUserPushToken } from "@/utils/notifications";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PrayerIntentionsProvider } from "@/contexts/PrayerIntentionsContext";
 
 // Prevent the splash screen from auto-hiding until ready
 SplashScreen.preventAutoHideAsync();
@@ -140,7 +141,9 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutContent />
+      <PrayerIntentionsProvider>
+        <RootLayoutContent />
+      </PrayerIntentionsProvider>
     </AuthProvider>
   );
 }

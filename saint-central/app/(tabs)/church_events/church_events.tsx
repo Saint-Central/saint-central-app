@@ -61,7 +61,6 @@ interface ChurchEventsProps {
 const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   // Animation values
   const scrollY = useSharedValue(0);
-  const fabOpacity = useSharedValue(1);
 
   // Animation values for decorative elements
   const holyGlow = useSharedValue(0);
@@ -201,13 +200,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     };
   });
 
-  // FAB animation
-  const fabStyle = useAnimatedStyle(() => {
-    return {
-      opacity: fabOpacity.value,
-      transform: [{ scale: fabOpacity.value }],
-    };
-  });
 
   // Use custom hooks
   const {
@@ -234,7 +226,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     setCalendarView,
     showDateDetail,
     selectedDayEvents,
-    dayAnimations,
+    calendarEntranceAnim,
     detailSlideAnim,
     changeMonth,
     selectDay,
@@ -285,14 +277,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     setShowDetailModal(true);
   };
 
-  // Animation for FAB
-  const hideFab = () => {
-    fabOpacity.value = withTiming(0, { duration: 200 });
-  };
-
-  const showFab = () => {
-    fabOpacity.value = withTiming(1, { duration: 200 });
-  };
 
   // Effect to handle eventId if provided
   useEffect(() => {
@@ -513,11 +497,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         bounces={true}
         onScroll={(event) => {
           scrollY.value = event.nativeEvent.contentOffset.y;
-          if (event.nativeEvent.contentOffset.y > 100 && fabOpacity.value === 1) {
-            hideFab();
-          } else if (event.nativeEvent.contentOffset.y <= 100 && fabOpacity.value === 0) {
-            showFab();
-          }
         }}
         refreshControl={
           <RefreshControl
@@ -671,7 +650,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
                 currentMonth={currentMonth}
                 calendarData={calendarData}
                 selectedDate={selectedDate}
-                dayAnimations={dayAnimations}
+                calendarEntranceAnim={calendarEntranceAnim}
                 onDaySelect={(date) => {
                   const flatCalendarData = calendarData.flat();
                   const calendarDay = flatCalendarData.find(
@@ -750,23 +729,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         </View>
       </ScrollView>
 
-      {/* Enhanced Floating Action Button */}
-      {hasPermissionToCreate && (
-        <Animated.View style={[enhancedStyles.fabContainer, fabStyle]}>
-          <TouchableOpacity
-            style={enhancedStyles.fab}
-            onPress={openAddModal}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={THEME.gradientPrimary}
-              style={enhancedStyles.fabGradient}
-            >
-              <Feather name="plus" size={24} color={THEME.textWhite} />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
 
       {/* Modals remain the same but with enhanced styling context */}
       <Modal
@@ -1280,24 +1242,6 @@ const enhancedStyles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     ...THEME.shadowLight,
-  },
-  fabContainer: {
-    position: "absolute",
-    bottom: 32,
-    right: 32,
-    zIndex: 10,
-  },
-  fab: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    overflow: "hidden",
-    ...THEME.shadowHeavy,
-  },
-  fabGradient: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
   eventItem: {
     flexDirection: "row",

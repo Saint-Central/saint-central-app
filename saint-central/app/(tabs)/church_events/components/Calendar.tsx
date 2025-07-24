@@ -18,6 +18,7 @@ import Animated, {
   withSequence,
   withDelay,
   Easing,
+  Extrapolate,
 } from "react-native-reanimated";
 import { CalendarDay } from "../types";
 import THEME from "../../../../theme";
@@ -31,7 +32,7 @@ interface CalendarProps {
   currentMonth: Date;
   calendarData: CalendarDay[][];
   selectedDate: Date | null;
-  dayAnimations: any;
+  calendarEntranceAnim: any;
   onDaySelect: (date: Date) => void;
   onChangeMonth: (direction: "prev" | "next") => void;
 }
@@ -43,12 +44,29 @@ const Calendar: React.FC<CalendarProps> = ({
   currentMonth,
   calendarData,
   selectedDate,
-  dayAnimations,
+  calendarEntranceAnim,
   onDaySelect,
   onChangeMonth,
 }) => {
   // Animation for month change
   const monthChangeDirection = useSharedValue<"left" | "right" | null>(null);
+
+  // Create animated style for calendar entrance
+  const calendarAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: calendarEntranceAnim.value,
+      transform: [
+        {
+          scale: interpolate(
+            calendarEntranceAnim.value,
+            [0, 1],
+            [0.9, 1],
+            Extrapolate.CLAMP
+          ),
+        },
+      ],
+    };
+  });
 
   const handlePrevMonth = () => {
     monthChangeDirection.value = "left";
@@ -70,7 +88,7 @@ const Calendar: React.FC<CalendarProps> = ({
   });
 
   return (
-    <View style={calendarStyles.container}>
+    <Animated.View style={[calendarStyles.container, calendarAnimatedStyle]}>
       {/* Month navigation */}
       <View style={calendarStyles.header}>
         <TouchableOpacity style={calendarStyles.navButton} onPress={handlePrevMonth}>
@@ -172,7 +190,7 @@ const Calendar: React.FC<CalendarProps> = ({
           </View>
         ))}
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 };
 
