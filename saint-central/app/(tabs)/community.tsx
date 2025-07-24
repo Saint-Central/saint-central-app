@@ -2827,8 +2827,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
     position: 'relative',
     overflow: 'hidden',
-    height: 320,
-    marginTop: -80, // Pull up much higher into safe area
+    height: 250,
+    marginTop: -60, // Pull up into safe area
   },
   headerBackground: {
     flex: 1,
@@ -2844,8 +2844,8 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     paddingHorizontal: 28,
-    paddingTop: 100, // Account for higher position and status bar
-    paddingBottom: 40,
+    paddingTop: 80, // Account for position and status bar
+    paddingBottom: 28,
     justifyContent: 'center',
   },
   animatedOverlay: {
@@ -2967,48 +2967,49 @@ const styles = StyleSheet.create({
   
   // Premium Card Design
   intentionList: { 
-    paddingVertical: 24,
-    paddingHorizontal: 12, 
-    paddingBottom: 160,
-    gap: 24,
+    paddingVertical: 32,
+    paddingHorizontal: 16, 
+    paddingBottom: 180,
+    gap: 28,
   },
   intentionCard: {
-    backgroundColor: "rgba(41, 37, 36, 0.8)",
-    borderRadius: 28,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    backgroundColor: "rgba(28, 25, 23, 0.9)",
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     marginBottom: 16,
     marginHorizontal: 8,
     position: 'relative',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: "rgba(251, 191, 36, 0.25)",
+    overflow: 'visible',
+    borderWidth: 0,
+    borderLeftWidth: 6,
+    borderLeftColor: "rgba(251, 191, 36, 0.9)",
     ...Platform.select({
       ios: {
-        shadowColor: "rgba(251, 191, 36, 0.6)",
-        shadowOffset: { width: 0, height: 12 },
+        shadowColor: "rgba(0, 0, 0, 0.8)",
+        shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
-        shadowRadius: 24,
+        shadowRadius: 16,
       },
       android: {
-        elevation: 16,
+        elevation: 12,
       },
     }),
     transform: [{ scale: 1 }],
   },
   cardGradientOverlay: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.4,
-    borderRadius: 28,
+    opacity: 0.3,
+    borderRadius: 20,
   },
   cardGlowEffect: {
     position: 'absolute',
-    top: -30,
-    left: -30,
-    right: -20,
-    height: 60,
-    backgroundColor: 'rgba(212, 165, 116, 0.05)',
-    borderRadius: 50,
+    top: 8,
+    right: 12,
+    width: 6,
+    height: 6,
+    backgroundColor: 'rgba(251, 191, 36, 0.9)',
+    borderRadius: 3,
     transform: [{ scaleX: 1.2 }],
   },
   // Card Header Styling
