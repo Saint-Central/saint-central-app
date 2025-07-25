@@ -32,7 +32,7 @@ import LentListView from "./LentListView";
 // --------------------
 // Data Interfaces
 // --------------------
-interface LentTask {
+interface DailyTask {
   id: string;
   user_id: string;
   event: string;
@@ -96,9 +96,9 @@ type ViewType = "list" | "calendar";
 type FilterType = "all" | "friends" | "groups";
 
 // --------------------
-// Lent Guide Events
+// Daily Guide Events
 // --------------------
-interface LentEvent {
+interface DailyEvent {
   date: string;
   title: string;
   description: string;
@@ -138,7 +138,7 @@ const parseSelectedGroups = (selected_groups: any): (number | string)[] => {
   return [];
 };
 
-const lentGuideEvents: LentEvent[] = [
+const dailyGuideEvents: DailyEvent[] = [
   {
     date: "2025-02-17",
     title: "Daily Goals",
@@ -155,13 +155,13 @@ const lentGuideEvents: LentEvent[] = [
     date: "2025-02-19",
     title: "Group Discussion",
     description:
-      "Organize a group discussion with friends or family about the significance of daily goals. Share personal goals and support each other in your spiritual journeys.",
+      "Organize a group discussion with friends or family about your daily spiritual practices. Share personal goals and support each other in your spiritual journeys.",
   },
   {
     date: "March 5",
     title: "Ash Wednesday",
     description:
-      "Attend an Ash Wednesday service to receive ashes on your forehead, symbolizing repentance and mortality. Reflect on areas in your life needing growth and set a personal intention for Lent.",
+      "Attend a spiritual service to reflect on personal growth areas. Set a personal intention for your daily spiritual journey.",
   },
   {
     date: "March 6",
@@ -179,7 +179,7 @@ const lentGuideEvents: LentEvent[] = [
     date: "March 8",
     title: "Group Discussion",
     description:
-      "Organize a group discussion with friends or family about the significance of Lent. Share personal goals and support each other in your spiritual journeys.",
+      "Organize a group discussion with friends or family about your spiritual journey. Share personal goals and support each other in your daily practices.",
   },
   {
     date: "March 9",
@@ -219,10 +219,10 @@ const getMonthName = (month: number) => {
   return new Date(0, month).toLocaleString("default", { month: "long" });
 };
 
-const getGuideEventsForDate = (date: Date): LentEvent[] => {
+const getGuideEventsForDate = (date: Date): DailyEvent[] => {
   const monthName = date.toLocaleString("default", { month: "long" });
   const day = date.getDate();
-  return lentGuideEvents.filter((event) => {
+  return dailyGuideEvents.filter((event) => {
     const match = event.date.match(/^(\w+)\s+(\d+)/);
     if (match) {
       const [, eventMonth, eventDay] = match;
@@ -268,8 +268,8 @@ const formatCommentDate = (dateStr: string): string => {
 // --------------------
 // Grouping Helper for Recurring Tasks
 // --------------------
-const groupTasks = (tasks: LentTask[]) => {
-  const groups: { [key: string]: LentTask[] } = {};
+const groupTasks = (tasks: DailyTask[]) => {
+  const groups: { [key: string]: DailyTask[] } = {};
   tasks.forEach((task) => {
     if (task.recurrence_id) {
       if (!groups[task.recurrence_id]) {
@@ -297,15 +297,15 @@ interface ExpandedDayViewProps {
   day: Date;
   onClose: () => void;
   onAddTask: () => void;
-  dayTasks: LentTask[];
-  guideEvents: LentEvent[];
+  dayTasks: DailyTask[];
+  guideEvents: DailyEvent[];
   currentUserId: string;
   friendColors: { [email: string]: string };
-  handleLikeToggle: (task: LentTask) => void;
-  handleOpenComments: (task: LentTask) => void;
+  handleLikeToggle: (task: DailyTask) => void;
+  handleOpenComments: (task: DailyTask) => void;
   showConfirmDelete: (taskId: string) => void;
-  onGuideEventPress: (event: LentEvent) => void;
-  handleToggleTaskCompletion: (task: LentTask) => void;
+  onGuideEventPress: (event: DailyEvent) => void;
+  handleToggleTaskCompletion: (task: DailyTask) => void;
 }
 
 const ExpandedDayView: React.FC<ExpandedDayViewProps> = ({
@@ -623,9 +623,9 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 // Render Task Group Card for List View
 // --------------------
 const renderTaskGroupCard = (
-  group: { key: string; tasks: LentTask[] },
-  handleLikeToggle: (task: LentTask) => void,
-  handleOpenComments: (task: LentTask) => void,
+  group: { key: string; tasks: DailyTask[] },
+  handleLikeToggle: (task: DailyTask) => void,
+  handleOpenComments: (task: DailyTask) => void,
   showConfirmDelete: (taskId: string) => void,
   handleDeleteRecurringGroup: (recurrenceId: string) => void,
   handleToggleRecurringGroupCompletion: (
@@ -633,8 +633,8 @@ const renderTaskGroupCard = (
     currentAllCompleted: boolean,
   ) => void,
   currentUserId: string,
-  handleToggleTaskCompletion: (task: LentTask) => void,
-  showCompletionConfirm: (recurrenceId: string, allCompleted: boolean, task: LentTask) => void,
+  handleToggleTaskCompletion: (task: DailyTask) => void,
+  showCompletionConfirm: (recurrenceId: string, allCompleted: boolean, task: DailyTask) => void,
   likeAnimations: { [taskId: string]: Animated.Value },
   heartAnimations: { [taskId: string]: Animated.Value },
 ) => {
@@ -781,9 +781,9 @@ const renderTaskGroupCard = (
 };
 
 // --------------------
-// Lent2025 Screen Component
+// DailyTasks2025 Screen Component
 // --------------------
-const Lent2025: React.FC = () => {
+const DailyTasks2025: React.FC = () => {
   // Auth and CRUD clients
   const { user, loading: authLoading } = useAuth();
   const { select, insert, update, delete: deleteRecord } = useCRUD();
@@ -801,7 +801,7 @@ const Lent2025: React.FC = () => {
   })();
 
   // Main state
-  const [lentTasks, setLentTasks] = useState<LentTask[]>([]);
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [newTask, setNewTask] = useState({
@@ -818,12 +818,12 @@ const Lent2025: React.FC = () => {
   // UI state
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showInlineDatePicker, setShowInlineDatePicker] = useState(false);
-  const [editingTask, setEditingTask] = useState<LentTask | null>(null);
+  const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [view, setView] = useState<ViewType>("calendar");
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
-  const [selectedGuideEvent, setSelectedGuideEvent] = useState<LentEvent | null>(null);
+  const [selectedGuideEvent, setSelectedGuideEvent] = useState<DailyEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshKey, setRefreshKey] = useState(0);
   const [showEditDatePicker, setShowEditDatePicker] = useState(false);
@@ -833,7 +833,7 @@ const Lent2025: React.FC = () => {
   // Comments and interactions
   const [taskComments, setTaskComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [selectedTaskForComments, setSelectedTaskForComments] = useState<LentTask | null>(null);
+  const [selectedTaskForComments, setSelectedTaskForComments] = useState<DailyTask | null>(null);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   
@@ -864,7 +864,7 @@ const Lent2025: React.FC = () => {
   const likeAnimations = useRef<{ [taskId: string]: Animated.Value }>({}).current;
   const heartAnimations = useRef<{ [taskId: string]: Animated.Value }>({}).current;
   const scrollViewRef = useRef<ScrollView>(null);
-  const headerRef = useRef<View>(null);
+  const headerRef = useRef<any>(null);
   const filterDropdownAnim = useRef(new Animated.Value(0)).current;
   const notificationAnim = useRef(new Animated.Value(0)).current;
   const loadingSpinAnim = useRef(new Animated.Value(0)).current;
@@ -963,16 +963,19 @@ const Lent2025: React.FC = () => {
         return {
           ...prevTask,
           selectedGroups: updatedGroups,
-        } as LentTask;
+        } as DailyTask;
       });
     },
     [editingTask],
   );
 
+  // Get current user ID from AuthContext
+  const currentUserId = user?.id || "";
+
   // Memoized task filters
   const friendTasks = useMemo(
-    () => lentTasks.filter((task) => task.user_id !== currentUserId),
-    [lentTasks, currentUserId],
+    () => dailyTasks.filter((task) => task.user_id !== currentUserId),
+    [dailyTasks, currentUserId],
   );
 
   const uniqueFriendEmails = useMemo(
@@ -1025,9 +1028,6 @@ const Lent2025: React.FC = () => {
     }).start();
   }, [showFilterDropdown]);
 
-  // Get current user ID from AuthContext
-  const currentUserId = user?.id || "";
-
   // Fetch user groups using crudClient
   const fetchUserGroups = useCallback(async () => {
     try {
@@ -1071,13 +1071,18 @@ const Lent2025: React.FC = () => {
     }
   };
 
+  // Show notification with animation
+  const showNotification = useCallback((message: string, type: "error" | "success") => {
+    setNotification({ message, type });
+  }, []);
+
   // Simplified fetch tasks using crudClient
   const fetchTasks = useCallback(async () => {
     if (!currentUserId) return;
     try {
       setIsLoading(true);
       
-      let tasks = [];
+      let tasks: DailyTask[] = [];
       
       if (tasksFilter === "all") {
         // Get all tasks for the current user
@@ -1158,14 +1163,14 @@ const Lent2025: React.FC = () => {
         selectedGroups: task.selected_groups || []
       }));
       
-      setLentTasks(tasksWithUsers);
+      setDailyTasks(tasksWithUsers);
       setIsInitialized(true);
       
     } catch (error) {
       console.error("Error fetching tasks:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       showNotification("Error fetching tasks: " + errorMessage, "error");
-      setLentTasks([]);
+      setDailyTasks([]);
       setIsInitialized(true);
     } finally {
       setIsLoading(false);
@@ -1201,11 +1206,6 @@ const Lent2025: React.FC = () => {
       setCommentLoading(false);
     }
   }, [select]);
-
-  // Show notification with animation
-  const showNotification = useCallback((message: string, type: "error" | "success") => {
-    setNotification({ message, type });
-  }, []);
 
   // Reset initialization when user changes
   useEffect(() => {
@@ -1414,7 +1414,7 @@ const Lent2025: React.FC = () => {
   };
 
   // Edit task handler
-  const handleEditTask = useCallback((task: LentTask) => {
+  const handleEditTask = useCallback((task: DailyTask) => {
     setSelectedDay(null);
     const editTask = {
       ...task,
@@ -1467,7 +1467,7 @@ const Lent2025: React.FC = () => {
   // Show delete confirmation
   const showConfirmDelete = useCallback(
     (id: string) => {
-      const isRecurring = lentTasks.some((task) => task.recurrence_id === id);
+      const isRecurring = dailyTasks.some((task) => task.recurrence_id === id);
       const title = isRecurring ? "Delete Recurring Tasks" : "Delete Task";
       const message = isRecurring
         ? "Are you sure you want to delete all tasks in this recurring series? This action cannot be undone."
@@ -1475,7 +1475,7 @@ const Lent2025: React.FC = () => {
       setDeleteInfo({ id, isRecurring, title, message });
       setShowDeleteConfirmModal(true);
     },
-    [lentTasks],
+    [dailyTasks],
   );
 
   // Handle delete confirmation
@@ -1505,7 +1505,7 @@ const Lent2025: React.FC = () => {
 
   // Handle cancel completion
   const handleCancelCompletion = () => {
-    setLentTasks((prevTasks) =>
+    setDailyTasks((prevTasks) =>
       prevTasks.map((t) =>
         t.recurrence_id === completionInfo.recurrenceId
           ? { ...t, completed: completionInfo.currentAllCompleted }
@@ -1583,12 +1583,12 @@ const Lent2025: React.FC = () => {
 
   // Toggle like on a task
   const handleLikeToggle = useCallback(
-    async (task: LentTask) => {
+    async (task: DailyTask) => {
       try {
         const willBeLiked = !task.liked_by_current_user;
 
         // Optimistically update UI
-        setLentTasks((prevTasks) =>
+        setDailyTasks((prevTasks) =>
           prevTasks.map((t) =>
             t.id === task.id
               ? {
@@ -1629,7 +1629,7 @@ const Lent2025: React.FC = () => {
 
   // Open comments modal with sequential state updates to prevent flashing
   const handleOpenComments = useCallback(
-    (task: LentTask) => {
+    (task: DailyTask) => {
       // First close any open day view to prevent UI flash
       if (selectedDay) {
         setSelectedDay(null);
@@ -1676,7 +1676,7 @@ const Lent2025: React.FC = () => {
         setTaskComments((prev) => [...prev, newCommentObj]);
 
         // Update comment count in tasks list
-        setLentTasks((prevTasks) =>
+        setDailyTasks((prevTasks) =>
           prevTasks.map((t) =>
             t.id === selectedTaskForComments.id
               ? { ...t, comments_count: (t.comments_count || 0) + 1 }
@@ -1702,7 +1702,7 @@ const Lent2025: React.FC = () => {
       setTaskComments((prev) => prev.filter((comment) => comment.id !== commentId));
 
       // Update task comment count
-      setLentTasks((prev) =>
+      setDailyTasks((prev) =>
         prev.map((t) =>
           t.id === selectedTaskForComments.id
             ? { ...t, comments_count: Math.max(0, (t.comments_count || 0) - 1) }
@@ -1739,8 +1739,8 @@ const Lent2025: React.FC = () => {
 
   // Get tasks for a specific day
   const getTasksForDay = useCallback(
-    (date: Date): LentTask[] => {
-      return lentTasks.filter((task) => {
+    (date: Date): DailyTask[] => {
+      return dailyTasks.filter((task) => {
         const taskDate = parseLocalDate(task.date);
         return (
           taskDate.getFullYear() === date.getFullYear() &&
@@ -1749,7 +1749,7 @@ const Lent2025: React.FC = () => {
         );
       });
     },
-    [lentTasks],
+    [dailyTasks],
   );
 
   // Add task for a specific day
@@ -1795,9 +1795,9 @@ const Lent2025: React.FC = () => {
 
   // Show completion confirmation
   const showCompletionConfirm = useCallback(
-    (recurrenceId: string, currentAllCompleted: boolean, task: LentTask) => {
+    (recurrenceId: string, currentAllCompleted: boolean, task: DailyTask) => {
       // Optimistically update UI
-      setLentTasks((prevTasks) =>
+      setDailyTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.recurrence_id === recurrenceId ? { ...t, completed: !currentAllCompleted } : t,
         ),
@@ -1816,13 +1816,13 @@ const Lent2025: React.FC = () => {
 
   // Toggle task completion
   const handleToggleTaskCompletion = useCallback(
-    async (task: LentTask) => {
+    async (task: DailyTask) => {
       if (task.user_id !== currentUserId) return;
 
       const newCompleted = !task.completed;
 
       // Optimistically update UI
-      setLentTasks((prevTasks) =>
+      setDailyTasks((prevTasks) =>
         prevTasks.map((t) => (t.id === task.id ? { ...t, completed: newCompleted } : t)),
       );
 
@@ -1830,7 +1830,7 @@ const Lent2025: React.FC = () => {
         await update("lent_tasks", { completed: newCompleted }, { id: task.id });
       } catch (error) {
         // Revert on error
-        setLentTasks((prevTasks) =>
+        setDailyTasks((prevTasks) =>
           prevTasks.map((t) => (t.id === task.id ? { ...t, completed: !newCompleted } : t)),
         );
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1847,7 +1847,7 @@ const Lent2025: React.FC = () => {
       const newCompleted = !currentAllCompleted;
 
       // Optimistically update UI
-      setLentTasks((prevTasks) =>
+      setDailyTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.recurrence_id === recurrenceId ? { ...t, completed: newCompleted } : t,
         ),
@@ -1857,7 +1857,7 @@ const Lent2025: React.FC = () => {
         await update("lent_tasks", { completed: newCompleted }, { recurrence_id: recurrenceId });
       } catch (error) {
         // Revert on error
-        setLentTasks((prevTasks) =>
+        setDailyTasks((prevTasks) =>
           prevTasks.map((t) =>
             t.recurrence_id === recurrenceId ? { ...t, completed: !newCompleted } : t,
           ),
@@ -1885,8 +1885,8 @@ const Lent2025: React.FC = () => {
 
   // Filter my tasks
   const myTasks = useMemo(
-    () => lentTasks.filter((task) => task.user_id === currentUserId),
-    [lentTasks, currentUserId],
+    () => dailyTasks.filter((task) => task.user_id === currentUserId),
+    [dailyTasks, currentUserId],
   );
 
   // Group my tasks
@@ -1894,7 +1894,7 @@ const Lent2025: React.FC = () => {
 
   // Render task card for non-recurring tasks
   const renderTaskCard = useCallback(
-    (task: LentTask, isUserTask: boolean) => {
+    (task: DailyTask, isUserTask: boolean) => {
       if (!likeAnimations[task.id]) {
         likeAnimations[task.id] = new Animated.Value(1);
       }
@@ -2127,7 +2127,7 @@ const Lent2025: React.FC = () => {
               <MaterialCommunityIcons name="calendar-heart" size={28} color="#FFFFFF" />
               <View style={styles.headerTextContainer}>
                 <Text style={[styles.modernHeaderTitle, isIpad && { fontSize: 32 }]}>
-                  Lent Journey 2025
+                  Daily Tasks
                 </Text>
                 <Text style={styles.modernHeaderSubtitle}>
                   {getHeaderTitle()}
@@ -2284,10 +2284,10 @@ const Lent2025: React.FC = () => {
           {view === "list" ? (
             <LentListView
               tasksFilter={tasksFilter}
-              groupedMyTasks={groupedMyTasks}
-              friendTasks={friendTasks}
-              lentTasks={lentTasks}
-              currentUserId={currentUserId}
+              groupedMyTasks={groupedMyTasks || []}
+              friendTasks={friendTasks || []}
+              lentTasks={dailyTasks || []}
+              currentUserId={currentUserId || ""}
               handleLikeToggle={handleLikeToggle}
               handleOpenComments={handleOpenComments}
               showConfirmDelete={showConfirmDelete}
@@ -2296,11 +2296,9 @@ const Lent2025: React.FC = () => {
               handleToggleTaskCompletion={handleToggleTaskCompletion}
               showCompletionConfirm={showCompletionConfirm}
               handleEditTask={handleEditTask}
-              likeAnimations={likeAnimations}
-              heartAnimations={heartAnimations}
+              likeAnimations={likeAnimations || {}}
+              heartAnimations={heartAnimations || {}}
               getHeaderTitle={getHeaderTitle}
-              renderTaskGroupCard={renderTaskGroupCard}
-              renderTaskCard={renderTaskCard}
             />
           ) : (
             <View style={styles.calendarContainer}>
@@ -2725,7 +2723,7 @@ const Lent2025: React.FC = () => {
                       setEditingTask({
                         ...editingTask,
                         event: text,
-                      } as LentTask)
+                      } as DailyTask)
                     }
                     placeholder="Enter event..."
                     placeholderTextColor={theme.neutral400}
@@ -2746,7 +2744,7 @@ const Lent2025: React.FC = () => {
                               setEditingTask({
                                 ...editingTask,
                                 date: `${y}-${m}-${d}`,
-                              } as LentTask);
+                              } as DailyTask);
                             }
                           },
                           mode: "date",
@@ -2777,7 +2775,7 @@ const Lent2025: React.FC = () => {
                           setEditingTask({
                             ...editingTask,
                             date: `${y}-${m}-${d}`,
-                          } as LentTask);
+                          } as DailyTask);
                         }
                       }}
                       style={{ backgroundColor: theme.neutral900 }}
@@ -2877,7 +2875,7 @@ const Lent2025: React.FC = () => {
                       setEditingTask({
                         ...editingTask,
                         description: text,
-                      } as LentTask)
+                      } as DailyTask)
                     }
                     placeholder="Enter description..."
                     placeholderTextColor={theme.neutral400}
@@ -3155,7 +3153,7 @@ const Lent2025: React.FC = () => {
                 handleLikeToggle={handleLikeToggle}
                 handleOpenComments={handleOpenComments}
                 showConfirmDelete={showConfirmDelete}
-                onGuideEventPress={(event: LentEvent) => {
+                onGuideEventPress={(event: DailyEvent) => {
                   // First close day view
                   setSelectedDay(null);
 
@@ -3456,6 +3454,142 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  groupTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  groupTagText: {
+    fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  visibilityTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(100, 116, 139, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  visibilityTagText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  // Task card and interaction styles
+  taskCard: {
+    backgroundColor: theme.neutral800,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  taskHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  checkboxButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: theme.neutral400,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.textWhite,
+    flex: 1,
+  },
+  recurringTaskTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.primary,
+    flex: 1,
+  },
+  taskDate: {
+    fontSize: 14,
+    color: theme.neutral300,
+    marginBottom: 8,
+  },
+  taskDescription: {
+    fontSize: 14,
+    color: theme.neutral200,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  taskInteractionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  likedButton: {
+    backgroundColor: 'rgba(244, 63, 94, 0.2)',
+  },
+  heartIconContainer: {
+    position: 'relative',
+  },
+  heartIconBase: {
+    marginRight: 6,
+  },
+  heartAnimation: {
+    position: 'absolute',
+  },
+  likeButtonText: {
+    color: theme.textWhite,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  commentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  commentButtonText: {
+    color: theme.textWhite,
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  taskActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  taskAction: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  deleteActionText: {
+    color: theme.error,
+    fontSize: 12,
+    fontWeight: '500',
   },
   modernGroupTag: {
     flexDirection: 'row',
@@ -4351,4 +4485,4 @@ const styles = StyleSheet.create({
   successConfirmButton: { backgroundColor: theme.success },
 });
 
-export default Lent2025;
+export default DailyTasks2025;
