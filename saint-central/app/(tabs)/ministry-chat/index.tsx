@@ -1888,6 +1888,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
     height: 400,
+    marginTop: 250,
   },
   emptyIconContainer: {
     width: 90,
