@@ -66,7 +66,8 @@ const CreateMinistryScreen = (): JSX.Element => {
   const { selectedPresetId } = route.params as RouteParams || {};
   
   // Initialize CRUD client and auth
-  const { selectOne, insert } = useCRUD();
+  const crud = useCRUD();
+  const { selectOne, insert } = crud;
   const { user } = useAuth();
   
   // State for ministry data
@@ -197,45 +198,113 @@ const CreateMinistryScreen = (): JSX.Element => {
       Alert.alert("Error", "Church information is missing. Please try again.");
       return;
     }
+
+    if (!userId) {
+      Alert.alert("Error", "User information is missing. Please try again.");
+      return;
+    }
     
     try {
       setLoading(true);
       
+      console.log("Creating ministry with data:", {
+        name: ministryData.name,
+        church_id: churchId,
+        user_id: userId,
+        private: ministryData.private,
+        hidden: ministryData.hidden
+      });
+      
       // Create the ministry
-      const newMinistry = await insert("ministries", {
+      const ministryPayload = {
         name: ministryData.name,
         description: ministryData.description || `${ministryData.name} ministry`,
         image_url: ministryData.image_url,
         church_id: churchId,
         created_at: new Date().toISOString(),
-        private: ministryData.private || false,
-        hidden: ministryData.hidden || false
-      });
+        private: ministryData.private || false
+      };
       
-      if (!newMinistry || !newMinistry.id) {
-        throw new Error("Failed to create ministry - no ID returned");
+      // Only add hidden field if the ministry is private (in case the field doesn't exist in DB)
+      if (ministryData.private && ministryData.hidden) {
+        ministryPayload.hidden = true;
+      }
+      
+      console.log("Ministry payload:", ministryPayload);
+      
+      const newMinistry = await insert("ministries", ministryPayload);
+      
+      console.log("Insert response:", newMinistry);
+      
+      // If no ID returned, try to find the ministry we just created
+      let ministryId = newMinistry?.id;
+      
+      if (!ministryId && newMinistry) {
+        // Some CRUD implementations might return the data differently
+        ministryId = newMinistry[0]?.id || newMinistry.data?.id;
+      }
+      
+      if (!ministryId) {
+        // Try to find the ministry by name and church_id as a fallback
+        console.log("No ID returned, trying to find ministry by name...");
+        const foundMinistry = await selectOne("ministries", {
+          where: {
+            name: ministryData.name,
+            church_id: churchId
+          }
+        });
+        
+        if (foundMinistry) {
+          ministryId = foundMinistry.id;
+          console.log("Found ministry with ID:", ministryId);
+        }
+      }
+      
+      if (!ministryId) {
+        throw new Error("Failed to create ministry - no ID returned and could not find created ministry");
       }
       
       // Add creator as member 
       try {
+        console.log("Adding creator as member with data:", {
+          ministry_id: ministryId,
+          user_id: userId,
+          church_id: churchId,
+          role: 'leader'
+        });
+        
         await insert("ministry_members", {
-          ministry_id: newMinistry.id,
+          ministry_id: ministryId,
           user_id: userId,
           church_id: churchId,
           joined_at: new Date().toISOString(),
-          member_status: 'leader'
+          role: 'leader'  // Changed from member_status to role
         });
         
         // Success message
         Alert.alert("Success", "Ministry created successfully!");
       } catch (memberError) {
         console.error("Error adding creator as member:", memberError);
-        // Continue anyway - we'll at least have the ministry
+        console.error("Member error details:", JSON.stringify(memberError, null, 2));
         
-        Alert.alert(
-          "Ministry Created", 
-          "Ministry was created successfully, but there was an issue adding you as a leader. You may need to join the ministry separately."
-        );
+        // Try alternative field name
+        try {
+          console.log("Trying with member_status field...");
+          await insert("ministry_members", {
+            ministry_id: ministryId,
+            user_id: userId,
+            church_id: churchId,
+            joined_at: new Date().toISOString(),
+            member_status: 'leader'
+          });
+          Alert.alert("Success", "Ministry created successfully!");
+        } catch (altError) {
+          console.error("Alternative insert also failed:", altError);
+          Alert.alert(
+            "Ministry Created", 
+            "Ministry was created successfully, but there was an issue adding you as a leader. You may need to join the ministry separately."
+          );
+        }
       }
       
       // Navigate to the ministries screen
@@ -243,7 +312,25 @@ const CreateMinistryScreen = (): JSX.Element => {
       
     } catch (error) {
       console.error("Error creating ministry:", error);
-      Alert.alert("Error", "Could not create ministry. Please try again.");
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        fullError: JSON.stringify(error, null, 2)
+      });
+      
+      // More specific error message
+      let errorMessage = "Could not create ministry. ";
+      if (error.message?.includes("duplicate")) {
+        errorMessage += "A ministry with this name may already exist.";
+      } else if (error.message?.includes("permission")) {
+        errorMessage += "You don't have permission to create ministries.";
+      } else if (error.message?.includes("required")) {
+        errorMessage += "Some required information is missing.";
+      } else {
+        errorMessage += "Please try again.";
+      }
+      
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }

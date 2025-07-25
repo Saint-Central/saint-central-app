@@ -312,6 +312,19 @@ const CourseHomePage: React.FC = () => {
       // Delete the enrollment
       await crud.delete("course_enrollment", { id: enrollment.id });
 
+      // Check if course has a linked ministry and remove from ministry too
+      const course = await crud.selectOne("courses", {
+        where: { id: courseId }
+      });
+      
+      if (course?.ministry_id) {
+        await crud.update(
+          "ministry_members",
+          { role: "removed" },
+          { ministry_id: course.ministry_id, user_id: user.id }
+        );
+      }
+
       // Refresh enrollments to update UI
       await fetchUserEnrollments();
       Alert.alert("Success", "Successfully left the course.");

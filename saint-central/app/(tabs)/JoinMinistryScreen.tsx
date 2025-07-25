@@ -125,8 +125,19 @@ export default function JoinMinistryScreen() {
         return;
       }
 
-      if (ministry?.private) {
-        // For private ministries, create a pending request
+      // Check if user is church admin/owner
+      const churchMember = await selectOne("church_members", {
+        where: {
+          user_id: user.id,
+          church_id: userChurchId,
+        },
+      });
+
+      const churchRole = churchMember?.role?.toLowerCase() || "";
+      const isChurchAdmin = churchRole === "admin" || churchRole === "owner";
+
+      if (ministry?.private && !isChurchAdmin) {
+        // For private ministries, non-admins create a pending request
         await insert("ministry_members", {
           ministry_id: ministryId,
           user_id: user.id,
@@ -141,13 +152,14 @@ export default function JoinMinistryScreen() {
           [{ text: "OK", onPress: () => router.back() }]
         );
       } else {
-        // For public ministries, join immediately
+        // For public ministries or church admins joining private ones, join immediately
+        // Church admins get admin role, others get member role
         await insert("ministry_members", {
           ministry_id: ministryId,
           user_id: user.id,
           church_id: userChurchId,
           joined_at: new Date().toISOString(),
-          role: "member",
+          role: isChurchAdmin ? "admin" : "member",
         });
 
         // Navigate to ministry details

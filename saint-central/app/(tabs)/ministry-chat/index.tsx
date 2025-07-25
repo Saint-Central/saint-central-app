@@ -14,6 +14,8 @@ import {
   Keyboard,
   Image,
   Dimensions,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -109,7 +111,7 @@ const MinistryChat = () => {
     : null;
 
   // Initialize CRUD client and auth
-  const { select, selectOne, insert, update } = useCRUD();
+  const { select, selectOne, insert, update, delete: deleteRecord } = useCRUD();
   const { user, getAccessToken } = useAuth();
 
   const [ministry, setMinistry] = useState<Ministry | null>(null);
@@ -127,6 +129,12 @@ const MinistryChat = () => {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
+
+  // Modal and members state
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [ministryMembers, setMinistryMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   // Pagination state for infinite scrolling
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -508,6 +516,191 @@ const MinistryChat = () => {
     } catch (error) {
       console.error("Error fetching ministry details:", error);
       Alert.alert("Error", "Failed to load ministry details");
+    }
+  };
+
+  // Fetch ministry members
+  const fetchMinistryMembers = async () => {
+    try {
+      setLoadingMembers(true);
+      
+      // Get ministry members
+      const members = await select("ministry_members", {
+        where: { 
+          ministry_id: ministryId
+        }
+      });
+
+      if (members && members.length > 0) {
+        // Filter out removed members
+        const activeMembers = members.filter(m => m.role !== "removed" && m.member_status !== "removed");
+        
+        // Get user details for each member
+        const memberDetails = await Promise.all(
+          activeMembers.map(async (member) => {
+            const userDetails = await selectOne("users", {
+              select: "id, first_name, last_name, profile_image",
+              where: { id: member.user_id }
+            });
+            
+            return {
+              ...member,
+              user_name: userDetails ? `${userDetails.first_name || ""} ${userDetails.last_name || ""}`.trim() : "Unknown User",
+              user_avatar: userDetails?.profile_image,
+              user_id: member.user_id,
+              role: member.role || member.member_status || "member"
+            };
+          })
+        );
+
+        // Remove duplicates based on user_id
+        const uniqueMembers = memberDetails.filter((member, index, self) =>
+          index === self.findIndex((m) => m.user_id === member.user_id)
+        );
+
+        // Sort by role (owner > admin > member)
+        const sortedMembers = uniqueMembers.sort((a, b) => {
+          const roleOrder = { owner: 0, leader: 1, admin: 2, member: 3 };
+          return (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3);
+        });
+
+        setMinistryMembers(sortedMembers);
+
+        // Check current user's role in ministry
+        const currentUserMember = activeMembers.find(m => m.user_id === user?.id);
+        console.log("Current user ministry member data:", currentUserMember);
+        
+        if (currentUserMember) {
+          const ministryRole = currentUserMember.role || currentUserMember.member_status || "member";
+          console.log("User ministry role:", ministryRole);
+          setCurrentUserRole(ministryRole);
+        }
+        
+        // Also check if user is church admin/owner (should have admin rights in all ministries)
+        if (ministry) {
+          const churchMember = await selectOne("church_members", {
+            where: { 
+              user_id: user?.id,
+              church_id: ministry.church_id
+            }
+          });
+          
+          console.log("Church member data:", churchMember);
+          
+          if (churchMember) {
+            const churchRole = churchMember.role?.toLowerCase();
+            console.log("Church role:", churchRole);
+            if (churchRole === "admin" || churchRole === "owner") {
+              setCurrentUserRole(churchRole); // Church admins/owners have admin rights in ministries
+              console.log("Set user role to church role:", churchRole);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching ministry members:", error);
+      Alert.alert("Error", "Failed to load ministry members");
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  // Handle kicking a member
+  const handleKickMember = async (memberId: string) => {
+    try {
+      // Show confirmation dialog
+      Alert.alert(
+        "Remove Member",
+        "Are you sure you want to remove this member from the ministry?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                console.log("Attempting to remove member:", {
+                  ministry_id: ministryId,
+                  user_id: memberId
+                });
+                
+                // First, check if the member exists
+                const existingMember = await selectOne("ministry_members", {
+                  where: {
+                    ministry_id: ministryId,
+                    user_id: memberId
+                  }
+                });
+                
+                console.log("Existing member data:", existingMember);
+                
+                if (!existingMember) {
+                  Alert.alert("Error", "Member not found in this ministry");
+                  return;
+                }
+                
+                // Try to delete the member record instead of updating
+                try {
+                  // First try to update to removed status
+                  await update(
+                    "ministry_members",
+                    { role: "removed" },
+                    { ministry_id: ministryId, user_id: memberId }
+                  );
+                } catch (updateError) {
+                  console.error("Update failed, trying delete:", updateError);
+                  // If update fails, try deleting the record
+                  const deleteResult = await deleteRecord("ministry_members", {
+                    ministry_id: ministryId,
+                    user_id: memberId
+                  });
+                  console.log("Delete result:", deleteResult);
+                }
+
+                // Check if ministry is linked to a course and remove from course too
+                try {
+                  const linkedCourses = await select("courses", {
+                    where: { ministry_id: ministryId }
+                  });
+
+                  if (linkedCourses && linkedCourses.length > 0) {
+                    // Remove from all linked course enrollments
+                    for (const course of linkedCourses) {
+                      try {
+                        await update(
+                          "course_enrollments",
+                          { is_active: false },
+                          { course_id: course.id, user_id: memberId }
+                        );
+                      } catch (courseError) {
+                        console.error("Error removing from course:", courseError);
+                        // Try deleting if update fails
+                        await deleteRecord("course_enrollments", {
+                          course_id: course.id,
+                          user_id: memberId
+                        });
+                      }
+                    }
+                  }
+                } catch (courseError) {
+                  console.error("Error handling course removal:", courseError);
+                }
+
+                // Refresh members list
+                fetchMinistryMembers();
+                
+                Alert.alert("Success", "Member has been removed from the ministry");
+              } catch (error) {
+                console.error("Error removing member:", error);
+                console.error("Error details:", JSON.stringify(error, null, 2));
+                Alert.alert("Error", "Failed to remove member. Please try again.");
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error in handleKickMember:", error);
     }
   };
 
@@ -1369,6 +1562,13 @@ const MinistryChat = () => {
     checkLastNotificationResponse();
   }, []);
 
+  // Fetch members when modal opens
+  useEffect(() => {
+    if (showInfoModal && ministryId && ministry) {
+      fetchMinistryMembers();
+    }
+  }, [showInfoModal, ministryId, ministry]);
+
   // Function to check if app was opened from a notification
   const checkLastNotificationResponse = async () => {
     try {
@@ -1440,7 +1640,7 @@ const MinistryChat = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.infoButton}>
+        <TouchableOpacity style={styles.infoButton} onPress={() => setShowInfoModal(true)}>
           <Ionicons name="information-circle-outline" size={24} color={THEME.primary} />
         </TouchableOpacity>
       </Animated.View>
@@ -1599,6 +1799,67 @@ const MinistryChat = () => {
           </View>
         </TouchableOpacity>
       </Animated.View>
+
+      {/* Ministry Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ministry Members</Text>
+              <TouchableOpacity onPress={() => setShowInfoModal(false)}>
+                <Ionicons name="close" size={24} color={THEME.text} />
+              </TouchableOpacity>
+            </View>
+
+            {loadingMembers ? (
+              <ActivityIndicator size="large" color={THEME.primary} style={{ marginTop: 20 }} />
+            ) : (
+              <ScrollView style={styles.membersList}>
+                {ministryMembers.map((member, index) => (
+                  <View key={`member-${member.user_id}-${index}`} style={styles.memberItem}>
+                    <View style={styles.memberInfo}>
+                      {member.user_avatar ? (
+                        <Image source={{ uri: member.user_avatar }} style={styles.memberAvatar} />
+                      ) : (
+                        <View style={[styles.memberAvatarPlaceholder, { backgroundColor: getAvatarColor(member.user_id) }]}>
+                          <Text style={styles.memberAvatarText}>{getInitials(member.user_name)}</Text>
+                        </View>
+                      )}
+                      <View style={styles.memberDetails}>
+                        <Text style={styles.memberName}>{member.user_name}</Text>
+                        <Text style={styles.memberRole}>
+                          {member.role === "leader" || member.role === "owner" ? "Owner" : 
+                           member.role === "admin" ? "Admin" : 
+                           member.member_status === "leader" ? "Owner" : "Member"}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    {/* Show kick button for admins/owners, but not for self or other admins/owners */}
+                    {(currentUserRole === "owner" || currentUserRole === "leader" || currentUserRole === "admin") &&
+                     member.user_id !== user?.id &&
+                     member.role !== "owner" &&
+                     member.role !== "leader" &&
+                     member.role !== "admin" && (
+                      <TouchableOpacity
+                        style={styles.kickButton}
+                        onPress={() => handleKickMember(member.user_id)}
+                      >
+                        <Ionicons name="close-circle" size={24} color={THEME.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -2014,6 +2275,84 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 12,
     overflow: "hidden",
+  },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: THEME.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: THEME.text,
+  },
+  membersList: {
+    paddingHorizontal: 20,
+  },
+  memberItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
+  },
+  memberInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  memberAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberAvatarText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  memberDetails: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: THEME.text,
+  },
+  memberRole: {
+    fontSize: 14,
+    color: THEME.textSecondary,
+    textTransform: "capitalize",
+  },
+  kickButton: {
+    padding: 8,
   },
   attachmentImage: {
     width: "100%",

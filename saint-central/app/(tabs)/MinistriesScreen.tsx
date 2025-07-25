@@ -601,12 +601,16 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         return;
       }
 
+      // Check if user is church admin/owner
+      const churchRole = userRole?.toLowerCase() || "";
+      const isChurchAdmin = churchRole === "admin" || churchRole === "owner";
+      
       await insert("ministry_members", {
         ministry_id: ministryId,
         user_id: user.id,
         church_id: userChurchId,
         joined_at: new Date().toISOString(),
-        role: "member",
+        role: isChurchAdmin ? "admin" : "member",
       });
 
       // Refresh the ministries list
@@ -635,6 +639,24 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         ministry_id: ministryId,
         user_id: user.id
       });
+
+      // Check if ministry is linked to any courses and remove from those too
+      const linkedCourses = await select("courses", {
+        where: { ministry_id: ministryId }
+      });
+
+      if (linkedCourses && linkedCourses.length > 0) {
+        // Remove from all linked course enrollments
+        for (const course of linkedCourses) {
+          const enrollment = await selectOne("course_enrollments", {
+            where: { course_id: course.id, user_id: user.id }
+          });
+          
+          if (enrollment) {
+            await deleteRecord("course_enrollments", { id: enrollment.id });
+          }
+        }
+      }
 
       // Refresh the ministries list
       fetchData();

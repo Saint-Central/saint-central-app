@@ -165,6 +165,16 @@ const CourseAdminDashboard: React.FC = () => {
           onPress: async () => {
             try {
               await crud.delete("course_enrollment", { id: member.enrollment.id });
+              
+              // Check if course has a linked ministry and remove from ministry too
+              if (course?.ministry_id) {
+                await crud.update(
+                  "ministry_members",
+                  { role: "removed" },
+                  { ministry_id: course.ministry_id, user_id: member.user.id }
+                );
+              }
+              
               Alert.alert("Success", "Member removed from course");
               await fetchCourseAndMembers();
             } catch (error) {
