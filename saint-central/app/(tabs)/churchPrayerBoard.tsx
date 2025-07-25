@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,12 +14,19 @@ import {
   Platform,
   RefreshControl,
   Switch,
+  Dimensions,
+  Animated,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCRUD } from "../../utils/crudClient";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome5, Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
+// import MaskedView from "@react-native-masked-view/masked-view";
+
+const { width, height } = Dimensions.get("window");
 
 // Prayer request interface
 interface PrayerRequest {
@@ -42,6 +49,10 @@ interface PrayerInteraction {
   created_at: string;
 }
 
+// Animated components
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
 const ChurchPrayerBoard = () => {
   const router = useRouter();
   const { user } = useAuth();
@@ -56,9 +67,23 @@ const ChurchPrayerBoard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [userChurchId, setUserChurchId] = useState<number | null>(null);
   const [userInteractions, setUserInteractions] = useState<Set<number>>(new Set());
+  
+  // Animation refs
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerAnimation = useRef(new Animated.Value(0)).current;
+  const floatingButtonScale = useRef(new Animated.Value(0)).current;
+  const prayerAnimations = useRef<Map<number, Animated.Value>>(new Map()).current;
+  const modalScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchUserChurch();
+    // Animate floating button on mount
+    Animated.spring(floatingButtonScale, {
+      toValue: 1,
+      friction: 5,
+      tension: 50,
+      useNativeDriver: true,
+    }).start();
   }, [user]);
 
   useEffect(() => {
@@ -185,6 +210,31 @@ const ChurchPrayerBoard = () => {
     }
   };
 
+  const getPrayerAnimation = (prayerId: number) => {
+    if (!prayerAnimations.has(prayerId)) {
+      prayerAnimations.set(prayerId, new Animated.Value(0));
+    }
+    return prayerAnimations.get(prayerId)!;
+  };
+
+  const animatePrayer = (prayerId: number) => {
+    const anim = getPrayerAnimation(prayerId);
+    Animated.sequence([
+      Animated.spring(anim, {
+        toValue: 1,
+        friction: 3,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(anim, {
+        toValue: 0,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handlePrayFor = async (prayerId: number) => {
     try {
       if (!user) {
@@ -226,7 +276,16 @@ const ChurchPrayerBoard = () => {
           : p
       ));
 
-      Alert.alert("🙏", "Thank you for praying!");
+      // Haptic feedback
+      if (Platform.OS === "ios") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      
+      // Animate the prayer action
+      animatePrayer(prayerId);
+      
+      // Custom success notification instead of alert
+      // Alert.alert("🙏", "Thank you for praying!");
     } catch (error) {
       console.error("Error recording prayer:", error);
       Alert.alert("Error", "Failed to record your prayer");
@@ -297,96 +356,249 @@ const ChurchPrayerBoard = () => {
     );
   }
 
+  // Animated header style
+  const headerStyle = {
+    transform: [
+      {
+        translateY: scrollY.interpolate({
+          inputRange: [0, 100],
+          outputRange: [0, -50],
+          extrapolate: 'clamp',
+        }),
+      },
+    ],
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={["#2196F3", "#1976D2"]}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Prayer Board</Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.addButton}>
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </LinearGradient>
-
-      {/* Prayer List */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {prayers.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="heart-outline" size={64} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>No Prayer Requests Yet</Text>
-            <Text style={styles.emptyText}>Be the first to share a prayer request</Text>
-            <TouchableOpacity
-              style={styles.emptyButton}
-              onPress={() => setShowAddModal(true)}
-            >
-              <Text style={styles.emptyButtonText}>Add Prayer Request</Text>
+    <View style={styles.container}>
+      {/* Animated Background Gradient */}
+      <Animated.View style={[StyleSheet.absoluteFill]}>
+        <LinearGradient
+          colors={["#F0F9FF", "#E0E7FF", "#DBEAFE"]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Animated.View>
+      
+      <SafeAreaView style={styles.safeArea}>
+        {/* Animated Header */}
+        <Animated.View style={[styles.header, headerStyle]}>
+          <BlurView intensity={95} tint="light" style={styles.headerBlur}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <BlurView intensity={20} tint="light" style={styles.buttonBlur}>
+                <Ionicons name="arrow-back" size={24} color="#1E40AF" />
+              </BlurView>
             </TouchableOpacity>
-          </View>
-        ) : (
-          prayers.map((prayer) => (
-            <View key={prayer.id} style={styles.prayerCard}>
-              <View style={styles.prayerHeader}>
-                <View style={styles.authorInfo}>
-                  <Ionicons 
-                    name={prayer.is_anonymous ? "person-outline" : "person"} 
-                    size={20} 
-                    color="#64748B" 
-                  />
-                  <Text style={styles.authorName}>{prayer.user_name}</Text>
-                  <Text style={styles.prayerTime}>{formatDate(prayer.created_at)}</Text>
-                </View>
-                {user?.id === prayer.user_id && (
-                  <TouchableOpacity
-                    onPress={() => handleDeletePrayer(prayer.id, prayer.user_id)}
-                    style={styles.deleteButton}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
+            
+            <Text style={[styles.headerTitle, { color: "#E0E7FF" }]}>Prayer Board</Text>
+            
+            <View style={{ width: 40 }} />
+          </BlurView>
+        </Animated.View>
 
-              <Text style={styles.prayerContent}>{prayer.content}</Text>
-
-              <View style={styles.prayerFooter}>
-                <TouchableOpacity
-                  style={[
-                    styles.prayButton,
-                    userInteractions.has(prayer.id) && styles.prayButtonActive
-                  ]}
-                  onPress={() => handlePrayFor(prayer.id)}
-                  disabled={userInteractions.has(prayer.id)}
+        {/* Prayer List */}
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={handleRefresh}
+              tintColor="#6366F1"
+              colors={["#6366F1", "#8B5CF6"]}
+            />
+          }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+        >
+          {prayers.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Animated.View style={styles.emptyIconContainer}>
+                <LinearGradient
+                  colors={["#E0E7FF", "#C7D2FE"]}
+                  style={styles.emptyIconGradient}
                 >
-                  <Ionicons 
-                    name={userInteractions.has(prayer.id) ? "heart" : "heart-outline"} 
-                    size={20} 
-                    color={userInteractions.has(prayer.id) ? "#EF4444" : "#64748B"} 
-                  />
-                  <Text style={[
-                    styles.prayButtonText,
-                    userInteractions.has(prayer.id) && styles.prayButtonTextActive
-                  ]}>
-                    {userInteractions.has(prayer.id) ? "Prayed" : "Pray"}
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.prayerCount}>
-                  {prayer.prayer_count || 0} {prayer.prayer_count === 1 ? "prayer" : "prayers"}
-                </Text>
-              </View>
+                  <FontAwesome5 name="praying-hands" size={48} color="#6366F1" />
+                </LinearGradient>
+              </Animated.View>
+              <Text style={styles.emptyTitle}>No Prayer Requests Yet</Text>
+              <Text style={styles.emptyText}>Share your heart with the community</Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => setShowAddModal(true)}
+              >
+                <LinearGradient
+                  colors={["#6366F1", "#8B5CF6"]}
+                  style={styles.emptyButtonGradient}
+                >
+                  <Text style={styles.emptyButtonText}>Share First Prayer</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
-          ))
-        )}
-      </ScrollView>
+          ) : (
+            prayers.map((prayer, index) => {
+              const prayerAnim = getPrayerAnimation(prayer.id);
+              const animatedScale = prayerAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [1, 1.05],
+              });
+              
+              return (
+                <Animated.View 
+                  key={prayer.id} 
+                  style={[
+                    styles.prayerCard,
+                    {
+                      transform: [{ scale: animatedScale }],
+                      opacity: scrollY.interpolate({
+                        inputRange: [index * 150 - 100, index * 150, index * 150 + 100],
+                        outputRange: [0.7, 1, 0.7],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ]}
+                >
+                  <BlurView intensity={80} tint="light" style={styles.cardBlur}>
+                    <LinearGradient
+                      colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+                      style={styles.cardGradient}
+                    >
+                      <View style={styles.prayerHeader}>
+                        <View style={styles.authorInfo}>
+                          <LinearGradient
+                            colors={prayer.is_anonymous ? ["#E0E7FF", "#C7D2FE"] : ["#DDD6FE", "#C4B5FD"]}
+                            style={styles.avatarGradient}
+                          >
+                            <Ionicons 
+                              name={prayer.is_anonymous ? "person-outline" : "person"} 
+                              size={16} 
+                              color="#6366F1" 
+                            />
+                          </LinearGradient>
+                          <Text style={styles.authorName}>{prayer.user_name}</Text>
+                          <View style={styles.timeDot} />
+                          <Text style={styles.prayerTime}>{formatDate(prayer.created_at)}</Text>
+                        </View>
+                        {user?.id === prayer.user_id && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              handleDeletePrayer(prayer.id, prayer.user_id);
+                            }}
+                            style={styles.deleteButton}
+                          >
+                            <BlurView intensity={20} tint="light" style={styles.deleteButtonBlur}>
+                              <Feather name="trash-2" size={16} color="#EF4444" />
+                            </BlurView>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <Text style={styles.prayerContent}>{prayer.content}</Text>
+
+                      <View style={styles.prayerFooter}>
+                        <AnimatedTouchable
+                          style={[
+                            styles.prayButton,
+                            {
+                              transform: [
+                                {
+                                  scale: prayerAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [1, 1.2],
+                                  }),
+                                },
+                              ],
+                            },
+                          ]}
+                          onPress={() => {
+                            if (!userInteractions.has(prayer.id)) {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            }
+                            handlePrayFor(prayer.id);
+                          }}
+                          disabled={userInteractions.has(prayer.id)}
+                        >
+                          <LinearGradient
+                            colors={
+                              userInteractions.has(prayer.id)
+                                ? ["#FEE2E2", "#FECACA"]
+                                : ["#F3F4F6", "#E5E7EB"]
+                            }
+                            style={styles.prayButtonGradient}
+                          >
+                            <Ionicons 
+                              name={userInteractions.has(prayer.id) ? "heart" : "heart-outline"} 
+                              size={20} 
+                              color={userInteractions.has(prayer.id) ? "#EF4444" : "#6B7280"} 
+                            />
+                            <Text style={[
+                              styles.prayButtonText,
+                              userInteractions.has(prayer.id) && styles.prayButtonTextActive
+                            ]}>
+                              {userInteractions.has(prayer.id) ? "Prayed" : "Pray"}
+                            </Text>
+                          </LinearGradient>
+                        </AnimatedTouchable>
+                        
+                        <View style={styles.prayerCountContainer}>
+                          <LinearGradient
+                            colors={["#F3F4F6", "#E5E7EB"]}
+                            style={styles.prayerCountGradient}
+                          >
+                            <FontAwesome5 name="praying-hands" size={12} color="#6B7280" />
+                            <Text style={styles.prayerCount}>
+                              {prayer.prayer_count || 0}
+                            </Text>
+                          </LinearGradient>
+                        </View>
+                      </View>
+                    </LinearGradient>
+                  </BlurView>
+                </Animated.View>
+              );
+            })
+          )}
+      </Animated.ScrollView>
+
+      {/* Floating Action Button */}
+      <AnimatedTouchable
+        style={[
+          styles.floatingButton,
+          {
+            transform: [
+              {
+                scale: floatingButtonScale,
+              },
+              {
+                translateY: scrollY.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: [0, 100],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+          },
+        ]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowAddModal(true);
+        }}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={["#6366F1", "#8B5CF6", "#EC4899"]}
+          style={styles.floatingButtonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </LinearGradient>
+      </AnimatedTouchable>
 
       {/* Add Prayer Modal */}
       <Modal
@@ -399,73 +611,137 @@ const ChurchPrayerBoard = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalContainer}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Prayer Request</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color="#1E293B" />
-              </TouchableOpacity>
-            </View>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1}
+            onPress={() => setShowAddModal(false)}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <Animated.View style={[{
+                transform: [{
+                  scale: modalScale.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1],
+                  }),
+                }],
+              }]}>
+                <BlurView intensity={95} tint="dark" style={styles.modalContent}>
+                <LinearGradient
+                  colors={["rgba(30, 27, 75, 0.95)", "rgba(17, 24, 39, 0.98)"]}
+                  style={styles.modalGradient}
+                >
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: "#E0E7FF" }]}>New Prayer Request</Text>
+                    <TouchableOpacity 
+                      onPress={() => setShowAddModal(false)}
+                      style={styles.modalCloseButton}
+                    >
+                      <BlurView intensity={20} tint="light" style={styles.modalCloseBlur}>
+                        <Ionicons name="close" size={20} color="#E0E7FF" />
+                      </BlurView>
+                    </TouchableOpacity>
+                  </View>
 
-            <TextInput
-              style={styles.prayerInput}
-              placeholder="Share your prayer request..."
-              placeholderTextColor="#94A3B8"
-              multiline
-              numberOfLines={6}
-              value={prayerContent}
-              onChangeText={setPrayerContent}
-              textAlignVertical="top"
-            />
+                  <View style={styles.prayerInputContainer}>
+                    <BlurView intensity={20} tint="light" style={styles.prayerInputBlur}>
+                      <TextInput
+                        style={styles.prayerInput}
+                        placeholder="Share your heart with the community..."
+                        placeholderTextColor="#6B7280"
+                        multiline
+                        numberOfLines={6}
+                        value={prayerContent}
+                        onChangeText={setPrayerContent}
+                        textAlignVertical="top"
+                      />
+                    </BlurView>
+                  </View>
 
-            <View style={styles.anonymousToggle}>
-              <Text style={styles.anonymousLabel}>Post Anonymously</Text>
-              <Switch
-                value={isAnonymous}
-                onValueChange={setIsAnonymous}
-                trackColor={{ false: "#E2E8F0", true: "#2196F3" }}
-                thumbColor={isAnonymous ? "#FFFFFF" : "#F3F4F6"}
-              />
-            </View>
+                  <View style={styles.anonymousToggle}>
+                    <View style={styles.anonymousToggleLeft}>
+                      <LinearGradient
+                        colors={["#6366F1", "#8B5CF6"]}
+                        style={styles.anonymousIcon}
+                      >
+                        <Ionicons name="eye-off" size={16} color="#FFFFFF" />
+                      </LinearGradient>
+                      <Text style={styles.anonymousLabel}>Post Anonymously</Text>
+                    </View>
+                    <Switch
+                      value={isAnonymous}
+                      onValueChange={(value) => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setIsAnonymous(value);
+                      }}
+                      trackColor={{ false: "rgba(156, 163, 175, 0.3)", true: "rgba(99, 102, 241, 0.5)" }}
+                      thumbColor={isAnonymous ? "#6366F1" : "#E0E7FF"}
+                      ios_backgroundColor="rgba(156, 163, 175, 0.3)"
+                    />
+                  </View>
 
-            <TouchableOpacity
-              style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-              onPress={handleSubmitPrayer}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="send" size={20} color="#FFFFFF" />
-                  <Text style={styles.submitButtonText}>Post Prayer Request</Text>
-                </>
-              )}
+                  <TouchableOpacity
+                    style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+                    onPress={handleSubmitPrayer}
+                    disabled={submitting}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={submitting ? ["#9CA3AF", "#6B7280"] : ["#6366F1", "#8B5CF6", "#EC4899"]}
+                      style={styles.submitButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {submitting ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="send" size={20} color="#FFFFFF" />
+                          <Text style={styles.submitButtonText}>Share Prayer</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </LinearGradient>
+              </BlurView>
+              </Animated.View>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0F0E1E",
+  },
+  safeArea: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0F0E1E",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#64748B",
+    color: "#94A3B8",
+    fontWeight: "500",
   },
   header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingTop: 44,
+  },
+  headerBlur: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -473,21 +749,30 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  buttonBlur: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  addButton: {
-    padding: 8,
+    fontSize: 24,
+    fontWeight: "800",
+    color: "transparent",
+    letterSpacing: 0.5,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
+    paddingTop: 120,
+    paddingBottom: 100,
   },
   emptyContainer: {
     flex: 1,
@@ -495,39 +780,52 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 80,
   },
+  emptyIconContainer: {
+    marginBottom: 24,
+  },
+  emptyIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "700",
-    color: "#1E293B",
-    marginTop: 16,
+    color: "#E0E7FF",
+    marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: "#64748B",
-    marginTop: 8,
+    color: "#94A3B8",
+    marginBottom: 32,
   },
   emptyButton: {
-    marginTop: 24,
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 30,
+    overflow: "hidden",
+  },
+  emptyButtonGradient: {
+    paddingHorizontal: 32,
+    paddingVertical: 16,
   },
   emptyButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   prayerCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 16,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  cardBlur: {
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  cardGradient: {
+    padding: 20,
   },
   prayerHeader: {
     flexDirection: "row",
@@ -540,25 +838,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
+  avatarGradient: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   authorName: {
     fontSize: 14,
     fontWeight: "600",
     color: "#1E293B",
-    marginLeft: 8,
+    marginLeft: 10,
+  },
+  timeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#6B7280",
+    marginHorizontal: 8,
   },
   prayerTime: {
     fontSize: 12,
-    color: "#94A3B8",
-    marginLeft: 8,
+    color: "#6B7280",
   },
   deleteButton: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  deleteButtonBlur: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
   },
   prayerContent: {
     fontSize: 16,
-    color: "#334155",
+    color: "#1E293B",
     lineHeight: 24,
-    marginBottom: 12,
+    marginBottom: 16,
+    fontWeight: "500",
   },
   prayerFooter: {
     flexDirection: "row",
@@ -566,93 +887,168 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   prayButton: {
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  prayButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
-  },
-  prayButtonActive: {
-    backgroundColor: "#FEE2E2",
   },
   prayButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#64748B",
+    color: "#6B7280",
     marginLeft: 6,
   },
   prayButtonTextActive: {
     color: "#EF4444",
   },
+  prayerCountContainer: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  prayerCountGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
   prayerCount: {
-    fontSize: 14,
-    color: "#64748B",
+    fontSize: 13,
+    color: "#6B7280",
+    marginLeft: 6,
+    fontWeight: "600",
+  },
+  floatingButton: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: "hidden",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  floatingButtonGradient: {
+    width: 64,
+    height: 64,
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    overflow: "hidden",
+    maxHeight: height * 0.85,
+  },
+  modalGradient: {
+    paddingHorizontal: 24,
     paddingBottom: 40,
-    paddingTop: 20,
-    maxHeight: "80%",
+    paddingTop: 24,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1E293B",
+    fontSize: 28,
+    fontWeight: "800",
+    color: "transparent",
+    letterSpacing: 0.5,
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  modalCloseBlur: {
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  prayerInputContainer: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  prayerInputBlur: {
+    padding: 4,
   },
   prayerInput: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    padding: 20,
     fontSize: 16,
-    color: "#1E293B",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    minHeight: 120,
-    marginBottom: 16,
+    color: "#E0E7FF",
+    minHeight: 160,
+    textAlignVertical: "top",
+    fontWeight: "500",
   },
   anonymousToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    marginBottom: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  anonymousToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  anonymousIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
   anonymousLabel: {
     fontSize: 16,
-    color: "#1E293B",
+    color: "#E0E7FF",
     fontWeight: "600",
   },
   submitButton: {
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  submitButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2196F3",
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 18,
   },
   submitButtonDisabled: {
     opacity: 0.7,
   },
   submitButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
     marginLeft: 8,
+    letterSpacing: 0.5,
   },
 });
 
