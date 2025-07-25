@@ -2183,16 +2183,6 @@ const DailyTasks2025: React.FC = () => {
                 />
               </TouchableOpacity>
             </View>
-            
-            <View style={styles.modernHeaderButtons}>
-              <TouchableOpacity
-                style={styles.modernHeaderButton}
-                onPress={() => router.navigate("/home")}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="home-outline" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
           </ImageBackground>
         </View>
         {showFilterDropdown && (
