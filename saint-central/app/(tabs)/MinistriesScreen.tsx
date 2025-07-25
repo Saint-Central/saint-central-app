@@ -48,6 +48,7 @@ interface Ministry {
   created_at: string;
   member_count?: number;
   is_member?: boolean;
+  church_name?: string;
 }
 
 // Interface for section data
@@ -220,14 +221,14 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
 
     if (myMinistries.length > 0) {
       sections.push({
-        title: "My Ministries",
+        title: "My Ministries (All Churches)",
         data: myMinistries,
       });
     }
 
     if (otherMinistries.length > 0) {
       sections.push({
-        title: "Other Ministries",
+        title: "Available Ministries",
         data: otherMinistries,
       });
     }
@@ -354,10 +355,59 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         setIsAdmin(churchMember.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
       }
 
-      // Fetch ministries that belong to the user's church
-      let ministriesData = await select("ministries", {
-        where: { church_id: churchMember?.church_id || 0 }
+      // First, get ALL ministries the user has joined across ALL churches
+      const userMemberships = await select("ministry_members", {
+        select: "ministry_id, role, church_id",
+        where: {
+          user_id: user.id,
+          role: "member"
+        }
       });
+
+      console.log("User memberships across all churches:", userMemberships);
+
+      const userMinistryIds = userMemberships?.map((item) => item.ministry_id) || [];
+      console.log("User's ministry IDs:", userMinistryIds);
+
+      // Fetch ALL ministries the user is a member of
+      let userMinistries = [];
+      if (userMinistryIds.length > 0) {
+        // Fetch each ministry individually since we can't use 'in' operator
+        const ministryPromises = userMinistryIds.map(id => 
+          selectOne("ministries", { where: { id } })
+        );
+        const ministriesResults = await Promise.all(ministryPromises);
+        userMinistries = ministriesResults.filter(m => m !== null);
+      }
+
+      // Also fetch ministries from the user's current church (if they have one)
+      let churchMinistries = [];
+      if (churchMember?.church_id) {
+        churchMinistries = await select("ministries", {
+          where: { church_id: churchMember.church_id }
+        });
+      }
+
+      // Combine and deduplicate ministries (user's ministries + church ministries)
+      const ministryMap = new Map();
+      
+      // Add user's ministries first (these take priority)
+      userMinistries.forEach(ministry => {
+        ministryMap.set(ministry.id, { ...ministry, is_member: true });
+      });
+      
+      // Add church ministries (only if not already in the map)
+      churchMinistries.forEach(ministry => {
+        if (!ministryMap.has(ministry.id)) {
+          ministryMap.set(ministry.id, { 
+            ...ministry, 
+            is_member: userMinistryIds.includes(ministry.id) 
+          });
+        }
+      });
+
+      // Convert map back to array
+      let ministriesData = Array.from(ministryMap.values());
       
       // Sort client-side by created_at descending
       if (ministriesData && ministriesData.length > 0) {
@@ -366,18 +416,16 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         );
       }
 
-      console.log("Fetched ministries:", ministriesData?.length);
+      console.log("Combined ministries:", ministriesData?.length);
 
-      // Fetch member counts for each ministry
+      // Fetch member counts for all ministries
       let memberCounts = [];
       if (ministriesData && ministriesData.length > 0) {
-        const ministryIds = ministriesData.map((m) => m.id);
-        // Note: This may need to be adjusted based on your CRUD client's support for 'in' queries
-        // For now, we'll fetch all ministry members and filter client-side
         memberCounts = await select("ministry_members", {
           select: "ministry_id"
         });
         // Filter to only the ministries we care about
+        const ministryIds = ministriesData.map((m) => m.id);
         memberCounts = memberCounts.filter((count: any) => ministryIds.includes(count.ministry_id));
       }
 
@@ -388,26 +436,34 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           return acc;
         }, {}) || {};
 
-      // Fetch user's memberships with full details
-      const membershipData = await select("ministry_members", {
-        select: "ministry_id, role, church_id",
-        where: {
-          user_id: user.id,
-          church_id: churchMember?.church_id,
-          role: "member"
-        }
-      });
+      // Fetch church names for all ministries
+      const uniqueChurchIds = [...new Set(ministriesData.map(m => m.church_id))];
+      const churchMap = new Map();
+      
+      // Fetch each church's name
+      if (uniqueChurchIds.length > 0) {
+        const churchPromises = uniqueChurchIds.map(churchId => 
+          selectOne("churches", { 
+            select: "id, name",
+            where: { id: churchId } 
+          })
+        );
+        const churchResults = await Promise.all(churchPromises);
+        
+        // Build a map of church_id to church_name
+        churchResults.forEach(church => {
+          if (church) {
+            churchMap.set(church.id, church.name);
+          }
+        });
+      }
 
-      console.log("User memberships:", membershipData);
-
-      const memberMinistryIds = membershipData?.map((item) => item.ministry_id) || [];
-      console.log("Member ministry IDs:", memberMinistryIds);
-
-      // Process the ministries data with member counts and membership status
+      // Process the ministries data with member counts and church names
       const processedMinistries = ministriesData.map((ministry) => ({
         ...ministry,
         member_count: memberCountMap[ministry.id] || 0,
-        is_member: memberMinistryIds.includes(ministry.id),
+        church_name: churchMap.get(ministry.church_id) || 'Unknown Church',
+        // is_member is already set above
       }));
 
       console.log(
@@ -688,7 +744,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   }) => {
     // Calculate animation delay based on index for staggered effect
     const itemAnimationDelay =
-      50 * (index + (section.title === "My Ministries" ? 0 : section.data.length));
+      50 * (index + (section.title === "My Ministries (All Churches)" ? 0 : section.data.length));
 
     // Create animation for this specific item
     const itemFadeAnim = useRef(new Animated.Value(0)).current;
@@ -757,6 +813,13 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             <View style={styles.ministryDescriptionRow}>
               <Text style={styles.ministryDescription} numberOfLines={1}>
                 {item.description || "No description"}
+              </Text>
+            </View>
+
+            <View style={styles.ministryChurchRow}>
+              <Ionicons name="home-outline" size={14} color={THEME.textLight} />
+              <Text style={styles.ministryChurchName} numberOfLines={1}>
+                {item.church_name || "Unknown Church"}
               </Text>
 
               <View style={styles.ministryMeta}>
@@ -1495,6 +1558,18 @@ const styles = StyleSheet.create({
     color: THEME.textSecondary,
     flex: 1,
     letterSpacing: -0.2,
+  },
+  ministryChurchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  ministryChurchName: {
+    fontSize: 13,
+    color: THEME.textLight,
+    marginLeft: 4,
+    flex: 1,
+    fontStyle: "italic",
   },
   ministryMeta: {
     flexDirection: "row",
