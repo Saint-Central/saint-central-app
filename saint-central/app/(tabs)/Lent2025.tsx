@@ -19,6 +19,7 @@ import {
   Animated,
   Vibration,
   Easing,
+  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
@@ -2116,56 +2117,84 @@ const DailyTasks2025: React.FC = () => {
             <Text style={styles.notificationText}>{notification.message}</Text>
           </Animated.View>
         )}
-        <LinearGradient
-          colors={['#B45309', '#D97706', '#EAB308']}
-          style={styles.modernHeader}
-          ref={headerRef} 
-          onLayout={onHeaderLayout}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.headerTitleSection}>
-              <MaterialCommunityIcons name="calendar-heart" size={28} color="#FFFFFF" />
-              <View style={styles.headerTextContainer}>
-                <Text style={[styles.modernHeaderTitle, isIpad && { fontSize: 32 }]}>
-                  Daily Tasks
-                </Text>
-                <Text style={styles.modernHeaderSubtitle}>
-                  {getHeaderTitle()}
-                </Text>
+        {/* Image Banner with Overlay */}
+        <View style={styles.imageBannerContainer} ref={headerRef} onLayout={onHeaderLayout}>
+          <ImageBackground
+            source={{
+              uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80'
+            }}
+            style={styles.imageBannerBackground}
+            resizeMode="cover"
+          >
+            {/* Dark overlay for text readability */}
+            <LinearGradient
+              colors={[
+                'rgba(0, 0, 0, 0.4)',
+                'rgba(0, 0, 0, 0.6)',
+                'rgba(0, 0, 0, 0.7)'
+              ]}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+            {/* Warm theme overlay */}
+            <LinearGradient
+              colors={[
+                'rgba(180, 83, 9, 0.2)',
+                'rgba(217, 119, 6, 0.15)',
+                'rgba(234, 179, 8, 0.1)'
+              ]}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            
+            {/* Content Container */}
+            <View style={styles.headerContent}>
+              <View style={styles.headerTitleSection}>
+                <TouchableOpacity
+                  style={[styles.modernAddButton, { marginRight: 12 }]}
+                  onPress={() => setShowTaskModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="plus" size={20} color="#7C3AED" />
+                </TouchableOpacity>
+                <MaterialCommunityIcons name="calendar-heart" size={28} color="#FFFFFF" />
+                <View style={styles.headerTextContainer}>
+                  <Text style={[styles.modernHeaderTitle, isIpad && { fontSize: 32 }]}>
+                    Daily Tasks
+                  </Text>
+                  <Text style={styles.modernHeaderSubtitle}>
+                    {getHeaderTitle()}
+                  </Text>
+                </View>
               </View>
+              
+              <TouchableOpacity
+                style={styles.modernFilterButton}
+                onPress={() => setShowFilterDropdown(!showFilterDropdown)}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="tune" size={20} color="#FFFFFF" />
+                <Feather
+                  name={showFilterDropdown ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="rgba(255,255,255,0.7)"
+                />
+              </TouchableOpacity>
             </View>
             
-            <TouchableOpacity
-              style={styles.modernFilterButton}
-              onPress={() => setShowFilterDropdown(!showFilterDropdown)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="tune" size={20} color="#FFFFFF" />
-              <Feather
-                name={showFilterDropdown ? "chevron-up" : "chevron-down"}
-                size={16}
-                color="rgba(255,255,255,0.7)"
-              />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.modernHeaderButtons}>
-            <TouchableOpacity
-              style={styles.modernHeaderButton}
-              onPress={() => router.navigate("/home")}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="home-outline" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modernAddButton}
-              onPress={() => setShowTaskModal(true)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="plus" size={20} color="#7C3AED" />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+            <View style={styles.modernHeaderButtons}>
+              <TouchableOpacity
+                style={styles.modernHeaderButton}
+                onPress={() => router.navigate("/home")}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="home-outline" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </ImageBackground>
+        </View>
         {showFilterDropdown && (
           <Animated.View
             style={[
@@ -3214,6 +3243,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
+    paddingHorizontal: 20,
   },
   headerTitleSection: {
     flexDirection: 'row',
@@ -3239,28 +3270,41 @@ const styles = StyleSheet.create({
   modernFilterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.3)',
     gap: 6,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   modernHeaderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    position: 'absolute',
+    bottom: 16,
+    right: 20,
   },
   modernHeaderButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.3)',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
   },
   modernAddButton: {
     width: 44,
@@ -3590,6 +3634,27 @@ const styles = StyleSheet.create({
     color: theme.error,
     fontSize: 12,
     fontWeight: '500',
+  },
+  // Image Banner Styles
+  imageBannerContainer: {
+    height: Platform.OS === 'ios' ? 200 : 180,
+    width: '100%',
+    position: 'relative',
+    overflow: 'hidden',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    marginTop: Platform.OS === 'ios' ? -50 : -30,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+  },
+  imageBannerBackground: {
+    flex: 1,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   modernGroupTag: {
     flexDirection: 'row',
