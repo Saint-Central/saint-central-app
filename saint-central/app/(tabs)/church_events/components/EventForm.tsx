@@ -66,7 +66,7 @@ const EventForm: React.FC<EventFormProps> = ({
     >
       <Animated.View
         style={{
-          backgroundColor: THEME.cardBg,
+          backgroundColor: THEME.neutral800,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           maxHeight: "85%",
@@ -100,7 +100,7 @@ const EventForm: React.FC<EventFormProps> = ({
             style={{
               fontSize: 20,
               fontWeight: "700",
-              color: THEME.textDark,
+              color: "#FFFFFF",
             }}
           >
             {isEditing ? "Edit Event" : "Create New Event"}
