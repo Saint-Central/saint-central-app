@@ -1283,7 +1283,7 @@ const MinistryChat = () => {
     if (loading) return null;
 
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
         <LinearGradient
           colors={[`${THEME.primary}20`, `${THEME.primary}40`]}
           style={styles.emptyIconContainer}
