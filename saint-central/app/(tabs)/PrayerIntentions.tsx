@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePrayerIntentions, IntentionType, IntentionVisibility } from "@/contexts/PrayerIntentionsContext";
 
 // Additional types specific to this component
@@ -235,11 +236,18 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: "light" | "dark" 
 
 
 const PrayerIntentions: React.FC<IntentionsProps> = ({
-  themeStyles = defaultThemes.light,
+  themeStyles: providedThemeStyles,
   fontSizeStyles = defaultFontSizes.medium,
-  readingTheme = "paper",
+  readingTheme: providedReadingTheme,
   showFeedback = (message) => Toast.show({ type: "success", text1: message }),
 }) => {
+  // State for theme management
+  const [currentTheme, setCurrentTheme] = useState<"paper" | "sepia" | "night">(providedReadingTheme || "paper");
+  
+  // Use the appropriate theme based on currentTheme state
+  const readingTheme = currentTheme;
+  const themeStyles = providedThemeStyles || defaultThemes[readingTheme === "night" ? "dark" : readingTheme === "sepia" ? "sepia" : "light"];
+  
   // Navigation
   const navigation = useNavigation();
 
@@ -287,9 +295,36 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Component initialization - context handles data fetching
   useEffect(() => {
-    // Any component-specific initialization can go here
+    // Load saved theme preference
+    loadThemePreference();
     // The context handles all data fetching automatically
   }, []);
+  
+  // Load theme preference from AsyncStorage
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem("prayerIntentionsTheme");
+      if (savedTheme && ["paper", "sepia", "night"].includes(savedTheme)) {
+        setCurrentTheme(savedTheme as "paper" | "sepia" | "night");
+      }
+    } catch (error) {
+      console.error("Error loading theme preference:", error);
+    }
+  };
+  
+  // Save theme preference to AsyncStorage
+  const saveThemePreference = async (theme: "paper" | "sepia" | "night") => {
+    try {
+      await AsyncStorage.setItem("prayerIntentionsTheme", theme);
+    } catch (error) {
+      console.error("Error saving theme preference:", error);
+    }
+  };
+  
+  // Effect to save theme when it changes
+  useEffect(() => {
+    saveThemePreference(currentTheme);
+  }, [currentTheme]);
 
 
 
@@ -578,7 +613,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               },
             ]}
           >
-            <LinearGradient colors={["#6A478F", "#8860B2"]} style={styles.intentionModalHeader}>
+            <LinearGradient colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#6A478F", "#8860B2"]} style={styles.intentionModalHeader}>
               <Text style={styles.intentionModalTitle}>New Prayer Intention</Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -1098,7 +1133,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             },
           ]}
         >
-          <LinearGradient colors={["#8952D0", "#AD7CEA"]} style={styles.intentionModalHeader}>
+          <LinearGradient colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#8952D0", "#AD7CEA"]} style={styles.intentionModalHeader}>
             <Text style={styles.intentionModalTitle}>Filters & Sorting</Text>
             <TouchableOpacity
               style={styles.closeButton}
@@ -1259,7 +1294,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       <View style={styles.intentionsContainer}>
         {/* Header with intentions stats */}
         <LinearGradient
-          colors={["#8952D0", "#AD7CEA"]}
+          colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#8952D0", "#AD7CEA"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.intentionsStatsContainer}
@@ -1294,21 +1329,40 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             </View>
           </View>
 
-          {/* Filter button in header with improved styling */}
-          <TouchableOpacity
-            style={styles.intentionFilterButton}
-            onPress={openFilterModal}
-            activeOpacity={0.7}
-          >
-            <Feather name="filter" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Theme and Filter buttons in header */}
+          <View style={styles.headerButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.intentionFilterButton, { marginRight: 10 }]}
+              onPress={() => {
+                const themes: Array<"paper" | "sepia" | "night"> = ["paper", "sepia", "night"];
+                const currentIndex = themes.indexOf(currentTheme);
+                const nextIndex = (currentIndex + 1) % themes.length;
+                setCurrentTheme(themes[nextIndex]);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather 
+                name={currentTheme === "night" ? "moon" : currentTheme === "sepia" ? "book-open" : "sun"} 
+                size={20} 
+                color="#FFFFFF" 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.intentionFilterButton}
+              onPress={openFilterModal}
+              activeOpacity={0.7}
+            >
+              <Feather name="filter" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </LinearGradient>
 
         {/* Intentions Tabs */}
         <View
           style={[
             styles.intentionsTabsContainer,
-            { backgroundColor: readingTheme === "night" ? "#262626" : "#F5F5F5" },
+            { backgroundColor: themeStyles.tabBackgroundColor },
           ]}
         >
           <TouchableOpacity
@@ -1383,7 +1437,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
         {intentionsLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6A478F" />
+            <ActivityIndicator size="large" color={themeStyles.accentColor} />
             <Text style={[styles.loadingText, { color: themeStyles.textColor }]}>
               Loading your prayer intentions...
             </Text>
@@ -1393,7 +1447,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             <Feather
               name="user"
               size={64}
-              color={`${themeStyles.textColor}40`}
+              color={themeStyles.emptyStateIconColor}
               style={styles.emptyIntentionsIcon}
             />
             <Text style={[styles.emptyIntentionsText, { color: themeStyles.textColor }]}>
@@ -1410,7 +1464,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               style={[
                 styles.emptyIntentionsButton,
                 {
-                  backgroundColor: "#6A478F",
+                  backgroundColor: themeStyles.accentColor,
                 },
               ]}
               onPress={openNewIntentionModal}
@@ -1606,6 +1660,8 @@ const defaultThemes = {
     shadowColor: "#000000",
     accentColor: "#8952D0", // Brighter purple
     favoriteColor: "#FF5A93", // Brighter pink
+    tabBackgroundColor: "#F5F5F5",
+    emptyStateIconColor: "rgba(0, 0, 0, 0.3)",
   },
   dark: {
     backgroundColor: "#121212",
@@ -1616,6 +1672,8 @@ const defaultThemes = {
     shadowColor: "#000000",
     accentColor: "#B27AE8", // Brighter purple
     favoriteColor: "#FF7EB4", // Brighter pink
+    tabBackgroundColor: "#1A1A1A",
+    emptyStateIconColor: "rgba(255, 255, 255, 0.3)",
   },
   sepia: {
     backgroundColor: "#F8F0E3",
@@ -1626,6 +1684,8 @@ const defaultThemes = {
     shadowColor: "#442C2E",
     accentColor: "#A66E52", // Brighter brown
     favoriteColor: "#D05959", // Brighter red
+    tabBackgroundColor: "#F0E6D2",
+    emptyStateIconColor: "rgba(68, 44, 46, 0.3)",
   },
 };
 
@@ -1960,7 +2020,11 @@ const styles = StyleSheet.create({
     padding: 6,
   },
 
-  // Filter Button (now in header)
+  // Header buttons
+  headerButtonsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   intentionFilterButton: {
     width: 40,
     height: 40,
