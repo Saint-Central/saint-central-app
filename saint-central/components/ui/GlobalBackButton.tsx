@@ -87,6 +87,7 @@ export default function GlobalBackButton() {
         styles.container,
         {
           top: isPrayerIntentionsPage ? insets.top + 90 : insets.top + 10,
+          left: isPrayerIntentionsPage ? 10 : 20, // Move left by ~0.1 inches (10px) for Prayer Intentions
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
