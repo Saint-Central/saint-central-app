@@ -65,6 +65,7 @@ export default function ChurchPage({ userData }: Props) {
   // Add state for events and ministries
   const [events, setEvents] = useState<ChurchEvent[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [ministries, setMinistries] = useState<any[]>([]);
   const [isEventsLoading, setIsEventsLoading] = useState<boolean>(false);
   const [isMinistriesLoading, setIsMinistriesLoading] = useState<boolean>(false);
   const [eventsError, setEventsError] = useState<string>("");
@@ -112,28 +113,50 @@ export default function ChurchPage({ userData }: Props) {
     }
   }, [church?.id, select]);
 
-  // Function to fetch courses using CRUD API
+  // Function to fetch ministries using CRUD API
   const fetchMinistries = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || !member?.user_id) return;
 
     try {
       setIsMinistriesLoading(true);
       setMinistriesError("");
 
-      const courses = await select("courses", {
+      // Fetch ministries for this church
+      const ministriesData = await select("ministries", {
         select: "*",
         where: { church_id: church.id },
-        order: "time",
       });
 
-      setCourses(courses || []);
+      // Sort by created_at descending
+      const sortedMinistries = (ministriesData || []).sort((a: any, b: any) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      // Fetch user's ministry memberships
+      const userMemberships = await select("ministry_members", {
+        select: "ministry_id",
+        where: { 
+          user_id: member.user_id,
+          role: "member"
+        }
+      });
+
+      const userMinistryIds = userMemberships?.map((m: any) => m.ministry_id) || [];
+
+      // Process ministries with membership status
+      const processedMinistries = sortedMinistries.map((ministry: any) => ({
+        ...ministry,
+        is_member: userMinistryIds.includes(ministry.id)
+      }));
+
+      setMinistries(processedMinistries);
     } catch (error) {
-      console.error("Error fetching courses:", error);
-      setMinistriesError("Failed to load courses. Please try again later.");
+      console.error("Error fetching ministries:", error);
+      setMinistriesError("Failed to load ministries. Please try again later.");
     } finally {
       setIsMinistriesLoading(false);
     }
-  }, [church?.id, select]);
+  }, [church?.id, member?.user_id, select]);
 
   useEffect(() => {
     if (church?.id && !hasFetchedDataRef.current) {
@@ -602,7 +625,7 @@ export default function ChurchPage({ userData }: Props) {
               </View>
             )}
             {activeTab === "Ministries" && (
-              <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
+              <MinistriesTab ministries={ministries} loading={isMinistriesLoading} error={ministriesError} />
             )}
 
             {activeTab === "Fellowship" && (
@@ -678,12 +701,12 @@ const EventsTab = ({
   );
 };
 
-const CoursesTab = ({
-  courses,
+const MinistriesTab = ({
+  ministries,
   loading,
   error,
 }: {
-  courses: Course[];
+  ministries: any[];
   loading: boolean;
   error: string;
 }) => {
@@ -700,7 +723,7 @@ const CoursesTab = ({
     return <Error />;
   }
 
-  if (!courses.length) {
+  if (!ministries.length) {
     return (
       <View style={styles.stateContainer}>
         <View style={styles.emptyIconContainer}>
@@ -718,8 +741,8 @@ const CoursesTab = ({
         <View style={styles.sectionHeaderLine} />
       </View>
       <View style={styles.ministriesGrid}>
-        {courses.map((course) => (
-          <CourseCard key={course.id} course={course} />
+        {ministries.map((ministry) => (
+          <MinistryCard key={ministry.id} ministry={ministry} />
         ))}
       </View>
     </View>
@@ -872,7 +895,7 @@ const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) =>
   );
 };
 
-const CourseCard = ({ course }: { course: Course }) => {
+const MinistryCard = ({ ministry }: { ministry: any }) => {
   const { isTablet } = useScreen();
   const pressAnim = useSharedValue(1);
 
@@ -890,15 +913,26 @@ const CourseCard = ({ course }: { course: Course }) => {
     };
   });
 
+  const handlePress = () => {
+    if (ministry.is_member) {
+      // If user is a member, go directly to chat
+      router.push({
+        pathname: "/(tabs)/ministry-chat",
+        params: { id: ministry.id.toString() },
+      });
+    } else {
+      // If not a member, go to join screen
+      router.push({
+        pathname: "/(tabs)/JoinMinistryScreen",
+        params: { ministryId: ministry.id.toString() },
+      });
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      onPress={() => {
-        router.push({
-          pathname: "/course/[id]",
-          params: { id: course.id },
-        });
-      }}
+      onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.courseCardContainer}
@@ -908,9 +942,9 @@ const CourseCard = ({ course }: { course: Course }) => {
       >
         <View style={styles.courseCardContent}>
           <View style={styles.courseImageContainer}>
-            {course.image_url ? (
+            {ministry.image_url ? (
               <Image
-                source={{ uri: course.image_url }}
+                source={{ uri: ministry.image_url }}
                 style={isTablet ? styles.tabletCourseImage : styles.courseImage}
                 resizeMode="cover"
               />
@@ -928,16 +962,18 @@ const CourseCard = ({ course }: { course: Course }) => {
 
           <View style={styles.courseDetailsContainer}>
             <Text style={styles.courseTitle} numberOfLines={2}>
-              {course.title || "Ministry"}
+              {ministry.name || "Ministry"}
             </Text>
-            {course.description && (
+            {ministry.description && (
               <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
-                {course.description}
+                {ministry.description}
               </Text>
             )}
             <View style={styles.courseFooter}>
               <Button size="xs">
-                <Text style={styles.joinButtonText}>Join Ministry</Text>
+                <Text style={styles.joinButtonText}>
+                  {ministry.is_member ? "Open Chat" : "Join Ministry"}
+                </Text>
                 <View style={styles.arrowContainer}>
                   <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
                 </View>
