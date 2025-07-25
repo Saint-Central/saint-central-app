@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather } from "@expo/vector-icons";
-import { supabase } from "../../supabaseClient";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCRUD } from "@/utils/crudClient";
@@ -88,7 +87,7 @@ interface Friend {
 export default function GroupsScreen() {
   // Auth and CRUD hooks
   const { user } = useAuth();
-  const { select, insert, update, deleteRecord } = useCRUD();
+  const { select, selectOne, insert, update, delete: deleteRecord } = useCRUD();
 
   // Groups & loading state
   const [groups, setGroups] = useState<Group[]>([]);
@@ -194,37 +193,37 @@ export default function GroupsScreen() {
     }
   }, [activeTab, friendTab, user]);
 
-  // Fetch groups from Supabase that the current user is a member of
+  // Fetch groups from database that the current user is a member of
   const fetchGroups = async () => {
     if (!user) return;
     try {
       setIsLoading(true);
-      // Query groups where user is a member, with proper joins
-      const { data, error } = await supabase
-        .from("groups")
-        .select(`
-          id,
-          name,
-          description,
-          created_at,
-          created_by,
-          church_id,
-          is_ministry_group,
-          group_members!inner(
-            role,
-            joined_at
-          )
-        `)
-        .eq("group_members.user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching groups:", error);
-        throw error;
+      
+      // First, get group IDs where user is a member
+      const userGroupMemberships = await select("group_members", {
+        select: "group_id",
+        where: { user_id: user.id }
+      });
+      
+      if (userGroupMemberships.length === 0) {
+        setGroups([]);
+        return;
       }
+      
+      // Extract group IDs
+      const groupIds = userGroupMemberships.map(membership => membership.group_id);
+      
+      // Fetch group details for those IDs
+      const groupsData = await select("groups", {
+        select: "id, name, description, created_at, created_by, church_id, is_ministry_group",
+        order: "created_at"
+      });
+      
+      // Filter to only groups the user is a member of
+      const userGroups = groupsData.filter(group => groupIds.includes(group.id));
 
-      console.log("Fetched groups:", data?.length || 0);
-      setGroups(data || []);
+      console.log("Fetched groups:", userGroups?.length || 0);
+      setGroups(userGroups || []);
     } catch (error: any) {
       console.error("Error fetching groups:", error);
       setNotification({
@@ -240,32 +239,31 @@ export default function GroupsScreen() {
   const fetchGroupMembers = async (groupId: string, groupData: Group) => {
     try {
       setMembersLoading(true);
-      const { data, error } = await supabase
-        .from("group_members")
-        .select(`
-          id,
-          group_id,
-          user_id,
-          role,
-          joined_at,
-          user:users(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("group_id", groupId)
-        .order("joined_at", { ascending: true });
+      
+      // First, get group members data
+      const membersData = await select("group_members", {
+        select: "id, group_id, user_id, role, joined_at",
+        where: { group_id: groupId },
+        order: "joined_at"
+      });
+      
+      // Then fetch user details for each member
+      const membersWithUserData = await Promise.all(
+        membersData.map(async (member) => {
+          const userData = await selectOne("users", {
+            select: "id, first_name, last_name, email, profile_image",
+            where: { id: member.user_id }
+          });
+          
+          return {
+            ...member,
+            user: userData
+          };
+        })
+      );
 
-      if (error) {
-        console.error("Error fetching group members:", error);
-        throw error;
-      }
-
-      console.log("Fetched group members:", data?.length || 0);
-      setSelectedGroupMembers(data || []);
+      console.log("Fetched group members:", membersWithUserData?.length || 0);
+      setSelectedGroupMembers(membersWithUserData || []);
       setSelectedGroupForMembers(groupData);
       setShowMembersModal(true);
 
@@ -274,7 +272,7 @@ export default function GroupsScreen() {
 
       // Pre-populate selected members if this is a group created by current user
       if (groupData.created_by === user?.id) {
-        const memberIds = data?.map((member: GroupMember) => member.user_id) || [];
+        const memberIds = membersWithUserData?.map((member: GroupMember) => member.user_id) || [];
         setSelectedMembersForCreation(memberIds);
         setExistingMembers(memberIds);
         setSelectedGroupForAddingMembers(groupId);
@@ -296,68 +294,46 @@ export default function GroupsScreen() {
       console.log("Fetching friends for user:", userId);
       
       // Get friends where current user is user_id_1 (outgoing accepted friendships)
-      const { data: sentFriends, error: sentError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          user_id_1,
-          user_id_2,
-          status,
-          created_at,
-          user_2:users!friends_user_id_2_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("user_id_1", userId)
-        .eq("status", "accepted");
-
-      if (sentError) {
-        console.error("Error fetching sent friends:", sentError);
-        throw sentError;
-      }
+      const sentFriends = await select("friends", {
+        select: "id, user_id_1, user_id_2, status, created_at",
+        where: { user_id_1: userId, status: "accepted" }
+      });
 
       // Get friends where current user is user_id_2 (incoming accepted friendships)
-      const { data: receivedFriends, error: receivedError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          user_id_1,
-          user_id_2,
-          status,
-          created_at,
-          user_1:users!friends_user_id_1_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("user_id_2", userId)
-        .eq("status", "accepted");
-
-      if (receivedError) {
-        console.error("Error fetching received friends:", receivedError);
-        throw receivedError;
-      }
+      const receivedFriends = await select("friends", {
+        select: "id, user_id_1, user_id_2, status, created_at",
+        where: { user_id_2: userId, status: "accepted" }
+      });
 
       // Combine and format the friends list
       let friendList: UserData[] = [];
       
-      if (sentFriends) {
-        friendList = friendList.concat(
-          sentFriends.map((row: any) => row.user_2).filter(Boolean)
+      // Fetch user data for friends where current user is user_id_1
+      if (sentFriends && sentFriends.length > 0) {
+        const sentFriendUsers = await Promise.all(
+          sentFriends.map(async (friendship) => {
+            const userData = await selectOne("users", {
+              select: "id, first_name, last_name, email, profile_image",
+              where: { id: friendship.user_id_2 }
+            });
+            return userData;
+          })
         );
+        friendList = friendList.concat(sentFriendUsers.filter(Boolean));
       }
       
-      if (receivedFriends) {
-        friendList = friendList.concat(
-          receivedFriends.map((row: any) => row.user_1).filter(Boolean)
+      // Fetch user data for friends where current user is user_id_2
+      if (receivedFriends && receivedFriends.length > 0) {
+        const receivedFriendUsers = await Promise.all(
+          receivedFriends.map(async (friendship) => {
+            const userData = await selectOne("users", {
+              select: "id, first_name, last_name, email, profile_image",
+              where: { id: friendship.user_id_1 }
+            });
+            return userData;
+          })
         );
+        friendList = friendList.concat(receivedFriendUsers.filter(Boolean));
       }
 
       console.log("Total friends found:", friendList.length);
@@ -374,15 +350,10 @@ export default function GroupsScreen() {
   // When adding members from a group card, fetch existing member IDs and pre-select them
   const fetchExistingGroupMembers = async (groupId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("group_members")
-        .select("user_id")
-        .eq("group_id", groupId);
-      
-      if (error) {
-        console.error("Error fetching existing group members:", error);
-        throw error;
-      }
+      const data = await select("group_members", {
+        select: "user_id",
+        where: { group_id: groupId }
+      });
       
       const memberIds = data?.map((row: any) => row.user_id) || [];
       setExistingMembers(memberIds);
@@ -416,13 +387,11 @@ export default function GroupsScreen() {
 
     try {
       // Check for duplicate group names
-      const { data: existingGroups, error: checkError } = await supabase
-        .from("groups")
-        .select("id")
-        .eq("name", newGroup.name.trim())
-        .limit(1);
-
-      if (checkError) throw checkError;
+      const existingGroups = await select("groups", {
+        select: "id",
+        where: { name: newGroup.name.trim() },
+        limit: 1
+      });
 
       if (existingGroups && existingGroups.length > 0) {
         setNotification({
@@ -433,32 +402,22 @@ export default function GroupsScreen() {
       }
 
       // Insert new group
-      const { data: groupData, error: insertError } = await supabase
-        .from("groups")
-        .insert({
-          name: newGroup.name.trim(),
-          description: newGroup.description.trim() || null,
-          created_by: user.id,
-          is_ministry_group: newGroup.is_ministry_group,
-          church_id: newGroup.church_id || null,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
+      const groupData = await insert("groups", {
+        name: newGroup.name.trim(),
+        description: newGroup.description.trim() || null,
+        created_by: user.id,
+        is_ministry_group: newGroup.is_ministry_group,
+        church_id: newGroup.church_id || null,
+      });
 
       const newGroupId = groupData.id;
 
       // Insert current user as admin into group_members
-      const { error: memberError } = await supabase
-        .from("group_members")
-        .insert({
-          group_id: newGroupId,
-          user_id: user.id,
-          role: "admin",
-        });
-
-      if (memberError) throw memberError;
+      await insert("group_members", {
+        group_id: newGroupId,
+        user_id: user.id,
+        role: "admin",
+      });
 
       // Insert selected members (if any) as members
       if (selectedMembersForCreation.length > 0) {
@@ -467,17 +426,14 @@ export default function GroupsScreen() {
         );
         
         if (filteredMembers.length > 0) {
-          const membersPayload = filteredMembers.map((friendId) => ({
-            group_id: newGroupId,
-            user_id: friendId,
-            role: "member",
-          }));
-          
-          const { error: membersError } = await supabase
-            .from("group_members")
-            .insert(membersPayload);
-
-          if (membersError) throw membersError;
+          // Insert members one by one since crudClient doesn't support bulk inserts
+          for (const friendId of filteredMembers) {
+            await insert("group_members", {
+              group_id: newGroupId,
+              user_id: friendId,
+              role: "member",
+            });
+          }
         }
       }
 
@@ -517,15 +473,14 @@ export default function GroupsScreen() {
     }
     
     try {
-      const { error } = await supabase
-        .from("groups")
-        .update({
+      await update(
+        "groups",
+        {
           name: editGroup.name.trim(),
           description: editGroup.description.trim() || null,
-        })
-        .eq("id", editGroup.id);
-        
-      if (error) throw error;
+        },
+        { id: editGroup.id }
+      );
       
       setNotification({
         message: "Group updated successfully!",
@@ -549,13 +504,11 @@ export default function GroupsScreen() {
     if (!editGroup) return;
     
     try {
-      // Delete group (cascade should handle group_members)
-      const { error } = await supabase
-        .from("groups")
-        .delete()
-        .eq("id", editGroup.id);
-        
-      if (error) throw error;
+      // First delete group members (since crudClient doesn't have cascade)
+      await deleteRecord("group_members", { group_id: editGroup.id });
+      
+      // Then delete the group
+      await deleteRecord("groups", { id: editGroup.id });
       
       setNotification({
         message: "Group deleted successfully!",
@@ -603,30 +556,25 @@ export default function GroupsScreen() {
     );
 
     try {
-      // Add new members
+      // Add new members one by one
       if (toAdd.length > 0) {
-        const addPayload = toAdd.map((friendId) => ({
-          group_id: selectedGroupForAddingMembers,
-          user_id: friendId,
-          role: "member",
-        }));
-        
-        const { error: addError } = await supabase
-          .from("group_members")
-          .insert(addPayload);
-          
-        if (addError) throw addError;
+        for (const friendId of toAdd) {
+          await insert("group_members", {
+            group_id: selectedGroupForAddingMembers,
+            user_id: friendId,
+            role: "member",
+          });
+        }
       }
 
-      // Remove members
+      // Remove members one by one
       if (toRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from("group_members")
-          .delete()
-          .eq("group_id", selectedGroupForAddingMembers)
-          .in("user_id", toRemove);
-          
-        if (removeError) throw removeError;
+        for (const friendId of toRemove) {
+          await deleteRecord("group_members", {
+            group_id: selectedGroupForAddingMembers,
+            user_id: friendId
+          });
+        }
       }
 
       setNotification({
@@ -656,13 +604,10 @@ export default function GroupsScreen() {
     if (!user) return;
     
     try {
-      const { error } = await supabase
-        .from("group_members")
-        .delete()
-        .eq("group_id", groupId)
-        .eq("user_id", user.id);
-        
-      if (error) throw error;
+      await deleteRecord("group_members", {
+        group_id: groupId,
+        user_id: user.id
+      });
       
       setNotification({
         message: "You have left the group.",
@@ -685,70 +630,56 @@ export default function GroupsScreen() {
     
     try {
       // Fetch sent requests (where current user is user_id_1)
-      const { data: sent, error: sentError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          user_id_1,
-          user_id_2,
-          status,
-          created_at,
-          user:users!friends_user_id_2_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("user_id_1", user.id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-        
-      if (sentError) throw sentError;
+      const sent = await select("friends", {
+        select: "id, user_id_1, user_id_2, status, created_at",
+        where: { user_id_1: user.id, status: "pending" },
+        order: "created_at"
+      });
       
-      const formattedSent: FriendRequestSent[] = sent?.map((row: any) => ({
-        id: row.id,
-        user_id_1: row.user_id_1,
-        user_id_2: row.user_id_2,
-        status: row.status,
-        created_at: row.created_at,
-        user: row.user,
-      })) || [];
+      // Fetch user data for sent requests
+      const formattedSent: FriendRequestSent[] = await Promise.all(
+        sent.map(async (row: any) => {
+          const userData = await selectOne("users", {
+            select: "id, first_name, last_name, email, profile_image",
+            where: { id: row.user_id_2 }
+          });
+          return {
+            id: row.id,
+            user_id_1: row.user_id_1,
+            user_id_2: row.user_id_2,
+            status: row.status,
+            created_at: row.created_at,
+            user: userData,
+          };
+        })
+      );
       
       setSentRequests(formattedSent);
 
       // Fetch incoming requests (where current user is user_id_2)
-      const { data: incoming, error: incomingError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          user_id_1,
-          user_id_2,
-          status,
-          created_at,
-          user:users!friends_user_id_1_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("user_id_2", user.id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-        
-      if (incomingError) throw incomingError;
+      const incoming = await select("friends", {
+        select: "id, user_id_1, user_id_2, status, created_at",
+        where: { user_id_2: user.id, status: "pending" },
+        order: "created_at"
+      });
       
-      const formattedIncoming: FriendRequestIncoming[] = incoming?.map((row: any) => ({
-        id: row.id,
-        user_id_1: row.user_id_1,
-        user_id_2: row.user_id_2,
-        status: row.status,
-        created_at: row.created_at,
-        user: row.user,
-      })) || [];
+      // Fetch user data for incoming requests
+      const formattedIncoming: FriendRequestIncoming[] = await Promise.all(
+        incoming.map(async (row: any) => {
+          const userData = await selectOne("users", {
+            select: "id, first_name, last_name, email, profile_image",
+            where: { id: row.user_id_1 }
+          });
+          return {
+            id: row.id,
+            user_id_1: row.user_id_1,
+            user_id_2: row.user_id_2,
+            status: row.status,
+            created_at: row.created_at,
+            user: userData,
+          };
+        })
+      );
       
       setIncomingRequests(formattedIncoming);
       setFriendRequestCount(formattedIncoming.length);
@@ -768,62 +699,52 @@ export default function GroupsScreen() {
     
     try {
       // Get friends where current user is user_id_1
-      const { data: sent, error: sentError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          user_id_1,
-          user_id_2,
-          status,
-          created_at,
-          friend:users!friends_user_id_2_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted")
-        .order("created_at", { ascending: false });
-        
-      if (sentError) throw sentError;
+      const sent = await select("friends", {
+        select: "id, user_id_1, user_id_2, status, created_at",
+        where: { user_id_1: user.id, status: "accepted" },
+        order: "created_at"
+      });
 
       // Get friends where current user is user_id_2
-      const { data: received, error: receivedError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          user_id_1,
-          user_id_2,
-          status,
-          created_at,
-          friend:users!friends_user_id_1_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            profile_image
-          )
-        `)
-        .eq("user_id_2", user.id)
-        .eq("status", "accepted")
-        .order("created_at", { ascending: false });
-        
-      if (receivedError) throw receivedError;
+      const received = await select("friends", {
+        select: "id, user_id_1, user_id_2, status, created_at",
+        where: { user_id_2: user.id, status: "accepted" },
+        order: "created_at"
+      });
+
+      // Fetch user data for sent friendships
+      const sentFriendsWithData = await Promise.all(
+        sent.map(async (row: any) => {
+          const friendData = await selectOne("users", {
+            select: "id, first_name, last_name, email, profile_image",
+            where: { id: row.user_id_2 }
+          });
+          return {
+            id: row.id,
+            friend: friendData,
+            created_at: row.created_at,
+          };
+        })
+      );
+
+      // Fetch user data for received friendships
+      const receivedFriendsWithData = await Promise.all(
+        received.map(async (row: any) => {
+          const friendData = await selectOne("users", {
+            select: "id, first_name, last_name, email, profile_image",
+            where: { id: row.user_id_1 }
+          });
+          return {
+            id: row.id,
+            friend: friendData,
+            created_at: row.created_at,
+          };
+        })
+      );
 
       const formattedFriends: Friend[] = [
-        ...(sent?.map((row: any) => ({
-          id: row.id,
-          friend: row.friend,
-          created_at: row.created_at,
-        })).filter((item: any) => item.friend) || []),
-        ...(received?.map((row: any) => ({
-          id: row.id,
-          friend: row.friend,
-          created_at: row.created_at,
-        })).filter((item: any) => item.friend) || []),
+        ...sentFriendsWithData.filter((item: any) => item.friend),
+        ...receivedFriendsWithData.filter((item: any) => item.friend),
       ];
       
       console.log("Friends list loaded:", formattedFriends.length);
@@ -843,15 +764,20 @@ export default function GroupsScreen() {
     try {
       setIsSearching(true);
       
-      // Search for users by first_name or last_name
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, first_name, last_name, email, profile_image")
-        .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
-        .neq("id", user.id)
-        .limit(20);
-        
-      if (error) throw error;
+      // Get all users first, then filter in memory since crudClient doesn't support complex queries
+      const allUsers = await select("users", {
+        select: "id, first_name, last_name, email, profile_image",
+        limit: 100
+      });
+      
+      // Filter by search query and exclude current user
+      const searchResults = allUsers.filter(userData => {
+        if (userData.id === user.id) return false;
+        const query = searchQuery.toLowerCase();
+        const firstName = userData.first_name?.toLowerCase() || "";
+        const lastName = userData.last_name?.toLowerCase() || "";
+        return firstName.includes(query) || lastName.includes(query);
+      });
       
       // Filter out users who are already friends or have pending requests
       const existingFriendIds = new Set([
@@ -860,8 +786,8 @@ export default function GroupsScreen() {
         ...incomingRequests.map(r => r.user_id_1)
       ]);
       
-      const filteredResults = data?.filter(user => !existingFriendIds.has(user.id)) || [];
-      setSearchResults(filteredResults);
+      const filteredResults = searchResults.filter(userData => !existingFriendIds.has(userData.id));
+      setSearchResults(filteredResults.slice(0, 20)); // Limit to 20 results
     } catch (error: any) {
       console.error("Error searching users:", error);
       setNotification({
@@ -877,15 +803,11 @@ export default function GroupsScreen() {
     if (!user) return;
     
     try {
-      const { error } = await supabase
-        .from("friends")
-        .insert({
-          user_id_1: user.id,
-          user_id_2: friendId,
-          status: "pending",
-        });
-        
-      if (error) throw error;
+      await insert("friends", {
+        user_id_1: user.id,
+        user_id_2: friendId,
+        status: "pending",
+      });
       
       setNotification({
         message: "Friend request sent!",
@@ -905,12 +827,7 @@ export default function GroupsScreen() {
 
   const handleAcceptRequest = async (requestId: string) => {
     try {
-      const { error } = await supabase
-        .from("friends")
-        .update({ status: "accepted" })
-        .eq("id", requestId);
-        
-      if (error) throw error;
+      await update("friends", { status: "accepted" }, { id: requestId });
       
       setNotification({
         message: "Friend request accepted!",
@@ -930,12 +847,7 @@ export default function GroupsScreen() {
 
   const handleDeclineRequest = async (requestId: string) => {
     try {
-      const { error } = await supabase
-        .from("friends")
-        .delete()
-        .eq("id", requestId);
-        
-      if (error) throw error;
+      await deleteRecord("friends", { id: requestId });
       
       setNotification({
         message: "Friend request declined",
@@ -954,12 +866,7 @@ export default function GroupsScreen() {
 
   const handleCancelRequest = async (requestId: string) => {
     try {
-      const { error } = await supabase
-        .from("friends")
-        .delete()
-        .eq("id", requestId);
-        
-      if (error) throw error;
+      await deleteRecord("friends", { id: requestId });
       
       setNotification({
         message: "Friend request canceled",
@@ -978,12 +885,7 @@ export default function GroupsScreen() {
 
   const handleRemoveFriend = async (friendshipId: string) => {
     try {
-      const { error } = await supabase
-        .from("friends")
-        .delete()
-        .eq("id", friendshipId);
-        
-      if (error) throw error;
+      await deleteRecord("friends", { id: friendshipId });
       
       setNotification({
         message: "Friend removed",
