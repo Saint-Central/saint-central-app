@@ -21,6 +21,7 @@ interface Ministry {
   description: string;
   image_url?: string;
   member_count?: number;
+  private?: boolean;
 }
 
 export default function JoinMinistryScreen() {
@@ -124,20 +125,37 @@ export default function JoinMinistryScreen() {
         return;
       }
 
-      // Insert membership record
-      await insert("ministry_members", {
-        ministry_id: ministryId,
-        user_id: user.id,
-        church_id: userChurchId,
-        joined_at: new Date().toISOString(),
-        role: "member",
-      });
+      if (ministry?.private) {
+        // For private ministries, create a pending request
+        await insert("ministry_members", {
+          ministry_id: ministryId,
+          user_id: user.id,
+          church_id: userChurchId,
+          joined_at: new Date().toISOString(),
+          role: "pending", // Pending approval
+        });
 
-      // Navigate to ministry details
-      router.replace({
-        pathname: "/(tabs)/ministry-chat",
-        params: { id: ministryId },
-      });
+        Alert.alert(
+          "Request Sent",
+          "Your request to join this private ministry has been sent to the admins for approval.",
+          [{ text: "OK", onPress: () => router.back() }]
+        );
+      } else {
+        // For public ministries, join immediately
+        await insert("ministry_members", {
+          ministry_id: ministryId,
+          user_id: user.id,
+          church_id: userChurchId,
+          joined_at: new Date().toISOString(),
+          role: "member",
+        });
+
+        // Navigate to ministry details
+        router.replace({
+          pathname: "/(tabs)/ministry-chat",
+          params: { id: ministryId },
+        });
+      }
     } catch (error) {
       console.error("Error:", error);
       Alert.alert("Error", "An unexpected error occurred");
@@ -175,8 +193,25 @@ export default function JoinMinistryScreen() {
           </View>
         )}
 
-        <Text style={styles.ministryName}>{ministry?.name}</Text>
+        <View style={styles.ministryNameContainer}>
+          <Text style={styles.ministryName}>{ministry?.name}</Text>
+          {ministry?.private && (
+            <View style={styles.privateBadge}>
+              <Ionicons name="lock-closed" size={16} color="#FFFFFF" />
+              <Text style={styles.privateBadgeText}>Private</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.ministryDescription}>{ministry?.description}</Text>
+        
+        {ministry?.private && (
+          <View style={styles.privateNotice}>
+            <Ionicons name="information-circle" size={20} color="#F59E0B" />
+            <Text style={styles.privateNoticeText}>
+              This is a private ministry. Your request to join will need to be approved by an admin.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
@@ -194,8 +229,10 @@ export default function JoinMinistryScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Ionicons name="people" size={20} color="#FFFFFF" style={styles.joinIcon} />
-              <Text style={styles.joinButtonText}>Join Ministry</Text>
+              <Ionicons name={ministry?.private ? "time" : "people"} size={20} color="#FFFFFF" style={styles.joinIcon} />
+              <Text style={styles.joinButtonText}>
+                {ministry?.private ? "Request to Join" : "Join Ministry"}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -244,6 +281,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
+  },
+  ministryNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
   ministryName: {
     fontSize: 24,
@@ -306,5 +348,35 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: "#64748B",
+  },
+  privateBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 12,
+  },
+  privateBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  privateNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    padding: 16,
+    borderRadius: 12,
+    marginVertical: 16,
+  },
+  privateNoticeText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 14,
+    color: "#92400E",
+    lineHeight: 20,
   },
 });

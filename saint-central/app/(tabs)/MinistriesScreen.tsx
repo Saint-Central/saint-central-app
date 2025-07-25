@@ -49,6 +49,7 @@ interface Ministry {
   member_count?: number;
   is_member?: boolean;
   church_name?: string;
+  private?: boolean;
 }
 
 // Interface for section data
@@ -345,6 +346,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         where: { user_id: user.id }
       });
 
+      let userIsAdmin = false;
       if (!churchMember) {
         console.error("Error fetching church member data - user not a church member");
         setIsAdmin(false);
@@ -352,7 +354,8 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       } else {
         console.log("Church member data:", churchMember);
         setUserChurchId(churchMember.church_id);
-        setIsAdmin(churchMember.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase()));
+        userIsAdmin = churchMember.role && ADMIN_ROLES.includes(churchMember.role.toLowerCase());
+        setIsAdmin(userIsAdmin);
       }
 
       // First, get ALL ministries the user has joined across ALL churches
@@ -459,12 +462,27 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       }
 
       // Process the ministries data with member counts and church names
-      const processedMinistries = ministriesData.map((ministry) => ({
+      let processedMinistries = ministriesData.map((ministry) => ({
         ...ministry,
         member_count: memberCountMap[ministry.id] || 0,
         church_name: churchMap.get(ministry.church_id) || 'Unknown Church',
         // is_member is already set above
       }));
+
+      // Filter out private ministries based on user role and membership
+      processedMinistries = processedMinistries.filter(ministry => {
+        // If ministry is not private, show it
+        if (!ministry.private) return true;
+        
+        // If ministry is private and user is a member, show it
+        if (ministry.is_member) return true;
+        
+        // If ministry is private and user is admin/owner of the church, show it
+        if (userIsAdmin && ministry.church_id === churchMember?.church_id) return true;
+        
+        // Otherwise, hide private ministries
+        return false;
+      });
 
       console.log(
         "Processed ministries with membership:",
@@ -804,9 +822,14 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
 
           <View style={styles.ministryContent}>
             <View style={styles.ministryHeaderRow}>
-              <Text style={styles.ministryName} numberOfLines={1}>
-                {item.name}
-              </Text>
+              <View style={styles.ministryNameContainer}>
+                <Text style={styles.ministryName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {item.private && (
+                  <Ionicons name="lock-closed" size={14} color={THEME.primary} style={styles.privateLockIcon} />
+                )}
+              </View>
               <Text style={styles.ministryTimestamp}>{formatTime(item.created_at)}</Text>
             </View>
 
@@ -1536,12 +1559,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
   },
+  ministryNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
   ministryName: {
     fontSize: 17,
     fontWeight: "700",
     color: THEME.text,
-    flex: 1,
     letterSpacing: -0.3,
+  },
+  privateLockIcon: {
+    marginLeft: 6,
   },
   ministryTimestamp: {
     fontSize: 12,

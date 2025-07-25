@@ -961,9 +961,14 @@ const MinistryCard = ({ ministry }: { ministry: any }) => {
           </View>
 
           <View style={styles.courseDetailsContainer}>
-            <Text style={styles.courseTitle} numberOfLines={2}>
-              {ministry.name || "Ministry"}
-            </Text>
+            <View style={styles.ministryTitleRow}>
+              <Text style={styles.courseTitle} numberOfLines={2}>
+                {ministry.name || "Ministry"}
+              </Text>
+              {ministry.private && (
+                <Ionicons name="lock-closed" size={16} color={theme.primary} />
+              )}
+            </View>
             {ministry.description && (
               <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
                 {ministry.description}
@@ -972,7 +977,7 @@ const MinistryCard = ({ ministry }: { ministry: any }) => {
             <View style={styles.courseFooter}>
               <Button size="xs">
                 <Text style={styles.joinButtonText}>
-                  {ministry.is_member ? "Open Chat" : "Join Ministry"}
+                  {ministry.is_member ? "Open Chat" : ministry.private ? "Request to Join" : "Join Ministry"}
                 </Text>
                 <View style={styles.arrowContainer}>
                   <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
@@ -1605,11 +1610,16 @@ const styles = StyleSheet.create({
     padding: theme.spacingM,
     justifyContent: "space-between",
   },
+  ministryTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   courseTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
     color: theme.textWhite,
-    marginBottom: 8,
+    flex: 1,
   },
   courseDescription: {
     fontSize: 13,

@@ -37,6 +37,8 @@ interface MinistryData {
   image_url: string | null;
   church_id: number | null;
   created_at: string;
+  private?: boolean;
+  hidden?: boolean;
 }
 
 // Interface for navigation
@@ -74,6 +76,8 @@ const CreateMinistryScreen = (): JSX.Element => {
     image_url: null,
     church_id: null,
     created_at: new Date().toISOString(),
+    private: false,
+    hidden: false,
   });
   
   // State for UI
@@ -203,7 +207,9 @@ const CreateMinistryScreen = (): JSX.Element => {
         description: ministryData.description || `${ministryData.name} ministry`,
         image_url: ministryData.image_url,
         church_id: churchId,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        private: ministryData.private || false,
+        hidden: ministryData.hidden || false
       });
       
       if (!newMinistry || !newMinistry.id) {
@@ -360,6 +366,84 @@ const CreateMinistryScreen = (): JSX.Element => {
                 </View>
               </View>
             )}
+
+            {/* Privacy Toggle */}
+            <View style={styles.privacySection}>
+              <TouchableOpacity 
+                style={styles.privacyToggle}
+                onPress={() => setMinistryData(prev => ({ 
+                  ...prev, 
+                  private: !prev.private,
+                  hidden: !prev.private ? false : prev.hidden // Reset hidden if turning off private
+                }))}
+              >
+                <View style={styles.privacyToggleLeft}>
+                  <Ionicons 
+                    name={ministryData.private ? "lock-closed" : "lock-open"} 
+                    size={20} 
+                    color={ministryData.private ? "#F59E0B" : "#64748B"} 
+                  />
+                  <View style={styles.privacyTextContainer}>
+                    <Text style={styles.privacyToggleTitle}>Private Ministry</Text>
+                    <Text style={styles.privacyToggleSubtitle}>
+                      {ministryData.private 
+                        ? "Requires admin approval to join" 
+                        : "Anyone can join freely"}
+                    </Text>
+                  </View>
+                </View>
+                <View 
+                  style={[
+                    styles.toggleSwitch,
+                    ministryData.private && styles.toggleSwitchActive
+                  ]}
+                >
+                  <View 
+                    style={[
+                      styles.toggleThumb,
+                      ministryData.private && styles.toggleThumbActive
+                    ]} 
+                  />
+                </View>
+              </TouchableOpacity>
+
+              {/* Hidden Option - Only shows when private is enabled */}
+              {ministryData.private && (
+                <TouchableOpacity 
+                  style={[styles.privacyToggle, styles.hiddenToggle]}
+                  onPress={() => setMinistryData(prev => ({ ...prev, hidden: !prev.hidden }))}
+                >
+                  <View style={styles.privacyToggleLeft}>
+                    <Ionicons 
+                      name={ministryData.hidden ? "eye-off" : "eye"} 
+                      size={20} 
+                      color={ministryData.hidden ? "#DC2626" : "#64748B"} 
+                    />
+                    <View style={styles.privacyTextContainer}>
+                      <Text style={styles.privacyToggleTitle}>Hidden Ministry</Text>
+                      <Text style={styles.privacyToggleSubtitle}>
+                        {ministryData.hidden 
+                          ? "Only visible to admins and members" 
+                          : "Visible in ministry listings"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View 
+                    style={[
+                      styles.toggleSwitch,
+                      ministryData.hidden && styles.toggleSwitchActiveRed
+                    ]}
+                  >
+                    <View 
+                      style={[
+                        styles.toggleThumb,
+                        ministryData.hidden && styles.toggleThumbActive
+                      ]} 
+                    />
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Church Info */}
             {churchId && (
@@ -541,6 +625,68 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
     marginLeft: 8,
+  },
+  privacySection: {
+    marginBottom: 16,
+  },
+  privacyToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 16,
+  },
+  privacyToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  privacyTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  privacyToggleTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginBottom: 2,
+  },
+  privacyToggleSubtitle: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  toggleSwitch: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#E2E8F0",
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: "#F59E0B",
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }],
+  },
+  hiddenToggle: {
+    marginTop: 12,
+  },
+  toggleSwitchActiveRed: {
+    backgroundColor: "#DC2626",
   },
 });
 
