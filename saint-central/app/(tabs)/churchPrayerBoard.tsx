@@ -586,7 +586,14 @@ const ChurchPrayerBoard = () => {
         ]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          modalScale.setValue(0);
           setShowAddModal(true);
+          Animated.spring(modalScale, {
+            toValue: 1,
+            friction: 8,
+            tension: 40,
+            useNativeDriver: true,
+          }).start();
         }}
         activeOpacity={0.8}
       >
@@ -603,18 +610,18 @@ const ChurchPrayerBoard = () => {
       {/* Add Prayer Modal */}
       <Modal
         visible={showAddModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setShowAddModal(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalContainer}
+        <TouchableOpacity 
+          style={styles.modalBackdrop} 
+          activeOpacity={1}
+          onPress={() => setShowAddModal(false)}
         >
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1}
-            onPress={() => setShowAddModal(false)}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalContainer}
           >
             <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
               <Animated.View style={[{
@@ -705,8 +712,8 @@ const ChurchPrayerBoard = () => {
               </BlurView>
               </Animated.View>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
       </Modal>
       </SafeAreaView>
     </View>
@@ -943,23 +950,31 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalBackdrop: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
   },
   modalContent: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderRadius: 32,
     overflow: "hidden",
-    maxHeight: height * 0.85,
+    width: "100%",
+    maxWidth: 500,
+    maxHeight: height * 0.8,
   },
   modalGradient: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 24,
+    paddingHorizontal: 32,
+    paddingBottom: 48,
+    paddingTop: 32,
   },
   modalHeader: {
     flexDirection: "row",
@@ -968,9 +983,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "800",
-    color: "transparent",
+    color: "#E0E7FF",
     letterSpacing: 0.5,
   },
   modalCloseButton: {
@@ -996,12 +1011,13 @@ const styles = StyleSheet.create({
   prayerInput: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 16,
-    padding: 20,
-    fontSize: 16,
+    padding: 24,
+    fontSize: 18,
     color: "#E0E7FF",
-    minHeight: 160,
+    minHeight: 200,
     textAlignVertical: "top",
     fontWeight: "500",
+    lineHeight: 26,
   },
   anonymousToggle: {
     flexDirection: "row",
@@ -1038,14 +1054,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
+    paddingVertical: 20,
   },
   submitButtonDisabled: {
     opacity: 0.7,
   },
   submitButtonText: {
     color: "#FFFFFF",
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "700",
     marginLeft: 8,
     letterSpacing: 0.5,
