@@ -275,6 +275,16 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     animateUIElements();
   }, []);
 
+  // Reload data when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('Ministries screen focused - reloading data');
+      fetchData();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   // Handle FAB visibility based on scroll
   useEffect(() => {
     const listenerId = scrollY.addListener(({ value }) => {
