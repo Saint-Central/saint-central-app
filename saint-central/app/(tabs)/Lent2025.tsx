@@ -27,6 +27,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCRUD } from "@/utils/crudClient";
 import theme from "../../theme";
+import LentListView from "./LentListView";
 
 // --------------------
 // Data Interfaces
@@ -2281,50 +2282,26 @@ const Lent2025: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           {view === "list" ? (
-            <View style={styles.listContainer}>
-              <View style={styles.sectionContainer}>
-                {tasksFilter === "all" && (
-                  <>
-                    <Text style={styles.sectionTitle}>My Tasks</Text>
-                    {groupedMyTasks.length === 0 ? (
-                      <Text style={styles.emptyText}>You haven't added any tasks yet.</Text>
-                    ) : (
-                      groupedMyTasks.map((group) =>
-                        renderTaskGroupCard(
-                          group,
-                          handleLikeToggle,
-                          handleOpenComments,
-                          showConfirmDelete,
-                          handleDeleteRecurringGroup,
-                          handleToggleRecurringGroupCompletion,
-                          currentUserId,
-                          handleToggleTaskCompletion,
-                          showCompletionConfirm,
-                          likeAnimations,
-                          heartAnimations,
-                        ),
-                      )
-                    )}
-                  </>
-                )}
-                <Text style={styles.sectionTitle}>
-                  {tasksFilter === "all" ? "Friends' & Group Tasks" : getHeaderTitle()}
-                </Text>
-                {tasksFilter === "all" ? (
-                  friendTasks.length === 0 ? (
-                    <Text style={styles.emptyText}>No tasks from friends or groups yet.</Text>
-                  ) : (
-                    friendTasks.map((task) => renderTaskCard(task, false))
-                  )
-                ) : lentTasks.length === 0 ? (
-                  <Text style={styles.emptyText}>
-                    No {tasksFilter === "friends" ? "friends'" : "group"} tasks available.
-                  </Text>
-                ) : (
-                  lentTasks.map((task) => renderTaskCard(task, task.user_id === currentUserId))
-                )}
-              </View>
-            </View>
+            <LentListView
+              tasksFilter={tasksFilter}
+              groupedMyTasks={groupedMyTasks}
+              friendTasks={friendTasks}
+              lentTasks={lentTasks}
+              currentUserId={currentUserId}
+              handleLikeToggle={handleLikeToggle}
+              handleOpenComments={handleOpenComments}
+              showConfirmDelete={showConfirmDelete}
+              handleDeleteRecurringGroup={handleDeleteRecurringGroup}
+              handleToggleRecurringGroupCompletion={handleToggleRecurringGroupCompletion}
+              handleToggleTaskCompletion={handleToggleTaskCompletion}
+              showCompletionConfirm={showCompletionConfirm}
+              handleEditTask={handleEditTask}
+              likeAnimations={likeAnimations}
+              heartAnimations={heartAnimations}
+              getHeaderTitle={getHeaderTitle}
+              renderTaskGroupCard={renderTaskGroupCard}
+              renderTaskCard={renderTaskCard}
+            />
           ) : (
             <View style={styles.calendarContainer}>
               <View style={[styles.weekdayHeader, { width: calendarWidth }]}>
