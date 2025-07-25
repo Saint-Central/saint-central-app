@@ -353,7 +353,39 @@ const CreateCoursePage: React.FC = () => {
       } else {
         // Create new course
         console.log('Creating new course');
-        await crud.insert('courses', courseData);
+        const newCourse = await crud.insert('courses', courseData);
+        
+        // Create a ministry group for this course
+        try {
+          console.log('Creating ministry group for course');
+          const ministryData = {
+            name: `${formData.description} - Course Group`,
+            description: `Group chat for ${formData.description} course. Location: ${formData.location}, Host: ${formData.host}`,
+            image_url: imageUrl || null,
+            church_id: parseInt(formData.church_id),
+            created_at: new Date().toISOString(),
+            is_system_generated: true
+          };
+          
+          const newMinistry = await crud.insert('ministries', ministryData);
+          
+          if (newMinistry && newMinistry.id) {
+            // Add the course creator as a ministry member/leader
+            await crud.insert('ministry_members', {
+              ministry_id: newMinistry.id,
+              user_id: formData.user_id,
+              church_id: parseInt(formData.church_id),
+              joined_at: new Date().toISOString(),
+              member_status: 'leader'
+            });
+            
+            console.log('Ministry group created successfully for course');
+          }
+        } catch (ministryError) {
+          console.error('Error creating ministry group:', ministryError);
+          // Don't fail the course creation if ministry creation fails
+        }
+        
         setSuccessMessage('Course created successfully!');
       }
       
