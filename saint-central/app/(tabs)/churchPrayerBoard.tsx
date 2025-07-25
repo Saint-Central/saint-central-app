@@ -391,7 +391,7 @@ const ChurchPrayerBoard = () => {
               </BlurView>
             </TouchableOpacity>
             
-            <Text style={[styles.headerTitle, { color: "#E0E7FF" }]}>Prayer Board</Text>
+            <Text style={[styles.headerTitle, { color: "#8B5CF6" }]}>Prayer Board</Text>
             
             <View style={{ width: 40 }} />
           </BlurView>
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     position: "absolute",
-    bottom: 24,
+    bottom: 80,
     right: 24,
     width: 64,
     height: 64,
