@@ -1349,10 +1349,7 @@ export default function CommunityScreen() {
         setShowIntentionModal(true);
         break;
       case "friends":
-        setShowFriendsSearch(true);
-        setSearchQuery("");
-        setUsers([]);
-        setFriendTab("search");
+        router.push("/groups");
         break;
       case "lent":
         router.push("/Lent2025");
@@ -1913,7 +1910,7 @@ export default function CommunityScreen() {
             <TouchableOpacity style={styles.fabMenuItem} onPress={() => handleFabOption("friends")}>
               <Feather name="users" size={22} color="#fbbf24" />
               <Text style={styles.fabMenuItemText}>
-                Friends{" "}
+                Groups & Friends{" "}
                 {friendRequestCount > 0 && (
                   <Text style={styles.fabMenuBadge}> • {friendRequestCount}</Text>
                 )}

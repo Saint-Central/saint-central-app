@@ -13,28 +13,38 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  ScrollView,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Feather } from "@expo/vector-icons";
 import { supabase } from "../../supabaseClient";
 import { router } from "expo-router";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCRUD } from "@/utils/crudClient";
 
 // Reuse your background image
 const backgroundImageRequire = require("../../assets/images/community-image.jpg");
 
 interface Group {
-  id: string;
+  id: number;
   name: string;
   description: string;
   created_at: string;
   created_by: string;
+  church_id?: number;
+  is_ministry_group?: boolean;
 }
 
 interface UserData {
   id: string;
   first_name: string;
   last_name: string;
+  email: string;
   created_at: string;
+  profile_image?: string;
+  phone_number?: string;
+  denomination?: string;
+  role_partner?: string;
 }
 
 interface GroupMember {
@@ -42,6 +52,7 @@ interface GroupMember {
   user_id: string;
   group_id: string;
   role: string;
+  joined_at: string;
   user: UserData;
 }
 
@@ -50,7 +61,35 @@ interface Notification {
   type: "error" | "success";
 }
 
+interface FriendRequestSent {
+  id: string;
+  user_id_1: string;
+  user_id_2: string;
+  status: string;
+  created_at: string;
+  user: UserData;
+}
+
+interface FriendRequestIncoming {
+  id: string;
+  user_id_1: string;
+  user_id_2: string;
+  status: string;
+  created_at: string;
+  user: UserData;
+}
+
+interface Friend {
+  id: string;
+  friend: UserData;
+  created_at: string;
+}
+
 export default function GroupsScreen() {
+  // Auth and CRUD hooks
+  const { user } = useAuth();
+  const { select, insert, update, deleteRecord } = useCRUD();
+
   // Groups & loading state
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -60,11 +99,14 @@ export default function GroupsScreen() {
   const [newGroup, setNewGroup] = useState<{
     name: string;
     description: string;
+    is_ministry_group: boolean;
+    church_id?: number;
   }>({
     name: "",
     description: "",
+    is_ministry_group: false,
+    church_id: undefined,
   });
-  // Holds friend IDs selected for group creation or membership update.
   const [selectedMembersForCreation, setSelectedMembersForCreation] = useState<string[]>([]);
 
   // Edit Group state
@@ -82,27 +124,23 @@ export default function GroupsScreen() {
   const [selectedGroupForAddingMembers, setSelectedGroupForAddingMembers] = useState<string | null>(
     null,
   );
-  // Holds the original member IDs of the group.
   const [existingMembers, setExistingMembers] = useState<string[]>([]);
 
-  // Friend Selection UI:
-  // For Create/Edit modals, use an overlay.
+  // Friend Selection UI
   const [showFriendSelectionOverlay, setShowFriendSelectionOverlay] = useState<boolean>(false);
-  // For group card add-members, use a separate modal.
   const [showFriendSelectionModal, setShowFriendSelectionModal] = useState<boolean>(false);
 
   // Friends list (fetched from Supabase)
   const [friends, setFriends] = useState<UserData[]>([]);
 
-  // Notification & current user
+  // Notification
   const [notification, setNotification] = useState<Notification | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Leave Group confirmation modal state
   const [selectedGroupToLeave, setSelectedGroupToLeave] = useState<string | null>(null);
   const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState<boolean>(false);
 
-  // NEW: View members modal state
+  // View members modal state
   const [showMembersModal, setShowMembersModal] = useState<boolean>(false);
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<GroupMember[]>([]);
   const [selectedGroupForMembers, setSelectedGroupForMembers] = useState<Group | null>(null);
@@ -117,16 +155,26 @@ export default function GroupsScreen() {
     outputRange: ["0deg", "45deg"],
   });
 
-  useEffect(() => {
-    getCurrentUser();
-  }, []);
+  // Friend-related state
+  const [activeTab, setActiveTab] = useState<"groups" | "friends">("groups");
+  const [friendTab, setFriendTab] = useState<"search" | "requests" | "list">("search");
+  const [sentRequests, setSentRequests] = useState<FriendRequestSent[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequestIncoming[]>([]);
+  const [friendsList, setFriendsList] = useState<Friend[]>([]);
+  const [friendRequestCount, setFriendRequestCount] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<UserData[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
 
-  // New: Once currentUserId is set, fetch groups
+  // Fetch groups and friends when user is available
   useEffect(() => {
-    if (currentUserId) {
+    if (user) {
       fetchGroups();
+      fetchFriends(user.id);
+      fetchFriendsList();
+      fetchFriendRequests();
     }
-  }, [currentUserId]);
+  }, [user]);
 
   useEffect(() => {
     if (notification) {
@@ -135,36 +183,52 @@ export default function GroupsScreen() {
     }
   }, [notification]);
 
-  // Get current user and fetch friends
-  const getCurrentUser = async () => {
-    try {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setCurrentUserId(data.user.id);
-        fetchFriends(data.user.id);
+  // Fetch friend data when tab changes
+  useEffect(() => {
+    if (activeTab === "friends" && user) {
+      if (friendTab === "requests") {
+        fetchFriendRequests();
+      } else if (friendTab === "list") {
+        fetchFriendsList();
       }
-    } catch (error) {
-      console.error("Error getting current user:", error);
     }
-  };
+  }, [activeTab, friendTab, user]);
 
   // Fetch groups from Supabase that the current user is a member of
   const fetchGroups = async () => {
-    if (!currentUserId) return;
+    if (!user) return;
     try {
       setIsLoading(true);
+      // Query groups where user is a member, with proper joins
       const { data, error } = await supabase
         .from("groups")
-        .select("*, group_members!inner(*)")
-        .eq("group_members.user_id", currentUserId)
+        .select(`
+          id,
+          name,
+          description,
+          created_at,
+          created_by,
+          church_id,
+          is_ministry_group,
+          group_members!inner(
+            role,
+            joined_at
+          )
+        `)
+        .eq("group_members.user_id", user.id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+
+      if (error) {
+        console.error("Error fetching groups:", error);
+        throw error;
+      }
+
+      console.log("Fetched groups:", data?.length || 0);
       setGroups(data || []);
     } catch (error: any) {
       console.error("Error fetching groups:", error);
       setNotification({
-        message:
-          "Error fetching groups: " + (error instanceof Error ? error.message : String(error)),
+        message: "Error fetching groups: " + (error?.message || String(error)),
         type: "error",
       });
     } finally {
@@ -178,10 +242,29 @@ export default function GroupsScreen() {
       setMembersLoading(true);
       const { data, error } = await supabase
         .from("group_members")
-        .select("*, user:users(*)")
-        .eq("group_id", groupId);
+        .select(`
+          id,
+          group_id,
+          user_id,
+          role,
+          joined_at,
+          user:users(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
+        .eq("group_id", groupId)
+        .order("joined_at", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching group members:", error);
+        throw error;
+      }
+
+      console.log("Fetched group members:", data?.length || 0);
       setSelectedGroupMembers(data || []);
       setSelectedGroupForMembers(groupData);
       setShowMembersModal(true);
@@ -190,7 +273,7 @@ export default function GroupsScreen() {
       setIsManagingMembers(false);
 
       // Pre-populate selected members if this is a group created by current user
-      if (groupData.created_by === currentUserId) {
+      if (groupData.created_by === user?.id) {
         const memberIds = data?.map((member: GroupMember) => member.user_id) || [];
         setSelectedMembersForCreation(memberIds);
         setExistingMembers(memberIds);
@@ -199,9 +282,7 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error fetching group members:", error);
       setNotification({
-        message: `Error fetching members: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error fetching members: ${error?.message || String(error)}`,
         type: "error",
       });
     } finally {
@@ -209,55 +290,114 @@ export default function GroupsScreen() {
     }
   };
 
-  // Fetch friends using explicit relationship aliases
+  // Fetch friends using proper foreign key relationships
   const fetchFriends = async (userId: string) => {
     try {
-      const { data: sent, error: sentError } = await supabase
+      console.log("Fetching friends for user:", userId);
+      
+      // Get friends where current user is user_id_1 (outgoing accepted friendships)
+      const { data: sentFriends, error: sentError } = await supabase
         .from("friends")
-        .select("user_id_2, user_2:users!friends_user_id_2_fkey(*)")
+        .select(`
+          id,
+          user_id_1,
+          user_id_2,
+          status,
+          created_at,
+          user_2:users!friends_user_id_2_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
         .eq("user_id_1", userId)
         .eq("status", "accepted");
-      if (sentError) throw sentError;
 
-      const { data: incoming, error: incomingError } = await supabase
+      if (sentError) {
+        console.error("Error fetching sent friends:", sentError);
+        throw sentError;
+      }
+
+      // Get friends where current user is user_id_2 (incoming accepted friendships)
+      const { data: receivedFriends, error: receivedError } = await supabase
         .from("friends")
-        .select("user_id_1, user_1:users!friends_user_id_1_fkey(*)")
+        .select(`
+          id,
+          user_id_1,
+          user_id_2,
+          status,
+          created_at,
+          user_1:users!friends_user_id_1_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
         .eq("user_id_2", userId)
         .eq("status", "accepted");
-      if (incomingError) throw incomingError;
 
+      if (receivedError) {
+        console.error("Error fetching received friends:", receivedError);
+        throw receivedError;
+      }
+
+      // Combine and format the friends list
       let friendList: UserData[] = [];
-      if (sent) {
-        friendList = friendList.concat(sent.map((row: any) => row.user_2));
+      
+      if (sentFriends) {
+        friendList = friendList.concat(
+          sentFriends.map((row: any) => row.user_2).filter(Boolean)
+        );
       }
-      if (incoming) {
-        friendList = friendList.concat(incoming.map((row: any) => row.user_1));
+      
+      if (receivedFriends) {
+        friendList = friendList.concat(
+          receivedFriends.map((row: any) => row.user_1).filter(Boolean)
+        );
       }
+
+      console.log("Total friends found:", friendList.length);
       setFriends(friendList);
     } catch (error: any) {
       console.error("Error fetching friends:", error);
+      setNotification({
+        message: "Error fetching friends: " + (error?.message || String(error)),
+        type: "error",
+      });
     }
   };
 
-  // When adding members from a group card, fetch existing member IDs and pre-select them.
+  // When adding members from a group card, fetch existing member IDs and pre-select them
   const fetchExistingGroupMembers = async (groupId: string) => {
     try {
       const { data, error } = await supabase
         .from("group_members")
         .select("user_id")
         .eq("group_id", groupId);
-      if (error) throw error;
-      const memberIds = data.map((row: any) => row.user_id);
+      
+      if (error) {
+        console.error("Error fetching existing group members:", error);
+        throw error;
+      }
+      
+      const memberIds = data?.map((row: any) => row.user_id) || [];
       setExistingMembers(memberIds);
-      // Pre-populate the selection state with the existing members.
       setSelectedMembersForCreation(memberIds);
     } catch (error: any) {
       console.error("Error fetching group members:", error);
       setExistingMembers([]);
+      setNotification({
+        message: "Error fetching group members: " + (error?.message || String(error)),
+        type: "error",
+      });
     }
   };
 
-  // Create Group
+  // Create Group with proper error handling
   const handleCreateGroup = async () => {
     if (!newGroup.name.trim()) {
       setNotification({
@@ -266,72 +406,101 @@ export default function GroupsScreen() {
       });
       return;
     }
+    if (!user) {
+      setNotification({
+        message: "Not authenticated",
+        type: "error",
+      });
+      return;
+    }
+
     try {
-      // Duplicate check
-      const { data: duplicate, error: duplicateError } = await supabase
+      // Check for duplicate group names
+      const { data: existingGroups, error: checkError } = await supabase
         .from("groups")
-        .select("*")
-        .eq("name", newGroup.name.trim());
-      if (duplicateError) throw duplicateError;
-      if (duplicate && duplicate.length > 0) {
+        .select("id")
+        .eq("name", newGroup.name.trim())
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (existingGroups && existingGroups.length > 0) {
         setNotification({
           message: "A group with that name already exists.",
           type: "error",
         });
         return;
       }
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) throw new Error("Not authenticated");
 
       // Insert new group
-      const { data: groupData, error } = await supabase
+      const { data: groupData, error: insertError } = await supabase
         .from("groups")
         .insert({
           name: newGroup.name.trim(),
-          description: newGroup.description.trim(),
-          created_by: userData.user.id,
+          description: newGroup.description.trim() || null,
+          created_by: user.id,
+          is_ministry_group: newGroup.is_ministry_group,
+          church_id: newGroup.church_id || null,
         })
-        .select();
-      if (error) throw error;
-      const newGroupId = groupData[0].id;
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      const newGroupId = groupData.id;
 
       // Insert current user as admin into group_members
-      const { error: adminInsertError } = await supabase.from("group_members").insert({
-        group_id: newGroupId,
-        user_id: userData.user.id,
-        role: "admin",
-      });
-      if (adminInsertError) throw adminInsertError;
+      const { error: memberError } = await supabase
+        .from("group_members")
+        .insert({
+          group_id: newGroupId,
+          user_id: user.id,
+          role: "admin",
+        });
+
+      if (memberError) throw memberError;
 
       // Insert selected members (if any) as members
       if (selectedMembersForCreation.length > 0) {
-        // Remove current user if accidentally included
         const filteredMembers = selectedMembersForCreation.filter(
-          (friendId) => friendId !== userData.user.id,
+          (friendId) => friendId !== user.id,
         );
+        
         if (filteredMembers.length > 0) {
           const membersPayload = filteredMembers.map((friendId) => ({
             group_id: newGroupId,
             user_id: friendId,
             role: "member",
           }));
+          
           const { error: membersError } = await supabase
             .from("group_members")
             .insert(membersPayload);
+
           if (membersError) throw membersError;
         }
       }
+
+      // Reset form and close modal
       setShowCreateModal(false);
-      setNewGroup({ name: "", description: "" });
+      setNewGroup({ 
+        name: "", 
+        description: "", 
+        is_ministry_group: false, 
+        church_id: undefined 
+      });
+      setSelectedMembersForCreation([]);
+      
       setNotification({
         message: "Group created successfully!",
         type: "success",
       });
+      
       fetchGroups();
     } catch (error: any) {
       console.error("Error creating group:", error);
       setNotification({
-        message: `Error creating group: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Error creating group: ${error?.message || String(error)}`,
         type: "error",
       });
     }
@@ -346,26 +515,30 @@ export default function GroupsScreen() {
       });
       return;
     }
+    
     try {
       const { error } = await supabase
         .from("groups")
         .update({
           name: editGroup.name.trim(),
-          description: editGroup.description.trim(),
+          description: editGroup.description.trim() || null,
         })
         .eq("id", editGroup.id);
+        
       if (error) throw error;
+      
       setNotification({
         message: "Group updated successfully!",
         type: "success",
       });
+      
       setShowEditModal(false);
       setEditGroup(null);
       fetchGroups();
     } catch (error: any) {
       console.error("Error updating group:", error);
       setNotification({
-        message: `Error updating group: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Error updating group: ${error?.message || String(error)}`,
         type: "error",
       });
     }
@@ -374,13 +547,21 @@ export default function GroupsScreen() {
   // Delete Group
   const handleDeleteGroup = async () => {
     if (!editGroup) return;
+    
     try {
-      const { error } = await supabase.from("groups").delete().eq("id", editGroup.id);
+      // Delete group (cascade should handle group_members)
+      const { error } = await supabase
+        .from("groups")
+        .delete()
+        .eq("id", editGroup.id);
+        
       if (error) throw error;
+      
       setNotification({
         message: "Group deleted successfully!",
         type: "success",
       });
+      
       setShowDeleteConfirmOverlay(false);
       setShowEditModal(false);
       setEditGroup(null);
@@ -388,58 +569,63 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error deleting group:", error);
       setNotification({
-        message: `Error deleting group: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Error deleting group: ${error?.message || String(error)}`,
         type: "error",
       });
     }
   };
 
-  // Update Group Members – compute diff and update membership.
+  // Update Group Members with proper diff handling
   const handleUpdateGroupMembers = async () => {
     if (!selectedGroupForAddingMembers) return;
 
     // Don't allow removing yourself if you're the admin
     const currentUserIsAdmin = selectedGroupMembers.some(
-      (member) => member.user_id === currentUserId && member.role === "admin",
+      (member) => member.user_id === user?.id && member.role === "admin",
     );
 
     let processedSelectedMembers = [...selectedMembersForCreation];
 
     // If current user is admin, make sure they're in the selected list
-    if (currentUserIsAdmin && !processedSelectedMembers.includes(currentUserId!)) {
-      processedSelectedMembers.push(currentUserId!);
+    if (currentUserIsAdmin && user?.id && !processedSelectedMembers.includes(user.id)) {
+      processedSelectedMembers.push(user.id);
     }
 
-    // Compute friend IDs to add (in selectedMembersForCreation but not in existingMembers)
+    // Compute members to add and remove
     const toAdd = processedSelectedMembers.filter(
       (friendId) => !existingMembers.includes(friendId),
     );
 
-    // Compute friend IDs to remove (in existingMembers but not in selectedMembersForCreation)
     const toRemove = existingMembers.filter(
       (friendId) =>
         !processedSelectedMembers.includes(friendId) &&
-        !(friendId === currentUserId && currentUserIsAdmin), // Don't remove yourself if admin
+        !(friendId === user?.id && currentUserIsAdmin),
     );
 
     try {
+      // Add new members
       if (toAdd.length > 0) {
         const addPayload = toAdd.map((friendId) => ({
           group_id: selectedGroupForAddingMembers,
           user_id: friendId,
           role: "member",
         }));
-        const { error: addError } = await supabase.from("group_members").insert(addPayload);
+        
+        const { error: addError } = await supabase
+          .from("group_members")
+          .insert(addPayload);
+          
         if (addError) throw addError;
       }
 
+      // Remove members
       if (toRemove.length > 0) {
-        // Delete records by matching both group_id and user_id
         const { error: removeError } = await supabase
           .from("group_members")
           .delete()
           .eq("group_id", selectedGroupForAddingMembers)
           .in("user_id", toRemove);
+          
         if (removeError) throw removeError;
       }
 
@@ -459,33 +645,356 @@ export default function GroupsScreen() {
     } catch (error: any) {
       console.error("Error updating group members:", error);
       setNotification({
-        message: `Error updating group members: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `Error updating group members: ${error?.message || String(error)}`,
         type: "error",
       });
     }
   };
 
-  // New: Leave Group Functionality
+  // Leave Group functionality
   const handleLeaveGroup = async (groupId: string) => {
-    if (!currentUserId) return;
+    if (!user) return;
+    
     try {
       const { error } = await supabase
         .from("group_members")
         .delete()
         .eq("group_id", groupId)
-        .eq("user_id", currentUserId);
+        .eq("user_id", user.id);
+        
       if (error) throw error;
+      
       setNotification({
         message: "You have left the group.",
         type: "success",
       });
+      
       fetchGroups();
     } catch (error: any) {
       console.error("Error leaving group:", error);
       setNotification({
-        message: `Error leaving group: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Error leaving group: ${error?.message || String(error)}`,
+        type: "error",
+      });
+    }
+  };
+
+  // Friend request functions with proper error handling
+  const fetchFriendRequests = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch sent requests (where current user is user_id_1)
+      const { data: sent, error: sentError } = await supabase
+        .from("friends")
+        .select(`
+          id,
+          user_id_1,
+          user_id_2,
+          status,
+          created_at,
+          user:users!friends_user_id_2_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
+        .eq("user_id_1", user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+        
+      if (sentError) throw sentError;
+      
+      const formattedSent: FriendRequestSent[] = sent?.map((row: any) => ({
+        id: row.id,
+        user_id_1: row.user_id_1,
+        user_id_2: row.user_id_2,
+        status: row.status,
+        created_at: row.created_at,
+        user: row.user,
+      })) || [];
+      
+      setSentRequests(formattedSent);
+
+      // Fetch incoming requests (where current user is user_id_2)
+      const { data: incoming, error: incomingError } = await supabase
+        .from("friends")
+        .select(`
+          id,
+          user_id_1,
+          user_id_2,
+          status,
+          created_at,
+          user:users!friends_user_id_1_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
+        .eq("user_id_2", user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+        
+      if (incomingError) throw incomingError;
+      
+      const formattedIncoming: FriendRequestIncoming[] = incoming?.map((row: any) => ({
+        id: row.id,
+        user_id_1: row.user_id_1,
+        user_id_2: row.user_id_2,
+        status: row.status,
+        created_at: row.created_at,
+        user: row.user,
+      })) || [];
+      
+      setIncomingRequests(formattedIncoming);
+      setFriendRequestCount(formattedIncoming.length);
+      
+      console.log("Friend requests - incoming:", formattedIncoming.length, "sent:", formattedSent.length);
+    } catch (error: any) {
+      console.error("Error fetching friend requests:", error);
+      setNotification({
+        message: "Error fetching friend requests: " + (error?.message || String(error)),
+        type: "error",
+      });
+    }
+  };
+
+  const fetchFriendsList = async () => {
+    if (!user) return;
+    
+    try {
+      // Get friends where current user is user_id_1
+      const { data: sent, error: sentError } = await supabase
+        .from("friends")
+        .select(`
+          id,
+          user_id_1,
+          user_id_2,
+          status,
+          created_at,
+          friend:users!friends_user_id_2_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
+        .eq("user_id_1", user.id)
+        .eq("status", "accepted")
+        .order("created_at", { ascending: false });
+        
+      if (sentError) throw sentError;
+
+      // Get friends where current user is user_id_2
+      const { data: received, error: receivedError } = await supabase
+        .from("friends")
+        .select(`
+          id,
+          user_id_1,
+          user_id_2,
+          status,
+          created_at,
+          friend:users!friends_user_id_1_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            profile_image
+          )
+        `)
+        .eq("user_id_2", user.id)
+        .eq("status", "accepted")
+        .order("created_at", { ascending: false });
+        
+      if (receivedError) throw receivedError;
+
+      const formattedFriends: Friend[] = [
+        ...(sent?.map((row: any) => ({
+          id: row.id,
+          friend: row.friend,
+          created_at: row.created_at,
+        })).filter((item: any) => item.friend) || []),
+        ...(received?.map((row: any) => ({
+          id: row.id,
+          friend: row.friend,
+          created_at: row.created_at,
+        })).filter((item: any) => item.friend) || []),
+      ];
+      
+      console.log("Friends list loaded:", formattedFriends.length);
+      setFriendsList(formattedFriends);
+    } catch (error: any) {
+      console.error("Error fetching friends list:", error);
+      setNotification({
+        message: "Error fetching friends: " + (error?.message || String(error)),
+        type: "error",
+      });
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || !user) return;
+    
+    try {
+      setIsSearching(true);
+      
+      // Search for users by first_name or last_name
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, email, profile_image")
+        .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+        .neq("id", user.id)
+        .limit(20);
+        
+      if (error) throw error;
+      
+      // Filter out users who are already friends or have pending requests
+      const existingFriendIds = new Set([
+        ...friends.map(f => f.id),
+        ...sentRequests.map(r => r.user_id_2),
+        ...incomingRequests.map(r => r.user_id_1)
+      ]);
+      
+      const filteredResults = data?.filter(user => !existingFriendIds.has(user.id)) || [];
+      setSearchResults(filteredResults);
+    } catch (error: any) {
+      console.error("Error searching users:", error);
+      setNotification({
+        message: "Error searching users: " + (error?.message || String(error)),
+        type: "error",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddFriend = async (friendId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .insert({
+          user_id_1: user.id,
+          user_id_2: friendId,
+          status: "pending",
+        });
+        
+      if (error) throw error;
+      
+      setNotification({
+        message: "Friend request sent!",
+        type: "success",
+      });
+      
+      // Remove from search results
+      setSearchResults(searchResults.filter(searchUser => searchUser.id !== friendId));
+    } catch (error: any) {
+      console.error("Error sending friend request:", error);
+      setNotification({
+        message: "Error sending friend request: " + (error?.message || String(error)),
+        type: "error",
+      });
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .update({ status: "accepted" })
+        .eq("id", requestId);
+        
+      if (error) throw error;
+      
+      setNotification({
+        message: "Friend request accepted!",
+        type: "success",
+      });
+      
+      fetchFriendRequests();
+      fetchFriendsList();
+    } catch (error: any) {
+      console.error("Error accepting friend request:", error);
+      setNotification({
+        message: "Error accepting friend request: " + (error?.message || String(error)),
+        type: "error",
+      });
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .delete()
+        .eq("id", requestId);
+        
+      if (error) throw error;
+      
+      setNotification({
+        message: "Friend request declined",
+        type: "success",
+      });
+      
+      fetchFriendRequests();
+    } catch (error: any) {
+      console.error("Error declining friend request:", error);
+      setNotification({
+        message: "Error declining friend request: " + (error?.message || String(error)),
+        type: "error",
+      });
+    }
+  };
+
+  const handleCancelRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .delete()
+        .eq("id", requestId);
+        
+      if (error) throw error;
+      
+      setNotification({
+        message: "Friend request canceled",
+        type: "success",
+      });
+      
+      fetchFriendRequests();
+    } catch (error: any) {
+      console.error("Error canceling friend request:", error);
+      setNotification({
+        message: "Error canceling friend request: " + (error?.message || String(error)),
+        type: "error",
+      });
+    }
+  };
+
+  const handleRemoveFriend = async (friendshipId: string) => {
+    try {
+      const { error } = await supabase
+        .from("friends")
+        .delete()
+        .eq("id", friendshipId);
+        
+      if (error) throw error;
+      
+      setNotification({
+        message: "Friend removed",
+        type: "success",
+      });
+      
+      fetchFriendsList();
+    } catch (error: any) {
+      console.error("Error removing friend:", error);
+      setNotification({
+        message: "Error removing friend: " + (error?.message || String(error)),
         type: "error",
       });
     }
@@ -514,11 +1023,10 @@ export default function GroupsScreen() {
       case "create":
         setShowCreateModal(true);
         break;
-      // Additional options can be added here.
     }
   };
 
-  // Toggle friend selection in the friend selection overlay/modal.
+  // Toggle friend selection
   const toggleFriendSelectionHandler = (friendId: string) => {
     if (selectedMembersForCreation.includes(friendId)) {
       setSelectedMembersForCreation(selectedMembersForCreation.filter((id) => id !== friendId));
@@ -527,7 +1035,7 @@ export default function GroupsScreen() {
     }
   };
 
-  // NEW: Get role label with proper formatting
+  // Get role label with proper formatting
   const getRoleLabel = (role: string) => {
     switch (role.toLowerCase()) {
       case "admin":
@@ -551,7 +1059,7 @@ export default function GroupsScreen() {
     }
   };
 
-  // Render friend item in friend selection overlay/modal.
+  // Render friend item in friend selection overlay/modal
   const renderFriendItem = ({ item }: { item: UserData }) => {
     const isSelected = selectedMembersForCreation.includes(item.id);
     return (
@@ -569,11 +1077,10 @@ export default function GroupsScreen() {
 
   // Render a group member item for the members modal
   const renderMemberItem = ({ item }: { item: GroupMember }) => {
-    // In manage mode, don't allow removing yourself if you're the admin
     const canRemove =
       isManagingMembers &&
-      !(item.user_id === currentUserId && item.role === "admin") &&
-      selectedGroupForMembers?.created_by === currentUserId;
+      !(item.user_id === user?.id && item.role === "admin") &&
+      selectedGroupForMembers?.created_by === user?.id;
 
     const isSelected = selectedMembersForCreation.includes(item.user_id);
 
@@ -589,7 +1096,7 @@ export default function GroupsScreen() {
           <Text style={styles.memberName}>
             {item.user?.first_name || ""} {item.user?.last_name || ""}
           </Text>
-          {item.user_id === currentUserId && <Text style={styles.currentUserTag}>(You)</Text>}
+          {item.user_id === user?.id && <Text style={styles.currentUserTag}>(You)</Text>}
         </View>
 
         <View style={styles.memberActions}>
@@ -612,8 +1119,7 @@ export default function GroupsScreen() {
     );
   };
 
-  // Render a single group card with Edit button and View Members button
-  // Also shows a "Leave Group" button for groups not created by the current user.
+  // Render a single group card
   const renderGroupItem = ({ item }: { item: Group }) => {
     return (
       <View style={styles.groupCard}>
@@ -626,22 +1132,25 @@ export default function GroupsScreen() {
             <Text style={styles.groupDate}>
               Created: {new Date(item.created_at).toLocaleDateString()}
             </Text>
+            {item.is_ministry_group && (
+              <Text style={styles.ministryLabel}>Ministry Group</Text>
+            )}
           </View>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {/* View Members Button */}
             <TouchableOpacity
               style={{ marginRight: 10 }}
-              onPress={() => fetchGroupMembers(item.id, item)}
+              onPress={() => fetchGroupMembers(item.id.toString(), item)}
             >
               <Feather name="users" size={18} color="#FAC898" />
             </TouchableOpacity>
 
-            {item.created_by === currentUserId ? (
+            {item.created_by === user?.id ? (
               <TouchableOpacity
                 style={{ marginRight: 10 }}
                 onPress={() => {
                   setEditGroup({
-                    id: item.id,
+                    id: item.id.toString(),
                     name: item.name,
                     description: item.description,
                   });
@@ -654,7 +1163,7 @@ export default function GroupsScreen() {
               <TouchableOpacity
                 style={styles.leaveButton}
                 onPress={() => {
-                  setSelectedGroupToLeave(item.id);
+                  setSelectedGroupToLeave(item.id.toString());
                   setShowLeaveConfirmModal(true);
                 }}
               >
@@ -695,32 +1204,272 @@ export default function GroupsScreen() {
           <TouchableOpacity style={styles.backButton} onPress={() => router.push("/community")}>
             <Feather name="arrow-left" size={24} color="#FAC898" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Groups</Text>
+          <Text style={styles.headerTitle}>Groups & Friends</Text>
         </View>
 
-        {/* Groups List */}
-        {isLoading ? (
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            <ActivityIndicator size="large" color="#FAC898" />
-          </View>
+        {/* Main Tabs */}
+        <View style={styles.mainTabs}>
+          <TouchableOpacity
+            style={[styles.mainTab, activeTab === "groups" && styles.activeMainTab]}
+            onPress={() => setActiveTab("groups")}
+          >
+            <Feather 
+              name="users" 
+              size={20} 
+              color={activeTab === "groups" ? "#FAC898" : "rgba(255, 255, 255, 0.5)"} 
+            />
+            <Text style={[styles.mainTabText, activeTab === "groups" && styles.activeMainTabText]}>
+              Groups
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mainTab, activeTab === "friends" && styles.activeMainTab]}
+            onPress={() => setActiveTab("friends")}
+          >
+            <Feather 
+              name="heart" 
+              size={20} 
+              color={activeTab === "friends" ? "#FAC898" : "rgba(255, 255, 255, 0.5)"} 
+            />
+            <Text style={[styles.mainTabText, activeTab === "friends" && styles.activeMainTabText]}>
+              Friends {friendRequestCount > 0 && `(${friendRequestCount})`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Content based on active tab */}
+        {activeTab === "groups" ? (
+          // Groups List
+          isLoading ? (
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <ActivityIndicator size="large" color="#FAC898" />
+            </View>
+          ) : (
+            <FlatList
+              data={groups}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderGroupItem}
+              contentContainerStyle={styles.groupsList}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No groups yet.</Text>
+                  <TouchableOpacity
+                    style={styles.emptyStateButton}
+                    onPress={() => setShowCreateModal(true)}
+                  >
+                    <Text style={styles.emptyStateButtonText}>Create a Group</Text>
+                  </TouchableOpacity>
+                </View>
+              }
+            />
+          )
         ) : (
-          <FlatList
-            data={groups}
-            keyExtractor={(item) => item.id}
-            renderItem={renderGroupItem}
-            contentContainerStyle={styles.groupsList}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No groups yet.</Text>
-                <TouchableOpacity
-                  style={styles.emptyStateButton}
-                  onPress={() => setShowCreateModal(true)}
-                >
-                  <Text style={styles.emptyStateButtonText}>Create a Group</Text>
-                </TouchableOpacity>
+          // Friends Section
+          <View style={{ flex: 1 }}>
+            {/* Friend Tabs */}
+            <View style={styles.friendsTabs}>
+              <TouchableOpacity
+                style={[styles.friendTab, friendTab === "search" && styles.activeFriendTab]}
+                onPress={() => setFriendTab("search")}
+              >
+                <Text style={[styles.friendTabText, friendTab === "search" && styles.activeFriendTabText]}>
+                  Search
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.friendTab, friendTab === "requests" && styles.activeFriendTab]}
+                onPress={() => setFriendTab("requests")}
+              >
+                <Text style={[styles.friendTabText, friendTab === "requests" && styles.activeFriendTabText]}>
+                  Requests
+                </Text>
+                {friendRequestCount > 0 && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>{friendRequestCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.friendTab, friendTab === "list" && styles.activeFriendTab]}
+                onPress={() => setFriendTab("list")}
+              >
+                <Text style={[styles.friendTabText, friendTab === "list" && styles.activeFriendTabText]}>
+                  Friends
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Friend Tab Content */}
+            {friendTab === "search" && (
+              <View style={{ flex: 1 }}>
+                <View style={styles.searchContainer}>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search friends..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onSubmitEditing={handleSearch}
+                  />
+                  <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+                    <Feather name="search" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+                {isSearching ? (
+                  <ActivityIndicator size="large" color="#FAC898" style={{ marginTop: 20 }} />
+                ) : (
+                  <FlatList
+                    data={searchResults}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <View style={styles.userCard}>
+                        <View style={styles.userInfo}>
+                          <View style={styles.userAvatar}>
+                            <Feather name="user" size={24} color="#FAC898" />
+                          </View>
+                          <View>
+                            <Text style={styles.userName}>
+                              {item.first_name} {item.last_name}
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity 
+                          style={styles.addFriendButton} 
+                          onPress={() => handleAddFriend(item.id)}
+                        >
+                          <Feather name="user-plus" size={18} color="#FFFFFF" />
+                          <Text style={styles.addFriendText}>Add Friend</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    contentContainerStyle={styles.usersList}
+                    ListEmptyComponent={
+                      <Text style={styles.emptyStateText}>
+                        {searchQuery ? "No users found" : "Search for friends"}
+                      </Text>
+                    }
+                  />
+                )}
               </View>
-            }
-          />
+            )}
+
+            {friendTab === "requests" && (
+              <View style={{ flex: 1 }}>
+                {incomingRequests.length === 0 && sentRequests.length === 0 ? (
+                  <Text style={styles.emptyStateText}>No friend requests</Text>
+                ) : (
+                  <ScrollView contentContainerStyle={styles.requestsList}>
+                    {incomingRequests.length > 0 && (
+                      <>
+                        <Text style={styles.sectionTitle}>Incoming Requests</Text>
+                        {incomingRequests.map((request) => (
+                          <View key={request.id} style={styles.requestCard}>
+                            <View style={styles.userInfo}>
+                              <View style={styles.userAvatar}>
+                                <Feather name="user" size={24} color="#FAC898" />
+                              </View>
+                              <View>
+                                <Text style={styles.userName}>
+                                  {request.user.first_name} {request.user.last_name}
+                                </Text>
+                                <Text style={styles.requestDate}>
+                                  {new Date(request.created_at).toLocaleDateString()}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.requestActions}>
+                              <TouchableOpacity
+                                style={styles.acceptButton}
+                                onPress={() => handleAcceptRequest(request.id)}
+                              >
+                                <Feather name="check" size={18} color="#FFFFFF" />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.declineButton}
+                                onPress={() => handleDeclineRequest(request.id)}
+                              >
+                                <Feather name="x" size={18} color="#FFFFFF" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ))}
+                      </>
+                    )}
+                    {sentRequests.length > 0 && (
+                      <>
+                        <Text style={styles.sectionTitle}>Sent Requests</Text>
+                        {sentRequests.map((request) => (
+                          <View key={request.id} style={styles.requestCard}>
+                            <View style={styles.userInfo}>
+                              <View style={styles.userAvatar}>
+                                <Feather name="user" size={24} color="#FAC898" />
+                              </View>
+                              <View>
+                                <Text style={styles.userName}>
+                                  {request.user.first_name} {request.user.last_name}
+                                </Text>
+                                <Text style={styles.requestDate}>
+                                  {new Date(request.created_at).toLocaleDateString()}
+                                </Text>
+                              </View>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.cancelButton}
+                              onPress={() => handleCancelRequest(request.id)}
+                            >
+                              <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </>
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            {friendTab === "list" && (
+              <FlatList
+                data={friendsList}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <View style={styles.friendCard}>
+                    <View style={styles.userInfo}>
+                      <View style={styles.userAvatar}>
+                        <Feather name="user" size={24} color="#FAC898" />
+                      </View>
+                      <View>
+                        <Text style={styles.userName}>
+                          {item.friend.first_name} {item.friend.last_name}
+                        </Text>
+                        <Text style={styles.friendSince}>
+                          Friends since {new Date(item.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeFriendButton}
+                      onPress={() => handleRemoveFriend(item.id)}
+                    >
+                      <Feather name="user-x" size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                contentContainerStyle={styles.friendsList}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No friends yet</Text>
+                    <TouchableOpacity
+                      style={styles.emptyStateButton}
+                      onPress={() => setFriendTab("search")}
+                    >
+                      <Text style={styles.emptyStateButtonText}>Find Friends</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
+              />
+            )}
+          </View>
         )}
 
         {/* Floating Action Button */}
@@ -773,7 +1522,7 @@ export default function GroupsScreen() {
                 <Text style={styles.modalTitle}>{selectedGroupForMembers?.name} Members</Text>
                 <View style={{ flexDirection: "row" }}>
                   {/* Only show manage/done button for group admins */}
-                  {selectedGroupForMembers?.created_by === currentUserId && (
+                  {selectedGroupForMembers?.created_by === user?.id && (
                     <TouchableOpacity
                       style={{ marginRight: 15 }}
                       onPress={() => setIsManagingMembers(!isManagingMembers)}
@@ -809,7 +1558,7 @@ export default function GroupsScreen() {
                     </Text>
 
                     {/* Show Add Members button when in managing mode */}
-                    {isManagingMembers && selectedGroupForMembers?.created_by === currentUserId && (
+                    {isManagingMembers && selectedGroupForMembers?.created_by === user?.id && (
                       <TouchableOpacity
                         style={styles.addMembersButton}
                         onPress={() => setShowFriendSelectionOverlay(true)}
@@ -830,7 +1579,7 @@ export default function GroupsScreen() {
                   />
 
                   {/* Save changes button when in managing mode */}
-                  {isManagingMembers && selectedGroupForMembers?.created_by === currentUserId && (
+                  {isManagingMembers && selectedGroupForMembers?.created_by === user?.id && (
                     <TouchableOpacity
                       style={styles.saveChangesButton}
                       onPress={() => {
@@ -909,6 +1658,17 @@ export default function GroupsScreen() {
                     multiline
                     numberOfLines={3}
                   />
+                </View>
+                <View style={styles.formGroup}>
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => setNewGroup({ ...newGroup, is_ministry_group: !newGroup.is_ministry_group })}
+                  >
+                    <View style={[styles.checkbox, newGroup.is_ministry_group && styles.checkboxChecked]}>
+                      {newGroup.is_ministry_group && <Feather name="check" size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={styles.checkboxLabel}>This is a Ministry Group</Text>
+                  </TouchableOpacity>
                 </View>
                 {selectedMembersForCreation.length > 0 && (
                   <View style={styles.selectedMembersContainer}>
@@ -1037,33 +1797,6 @@ export default function GroupsScreen() {
                     </View>
                   </View>
 
-                  {/* Friend Selection Overlay within Edit Modal for updating members */}
-                  {showFriendSelectionOverlay && selectedGroupForAddingMembers && (
-                    <View style={styles.friendSelectionOverlay}>
-                      <Text style={styles.modalTitle}>Select Members</Text>
-                      <FlatList
-                        data={friends}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderFriendItem}
-                        contentContainerStyle={{ maxHeight: 300 }}
-                      />
-                      <View style={styles.modalActions}>
-                        <TouchableOpacity
-                          style={styles.cancelButton}
-                          onPress={() => setShowFriendSelectionOverlay(false)}
-                        >
-                          <Text style={styles.cancelButtonText}>Done</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.createButton}
-                          onPress={handleUpdateGroupMembers}
-                        >
-                          <Text style={styles.createButtonText}>Save</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-
                   {/* Delete Confirmation Overlay inside Edit Modal */}
                   {showDeleteConfirmOverlay && (
                     <View style={styles.confirmOverlay}>
@@ -1090,53 +1823,6 @@ export default function GroupsScreen() {
             </KeyboardAvoidingView>
           </Modal>
         )}
-
-        {/* Friend Selection Modal for Adding Members from Group Card */}
-        {!showCreateModal &&
-          !showEditModal &&
-          showFriendSelectionModal &&
-          selectedGroupForAddingMembers && (
-            <Modal
-              visible={true}
-              transparent={true}
-              animationType="fade"
-              onRequestClose={() => {
-                setSelectedMembersForCreation([]);
-                setSelectedGroupForAddingMembers(null);
-                setShowFriendSelectionModal(false);
-              }}
-            >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Select Members</Text>
-                  <FlatList
-                    data={friends}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderFriendItem}
-                    contentContainerStyle={{ maxHeight: 300 }}
-                  />
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => {
-                        setSelectedMembersForCreation([]);
-                        setSelectedGroupForAddingMembers(null);
-                        setShowFriendSelectionModal(false);
-                      }}
-                    >
-                      <Text style={styles.cancelButtonText}>Done</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.createButton}
-                      onPress={handleUpdateGroupMembers}
-                    >
-                      <Text style={styles.createButtonText}>Save</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </Modal>
-          )}
 
         {/* Leave Group Confirmation Modal */}
         {showLeaveConfirmModal && (
@@ -1289,6 +1975,12 @@ const styles = StyleSheet.create({
   },
   groupName: { color: "#FFFFFF", fontSize: 18, fontWeight: "600" },
   groupDate: { color: "rgba(250, 200, 152, 0.8)", fontSize: 12, marginTop: 2 },
+  ministryLabel: { 
+    color: "rgba(250, 200, 152, 0.9)", 
+    fontSize: 11, 
+    marginTop: 2,
+    fontStyle: "italic" 
+  },
   groupDescription: {
     color: "rgba(255, 255, 255, 0.9)",
     fontSize: 14,
@@ -1496,7 +2188,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(250, 200, 152, 0.4)",
   },
   addMembersButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
-  // Friend Selection Overlay style – used within Create and Edit modals
   friendSelectionOverlay: {
     position: "absolute",
     top: 0,
@@ -1549,7 +2240,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // NEW: Member list styles
   membersList: {
     paddingTop: 10,
     paddingBottom: 20,
@@ -1626,5 +2316,233 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     padding: 20,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "transparent",
+    marginRight: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "rgba(250, 200, 152, 0.3)",
+    borderColor: "rgba(250, 200, 152, 0.6)",
+  },
+  checkboxLabel: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  mainTabs: {
+    flexDirection: "row",
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  mainTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginHorizontal: 5,
+  },
+  activeMainTab: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
+  },
+  mainTabText: {
+    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  activeMainTabText: {
+    color: "#FAC898",
+  },
+  friendsTabs: {
+    flexDirection: "row",
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  friendTab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginHorizontal: 2,
+    position: "relative",
+  },
+  activeFriendTab: {
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(250, 200, 152, 0.4)",
+  },
+  friendTabText: {
+    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  activeFriendTabText: {
+    color: "#FAC898",
+  },
+  tabBadge: {
+    position: "absolute",
+    top: 2,
+    right: 5,
+    backgroundColor: "#DC2626",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    color: "#FFFFFF",
+    marginRight: 10,
+  },
+  searchButton: {
+    backgroundColor: "rgba(250, 200, 152, 0.3)",
+    borderRadius: 20,
+    padding: 10,
+  },
+  userCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    padding: 15,
+    marginHorizontal: 15,
+    marginVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(250, 200, 152, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  userName: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  addFriendButton: {
+    backgroundColor: "rgba(16, 185, 129, 0.3)",
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  addFriendText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 5,
+  },
+  usersList: {
+    paddingBottom: 20,
+  },
+  requestsList: {
+    paddingHorizontal: 15,
+    paddingBottom: 20,
+  },
+  sectionTitle: {
+    color: "#FAC898",
+    fontSize: 18,
+    fontWeight: "600",
+    marginVertical: 15,
+  },
+  requestCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    padding: 15,
+    marginVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  requestDate: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  requestActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  acceptButton: {
+    backgroundColor: "rgba(16, 185, 129, 0.4)",
+    borderRadius: 15,
+    padding: 8,
+  },
+  declineButton: {
+    backgroundColor: "rgba(220, 38, 38, 0.4)",
+    borderRadius: 15,
+    padding: 8,
+  },
+  friendCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    padding: 15,
+    marginHorizontal: 15,
+    marginVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  friendSince: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  removeFriendButton: {
+    backgroundColor: "rgba(220, 38, 38, 0.3)",
+    borderRadius: 15,
+    padding: 8,
+  },
+  friendsList: {
+    paddingBottom: 20,
   },
 });

@@ -629,17 +629,29 @@ export default function ChurchPage({ userData }: Props) {
             )}
 
             {activeTab === "Fellowship" && (
-              <View style={styles.modernComingSoonContainer}>
+              <View style={styles.fellowshipContainer}>
                 <LinearGradient
                   colors={[theme.primary + "20", theme.accent1 + "15"]}
-                  style={styles.comingSoonGradient}
+                  style={styles.fellowshipGradient}
                 >
                   <FontAwesome5 name="users" size={48} color={theme.primary} />
-                  <Text style={styles.modernComingSoonTitle}>Fellowship Coming Soon</Text>
-                  <Text style={styles.modernComingSoonText}>
-                    Connect with our church family and grow in faith together. 
-                    This feature will include prayer groups, social events, and community discussions.
+                  <Text style={styles.fellowshipTitle}>Connect & Fellowship</Text>
+                  <Text style={styles.fellowshipText}>
+                    Connect with our church family through groups and friendships. 
+                    Join ministry groups, create prayer circles, and build lasting relationships.
                   </Text>
+                  <TouchableOpacity
+                    style={styles.fellowshipButton}
+                    onPress={() => router.push("/groups")}
+                  >
+                    <LinearGradient
+                      colors={[theme.primary, theme.accent1]}
+                      style={styles.fellowshipButtonGradient}
+                    >
+                      <FontAwesome5 name="users" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.fellowshipButtonText}>Groups & Friends</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </LinearGradient>
               </View>
             )}
@@ -1377,18 +1389,18 @@ const styles = StyleSheet.create({
   },
 
   // Modern Coming Soon
-  modernComingSoonContainer: {
+  fellowshipContainer: {
     paddingHorizontal: theme.spacingL,
     marginTop: theme.spacingL,
   },
-  comingSoonGradient: {
+  fellowshipGradient: {
     borderRadius: 20,
     padding: 32,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(254, 243, 199, 0.08)",
   },
-  modernComingSoonTitle: {
+  fellowshipTitle: {
     fontSize: 22,
     fontWeight: "700",
     color: theme.textWhite,
@@ -1396,13 +1408,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
   },
-  modernComingSoonText: {
+  fellowshipText: {
     fontSize: 15,
     fontWeight: "400",
     color: theme.textLight,
     textAlign: "center",
     lineHeight: 22,
     maxWidth: 280,
+    marginBottom: 24,
+  },
+  fellowshipButton: {
+    borderRadius: 25,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fellowshipButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  fellowshipButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 
   // Section headers

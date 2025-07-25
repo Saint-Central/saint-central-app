@@ -526,6 +526,18 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     }
   };
 
+  // Fetch user friends for intention sharing
+  const fetchUserFriends = async () => {
+    // The userFriends data is already available from the context
+    // No need to fetch separately as usePrayerIntentions provides it
+  };
+
+  // Fetch user groups for intention sharing  
+  const fetchUserGroups = async () => {
+    // The userGroups data is already available from the context
+    // No need to fetch separately as usePrayerIntentions provides it
+  };
+
   // Get filtered and sorted intentions using context
   const getDisplayIntentions = useCallback(() => {
     // Use context filtering for type
