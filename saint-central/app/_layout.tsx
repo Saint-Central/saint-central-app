@@ -20,6 +20,8 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { registerForPushNotificationsAsync, saveUserPushToken } from "@/utils/notifications";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PrayerIntentionsProvider } from "@/contexts/PrayerIntentionsContext";
+import { NavigationHistoryProvider } from "@/contexts/NavigationHistoryContext";
+import GlobalBackButton from "@/components/ui/GlobalBackButton";
 
 // Prevent the splash screen from auto-hiding until ready
 SplashScreen.preventAutoHideAsync();
@@ -130,7 +132,10 @@ function RootLayoutContent() {
               <ActivityIndicator size="large" color="#FAC898" />
             </View>
           ) : (
-            <Slot />
+            <>
+              <Slot />
+              <GlobalBackButton />
+            </>
           )}
         </ThemeProvider>
       </StripeProvider>
@@ -142,7 +147,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <PrayerIntentionsProvider>
-        <RootLayoutContent />
+        <NavigationHistoryProvider>
+          <RootLayoutContent />
+        </NavigationHistoryProvider>
       </PrayerIntentionsProvider>
     </AuthProvider>
   );

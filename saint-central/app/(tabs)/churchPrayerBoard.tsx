@@ -24,6 +24,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useNavigationHistory } from "../../contexts/NavigationHistoryContext";
 // import MaskedView from "@react-native-masked-view/masked-view";
 
 const { width, height } = Dimensions.get("window");
@@ -56,6 +57,7 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 const ChurchPrayerBoard = () => {
   const router = useRouter();
   const { user } = useAuth();
+  const { goBack } = useNavigationHistory();
   const { select, selectOne, insert, update, delete: deleteRecord } = useCRUD();
 
   const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
@@ -105,7 +107,7 @@ const ChurchPrayerBoard = () => {
         setUserChurchId(churchMember.church_id);
       } else {
         Alert.alert("No Church", "You need to be a member of a church to access the prayer board.");
-        router.back();
+        goBack();
       }
     } catch (error) {
       console.error("Error fetching user church:", error);
@@ -385,11 +387,7 @@ const ChurchPrayerBoard = () => {
         {/* Animated Header */}
         <Animated.View style={[styles.header, headerStyle]}>
           <BlurView intensity={95} tint="light" style={styles.headerBlur}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <BlurView intensity={20} tint="light" style={styles.buttonBlur}>
-                <Ionicons name="arrow-back" size={24} color="#1E40AF" />
-              </BlurView>
-            </TouchableOpacity>
+            <View style={{ width: 40 }} />
             
             <Text style={[styles.headerTitle, { color: "#8B5CF6" }]}>Prayer Board</Text>
             
