@@ -11,15 +11,36 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigationHistory } from '../../contexts/NavigationHistoryContext';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { usePathname } from 'expo-router';
 
 export default function GlobalBackButton() {
   const { canGoBack, goBack } = useNavigationHistory();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
+  // Don't show back button on home/church landing page, courses page, church members page, volunteering page, Lent 2025, events, ministries, or discover
+  const isHomePage = pathname === '/home' || pathname === '/(tabs)/home';
+  const isCoursesPage = pathname === '/coursehomepage' || pathname === '/(tabs)/coursehomepage';
+  const isChurchMembersPage = pathname === '/church_members' || pathname === '/(tabs)/church_members';
+  const isVolunteeringPage = pathname === '/volunteerhomepage' || pathname === '/(tabs)/volunteerhomepage';
+  const isLent2025Page = pathname === '/Lent2025' || pathname === '/(tabs)/Lent2025';
+  const isEventsPage = pathname === '/events' || pathname === '/(tabs)/events';
+  const isMinistriesPage = pathname === '/MinistriesScreen' || pathname === '/(tabs)/MinistriesScreen';
+  const isDiscoverPage = pathname === '/discover' || pathname === '/(tabs)/discover';
+  const isFaithPage = pathname === '/faith' || pathname === '/(tabs)/faith' || pathname.includes('/faith/');
+  const isWomensMinistryPage = pathname === '/womens-ministry' || pathname === '/(tabs)/womens-ministry' || pathname.includes('/womens-ministry/');
+  const isCultureTestimoniesPage = pathname === '/culture-and-testimonies' || pathname === '/(tabs)/culture-and-testimonies' || pathname.includes('/culture-and-testimonies/');
+  const isNewsPage = pathname === '/news' || pathname === '/(tabs)/news' || pathname.includes('/news/');
+  const isBiblePage = pathname === '/Bible' || pathname === '/(tabs)/Bible';
+  const shouldHideButton = isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage;
+  
+  // Check if on Prayer Intentions page for special positioning
+  const isPrayerIntentionsPage = pathname === '/PrayerIntentions' || pathname === '/(tabs)/PrayerIntentions';
+
   useEffect(() => {
-    if (canGoBack) {
+    if (canGoBack && !shouldHideButton) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -47,7 +68,7 @@ export default function GlobalBackButton() {
         }),
       ]).start();
     }
-  }, [canGoBack, fadeAnim, scaleAnim]);
+  }, [canGoBack, shouldHideButton, fadeAnim, scaleAnim]);
 
   const handlePress = () => {
     if (Platform.OS === 'ios') {
@@ -56,7 +77,7 @@ export default function GlobalBackButton() {
     goBack();
   };
 
-  if (!canGoBack) {
+  if (!canGoBack || shouldHideButton) {
     return null;
   }
 
@@ -65,7 +86,7 @@ export default function GlobalBackButton() {
       style={[
         styles.container,
         {
-          top: insets.top + 10,
+          top: isPrayerIntentionsPage ? insets.top + 90 : insets.top + 10,
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },

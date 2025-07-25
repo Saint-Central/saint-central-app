@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { supabase } from "../../../supabaseClient";
 import { router } from "expo-router";
+import { useNavigationHistory } from "../../../contexts/NavigationHistoryContext";
 
 interface Post {
   id: number;
@@ -76,6 +77,7 @@ const stripHtmlAndTruncate = (content: string, maxLength = 150): string => {
 };
 
 const CulturePage: React.FC = () => {
+  const { goBack } = useNavigationHistory();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -406,9 +408,9 @@ const CulturePage: React.FC = () => {
       <StatusBar barStyle="light-content" backgroundColor="#2D1B69" />
       <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
       <View style={styles.headerNav}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push("/home")}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push("/discover")}>
           <Feather name="chevron-left" size={16} color="#FFFFFF" />
-          <Text style={styles.backButtonText}>Return Home</Text>
+          <Text style={styles.backButtonText}>Back to Discover</Text>
         </TouchableOpacity>
         <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
           <TextInput
