@@ -25,6 +25,7 @@ import { router } from "expo-router";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { Feather, FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCRUD } from "@/utils/crudClient";
 import theme from "../../theme";
@@ -788,6 +789,7 @@ const DailyTasks2025: React.FC = () => {
   // Auth and CRUD clients
   const { user, loading: authLoading } = useAuth();
   const { select, insert, update, delete: deleteRecord } = useCRUD();
+  const insets = useSafeAreaInsets();
 
   const { width } = useWindowDimensions();
   const isIpad = width >= 768;
@@ -2118,12 +2120,12 @@ const DailyTasks2025: React.FC = () => {
           </Animated.View>
         )}
         {/* Image Banner with Overlay */}
-        <View style={styles.imageBannerContainer} ref={headerRef} onLayout={onHeaderLayout}>
+        <View style={[styles.imageBannerContainer, { marginTop: -(insets?.top || 0) }]} ref={headerRef} onLayout={onHeaderLayout}>
           <ImageBackground
             source={{
               uri: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80'
             }}
-            style={styles.imageBannerBackground}
+            style={[styles.imageBannerBackground, { paddingTop: insets?.top || 0 }]}
             resizeMode="cover"
           >
             {/* Dark overlay for text readability */}
@@ -3627,7 +3629,7 @@ const styles = StyleSheet.create({
   },
   // Image Banner Styles
   imageBannerContainer: {
-    height: Platform.OS === 'ios' ? 200 : 180,
+    height: Platform.OS === 'ios' ? 250 : 180,
     width: '100%',
     position: 'relative',
     overflow: 'hidden',
@@ -3638,8 +3640,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    marginTop: Platform.OS === 'ios' ? -50 : -30,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
   },
   imageBannerBackground: {
     flex: 1,
