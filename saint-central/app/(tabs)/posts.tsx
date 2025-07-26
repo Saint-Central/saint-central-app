@@ -1028,6 +1028,7 @@ export default function PostsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const editorRef = useRef<WebView>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const headerAnimation = useRef(new Animated.Value(-50)).current;
   const contentAnimation = useRef(new Animated.Value(0)).current;
@@ -1251,15 +1252,39 @@ export default function PostsScreen() {
       if (response.success) {
         console.log("✅ [POST SUBMIT] Post submitted successfully!");
         
+        // Clear form data
+        setFormData({
+          title: "",
+          excerpt: "",
+          authorName: "",
+          imageUrl: "",
+          videoLink: "",
+          category: "",
+        });
+        setSelectedImage(null);
+        setErrors({});
+        
+        // Clear the editor content
+        if (editorRef.current) {
+          editorRef.current.postMessage(JSON.stringify({ 
+            type: 'setContent', 
+            content: '' 
+          }));
+        }
+        
+        // Scroll to top
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+        
         showModal(
           "Success! 🎉",
           "Your post has been submitted for review. You'll be notified once it's approved!",
           "success",
           () => {
             hideModal();
-            setTimeout(() => router.back(), 100);
           },
-          "OK"
+          "Great!"
         );
       } else {
         throw new Error(response.error || "Failed to submit post");
@@ -1319,6 +1344,7 @@ export default function PostsScreen() {
 
       <Animated.View style={[styles.content, { opacity: contentAnimation }]}>
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
