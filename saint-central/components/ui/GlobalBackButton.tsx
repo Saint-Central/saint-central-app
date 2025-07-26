@@ -90,8 +90,8 @@ export default function GlobalBackButton() {
       style={[
         styles.container,
         {
-          top: isPrayerIntentionsPage ? insets.top + 80 : isDonatePage ? insets.top + 30 : insets.top + 10,
-          left: isPrayerIntentionsPage ? 20 : isDonatePage ? 20 : 20,
+          top: isPrayerIntentionsPage ? insets.top + 80 : insets.top + 10,
+          left: isPrayerIntentionsPage ? 20 : 20,
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
