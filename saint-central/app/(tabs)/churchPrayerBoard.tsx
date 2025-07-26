@@ -26,6 +26,7 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useNavigationHistory } from "../../contexts/NavigationHistoryContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, {
   useAnimatedStyle,
   useSharedValue,
@@ -196,6 +197,7 @@ const ChurchPrayerBoard = () => {
   const { user } = useAuth();
   const { goBack } = useNavigationHistory();
   const { select, selectOne, insert, update, delete: deleteRecord } = useCRUD();
+  const insets = useSafeAreaInsets();
 
   const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,6 +209,8 @@ const ChurchPrayerBoard = () => {
   const [userChurchId, setUserChurchId] = useState<number | null>(null);
   const [userInteractions, setUserInteractions] = useState<Set<number>>(new Set());
   const [userChurchRole, setUserChurchRole] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
   
   // Animation refs
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -214,6 +218,8 @@ const ChurchPrayerBoard = () => {
   const floatingButtonScale = useRef(new Animated.Value(0)).current;
   const prayerAnimations = useRef<Map<number, Animated.Value>>(new Map()).current;
   const modalScale = useRef(new Animated.Value(0)).current;
+  const successModalScale = useRef(new Animated.Value(0)).current;
+  const deleteSuccessModalScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchUserChurch();
@@ -338,10 +344,31 @@ const ChurchPrayerBoard = () => {
         updated_at: new Date().toISOString()
       });
 
-      Alert.alert("Success", "Your prayer request has been posted");
+      // Close add modal and show success modal
       setShowAddModal(false);
       setPrayerContent("");
       setIsAnonymous(false);
+      
+      // Show success modal with animation
+      setShowSuccessModal(true);
+      Animated.spring(successModalScale, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+      
+      // Auto-close success modal after 2.5 seconds
+      setTimeout(() => {
+        Animated.timing(successModalScale, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setShowSuccessModal(false);
+        });
+      }, 2500);
+      
       fetchPrayers();
     } catch (error) {
       console.error("Error submitting prayer:", error);
@@ -465,8 +492,27 @@ const ChurchPrayerBoard = () => {
                 id: prayerId
               });
 
+              // Show delete success modal
+              setShowDeleteSuccessModal(true);
+              Animated.spring(deleteSuccessModalScale, {
+                toValue: 1,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+              }).start();
+              
+              // Auto-close after 2 seconds
+              setTimeout(() => {
+                Animated.timing(deleteSuccessModalScale, {
+                  toValue: 0,
+                  duration: 200,
+                  useNativeDriver: true,
+                }).start(() => {
+                  setShowDeleteSuccessModal(false);
+                });
+              }, 2000);
+              
               fetchPrayers();
-              Alert.alert("Success", "Prayer request deleted");
             } catch (error) {
               console.error("Error deleting prayer:", error);
               Alert.alert("Error", "Failed to delete prayer request");
@@ -538,7 +584,23 @@ const ChurchPrayerBoard = () => {
         ))}
       </View>
       
-      <SafeAreaView style={styles.safeArea}>
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+        {/* Fixed Title Header */}
+        <View style={styles.titleContainer}>
+          <View style={styles.titleIconWrapper}>
+            <LinearGradient
+              colors={['#6366F1', '#8B5CF6', '#EC4899']}
+              style={styles.titleIconGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <FontAwesome5 name="praying-hands" size={28} color="#FFFFFF" />
+            </LinearGradient>
+          </View>
+          <Text style={styles.simpleTitle}>Church Prayer Board</Text>
+          <Text style={styles.titleSubtext}>A sacred space for our community</Text>
+        </View>
+
         {/* Prayer List */}
         <Animated.ScrollView
           style={styles.scrollView}
@@ -557,21 +619,6 @@ const ChurchPrayerBoard = () => {
           )}
           scrollEventThrottle={16}
         >
-          {/* Beautiful Title with Icon */}
-          <View style={styles.titleContainer}>
-            <View style={styles.titleIconWrapper}>
-              <LinearGradient
-                colors={['#6366F1', '#8B5CF6', '#EC4899']}
-                style={styles.titleIconGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <FontAwesome5 name="praying-hands" size={28} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.simpleTitle}>Church Prayer Board</Text>
-            <Text style={styles.titleSubtext}>A sacred space for our community</Text>
-          </View>
           
           {prayers.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -884,7 +931,231 @@ const ChurchPrayerBoard = () => {
           </View>
         </TouchableOpacity>
       </Modal>
-      </SafeAreaView>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successModalBackdrop}>
+          <Animated.View style={[
+            styles.successModalContainer,
+            {
+              transform: [{
+                scale: successModalScale.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.5, 1],
+                }),
+              }],
+              opacity: successModalScale,
+            }
+          ]}>
+            <BlurView intensity={90} tint="dark" style={styles.successModalContent}>
+              <LinearGradient
+                colors={["rgba(99, 102, 241, 0.95)", "rgba(139, 92, 246, 0.95)", "rgba(236, 72, 153, 0.95)"]}
+                style={styles.successModalGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                {/* Animated checkmark icon */}
+                <Animated.View style={[
+                  styles.successIconWrapper,
+                  {
+                    transform: [{
+                      scale: successModalScale.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.3, 1],
+                      }),
+                    }],
+                  }
+                ]}>
+                  <LinearGradient
+                    colors={['#FFFFFF', '#E0E7FF']}
+                    style={styles.successIconGradient}
+                  >
+                    <Ionicons name="checkmark-circle" size={56} color="#6366F1" />
+                  </LinearGradient>
+                </Animated.View>
+
+                <Animated.Text style={[
+                  styles.successTitle,
+                  {
+                    opacity: successModalScale.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                  }
+                ]}>
+                  Prayer Shared!
+                </Animated.Text>
+                
+                <Animated.Text style={[
+                  styles.successMessage,
+                  {
+                    opacity: successModalScale.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0, 0, 1],
+                    }),
+                  }
+                ]}>
+                  Your prayer has been added to the community board
+                </Animated.Text>
+
+                {/* Animated particles */}
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Animated.View
+                    key={i}
+                    style={[
+                      styles.successParticle,
+                      {
+                        transform: [
+                          {
+                            translateX: successModalScale.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, Math.cos(i * 60 * Math.PI / 180) * 100],
+                            }),
+                          },
+                          {
+                            translateY: successModalScale.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, Math.sin(i * 60 * Math.PI / 180) * 100],
+                            }),
+                          },
+                          {
+                            scale: successModalScale.interpolate({
+                              inputRange: [0, 0.5, 1],
+                              outputRange: [0, 1.2, 0.8],
+                            }),
+                          },
+                        ],
+                        opacity: successModalScale.interpolate({
+                          inputRange: [0, 0.3, 1],
+                          outputRange: [0, 1, 0],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </LinearGradient>
+            </BlurView>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Delete Success Modal */}
+      <Modal
+        visible={showDeleteSuccessModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowDeleteSuccessModal(false)}
+      >
+        <View style={styles.deleteSuccessModalBackdrop}>
+          <Animated.View style={[
+            styles.deleteSuccessModalContainer,
+            {
+              transform: [{
+                scale: deleteSuccessModalScale.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.5, 1],
+                }),
+              }],
+              opacity: deleteSuccessModalScale,
+            }
+          ]}>
+            <BlurView intensity={90} tint="dark" style={styles.deleteSuccessModalContent}>
+              <LinearGradient
+                colors={["rgba(239, 68, 68, 0.95)", "rgba(220, 38, 38, 0.95)"]}
+                style={styles.deleteSuccessModalGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                {/* Animated trash icon */}
+                <Animated.View style={[
+                  styles.deleteSuccessIconWrapper,
+                  {
+                    transform: [{
+                      scale: deleteSuccessModalScale.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.3, 1],
+                      }),
+                    }, {
+                      rotate: deleteSuccessModalScale.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: ['0deg', '10deg', '0deg'],
+                      }),
+                    }],
+                  }
+                ]}>
+                  <LinearGradient
+                    colors={['#FFFFFF', '#FEE2E2']}
+                    style={styles.deleteSuccessIconGradient}
+                  >
+                    <Feather name="trash-2" size={40} color="#DC2626" />
+                  </LinearGradient>
+                </Animated.View>
+
+                <Animated.Text style={[
+                  styles.deleteSuccessTitle,
+                  {
+                    opacity: deleteSuccessModalScale.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                  }
+                ]}>
+                  Prayer Deleted
+                </Animated.Text>
+                
+                <Animated.Text style={[
+                  styles.deleteSuccessMessage,
+                  {
+                    opacity: deleteSuccessModalScale.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0, 0, 1],
+                    }),
+                  }
+                ]}>
+                  The prayer request has been removed
+                </Animated.Text>
+
+                {/* Animated fade particles */}
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Animated.View
+                    key={i}
+                    style={[
+                      styles.deleteParticle,
+                      {
+                        transform: [
+                          {
+                            translateY: deleteSuccessModalScale.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, -50 - (i * 15)],
+                            }),
+                          },
+                          {
+                            translateX: deleteSuccessModalScale.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, (i % 2 === 0 ? 1 : -1) * (20 + i * 10)],
+                            }),
+                          },
+                        ],
+                        opacity: deleteSuccessModalScale.interpolate({
+                          inputRange: [0, 0.3, 1],
+                          outputRange: [0, 0.8, 0],
+                        }),
+                      },
+                    ]}
+                  />
+                ))}
+              </LinearGradient>
+            </BlurView>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      </View>
     </View>
   );
 };
@@ -906,7 +1177,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     alignItems: 'center',
     marginBottom: 32,
-    marginTop: 24,
+    marginTop: 16,
   },
   titleIconWrapper: {
     width: 64,
@@ -1061,14 +1332,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   emptyContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 80,
+    paddingVertical: 60,
+    minHeight: 300,
   },
   emptyIconContainer: {
     marginBottom: 24,
@@ -1348,6 +1619,152 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 8,
     letterSpacing: 0.5,
+  },
+  // Success Modal Styles
+  successModalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successModalContainer: {
+    width: width * 0.8,
+    maxWidth: 320,
+  },
+  successModalContent: {
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: 'transparent',
+  },
+  successModalGradient: {
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  successIconWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 24,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  successIconGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(255, 255, 255, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: "#E0E7FF",
+    textAlign: "center",
+    opacity: 0.9,
+    paddingHorizontal: 20,
+    lineHeight: 24,
+  },
+  successParticle: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+    top: '50%',
+    left: '50%',
+    marginTop: -4,
+    marginLeft: -4,
+  },
+  // Delete Success Modal Styles
+  deleteSuccessModalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteSuccessModalContainer: {
+    width: width * 0.75,
+    maxWidth: 300,
+  },
+  deleteSuccessModalContent: {
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: 'transparent',
+  },
+  deleteSuccessModalGradient: {
+    paddingVertical: 40,
+    paddingHorizontal: 28,
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  deleteSuccessIconWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 20,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  deleteSuccessIconGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteSuccessTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  deleteSuccessMessage: {
+    fontSize: 15,
+    color: "#FEE2E2",
+    textAlign: "center",
+    opacity: 0.9,
+    paddingHorizontal: 16,
+  },
+  deleteParticle: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FEE2E2',
+    top: '50%',
+    left: '50%',
+    marginTop: -3,
+    marginLeft: -3,
   },
 });
 
