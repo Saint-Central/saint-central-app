@@ -563,17 +563,16 @@ const ChurchPrayerBoard = () => {
 
   return (
     <View style={styles.container}>
-      {/* Animated Background */}
+      {/* Single Animated Background Gradient */}
+      <LinearGradient
+        colors={["#0F0E1E", "#1a0f2e", "#0F0E1E"]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
+      {/* Animated waves overlay */}
       <View style={StyleSheet.absoluteFill}>
-        {/* Base gradient */}
-        <LinearGradient
-          colors={["#0F0E1E", "#1a0f2e", "#0F0E1E"]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        
-        {/* Animated waves */}
         <AnimatedWave delay={0} color="rgba(99, 102, 241, 0.2)" height={height * 0.6} />
         <AnimatedWave delay={2} color="rgba(139, 92, 246, 0.15)" height={height * 0.5} />
         <AnimatedWave delay={4} color="rgba(236, 72, 153, 0.1)" height={height * 0.4} />
@@ -584,24 +583,8 @@ const ChurchPrayerBoard = () => {
         ))}
       </View>
       
-      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-        {/* Fixed Title Header */}
-        <View style={styles.titleContainer}>
-          <View style={styles.titleIconWrapper}>
-            <LinearGradient
-              colors={['#6366F1', '#8B5CF6', '#EC4899']}
-              style={styles.titleIconGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <FontAwesome5 name="praying-hands" size={28} color="#FFFFFF" />
-            </LinearGradient>
-          </View>
-          <Text style={styles.simpleTitle}>Church Prayer Board</Text>
-          <Text style={styles.titleSubtext}>A sacred space for our community</Text>
-        </View>
-
-        {/* Prayer List */}
+      <View style={[styles.contentWrapper, { paddingTop: insets.top }]}>
+        {/* Prayer List with Title Inside */}
         <Animated.ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -619,6 +602,21 @@ const ChurchPrayerBoard = () => {
           )}
           scrollEventThrottle={16}
         >
+          {/* Title Header - Scrolls with content */}
+          <View style={styles.titleContainer}>
+            <View style={styles.titleIconWrapper}>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6', '#EC4899']}
+                style={styles.titleIconGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <FontAwesome5 name="praying-hands" size={28} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.simpleTitle}>Church Prayer Board</Text>
+            <Text style={styles.titleSubtext}>A sacred space for our community</Text>
+          </View>
           
           {prayers.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -1165,7 +1163,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0F0E1E",
   },
-  safeArea: {
+  contentWrapper: {
     flex: 1,
   },
   particle: {
@@ -1286,7 +1284,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0F0E1E",
   },
   loadingText: {
     marginTop: 12,
@@ -1513,7 +1510,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
