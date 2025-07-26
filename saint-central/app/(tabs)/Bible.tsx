@@ -2028,6 +2028,8 @@ export default function BibleScreen() {
                         fontSize: fontSizeStyles.subheadingSize - 2,
                       },
                     ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
                     {item.book} {item.chapter}
                   </Text>
