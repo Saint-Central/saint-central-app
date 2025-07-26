@@ -513,9 +513,19 @@ const ChurchPrayerBoard = () => {
               }, 2000);
               
               fetchPrayers();
-            } catch (error) {
+            } catch (error: any) {
               console.error("Error deleting prayer:", error);
-              Alert.alert("Error", "Failed to delete prayer request");
+              
+              // Check if it's a rate limit error
+              if (error.message && error.message.includes("Rate limit exceeded")) {
+                Alert.alert(
+                  "Slow Down", 
+                  "You're deleting prayers too quickly. Please wait a moment and try again.",
+                  [{ text: "OK", style: "default" }]
+                );
+              } else {
+                Alert.alert("Error", "Failed to delete prayer request");
+              }
             }
           }
         }
