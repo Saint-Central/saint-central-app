@@ -25,6 +25,15 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useNavigationHistory } from "../../contexts/NavigationHistoryContext";
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
+  interpolate,
+} from "react-native-reanimated";
 // import MaskedView from "@react-native-masked-view/masked-view";
 
 const { width, height } = Dimensions.get("window");
@@ -53,6 +62,133 @@ interface PrayerInteraction {
 // Animated components
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+// Animated wave component - creates flowing wave effect
+const AnimatedWave = ({ delay = 0, color, height: waveHeight }: any) => {
+  const translateX = useSharedValue(-width);
+  const skewY = useSharedValue(0);
+
+  React.useEffect(() => {
+    translateX.value = withRepeat(
+      withSequence(
+        withTiming(width * 2, { 
+          duration: 20000 + delay * 1000, 
+          easing: Easing.linear 
+        }),
+        withTiming(-width, { duration: 0 })
+      ),
+      -1
+    );
+
+    skewY.value = withRepeat(
+      withSequence(
+        withTiming(0.1, { duration: 4000 }),
+        withTiming(-0.1, { duration: 4000 })
+      ),
+      -1
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { skewY: `${skewY.value}rad` },
+    ],
+  }));
+
+  return (
+    <Reanimated.View 
+      style={[
+        {
+          position: 'absolute',
+          width: width * 3,
+          height: waveHeight,
+          bottom: 0,
+          opacity: 0.6,
+        },
+        animatedStyle,
+      ]}
+    >
+      <LinearGradient
+        colors={[color, 'transparent']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 0, y: 0 }}
+      />
+    </Reanimated.View>
+  );
+};
+
+// Animated particle system
+const FloatingParticle = ({ index }: { index: number }) => {
+  const translateY = useSharedValue(height + 100);
+  const translateX = useSharedValue(Math.random() * width);
+  const rotate = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  React.useEffect(() => {
+    const duration = 8000 + Math.random() * 4000;
+    const delay = index * 200;
+
+    translateY.value = withRepeat(
+      withSequence(
+        withTiming(-100, { 
+          duration, 
+          easing: Easing.linear 
+        }),
+        withTiming(height + 100, { duration: 0 })
+      ),
+      -1
+    );
+
+    translateX.value = withRepeat(
+      withSequence(
+        withTiming(translateX.value + (Math.random() - 0.5) * 100, { 
+          duration: duration / 2 
+        }),
+        withTiming(translateX.value - (Math.random() - 0.5) * 100, { 
+          duration: duration / 2 
+        })
+      ),
+      -1
+    );
+
+    rotate.value = withRepeat(
+      withTiming(360, { duration: 5000 }),
+      -1
+    );
+
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 2000 }),
+        withTiming(0.8, { duration: duration - 4000 }),
+        withTiming(0, { duration: 2000 })
+      ),
+      -1
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+      { rotate: `${rotate.value}deg` },
+    ],
+    opacity: opacity.value,
+  }));
+
+  const size = 4 + (index % 3) * 2;
+
+  return (
+    <Reanimated.View style={[styles.particle, animatedStyle]}>
+      <View style={[styles.particleInner, { 
+        width: size,
+        height: size,
+        backgroundColor: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B'][index % 4],
+      }]} />
+    </Reanimated.View>
+  );
+};
 
 const ChurchPrayerBoard = () => {
   const router = useRouter();
@@ -373,32 +509,73 @@ const ChurchPrayerBoard = () => {
 
   return (
     <View style={styles.container}>
-      {/* Animated Background Gradient */}
-      <Animated.View style={[StyleSheet.absoluteFill]}>
+      {/* Animated Background */}
+      <View style={StyleSheet.absoluteFill}>
+        {/* Base gradient */}
         <LinearGradient
-          colors={["#F0F9FF", "#E0E7FF", "#DBEAFE"]}
+          colors={["#0F0E1E", "#1a0f2e", "#0F0E1E"]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
-      </Animated.View>
+        
+        {/* Animated waves */}
+        <AnimatedWave delay={0} color="rgba(99, 102, 241, 0.2)" height={height * 0.6} />
+        <AnimatedWave delay={2} color="rgba(139, 92, 246, 0.15)" height={height * 0.5} />
+        <AnimatedWave delay={4} color="rgba(236, 72, 153, 0.1)" height={height * 0.4} />
+        
+        {/* Floating particles */}
+        {Array.from({ length: 20 }).map((_, i) => (
+          <FloatingParticle key={i} index={i} />
+        ))}
+      </View>
       
       <SafeAreaView style={styles.safeArea}>
-        {/* Animated Header */}
-        <Animated.View style={[styles.header, headerStyle]}>
-          <BlurView intensity={95} tint="light" style={styles.headerBlur}>
-            <View style={{ width: 40 }} />
+        {/* Modern Header */}
+        <View style={styles.modernHeader}>
+          <LinearGradient
+            colors={['rgba(15, 14, 30, 0.95)', 'rgba(15, 14, 30, 0.8)', 'transparent']}
+            style={StyleSheet.absoluteFill}
+          />
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          
+          <View style={styles.headerContent}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIconContainer}>
+                <LinearGradient
+                  colors={['#6366F1', '#8B5CF6']}
+                  style={styles.headerIconGradient}
+                >
+                  <FontAwesome5 name="praying-hands" size={24} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+            </View>
             
-            <Text style={[styles.headerTitle, { color: "#8B5CF6" }]}>Prayer Board</Text>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>Church Prayer Board</Text>
+              <Text style={styles.headerSubtitle}>Share your heart with the community</Text>
+            </View>
             
-            <View style={{ width: 40 }} />
-          </BlurView>
-        </Animated.View>
+            <TouchableOpacity 
+              style={styles.headerRight}
+              onPress={() => setShowAddModal(true)}
+            >
+              <View style={styles.addButtonContainer}>
+                <LinearGradient
+                  colors={['rgba(236, 72, 153, 0.2)', 'rgba(251, 146, 60, 0.2)']}
+                  style={styles.addButtonGradient}
+                >
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Prayer List */}
         <Animated.ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 120 }]}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
@@ -725,6 +902,77 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  particle: {
+    position: 'absolute',
+  },
+  particleInner: {
+    borderRadius: 999,
+  },
+  modernHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 110,
+    zIndex: 10,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    height: '100%',
+  },
+  headerLeft: {
+    width: 48,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  headerRight: {
+    width: 48,
+    alignItems: 'flex-end',
+  },
+  headerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  headerIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  addButtonContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  addButtonGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingContainer: {
     flex: 1,

@@ -37,7 +37,8 @@ export default function GlobalBackButton() {
   const isBiblePage = pathname === '/Bible' || pathname === '/(tabs)/Bible';
   const isChurchEventsPage = pathname === '/church_events' || pathname === '/(tabs)/church_events' || pathname.includes('/church_events/');
   const isCommunityPage = pathname === '/community' || pathname === '/(tabs)/community';
-  const shouldHideButton = isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage;
+  const isPrayerBoardPage = pathname === '/churchPrayerBoard' || pathname === '/(tabs)/churchPrayerBoard';
+  const shouldHideButton = isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage || isPrayerBoardPage;
   
   // Check if on Prayer Intentions page for special positioning
   const isPrayerIntentionsPage = pathname === '/PrayerIntentions' || pathname === '/(tabs)/PrayerIntentions';
