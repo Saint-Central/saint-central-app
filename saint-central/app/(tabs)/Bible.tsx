@@ -27,6 +27,7 @@ import { supabase } from "../../supabaseClient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigationHistory } from "../../contexts/NavigationHistoryContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Enable layout animation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -315,6 +316,7 @@ const getBookColor = (book: string, theme: ReadingTheme): string => {
 export default function BibleScreen() {
   const router = useRouter();
   const { goBack } = useNavigationHistory();
+  const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -2668,7 +2670,7 @@ export default function BibleScreen() {
   // MAIN RENDER
   // ---------------------
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeStyles.backgroundColor }]}>
+    <View style={[styles.safeArea, { backgroundColor: themeStyles.backgroundColor }]}>
       <StatusBar barStyle={themeStyles.statusBarStyle} />
 
       {/* Background Pattern */}
@@ -2687,6 +2689,7 @@ export default function BibleScreen() {
               backgroundColor: themeStyles.headerColor,
               borderBottomColor: themeStyles.borderColor,
               shadowColor: themeStyles.shadowColor,
+              paddingTop: insets.top + 2,
             },
             view === "verses" && {
               shadowOpacity: headerOpacity,
@@ -3032,7 +3035,7 @@ export default function BibleScreen() {
           <Feather name="home" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
