@@ -39,6 +39,9 @@ export default function GlobalBackButton() {
   
   // Check if on Prayer Intentions page for special positioning
   const isPrayerIntentionsPage = pathname === '/PrayerIntentions' || pathname === '/(tabs)/PrayerIntentions';
+  
+  // Check if on Donate page for special styling
+  const isDonatePage = pathname === '/donate' || pathname === '/(tabs)/donate';
 
   useEffect(() => {
     if (canGoBack && !shouldHideButton) {
@@ -87,8 +90,8 @@ export default function GlobalBackButton() {
       style={[
         styles.container,
         {
-          top: isPrayerIntentionsPage ? insets.top + 80 : insets.top + 10,
-          left: isPrayerIntentionsPage ? 20 : 20, // Position inside the "All" tab for Prayer Intentions
+          top: isPrayerIntentionsPage ? insets.top + 80 : isDonatePage ? insets.top + 30 : insets.top + 10,
+          left: isPrayerIntentionsPage ? 20 : isDonatePage ? 20 : 20,
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
@@ -100,9 +103,20 @@ export default function GlobalBackButton() {
         activeOpacity={0.8}
         style={[styles.button, isPrayerIntentionsPage && styles.buttonSmall]}
       >
-        <BlurView intensity={85} tint="light" style={styles.blur}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="arrow-back" size={isPrayerIntentionsPage ? 18 : 22} color="#1E293B" />
+        <BlurView 
+          intensity={isDonatePage ? 50 : 85} 
+          tint={isDonatePage ? "dark" : "light"} 
+          style={styles.blur}
+        >
+          <View style={[
+            styles.iconContainer,
+            isDonatePage && styles.donateIconContainer
+          ]}>
+            <Ionicons 
+              name="arrow-back" 
+              size={isPrayerIntentionsPage ? 18 : 22} 
+              color={isDonatePage ? "#f59e0b" : "#1E293B"} 
+            />
           </View>
         </BlurView>
       </TouchableOpacity>
@@ -144,5 +158,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  donateIconContainer: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
   },
 });
