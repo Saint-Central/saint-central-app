@@ -15,7 +15,7 @@ import {
   Image,
   Alert 
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -40,6 +40,7 @@ const CreateVolunteerPage: React.FC = () => {
   const params = useLocalSearchParams();
   const volunteerId = params.volunteerId as string | undefined;
   const isEditMode = !!volunteerId;
+  const insets = useSafeAreaInsets();
   
   const { user } = useAuth();
   const crud = useCRUD();
@@ -315,9 +316,9 @@ const CreateVolunteerPage: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 2 }]}>
           <TouchableOpacity 
             style={styles.backButton} 
             onPress={() => router.replace('/volunteerhomepage')}
