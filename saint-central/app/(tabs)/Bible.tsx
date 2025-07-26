@@ -2747,9 +2747,11 @@ export default function BibleScreen() {
                 styles.headerTitle,
                 {
                   color: themeStyles.textColor,
-                  fontSize: fontSizeStyles.headingSize,
+                  fontSize: view === "verses" ? fontSizeStyles.headingSize - 2 : fontSizeStyles.headingSize,
                 },
               ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {view === "books"
                 ? "Bible"
@@ -2760,15 +2762,15 @@ export default function BibleScreen() {
                     : `${selectedBook} ${selectedChapter}`}
             </Text>
 
-            <View style={styles.headerButtons}>
+            <View style={[styles.headerButtons, view === "verses" && styles.headerButtonsCompact]}>
               {/* Prayer Intentions Button */}
               <TouchableOpacity
-                style={[styles.headerButton, { backgroundColor: `${themeStyles.accentColor}10` }]}
+                style={[styles.headerButton, view === "verses" && styles.headerButtonCompact, { backgroundColor: `${themeStyles.accentColor}10` }]}
                 onPress={() => {
                   router.push("/PrayerIntentions");
                 }}
               >
-                <Feather name="heart" size={22} color={themeStyles.accentColor} />
+                <Feather name="heart" size={view === "verses" ? 18 : 22} color={themeStyles.accentColor} />
               </TouchableOpacity>
               {/* If in verses view, show a bookmark button for the chapter */}
               {view === "verses" && (
@@ -2776,6 +2778,7 @@ export default function BibleScreen() {
                   <TouchableOpacity
                     style={[
                       styles.headerButton,
+                      styles.headerButtonCompact,
                       isChapterBookmarked(selectedBook!, selectedChapter!) && [
                         styles.activeHeaderButton,
                         { backgroundColor: `${themeStyles.favoriteColor}20` },
@@ -2785,7 +2788,7 @@ export default function BibleScreen() {
                   >
                     <Feather
                       name="bookmark"
-                      size={22}
+                      size={18}
                       color={
                         isChapterBookmarked(selectedBook!, selectedChapter!)
                           ? themeStyles.favoriteColor
@@ -2801,6 +2804,7 @@ export default function BibleScreen() {
                 <TouchableOpacity
                   style={[
                     styles.headerButton,
+                    view === "verses" && styles.headerButtonCompact,
                     { backgroundColor: `${themeStyles.favoriteColor}10` },
                   ]}
                   onPress={() => {
@@ -2813,23 +2817,23 @@ export default function BibleScreen() {
                     setView("favorites");
                   }}
                 >
-                  <Feather name="bookmark" size={22} color={themeStyles.favoriteColor} />
+                  <Feather name="bookmark" size={view === "verses" ? 18 : 22} color={themeStyles.favoriteColor} />
                 </TouchableOpacity>
               )}
 
               {/* Version Selector Button */}
               <TouchableOpacity
-                style={styles.headerButton}
+                style={[styles.headerButton, view === "verses" && styles.headerButtonCompact]}
                 onPress={() => setShowVersionSelector(true)}
               >
-                <Feather name="layers" size={22} color={themeStyles.accentColor} />
+                <Feather name="layers" size={view === "verses" ? 18 : 22} color={themeStyles.accentColor} />
               </TouchableOpacity>
 
               {/* Theme Selector Button */}
-              <TouchableOpacity style={styles.headerButton} onPress={toggleReadingTheme}>
+              <TouchableOpacity style={[styles.headerButton, view === "verses" && styles.headerButtonCompact]} onPress={toggleReadingTheme}>
                 <Feather
                   name={readingTheme === "night" ? "moon" : "sun"}
-                  size={22}
+                  size={view === "verses" ? 18 : 22}
                   color={themeStyles.accentColor}
                 />
               </TouchableOpacity>
@@ -3090,10 +3094,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  headerButtonsCompact: {
+    marginRight: -4,
+  },
   headerButton: {
     padding: 8,
     marginLeft: 8,
     borderRadius: 8,
+  },
+  headerButtonCompact: {
+    padding: 6,
+    marginLeft: 4,
   },
   activeHeaderButton: {
     borderWidth: 1,
