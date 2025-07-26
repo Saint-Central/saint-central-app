@@ -16,6 +16,7 @@ import {
   Switch,
   Dimensions,
   Animated,
+  Keyboard,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCRUD } from "../../utils/crudClient";
@@ -205,6 +206,7 @@ const ChurchPrayerBoard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [userChurchId, setUserChurchId] = useState<number | null>(null);
   const [userInteractions, setUserInteractions] = useState<Set<number>>(new Set());
+  const [userChurchRole, setUserChurchRole] = useState<string | null>(null);
   
   // Animation refs
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -241,6 +243,7 @@ const ChurchPrayerBoard = () => {
 
       if (churchMember) {
         setUserChurchId(churchMember.church_id);
+        setUserChurchRole(churchMember.role);
       } else {
         Alert.alert("No Church", "You need to be a member of a church to access the prayer board.");
         goBack();
@@ -431,15 +434,20 @@ const ChurchPrayerBoard = () => {
   };
 
   const handleDeletePrayer = async (prayerId: number, prayerUserId: string) => {
-    // Only allow deletion by the prayer author
-    if (user?.id !== prayerUserId) {
+    // Allow deletion by prayer author, admin, or owner
+    if (user?.id !== prayerUserId && userChurchRole !== 'admin' && userChurchRole !== 'owner') {
       Alert.alert("Error", "You can only delete your own prayer requests");
       return;
     }
 
+    const isOwnPrayer = user?.id === prayerUserId;
+    const message = isOwnPrayer 
+      ? "Are you sure you want to delete this prayer request?"
+      : "As an admin/owner, are you sure you want to delete this prayer request?";
+    
     Alert.alert(
       "Delete Prayer",
-      "Are you sure you want to delete this prayer request?",
+      message,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -633,7 +641,7 @@ const ChurchPrayerBoard = () => {
                           <View style={styles.timeDot} />
                           <Text style={styles.prayerTime}>{formatDate(prayer.created_at)}</Text>
                         </View>
-                        {user?.id === prayer.user_id && (
+                        {(user?.id === prayer.user_id || userChurchRole === 'admin' || userChurchRole === 'owner') && (
                           <TouchableOpacity
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -769,10 +777,7 @@ const ChurchPrayerBoard = () => {
           activeOpacity={1}
           onPress={() => setShowAddModal(false)}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.modalContainer}
-          >
+          <View style={styles.modalContainer}>
             <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
               <Animated.View style={[{
                 transform: [{
@@ -783,6 +788,13 @@ const ChurchPrayerBoard = () => {
                 }],
               }]}>
                 <BlurView intensity={95} tint="dark" style={styles.modalContent}>
+                <ScrollView 
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                  style={{ maxHeight: height * 0.6 }}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                >
                 <LinearGradient
                   colors={["rgba(30, 27, 75, 0.95)", "rgba(17, 24, 39, 0.98)"]}
                   style={styles.modalGradient}
@@ -806,10 +818,16 @@ const ChurchPrayerBoard = () => {
                         placeholder="Share your heart with the community..."
                         placeholderTextColor="#6B7280"
                         multiline
-                        numberOfLines={6}
+                        numberOfLines={4}
                         value={prayerContent}
                         onChangeText={setPrayerContent}
                         textAlignVertical="top"
+                        returnKeyType="done"
+                        blurOnSubmit={true}
+                        onSubmitEditing={() => Keyboard.dismiss()}
+                        scrollEnabled={true}
+                        editable={true}
+                        keyboardShouldPersistTaps="handled"
                       />
                     </BlurView>
                   </View>
@@ -859,10 +877,11 @@ const ChurchPrayerBoard = () => {
                     </LinearGradient>
                   </TouchableOpacity>
                 </LinearGradient>
+                </ScrollView>
               </BlurView>
               </Animated.View>
             </TouchableOpacity>
-          </KeyboardAvoidingView>
+          </View>
         </TouchableOpacity>
       </Modal>
       </SafeAreaView>
@@ -1229,16 +1248,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   modalContent: {
-    borderRadius: 32,
+    borderRadius: 20,
     overflow: "hidden",
-    width: "100%",
-    maxWidth: 500,
-    maxHeight: height * 0.8,
+    width: width - 40,
+    maxWidth: 380,
+    backgroundColor: 'transparent',
   },
   modalGradient: {
-    paddingHorizontal: 32,
-    paddingBottom: 48,
-    paddingTop: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    paddingTop: 24,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1247,10 +1266,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 32,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "700",
     color: "#E0E7FF",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   modalCloseButton: {
     width: 36,
@@ -1274,14 +1293,14 @@ const styles = StyleSheet.create({
   },
   prayerInput: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 16,
-    padding: 24,
-    fontSize: 18,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    height: 120,
     color: "#E0E7FF",
-    minHeight: 200,
     textAlignVertical: "top",
     fontWeight: "500",
-    lineHeight: 26,
+    lineHeight: 24,
   },
   anonymousToggle: {
     flexDirection: "row",
