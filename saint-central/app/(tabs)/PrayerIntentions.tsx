@@ -18,6 +18,7 @@ import {
   StatusBar,
   Easing,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
@@ -247,6 +248,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Use the appropriate theme based on currentTheme state
   const readingTheme = currentTheme;
   const themeStyles = providedThemeStyles || defaultThemes[readingTheme === "night" ? "dark" : readingTheme === "sepia" ? "sepia" : "light"];
+  
+  // Get safe area insets
+  const insets = useSafeAreaInsets();
   
   // Navigation
   const navigation = useNavigation();
@@ -1300,7 +1304,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Main render
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeStyles.backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor: themeStyles.backgroundColor }]}>
       <StatusBar barStyle={readingTheme === "night" ? "light-content" : "dark-content"} />
 
       <View style={styles.intentionsContainer}>
@@ -1309,7 +1313,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
           colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#8952D0", "#AD7CEA"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.intentionsStatsContainer}
+          style={[styles.intentionsStatsContainer, { paddingTop: insets.top + 2 }]}
         >
           <View style={{ flex: 1, flexDirection: "row" }}>
             <View style={styles.intentionStat}>
@@ -1657,7 +1661,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         {renderNewIntentionModal()}
         {renderFilterModal()}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -87,8 +87,8 @@ export default function GlobalBackButton() {
       style={[
         styles.container,
         {
-          top: isPrayerIntentionsPage ? insets.top + 90 : insets.top + 10,
-          left: isPrayerIntentionsPage ? 10 : 20, // Move left by ~0.1 inches (10px) for Prayer Intentions
+          top: isPrayerIntentionsPage ? insets.top + 80 : insets.top + 10,
+          left: isPrayerIntentionsPage ? 20 : 20, // Position inside the "All" tab for Prayer Intentions
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
@@ -98,11 +98,11 @@ export default function GlobalBackButton() {
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.8}
-        style={styles.button}
+        style={[styles.button, isPrayerIntentionsPage && styles.buttonSmall]}
       >
         <BlurView intensity={85} tint="light" style={styles.blur}>
           <View style={styles.iconContainer}>
-            <Ionicons name="arrow-back" size={22} color="#1E293B" />
+            <Ionicons name="arrow-back" size={isPrayerIntentionsPage ? 18 : 22} color="#1E293B" />
           </View>
         </BlurView>
       </TouchableOpacity>
@@ -129,6 +129,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 8,
+  },
+  buttonSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   blur: {
     flex: 1,
