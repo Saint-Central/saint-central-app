@@ -1729,7 +1729,7 @@ const addButtonStyles = StyleSheet.create({
   container: {
     position: "absolute",
     right: 20,
-    bottom: 30,
+    bottom: 90,
     alignItems: "center",
     zIndex: 10,
   },
