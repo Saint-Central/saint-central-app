@@ -3345,7 +3345,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     paddingHorizontal: 16,
-    marginVertical: 12,
+    marginTop: 32,
+    marginBottom: 12,
   },
   viewButton: {
     paddingVertical: 8,
