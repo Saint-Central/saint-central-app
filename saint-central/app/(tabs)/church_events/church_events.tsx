@@ -32,6 +32,7 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
+  useAnimatedScrollHandler,
 } from "react-native-reanimated";
 import { CalendarDay, ChurchEvent, CalendarViewType } from "./types";
 
@@ -58,57 +59,79 @@ interface ChurchEventsProps {
   eventId?: string | string[];
 }
 
+// Create AnimatedScrollView
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
 const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   // Animation values
   const scrollY = useSharedValue(0);
+  const bannerOpacity = useSharedValue(0);
 
   // Animation values for decorative elements
   const holyGlow = useSharedValue(0);
   const crossGlow = useSharedValue(0);
   const doveFloat = useSharedValue(0);
   const shimmerValue = useSharedValue(-width);
+  
+  // Create animated scroll handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
-  // Start animations for decorative elements
+  // Start animations for decorative elements with delays
   useEffect(() => {
-    // Holy glow animation
-    holyGlow.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.3, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      true,
-    );
-
-    // Cross glow animation
-    crossGlow.value = withDelay(
-      1000,
-      withRepeat(
+    // Fade in banner smoothly
+    bannerOpacity.value = withTiming(1, {
+      duration: 600,
+      easing: Easing.out(Easing.ease),
+    });
+    
+    // Delay all animations to improve initial render performance
+    const timer = setTimeout(() => {
+      // Holy glow animation
+      holyGlow.value = withRepeat(
         withSequence(
-          withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.2, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.3, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
         true,
-      ),
-    );
+      );
 
-    // Dove floating animation
-    doveFloat.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      true,
-    );
+      // Cross glow animation
+      crossGlow.value = withDelay(
+        1000,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.2, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1,
+          true,
+        ),
+      );
 
-    // Shimmer animation
-    shimmerValue.value = withRepeat(
-      withTiming(width, { duration: 3000, easing: Easing.linear }),
-      -1,
-      false,
-    );
+      // Dove floating animation
+      doveFloat.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(-1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+
+      // Shimmer animation
+      shimmerValue.value = withRepeat(
+        withTiming(width, { duration: 3000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    }, 500); // Delay animations by 500ms
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Holy glow style
@@ -152,7 +175,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     };
   });
 
-  // Header height animation
+  // Header height animation with smooth spring
   const headerHeightStyle = useAnimatedStyle(() => {
     const height = interpolate(
       scrollY.value,
@@ -160,7 +183,9 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
       [480, Platform.OS === "ios" ? 120 : 100],
       Extrapolate.CLAMP,
     );
-    return { height };
+    return { 
+      height,
+    };
   });
 
   // Header background opacity with smoother transition
@@ -360,30 +385,31 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         style={[
           enhancedStyles.heroSection,
           headerHeightStyle,
-          { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1 },
+          { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1, opacity: bannerOpacity },
         ]}
       >
         {/* Parallax Background with Divine Imagery */}
         <Animated.View style={[StyleSheet.absoluteFill, parallaxImageStyle]}>
-          <ImageBackground
+          <Image
             source={{
-              uri: "https://images.unsplash.com/photo-1507692049790-de58290a4334?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+              uri: "https://images.unsplash.com/photo-1507692049790-de58290a4334?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=60",
+              priority: 'high',
             }}
-            style={enhancedStyles.heroBackground}
+            style={[enhancedStyles.heroBackground, StyleSheet.absoluteFillObject]}
             resizeMode="cover"
-          >
-            {/* Enhanced Gradient with Warm Christian Colors */}
-            <LinearGradient
-              colors={[
-                "rgba(28, 25, 23, 0.1)",
-                "rgba(28, 25, 23, 0.4)",
-                "rgba(28, 25, 23, 0.7)",
-                "rgba(28, 25, 23, 0.9)",
-              ]}
-              style={enhancedStyles.heroGradient}
-              locations={[0, 0.3, 0.7, 1]}
-            />
-          </ImageBackground>
+            fadeDuration={0}
+          />
+          {/* Enhanced Gradient with Warm Christian Colors */}
+          <LinearGradient
+            colors={[
+              "rgba(28, 25, 23, 0.1)",
+              "rgba(28, 25, 23, 0.4)",
+              "rgba(28, 25, 23, 0.7)",
+              "rgba(28, 25, 23, 0.9)",
+            ]}
+            style={enhancedStyles.heroGradient}
+            locations={[0, 0.3, 0.7, 1]}
+          />
         </Animated.View>
 
         {/* Divine Decorative Elements */}
@@ -489,15 +515,13 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
       </SafeAreaView>
 
       {/* Enhanced Main Content */}
-      <ScrollView
+      <AnimatedScrollView
         style={enhancedStyles.scrollView}
         contentContainerStyle={[enhancedStyles.scrollContent, { paddingTop: 480 }]}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
+        scrollEventThrottle={1}
         bounces={true}
-        onScroll={(event) => {
-          scrollY.value = event.nativeEvent.contentOffset.y;
-        }}
+        onScroll={scrollHandler}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -727,7 +751,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
             </View>
           )}
         </View>
-      </ScrollView>
+      </AnimatedScrollView>
 
 
       {/* Modals remain the same but with enhanced styling context */}
