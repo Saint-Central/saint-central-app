@@ -25,6 +25,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { supabase } from "../../supabaseClient";
 import { Link, router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1551,6 +1552,7 @@ export default function CommunityScreen() {
                     }],
                   },
                 ]}
+                pointerEvents="none"
               >
                 <LinearGradient
                   colors={['rgba(251, 191, 36, 0.2)', 'transparent', 'rgba(251, 191, 36, 0.1)']}
@@ -1569,6 +1571,7 @@ export default function CommunityScreen() {
                     }),
                   },
                 ]}
+                pointerEvents="none"
               >
                 <LinearGradient
                   colors={['rgba(251, 191, 36, 0.3)', 'rgba(245, 158, 11, 0.2)', 'transparent']}
@@ -1632,6 +1635,30 @@ export default function CommunityScreen() {
               <Text style={styles.notificationText}>{notification.message}</Text>
             </View>
           )}
+        {/* Blur overlay when dropdown is open */}
+        <Animated.View
+          pointerEvents={showFilterDropdown ? "auto" : "none"}
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              opacity: filterDropdownAnim,
+              zIndex: 8,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setShowFilterDropdown(false)}
+          >
+            <BlurView
+              intensity={showFilterDropdown ? 40 : 0}
+              tint="dark"
+              style={StyleSheet.absoluteFillObject}
+            />
+          </TouchableOpacity>
+        </Animated.View>
+        
         {/* Always render dropdown with pointerEvents controlled */}
         <Animated.View
           pointerEvents={showFilterDropdown ? "auto" : "none"}
@@ -1648,6 +1675,7 @@ export default function CommunityScreen() {
                   }),
                 },
               ],
+              zIndex: 9,
             },
           ]}
         >
@@ -2351,6 +2379,7 @@ const styles = StyleSheet.create({
     paddingTop: 80, // Account for position and status bar
     paddingBottom: 28,
     justifyContent: 'center',
+    zIndex: 5,
   },
   animatedOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -2429,7 +2458,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: "rgba(212, 165, 116, 0.2)",
-    zIndex: 10,
     ...Platform.select({
       ios: {
         shadowColor: "#000",

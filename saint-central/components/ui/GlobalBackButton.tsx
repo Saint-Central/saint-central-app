@@ -36,7 +36,8 @@ export default function GlobalBackButton() {
   const isNewsPage = pathname === '/news' || pathname === '/(tabs)/news' || pathname.includes('/news/');
   const isBiblePage = pathname === '/Bible' || pathname === '/(tabs)/Bible';
   const isChurchEventsPage = pathname === '/church_events' || pathname === '/(tabs)/church_events' || pathname.includes('/church_events/');
-  const shouldHideButton = isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage;
+  const isCommunityPage = pathname === '/community' || pathname === '/(tabs)/community';
+  const shouldHideButton = isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage;
   
   // Check if on Prayer Intentions page for special positioning
   const isPrayerIntentionsPage = pathname === '/PrayerIntentions' || pathname === '/(tabs)/PrayerIntentions';
