@@ -2297,7 +2297,7 @@ const DailyTasks2025: React.FC = () => {
         )}
         <ScrollView
           ref={scrollViewRef}
-          style={styles.content}
+          style={[styles.content, { marginTop: -20 }]}
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -3234,8 +3234,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingTop: Platform.OS === 'ios' ? 40 : 20,
+    marginBottom: 12,
+    paddingTop: Platform.OS === 'ios' ? 30 : 15,
     paddingHorizontal: 20,
   },
   headerTitleSection: {
@@ -3629,7 +3629,7 @@ const styles = StyleSheet.create({
   },
   // Image Banner Styles
   imageBannerContainer: {
-    height: Platform.OS === 'ios' ? 250 : 180,
+    height: Platform.OS === 'ios' ? 210 : 150,
     width: '100%',
     position: 'relative',
     overflow: 'hidden',
