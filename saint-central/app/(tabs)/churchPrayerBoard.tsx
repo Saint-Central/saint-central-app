@@ -531,51 +531,10 @@ const ChurchPrayerBoard = () => {
       </View>
       
       <SafeAreaView style={styles.safeArea}>
-        {/* Modern Header */}
-        <View style={styles.modernHeader}>
-          <LinearGradient
-            colors={['rgba(15, 14, 30, 0.95)', 'rgba(15, 14, 30, 0.8)', 'transparent']}
-            style={StyleSheet.absoluteFill}
-          />
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-          
-          <View style={styles.headerContent}>
-            <View style={styles.headerLeft}>
-              <View style={styles.headerIconContainer}>
-                <LinearGradient
-                  colors={['#6366F1', '#8B5CF6']}
-                  style={styles.headerIconGradient}
-                >
-                  <FontAwesome5 name="praying-hands" size={24} color="#FFFFFF" />
-                </LinearGradient>
-              </View>
-            </View>
-            
-            <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>Church Prayer Board</Text>
-              <Text style={styles.headerSubtitle}>Share your heart with the community</Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.headerRight}
-              onPress={() => setShowAddModal(true)}
-            >
-              <View style={styles.addButtonContainer}>
-                <LinearGradient
-                  colors={['rgba(236, 72, 153, 0.2)', 'rgba(251, 146, 60, 0.2)']}
-                  style={styles.addButtonGradient}
-                >
-                  <Ionicons name="add" size={20} color="#FFFFFF" />
-                </LinearGradient>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Prayer List */}
         <Animated.ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 120 }]}
+          contentContainerStyle={styles.scrollContent}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
@@ -590,6 +549,22 @@ const ChurchPrayerBoard = () => {
           )}
           scrollEventThrottle={16}
         >
+          {/* Beautiful Title with Icon */}
+          <View style={styles.titleContainer}>
+            <View style={styles.titleIconWrapper}>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6', '#EC4899']}
+                style={styles.titleIconGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <FontAwesome5 name="praying-hands" size={28} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.simpleTitle}>Church Prayer Board</Text>
+            <Text style={styles.titleSubtext}>A sacred space for our community</Text>
+          </View>
+          
           {prayers.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Animated.View style={styles.emptyIconContainer}>
@@ -909,13 +884,56 @@ const styles = StyleSheet.create({
   particleInner: {
     borderRadius: 999,
   },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+    marginTop: 24,
+  },
+  titleIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 16,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  titleIconGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  simpleTitle: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(139, 92, 246, 0.8)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 20,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  titleSubtext: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   modernHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 110,
-    zIndex: 10,
+    zIndex: 100,
+    elevation: 10,
   },
   headerContent: {
     flexDirection: 'row',
@@ -1024,7 +1042,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingTop: 75,
+    paddingTop: 16,
     paddingBottom: 100,
   },
   emptyContainer: {
