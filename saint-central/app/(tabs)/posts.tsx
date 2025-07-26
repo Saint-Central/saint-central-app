@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Dimensions,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -19,10 +20,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { WebView } from "react-native-webview";
+import * as ImagePicker from "expo-image-picker";
 import theme from "@/theme";
 
 // API Configuration
 const CRUD_API_BASE = "https://crud-worker.colinmcherney.workers.dev";
+const STORAGE_API_BASE = "https://storage-worker.colinmcherney.workers.dev";
 
 // API Helper Function
 const apiCall = async (url: string, options: RequestInit = {}) => {
@@ -1006,6 +1009,8 @@ export default function PostsScreen() {
     videoLink: "",
     category: "",
   });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [modal, setModal] = useState({
@@ -1094,16 +1099,13 @@ export default function PostsScreen() {
     if (!formData.authorName.trim()) newErrors.authorName = "Author name is required";
     if (!formData.category) newErrors.category = "Please select a category";
 
-    // Validate URL format if provided
-    if (formData.imageUrl && !isValidUrl(formData.imageUrl)) {
-      newErrors.imageUrl = "Please enter a valid image URL";
-    }
+    // No need to validate imageUrl anymore since it's set by upload
     if (formData.videoLink && !isValidUrl(formData.videoLink)) {
       newErrors.videoLink = "Please enter a valid video URL";
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return { isValid: Object.keys(newErrors).length === 0, errors: newErrors };
   };
 
   const isValidUrl = (string: string) => {
@@ -1115,9 +1117,93 @@ export default function PostsScreen() {
     }
   };
 
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      showModal("Permission Required", "Please grant camera roll permissions to upload images.", "warning");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImage(result.assets[0].uri);
+      await uploadImage(result.assets[0]);
+    }
+  };
+
+  const uploadImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!asset.base64) return;
+
+    setUploadingImage(true);
+    try {
+      const token = await AsyncStorage.getItem("@auth_access_token") || await AsyncStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("No access token available");
+      }
+
+      const fileName = `post_${Date.now()}.jpg`;
+      
+      const uploadResponse = await fetch(`${STORAGE_API_BASE}/storage/upload`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          operation: "UPLOAD",
+          bucket: "profile-images",
+          fileName: fileName,
+          contentType: "image/jpeg",
+          data: asset.base64,
+          encoding: "base64",
+          options: {
+            upsert: true,
+            cacheControl: "max-age=31536000",
+          },
+        }),
+      });
+
+      const result = await uploadResponse.json();
+      
+      if (!uploadResponse.ok) {
+        throw new Error(result.error || "Failed to upload image");
+      }
+
+      // Check for success in the response
+      if (!result.success) {
+        throw new Error(result.error || "Upload failed");
+      }
+
+      // Get the public URL from the result if available, otherwise construct it
+      const publicUrl = result.publicUrl || result.url || result.data?.publicUrl;
+      const imageUrl = publicUrl || `https://kokkzglzfcmtgwthpsfs.supabase.co/storage/v1/object/public/profile-images/${fileName}`;
+      
+      console.log("Upload result:", result);
+      console.log("Generated image URL:", imageUrl);
+      
+      setFormData({ ...formData, imageUrl });
+      
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      showModal("Upload Error", "Failed to upload image. Please try again.", "error");
+      setSelectedImage(null);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      showModal("Validation Error", "Please fill in all required fields correctly.", "warning");
+    const validation = validateForm();
+    if (!validation.isValid) {
+      const errorMessages = Object.values(validation.errors).join(", ");
+      showModal("Validation Error", errorMessages || "Please fill in all required fields correctly.", "warning");
       return;
     }
 
@@ -1263,15 +1349,41 @@ export default function PostsScreen() {
               icon="account"
             />
 
-            <FormInput
-              label="Image URL (Optional)"
-              value={formData.imageUrl}
-              onChangeText={(text) => setFormData({ ...formData, imageUrl: text })}
-              placeholder="https://example.com/image.jpg"
-              keyboardType="url"
-              autoCapitalize="none"
-              icon="image"
-            />
+            {/* Image Upload */}
+            <View style={styles.imageUploadContainer}>
+              <Text style={styles.borderlessInputLabel}>Image (Optional)</Text>
+              <TouchableOpacity
+                style={styles.imageUploadButton}
+                onPress={pickImage}
+                disabled={uploadingImage}
+              >
+                {selectedImage ? (
+                  <View style={styles.imagePreviewWrapper}>
+                    <Image source={{ uri: selectedImage }} style={styles.uploadedImagePreview} />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedImage(null);
+                        setFormData({ ...formData, imageUrl: "" });
+                      }}
+                      style={styles.removeImageButton}
+                    >
+                      <MaterialCommunityIcons name="close-circle" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.uploadButtonContent}>
+                    <MaterialCommunityIcons 
+                      name={uploadingImage ? "loading" : "image-plus"} 
+                      size={24} 
+                      color={theme.textLight} 
+                    />
+                    <Text style={styles.uploadButtonText}>
+                      {uploadingImage ? "Uploading..." : "Choose Image"}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
 
             <FormInput
               label="Video URL (Optional)"
@@ -1525,6 +1637,49 @@ const styles = StyleSheet.create({
   borderlessWebview: {
     backgroundColor: "transparent",
     height: 280,
+  },
+
+  // Image Upload Styles
+  imageUploadContainer: {
+    marginBottom: 8,
+  },
+  imageUploadButton: {
+    backgroundColor: theme.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.divider,
+    borderStyle: "dashed",
+  },
+  uploadButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  uploadButtonText: {
+    fontSize: 16,
+    color: theme.textLight,
+    fontWeight: theme.fontMedium,
+  },
+  imagePreviewWrapper: {
+    position: "relative",
+    width: "100%",
+    height: 200,
+  },
+  uploadedImagePreview: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 16,
+    resizeMode: "cover",
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 12,
+    padding: 4,
   },
 
   bottomSpacer: {
