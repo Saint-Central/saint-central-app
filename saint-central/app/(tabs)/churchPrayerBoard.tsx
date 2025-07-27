@@ -642,7 +642,17 @@ const ChurchPrayerBoard = () => {
               <Text style={styles.emptyText}>Share your heart with the community</Text>
               <TouchableOpacity
                 style={styles.emptyButton}
-                onPress={() => setShowAddModal(true)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  modalScale.setValue(0);
+                  setShowAddModal(true);
+                  Animated.spring(modalScale, {
+                    toValue: 1,
+                    friction: 8,
+                    tension: 40,
+                    useNativeDriver: true,
+                  }).start();
+                }}
               >
                 <LinearGradient
                   colors={["#6366F1", "#8B5CF6"]}

@@ -208,7 +208,7 @@ const QuickActionButton = ({ action, index }: { action: any; index: number }) =>
         router.push("/donate" as any);
         break;
       case "Social":
-        router.push("/community" as any);
+        router.push("/prayer-social" as any);
         break;
       default:
         break;
