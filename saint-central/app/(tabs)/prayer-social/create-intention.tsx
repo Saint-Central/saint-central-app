@@ -232,27 +232,29 @@ export default function CreateIntentionScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           {/* Header with SafeArea */}
-          <SafeAreaView style={styles.headerSafeArea}>
-            <View style={styles.header}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={24} color="#111827" />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Create Prayer Intention</Text>
-              <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={() => setIsFavorite(!isFavorite)}
-              >
-                <Ionicons
-                  name={isFavorite ? "star" : "star-outline"}
-                  size={24}
-                  color={isFavorite ? "#F59E0B" : "#6B7280"}
-                />
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
+          <View style={styles.headerWrapper}>
+            <SafeAreaView>
+              <View style={styles.header}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.back()}
+                >
+                  <Ionicons name="arrow-back" size={24} color="#111827" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Create Prayer Intention</Text>
+                <TouchableOpacity
+                  style={styles.favoriteButton}
+                  onPress={() => setIsFavorite(!isFavorite)}
+                >
+                  <Ionicons
+                    name={isFavorite ? "star" : "star-outline"}
+                    size={24}
+                    color={isFavorite ? "#F59E0B" : "#6B7280"}
+                  />
+                </TouchableOpacity>
+              </View>
+            </SafeAreaView>
+          </View>
 
           <View style={styles.content}>
             {/* Title Input */}
@@ -435,21 +437,21 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  headerSafeArea: {
+  headerWrapper: {
     backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    paddingTop: 8,
+    paddingBottom: 0,
   },
   backButton: {
-    padding: 8,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 18,
@@ -457,7 +459,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   favoriteButton: {
-    padding: 8,
+    padding: 4,
   },
   content: {
     padding: 20,
