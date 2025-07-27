@@ -41,6 +41,9 @@ export interface Group {
 
 export type IntentionType =
   | "prayer"
+  | "praise"
+  | "thanksgiving"
+  | "intercession"
   | "goal"
   | "resolution"
   | "spiritual"

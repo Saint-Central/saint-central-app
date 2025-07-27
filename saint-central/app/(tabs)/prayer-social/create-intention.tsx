@@ -62,6 +62,20 @@ export default function CreateIntentionScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
+  
+  // Get dynamic intention types based on user denomination
+  const getIntentionTypes = () => {
+    const types = [...INTENTION_TYPES];
+    // Find intercession type and update label based on denomination
+    const intercessionIndex = types.findIndex(t => t.id === "intercession");
+    if (intercessionIndex !== -1) {
+      types[intercessionIndex] = {
+        ...types[intercessionIndex],
+        label: (user?.denomination?.toLowerCase() === "catholic" || user?.denomination?.toLowerCase() === "orthodox") ? "Intercession" : "Resolution"
+      };
+    }
+    return types;
+  };
 
   useEffect(() => {
     if (visibility === "groups") {
@@ -248,7 +262,7 @@ export default function CreateIntentionScreen() {
             <View style={styles.section}>
               <Text style={styles.label}>Type</Text>
               <View style={styles.typeGrid}>
-                {INTENTION_TYPES.map((intentionType) => (
+                {getIntentionTypes().map((intentionType) => (
                   <TouchableOpacity
                     key={intentionType.id}
                     style={[

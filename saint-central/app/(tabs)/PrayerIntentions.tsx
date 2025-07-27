@@ -44,7 +44,10 @@ interface IntentionsProps {
 
 // Intention type icons
 const intentionTypeIcons: { [key in IntentionType]: string } = {
-  prayer: "user",
+  prayer: "heart",
+  intercession: "users",
+  thanksgiving: "gift",
+  praise: "star",
   resolution: "check-square",
   goal: "target",
   spiritual: "heart",
@@ -291,7 +294,9 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionComplete, setNewIntentionComplete] = useState<boolean>(false);
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [showOtherCategories, setShowOtherCategories] = useState<boolean>(false);
   const [newIntentionFriends, setNewIntentionFriends] = useState<string[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   
   // Friends and groups data for visibility selection
   const [friends, setFriends] = useState<any[]>([]);
@@ -312,7 +317,31 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     // Load saved theme preference
     loadThemePreference();
     // The context handles all data fetching automatically
-  }, []);
+    // Fetch user profile to ensure we have denomination
+    if (user?.id) {
+      fetchUserProfile();
+    }
+  }, [user?.id]);
+  
+  // Fetch user profile with denomination
+  const fetchUserProfile = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const profile = await crud.selectOne("users", {
+        where: { id: user.id }
+      });
+      
+      console.log("[DEBUG] Fetched user profile:", profile);
+      console.log("[DEBUG] Profile denomination:", profile?.denomination);
+      
+      if (profile) {
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
   
   // Load theme preference from AsyncStorage
   const loadThemePreference = async () => {
@@ -432,8 +461,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const getIntentionColor = (type: IntentionType): string => {
     const colors = {
       paper: {
-        prayer: "#6A478F",
-        resolution: "#4A6FA5",
+        prayer: "#6366F1",
+        intercession: "#10B981",
+        thanksgiving: "#F59E0B",
+        praise: "#EC4899",
+        resolution: "#10B981",
         goal: "#E91E63",
         spiritual: "#26A69A",
         family: "#FF9800",
@@ -445,8 +477,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         other: "#607D8B",
       },
       sepia: {
-        prayer: "#7A503E",
-        resolution: "#8B5A2B",
+        prayer: "#6366F1",
+        intercession: "#10B981",
+        thanksgiving: "#F59E0B",
+        praise: "#EC4899",
+        resolution: "#10B981",
         goal: "#A94442",
         spiritual: "#2E7D32",
         family: "#B36A00",
@@ -458,8 +493,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         other: "#37474F",
       },
       night: {
-        prayer: "#9C64A6",
-        resolution: "#7B9EB3",
+        prayer: "#6366F1",
+        intercession: "#10B981",
+        thanksgiving: "#F59E0B",
+        praise: "#EC4899",
+        resolution: "#10B981",
         goal: "#EF5350",
         spiritual: "#4DB6AC",
         family: "#FFB74D",
@@ -537,12 +575,13 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     setNewIntentionTitle("");
     setNewIntentionDescription("");
     setNewIntentionType("prayer");
-    setNewIntentionVisibility("private");
+    setNewIntentionVisibility("Just Me");
     setNewIntentionGroups([]);
     setNewIntentionFriends([]);
     setNewIntentionComplete(false);
     setNewIntentionFavorite(false);
     setIsSubmitting(false);
+    setShowOtherCategories(false);
   };
 
   // Toggle intention completed status using context
@@ -735,31 +774,35 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             >
               {/* Type Selection */}
               <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>Type</Text>
-              <View style={styles.typeGrid}>
-                {(
-                  [
-                    "prayer",
-                    "resolution",
-                    "goal",
-                    "spiritual",
-                    "family",
-                    "health",
-                    "work",
-                    "friends",
-                    "world",
-                    "personal",
-                    "other",
-                  ] as IntentionType[]
-                ).map((type) => (
+              
+              {/* Main 4 Prayer Types Grid */}
+              <View style={styles.mainTypeGrid}>
+                {(() => {
+                  // Debug logging
+                  const denomination = userProfile?.denomination || user?.denomination;
+                  console.log("[DEBUG] User object:", user);
+                  console.log("[DEBUG] User profile:", userProfile);
+                  console.log("[DEBUG] Denomination from profile:", userProfile?.denomination);
+                  console.log("[DEBUG] Denomination from user:", user?.denomination);
+                  console.log("[DEBUG] Final denomination:", denomination);
+                  console.log("[DEBUG] Denomination check:", denomination?.toLowerCase() === "catholic" || denomination?.toLowerCase() === "orthodox");
+                  
+                  return [
+                    { id: "prayer", label: "Prayer Request", icon: "heart", color: "#6366F1" },
+                    { id: "intercession", label: (denomination?.toLowerCase() === "catholic" || denomination?.toLowerCase() === "orthodox") ? "Intercession" : "Resolution", icon: "users", color: "#10B981" },
+                    { id: "thanksgiving", label: "Thanksgiving", icon: "gift", color: "#F59E0B" },
+                    { id: "praise", label: "Praise", icon: "star", color: "#EC4899" },
+                  ];
+                })().map((type) => (
                   <TouchableOpacity
-                    key={type}
+                    key={type.id}
                     style={[
-                      styles.typeOption,
-                      newIntentionType === type && [
-                        styles.activeTypeOption,
+                      styles.mainTypeOption,
+                      newIntentionType === type.id && [
+                        styles.activeMainTypeOption,
                         {
-                          backgroundColor: `${getIntentionColor(type)}20`,
-                          borderColor: getIntentionColor(type),
+                          backgroundColor: `${type.color}20`,
+                          borderColor: type.color,
                         },
                       ],
                       {
@@ -767,38 +810,118 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                         borderColor: themeStyles.borderColor,
                       },
                     ]}
-                    onPress={() => setNewIntentionType(type)}
+                    onPress={() => setNewIntentionType(type.id as IntentionType)}
                   >
                     <View
                       style={[
-                        styles.typeIconContainer,
+                        styles.mainTypeIconContainer,
                         {
-                          backgroundColor: `${getIntentionColor(type)}20`,
+                          backgroundColor: `${type.color}20`,
                         },
                       ]}
                     >
                       <Feather
-                        name={intentionTypeIcons[type] as keyof typeof Feather.glyphMap}
-                        size={20}
-                        color={getIntentionColor(type)}
+                        name={type.icon as keyof typeof Feather.glyphMap}
+                        size={24}
+                        color={type.color}
                       />
                     </View>
                     <Text
                       style={[
-                        styles.typeText,
+                        styles.mainTypeText,
                         {
-                          color:
-                            newIntentionType === type
-                              ? getIntentionColor(type)
-                              : themeStyles.textColor,
+                          color: newIntentionType === type.id ? type.color : themeStyles.textColor,
                         },
                       ]}
                     >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {type.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* Other Categories Dropdown */}
+              <TouchableOpacity
+                style={[
+                  styles.otherCategoriesButton,
+                  {
+                    backgroundColor: themeStyles.cardColor,
+                    borderColor: themeStyles.borderColor,
+                  },
+                ]}
+                onPress={() => setShowOtherCategories(!showOtherCategories)}
+              >
+                <Text style={[styles.otherCategoriesText, { color: themeStyles.textColor }]}>
+                  Other Categories
+                </Text>
+                <Feather
+                  name={showOtherCategories ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={themeStyles.textColor}
+                />
+              </TouchableOpacity>
+
+              {/* Dropdown Content */}
+              {showOtherCategories && (
+                <View style={styles.otherCategoriesGrid}>
+                  {[
+                    "family",
+                    "health",
+                    "work",
+                    "friends",
+                    "world",
+                    "personal",
+                    "other",
+                  ].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.typeOption,
+                        newIntentionType === type && [
+                          styles.activeTypeOption,
+                          {
+                            backgroundColor: `${getIntentionColor(type as IntentionType)}20`,
+                            borderColor: getIntentionColor(type as IntentionType),
+                          },
+                        ],
+                        {
+                          backgroundColor: themeStyles.cardColor,
+                          borderColor: themeStyles.borderColor,
+                        },
+                      ]}
+                      onPress={() => setNewIntentionType(type as IntentionType)}
+                    >
+                      <View
+                        style={[
+                          styles.typeIconContainer,
+                          {
+                            backgroundColor: `${getIntentionColor(type as IntentionType)}20`,
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={intentionTypeIcons[type as IntentionType] as keyof typeof Feather.glyphMap}
+                          size={20}
+                          color={getIntentionColor(type as IntentionType)}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.typeText,
+                          {
+                            color:
+                              newIntentionType === type
+                                ? getIntentionColor(type as IntentionType)
+                                : themeStyles.textColor,
+                          },
+                        ]}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
               {/* Title and Description */}
               <Text
@@ -2182,6 +2305,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+  },
+  mainTypeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  mainTypeOption: {
+    width: "48%",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  activeMainTypeOption: {
+    borderWidth: 2,
+  },
+  mainTypeIconContainer: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  mainTypeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  otherCategoriesButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  otherCategoriesText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  otherCategoriesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
   typeOption: {
     width: "48%",
