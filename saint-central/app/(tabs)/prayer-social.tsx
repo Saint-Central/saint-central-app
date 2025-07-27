@@ -747,33 +747,35 @@ export default function PrayerSocialScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <LinearGradient
         colors={["#F9FAFB", "#F3F4F6"]}
         style={styles.backgroundGradient}
       />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Prayer Community</Text>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => router.push("/prayer-social/notifications" as any)}
-        >
-          <Ionicons name="notifications-outline" size={24} color="#111827" />
-          {notificationCount > 0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationCount}>{notificationCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Header with SafeArea */}
+      <SafeAreaView style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Prayer Community</Text>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push("/prayer-social/notifications" as any)}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#111827" />
+            {notificationCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationCount}>{notificationCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
@@ -825,7 +827,7 @@ export default function PrayerSocialScreen() {
           <Ionicons name="add" size={32} color="#FFFFFF" />
         </LinearGradient>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -845,6 +847,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  headerSafeArea: {
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",

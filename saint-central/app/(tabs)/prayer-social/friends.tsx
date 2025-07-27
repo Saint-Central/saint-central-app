@@ -395,18 +395,20 @@ export default function FriendsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <View style={styles.placeholder} />
-      </View>
+    <View style={styles.container}>
+      {/* Header with SafeArea */}
+      <SafeAreaView style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Friends</Text>
+          <View style={styles.placeholder} />
+        </View>
+      </SafeAreaView>
 
       {/* Tabs */}
       <View style={styles.tabs}>
@@ -573,7 +575,7 @@ export default function FriendsScreen() {
           )}
         </>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -581,6 +583,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
+  },
+  headerSafeArea: {
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",

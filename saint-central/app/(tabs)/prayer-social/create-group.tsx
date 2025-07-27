@@ -76,23 +76,25 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#111827" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Create Prayer Group</Text>
-            <View style={styles.placeholder} />
-          </View>
+          {/* Header with SafeArea */}
+          <SafeAreaView style={styles.headerSafeArea}>
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="arrow-back" size={24} color="#111827" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Create Prayer Group</Text>
+              <View style={styles.placeholder} />
+            </View>
+          </SafeAreaView>
 
           <View style={styles.content}>
             {/* Hero Section */}
@@ -278,7 +280,7 @@ export default function CreateGroupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -289,6 +291,9 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  headerSafeArea: {
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
