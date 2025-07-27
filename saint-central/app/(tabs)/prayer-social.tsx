@@ -509,6 +509,20 @@ export default function PrayerSocialScreen() {
 
   const renderFeedTab = () => (
     <View style={styles.tabContent}>
+      {/* Create Prayer Button */}
+      <TouchableOpacity
+        style={styles.createPrayerButton}
+        onPress={() => router.push("/prayer-social/create-intention" as any)}
+      >
+        <LinearGradient
+          colors={["#6366F1", "#8B5CF6"]}
+          style={styles.createPrayerGradient}
+        >
+          <Ionicons name="add-circle" size={24} color="#FFFFFF" />
+          <Text style={styles.createPrayerText}>Create New Prayer</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {["all", "friends", "groups", "favorites", "answered"].map((filter) => (
@@ -767,7 +781,7 @@ export default function PrayerSocialScreen() {
           colors={["#6366F1", "#8B5CF6"]}
           style={styles.fabGradient}
         >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
+          <Ionicons name="add" size={32} color="#FFFFFF" />
         </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
@@ -1124,15 +1138,33 @@ const styles = StyleSheet.create({
     right: 24,
   },
   fabGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 8,
+  },
+  createPrayerButton: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  createPrayerGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  createPrayerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
