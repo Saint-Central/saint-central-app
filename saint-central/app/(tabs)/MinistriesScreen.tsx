@@ -640,6 +640,43 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         user_id: user.id
       });
 
+      // Also remove from the ministry prayer group
+      try {
+        // Get the ministry details to find the group name
+        const ministry = await selectOne("ministries", {
+          where: { id: ministryId }
+        });
+        
+        if (ministry) {
+          // Find the prayer group for this ministry
+          const prayerGroups = await select("groups", {
+            where: { 
+              name: `${ministry.name} Prayer Group`,
+              is_ministry_group: true,
+              ministry_id: ministryId
+            }
+          });
+          
+          if (prayerGroups && prayerGroups.length > 0) {
+            // Remove user from the prayer group
+            const groupId = prayerGroups[0].id;
+            const membership = await selectOne("group_members", {
+              where: {
+                group_id: groupId,
+                user_id: user.id
+              }
+            });
+            
+            if (membership) {
+              await deleteRecord("group_members", { id: membership.id });
+            }
+          }
+        }
+      } catch (groupError) {
+        console.error("Error removing from prayer group:", groupError);
+        // Don't block ministry leave if group removal fails
+      }
+
       // Check if ministry is linked to any courses and remove from those too
       const linkedCourses = await select("courses", {
         where: { ministry_id: ministryId }
@@ -687,6 +724,42 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             await deleteRecord("ministry_members", {
               ministry_id: ministryId
             });
+
+            // Delete the associated prayer group
+            try {
+              // Get the ministry details to find the group name
+              const ministry = await selectOne("ministries", {
+                where: { id: ministryId }
+              });
+              
+              if (ministry) {
+                // Find the prayer group for this ministry
+                const prayerGroups = await select("groups", {
+                  where: { 
+                    name: `${ministry.name} Prayer Group`,
+                    is_ministry_group: true,
+                    ministry_id: ministryId
+                  }
+                });
+                
+                if (prayerGroups && prayerGroups.length > 0) {
+                  const groupId = prayerGroups[0].id;
+                  
+                  // Delete all group members first
+                  await deleteRecord("group_members", {
+                    group_id: groupId
+                  });
+                  
+                  // Then delete the group
+                  await deleteRecord("groups", {
+                    id: groupId
+                  });
+                }
+              }
+            } catch (groupError) {
+              console.error("Error deleting prayer group:", groupError);
+              // Don't block ministry deletion if group deletion fails
+            }
 
             // Then, delete any ministry messages
             await deleteRecord("ministry_messages", {

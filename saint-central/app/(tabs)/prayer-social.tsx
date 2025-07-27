@@ -79,6 +79,7 @@ interface Group {
   created_by: string;
   church_id?: number;
   is_ministry_group: boolean;
+  ministry_id?: number;
   created_at: string;
   member_count?: number;
   is_member?: boolean;
@@ -327,11 +328,19 @@ export default function PrayerSocialScreen() {
   const getUserGroups = async () => {
     if (!user) return [];
     
-    // This would need a group_members table in a real implementation
-    // For now, returning all groups where user is creator
-    return await crud.select("groups", {
-      where: { created_by: user.id },
+    // Get all groups the user is a member of
+    const memberships = await crud.select("group_members", {
+      where: { user_id: user.id },
     });
+    
+    if (!memberships || memberships.length === 0) return [];
+    
+    const groupIds = memberships.map(m => m.group_id);
+    const groups = await crud.select("groups", {
+      where: { id: groupIds },
+    });
+    
+    return groups || [];
   };
 
   const loadFriends = async () => {
@@ -370,11 +379,41 @@ export default function PrayerSocialScreen() {
   };
 
   const loadGroups = async () => {
+    if (!user) return;
+    
     try {
-      const groupsData = await crud.select("groups");
+      // Get all groups the user is a member of
+      const memberships = await crud.select("group_members", {
+        where: { user_id: user.id },
+      });
+      
+      if (!memberships || memberships.length === 0) {
+        setGroups([]);
+        return;
+      }
+      
+      const groupIds = memberships.map(m => m.group_id);
+      const groupsData = await crud.select("groups", {
+        where: { id: groupIds },
+      });
+
+      // Add member count and format data
+      const groupsWithData = await Promise.all(
+        (groupsData || []).map(async (group) => {
+          const memberCount = await crud.select("group_members", {
+            where: { group_id: group.id },
+          });
+          
+          return {
+            ...group,
+            member_count: memberCount.length,
+            is_member: true,
+          };
+        })
+      );
 
       // Sort by created_at in descending order (newest first)
-      const sortedGroups = groupsData.sort((a, b) => 
+      const sortedGroups = groupsWithData.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 

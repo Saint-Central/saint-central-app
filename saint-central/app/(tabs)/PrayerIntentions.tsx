@@ -380,11 +380,26 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   };
 
   const loadGroups = async () => {
+    if (!user) return;
+    
     try {
-      const groupsData = await crud.select("groups");
+      // Get all groups the user is a member of (including ministry groups)
+      const memberships = await crud.select("group_members", {
+        where: { user_id: user.id },
+      });
+      
+      if (!memberships || memberships.length === 0) {
+        setGroups([]);
+        return;
+      }
+      
+      const groupIds = memberships.map(m => m.group_id);
+      const groupsData = await crud.select("groups", {
+        where: { id: groupIds },
+      });
       
       // Sort by name alphabetically
-      const sortedGroups = groupsData.sort((a, b) => 
+      const sortedGroups = (groupsData || []).sort((a, b) => 
         a.name.localeCompare(b.name)
       );
       

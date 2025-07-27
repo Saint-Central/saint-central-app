@@ -22,6 +22,7 @@ interface Ministry {
   image_url?: string;
   member_count?: number;
   private?: boolean;
+  church_id?: number;
 }
 
 export default function JoinMinistryScreen() {
@@ -30,7 +31,7 @@ export default function JoinMinistryScreen() {
   const ministryId = typeof params.ministryId === "string" ? parseInt(params.ministryId) : 0;
   
   // Initialize CRUD client and auth
-  const { selectOne, insert } = useCRUD();
+  const { selectOne, insert, select } = useCRUD();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -161,6 +162,56 @@ export default function JoinMinistryScreen() {
           joined_at: new Date().toISOString(),
           role: isChurchAdmin ? "admin" : "member",
         });
+
+        // Auto-create/join prayer group for this ministry
+        try {
+          // Check if a group already exists for this ministry
+          const existingGroups = await select("groups", {
+            where: { 
+              name: `${ministry?.name} Prayer Group`,
+              church_id: ministry?.church_id || userChurchId,
+              is_ministry_group: true
+            }
+          });
+
+          let groupId;
+          if (existingGroups && existingGroups.length > 0) {
+            // Group exists, use it
+            groupId = existingGroups[0].id;
+          } else {
+            // Create a new group for this ministry
+            const newGroup = await insert("groups", {
+              name: `${ministry?.name} Prayer Group`,
+              description: `Prayer group for ${ministry?.name} ministry members`,
+              created_by: user.id,
+              church_id: ministry?.church_id || userChurchId,
+              is_ministry_group: true,
+              ministry_id: ministryId,
+              created_at: new Date().toISOString()
+            });
+            groupId = newGroup.id;
+          }
+
+          // Add user to the group
+          const existingMembership = await select("group_members", {
+            where: {
+              group_id: groupId,
+              user_id: user.id
+            }
+          });
+
+          if (!existingMembership || existingMembership.length === 0) {
+            await insert("group_members", {
+              group_id: groupId,
+              user_id: user.id,
+              role: isChurchAdmin ? "admin" : "member",
+              joined_at: new Date().toISOString()
+            });
+          }
+        } catch (groupError) {
+          console.error("Error creating/joining ministry prayer group:", groupError);
+          // Don't block ministry join if group creation fails
+        }
 
         // Navigate to ministry details
         router.replace({

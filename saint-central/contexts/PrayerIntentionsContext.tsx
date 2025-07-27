@@ -34,6 +34,9 @@ export interface Group {
   description: string;
   created_at: Date;
   created_by: string;
+  church_id?: number;
+  is_ministry_group?: boolean;
+  ministry_id?: number;
 }
 
 export type IntentionType =
