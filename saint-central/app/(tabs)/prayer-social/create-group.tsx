@@ -81,7 +81,10 @@ export default function CreateGroupScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           {/* Header with SafeArea */}
           <SafeAreaView style={styles.headerSafeArea}>
             <View style={styles.header}>
@@ -292,6 +295,9 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   headerSafeArea: {
     backgroundColor: "#FFFFFF",
   },
@@ -321,6 +327,7 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     marginBottom: 24,
+    marginTop: -30,
   },
   heroGradient: {
     padding: 32,
