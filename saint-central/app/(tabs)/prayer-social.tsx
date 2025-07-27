@@ -126,6 +126,7 @@ export default function PrayerSocialScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterType, setFilterType] = useState("all");
+  const [notificationCount, setNotificationCount] = useState(0);
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -159,11 +160,48 @@ export default function PrayerSocialScreen() {
         loadIntentions(),
         loadFriends(),
         loadGroups(),
+        loadNotificationCount(),
       ]);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadNotificationCount = async () => {
+    if (!user) return;
+
+    try {
+      // Count unread friend requests
+      const friendRequests = await crud.select("friends", {
+        where: { user_id_2: user.id, status: "pending" },
+      });
+
+      // Count recent prayer intentions from friends (last 24 hours)
+      const friendships = await crud.select("friends", {
+        where: { status: "accepted" },
+      });
+
+      const userFriendIds = friendships
+        .filter(f => f.user_id_1 === user.id || f.user_id_2 === user.id)
+        .map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1);
+
+      const recentIntentions = await crud.select("intentions", {
+        where: { visibility: "friends" },
+      });
+
+      const recentFriendIntentions = recentIntentions.filter(intention => {
+        if (!userFriendIds.includes(intention.user_id) || intention.user_id === user.id) {
+          return false;
+        }
+        const isRecent = new Date().getTime() - new Date(intention.created_at).getTime() < 24 * 60 * 60 * 1000;
+        return isRecent;
+      });
+
+      setNotificationCount(friendRequests.length + recentFriendIntentions.length);
+    } catch (error) {
+      console.error("Error loading notification count:", error);
     }
   };
 
@@ -395,7 +433,7 @@ export default function PrayerSocialScreen() {
   const renderIntentionCard = ({ item }: { item: PrayerIntention }) => (
     <TouchableOpacity
       style={styles.intentionCard}
-      onPress={() => router.push(`/prayer-intention/${item.id}` as any)}
+      onPress={() => router.push(`/prayer-social/intention/${item.id}` as any)}
       activeOpacity={0.9}
     >
       <View style={styles.cardHeader}>
@@ -448,7 +486,7 @@ export default function PrayerSocialScreen() {
 
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => router.push(`/prayer-intention/${item.id}` as any)}
+          onPress={() => router.push(`/prayer-social/intention/${item.id}` as any)}
         >
           <Ionicons name="chatbubble-outline" size={20} color="#6B7280" />
           <Text style={styles.actionText}>{item.comments_count || 0}</Text>
@@ -674,9 +712,11 @@ export default function PrayerSocialScreen() {
           onPress={() => router.push("/prayer-social/notifications" as any)}
         >
           <Ionicons name="notifications-outline" size={24} color="#111827" />
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationCount}>3</Text>
-          </View>
+          {notificationCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationCount}>{notificationCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
