@@ -21,9 +21,10 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5, Feather } from "@expo/vector-icons";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
-import { supabase } from "../../supabaseClient";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
+import { useAuth } from "../../contexts/AuthContext";
+import { useCRUD } from "../../utils/crudClient";
 
 // Type definitions based on the schema
 type CourseEnrollment = {
@@ -93,6 +94,7 @@ interface PrivacySettingsModalProps {
   onClose: () => void;
   enrollment: CourseEnrollment;
   onSaveComplete?: () => void;
+  crud?: any;
 }
 
 // Privacy settings modal component
@@ -100,7 +102,8 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
   visible, 
   onClose, 
   enrollment, 
-  onSaveComplete 
+  onSaveComplete,
+  crud 
 }) => {
   // Initialize privacy settings
   const [settings, setSettings] = useState<PrivacySettings>({
@@ -133,26 +136,19 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
 
   // Save privacy settings to database
   const saveSettings = async () => {
-    if (!enrollment) return;
+    if (!enrollment || !crud) return;
     
     try {
       setLoading(true);
       console.log("Saving settings to database:", settings);
 
-      const { error } = await supabase
-        .from("course_enrollment")
-        .update({
-          hide_email: settings.hide_email,
-          hide_name: settings.hide_name,
-          hide_phone: settings.hide_phone
-        })
-        .eq("id", enrollment.id);
-
-      if (error) {
-        console.error("Error updating privacy settings:", error);
-        Alert.alert("Error", "Failed to update privacy settings: " + error.message);
-        return;
-      }
+      await crud.update("course_enrollment", {
+        hide_email: settings.hide_email,
+        hide_name: settings.hide_name,
+        hide_phone: settings.hide_phone
+      }, {
+        id: enrollment.id
+      });
 
       // Success
       Alert.alert("Success", "Privacy settings updated successfully");
@@ -261,6 +257,8 @@ export default function CourseDetailsPage() {
   const route = useRoute<CourseDetailsScreenRouteProp>();
   const navigation = useNavigation();
   const { courseId } = route.params;
+  const { user } = useAuth();
+  const crud = useCRUD();
   
   // States for course details and enrollments
   const [course, setCourse] = useState<Course | null>(null);
@@ -302,19 +300,16 @@ export default function CourseDetailsPage() {
   useEffect(() => {
     const getCurrentUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        
-        if (data?.user) {
-          setCurrentUserId(data.user.id);
+        if (user) {
+          setCurrentUserId(user.id);
           
           // Check if the user is enrolled in this course
-          const { data: enrollmentData } = await supabase
-            .from("course_enrollment")
-            .select("*")
-            .eq("course_id", courseId)
-            .eq("user_id", data.user.id)
-            .single();
+          const enrollmentData = await crud.selectOne("course_enrollment", {
+            where: {
+              course_id: courseId,
+              user_id: user.id
+            }
+          });
             
           if (enrollmentData) {
             setCurrentUserEnrolled(true);
@@ -334,22 +329,20 @@ export default function CourseDetailsPage() {
           }
           
           // Fetch the course to get church_id
-          const { data: courseData } = await supabase
-            .from("courses")
-            .select("church_id")
-            .eq("id", courseId)
-            .single();
+          const courseData = await crud.selectOne("courses", {
+            where: { id: courseId }
+          });
             
           if (courseData) {
             setChurchId(courseData.church_id);
             
             // Now check user's role in this church
-            const { data: memberData } = await supabase
-              .from("church_members")
-              .select("role")
-              .eq("church_id", courseData.church_id)
-              .eq("user_id", data.user.id)
-              .single();
+            const memberData = await crud.selectOne("church_members", {
+              where: {
+                church_id: courseData.church_id,
+                user_id: user.id
+              }
+            });
               
             if (memberData) {
               setCurrentUserRole(memberData.role);
@@ -362,7 +355,7 @@ export default function CourseDetailsPage() {
     };
     
     getCurrentUser();
-  }, [courseId]);
+  }, [courseId, user, crud]);
 
   // Fetch course details
   useEffect(() => {
@@ -371,13 +364,9 @@ export default function CourseDetailsPage() {
         setLoading(true);
         
         // Fetch course details
-        const { data, error } = await supabase
-          .from("courses")
-          .select("*")
-          .eq("id", courseId)
-          .single();
-          
-        if (error) throw error;
+        const data = await crud.selectOne("courses", {
+          where: { id: courseId }
+        });
         
         if (data) {
           setCourse(data);
@@ -391,41 +380,33 @@ export default function CourseDetailsPage() {
     };
     
     fetchCourseDetails();
-  }, [courseId]);
+  }, [courseId, crud]);
 
   // Fetch enrollments for this course
   const fetchEnrollments = async () => {
     try {
       setLoading(true);
       
-      // Join course_enrollment with users table to get user info
-      const { data, error } = await supabase
-        .from("course_enrollment")
-        .select(`
-          id,
-          user_id,
-          course_id,
-          enrollment_date,
-          hide_email,
-          hide_name,
-          hide_phone,
-          users!user_id (
-            id,
-            email,
-            first_name,
-            last_name,
-            profile_image,
-            phone_number
-          )
-        `)
-        .eq("course_id", courseId);
-        
-      if (error) throw error;
+      // First fetch enrollments
+      const enrollmentData = await crud.select("course_enrollment", {
+        where: { course_id: courseId }
+      });
       
-      if (data) {
+      if (enrollmentData && enrollmentData.length > 0) {
+        // Get unique user IDs
+        const userIds = [...new Set(enrollmentData.map(e => e.user_id))];
+        
+        // Fetch all users for these enrollments
+        const userData = await crud.select("users", {
+          where: { id: userIds }
+        });
+        
+        // Create a map of users by ID for quick lookup
+        const userMap = new Map(userData.map(u => [u.id, u]));
+        
         // Transform the data to match CourseEnrollment type
-        const normalizedData = data.map(item => {
-          const userData = Array.isArray(item.users) ? item.users[0] : item.users;
+        const normalizedData = enrollmentData.map(item => {
+          const user = userMap.get(item.user_id);
           
           // Make sure boolean values are properly set
           const hide_email = item.hide_email === false ? false : true;
@@ -440,19 +421,22 @@ export default function CourseDetailsPage() {
             hide_email,
             hide_name,
             hide_phone,
-            user: userData ? {
-              id: userData.id,
-              email: userData.email,
-              first_name: userData.first_name,
-              last_name: userData.last_name,
-              profile_image: userData.profile_image,
-              phone_number: userData.phone_number
+            user: user ? {
+              id: user.id,
+              email: user.email,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              profile_image: user.profile_image,
+              phone_number: user.phone_number
             } : null
           };
         });
         
         setEnrollments(normalizedData as CourseEnrollment[]);
         setFilteredEnrollments(normalizedData as CourseEnrollment[]);
+      } else {
+        setEnrollments([]);
+        setFilteredEnrollments([]);
       }
     } catch (error) {
       console.error("Error fetching enrollments:", error);
@@ -562,20 +546,13 @@ export default function CourseDetailsPage() {
       
       console.log("Saving privacy settings to database:", privacySettings);
 
-      const { error } = await supabase
-        .from("course_enrollment")
-        .update({
-          hide_email: privacySettings.hide_email,
-          hide_name: privacySettings.hide_name,
-          hide_phone: privacySettings.hide_phone
-        })
-        .eq("id", editingEnrollment.id);
-
-      if (error) {
-        console.error("Error updating privacy settings:", error);
-        Alert.alert("Error", "Failed to update privacy settings. Please try again.");
-        return;
-      }
+      await crud.update("course_enrollment", {
+        hide_email: privacySettings.hide_email,
+        hide_name: privacySettings.hide_name,
+        hide_phone: privacySettings.hide_phone
+      }, {
+        id: editingEnrollment.id
+      });
 
       // Refresh the enrollments list to show updated settings
       await fetchEnrollments();
@@ -613,18 +590,14 @@ export default function CourseDetailsPage() {
       setLoading(true);
       
       // Add new enrollment - we keep the same default values
-      const { error } = await supabase
-        .from("course_enrollment")
-        .insert([{
-          user_id: currentUserId,
-          course_id: courseId,
-          enrollment_date: new Date().toISOString(),
-          hide_email: true,  // Default to hiding email for privacy
-          hide_name: false,  // Default to showing name
-          hide_phone: true,  // Default to hiding phone for privacy
-        }]);
-        
-      if (error) throw error;
+      await crud.insert("course_enrollment", {
+        user_id: currentUserId,
+        course_id: courseId,
+        enrollment_date: new Date().toISOString(),
+        hide_email: true,  // Default to hiding email for privacy
+        hide_name: false,  // Default to showing name
+        hide_phone: true,  // Default to hiding phone for privacy
+      });
       
       Alert.alert("Success", "You have successfully enrolled in this course!");
       setCurrentUserEnrolled(true);
