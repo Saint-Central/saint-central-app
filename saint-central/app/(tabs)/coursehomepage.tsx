@@ -571,7 +571,7 @@ const CourseHomePage: React.FC = () => {
                 <ActivityIndicator size="small" color={theme.error} />
               ) : (
                 <>
-                  <Feather name="log-out" size={16} color={theme.error} />
+                  <Feather name="log-out" size={14} color={theme.error} />
                   <Text style={styles.leaveButtonText}>Leave Course</Text>
                 </>
               )}
@@ -589,7 +589,7 @@ const CourseHomePage: React.FC = () => {
                 <ActivityIndicator size="small" color={theme.textWhite} />
               ) : (
                 <>
-                  <Feather name="user-plus" size={16} color={theme.textWhite} />
+                  <Feather name="user-plus" size={14} color={theme.textWhite} />
                   <Text style={styles.enrollButtonText}>Enroll Now</Text>
                 </>
               )}
@@ -1142,14 +1142,16 @@ const styles = StyleSheet.create({
     gap: theme.spacingS,
   },
   modernActionButton: {
-    width: 36,
-    height: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 18,
     backgroundColor: theme.cardBg,
     justifyContent: "center",
-    alignItems: "center",
     borderWidth: 1,
     borderColor: theme.primary,
+    gap: 4,
   },
   modernEnrollButton: {
     backgroundColor: theme.primary,
@@ -1175,7 +1177,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   leaveButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.error,
   },
@@ -1252,14 +1254,10 @@ const styles = StyleSheet.create({
     gap: theme.spacingS,
   },
   editButton: {
-    flexDirection: "row",
-    paddingHorizontal: theme.spacingM,
     backgroundColor: theme.primary + '15',
     borderColor: theme.primary + '30',
   },
   manageButton: {
-    flexDirection: "row",
-    paddingHorizontal: theme.spacingM,
     backgroundColor: theme.info + '15',
     borderColor: theme.info + '30',
   },
@@ -1267,7 +1265,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: theme.primary,
-    marginLeft: 4,
   },
   enrollmentButton: {
     flexDirection: "row",
