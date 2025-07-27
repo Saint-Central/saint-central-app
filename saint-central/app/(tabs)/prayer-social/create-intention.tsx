@@ -62,6 +62,7 @@ export default function CreateIntentionScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
   
   // Get dynamic intention types based on user denomination
   const getIntentionTypes = () => {
@@ -71,11 +72,15 @@ export default function CreateIntentionScreen() {
     if (intercessionIndex !== -1) {
       types[intercessionIndex] = {
         ...types[intercessionIndex],
-        label: (user?.denomination?.toLowerCase() === "catholic" || user?.denomination?.toLowerCase() === "orthodox") ? "Intercession" : "Resolution"
+        label: (userProfile?.denomination?.toLowerCase() === "catholic" || userProfile?.denomination?.toLowerCase() === "orthodox") ? "Intercession" : "Resolution"
       };
     }
     return types;
   };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [user]);
 
   useEffect(() => {
     if (visibility === "groups") {
@@ -84,6 +89,21 @@ export default function CreateIntentionScreen() {
       loadFriends();
     }
   }, [visibility]);
+
+  const fetchUserProfile = async () => {
+    if (!user?.id) return;
+    try {
+      const profile = await crud.selectOne("users", {
+        where: { id: user.id }
+      });
+      if (profile) {
+        setUserProfile(profile);
+        console.log("User profile denomination:", profile.denomination);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
 
   const loadFriends = async () => {
     if (!user) return;
@@ -202,32 +222,37 @@ export default function CreateIntentionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <Ionicons name="arrow-back" size={24} color="#111827" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Create Prayer Intention</Text>
-            <TouchableOpacity
-              style={styles.favoriteButton}
-              onPress={() => setIsFavorite(!isFavorite)}
-            >
-              <Ionicons
-                name={isFavorite ? "star" : "star-outline"}
-                size={24}
-                color={isFavorite ? "#F59E0B" : "#6B7280"}
-              />
-            </TouchableOpacity>
-          </View>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Header with SafeArea */}
+          <SafeAreaView style={styles.headerSafeArea}>
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="arrow-back" size={24} color="#111827" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Create Prayer Intention</Text>
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={() => setIsFavorite(!isFavorite)}
+              >
+                <Ionicons
+                  name={isFavorite ? "star" : "star-outline"}
+                  size={24}
+                  color={isFavorite ? "#F59E0B" : "#6B7280"}
+                />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
 
           <View style={styles.content}>
             {/* Title Input */}
@@ -395,7 +420,7 @@ export default function CreateIntentionScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -406,6 +431,12 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  headerSafeArea: {
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
