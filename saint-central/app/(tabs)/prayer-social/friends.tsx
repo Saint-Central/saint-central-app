@@ -50,9 +50,13 @@ export default function FriendsScreen() {
   const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
-    loadData();
+    // Only load data for non-search tabs
+    if (activeTab !== "search") {
+      loadData();
+    }
   }, [activeTab]);
 
   const loadData = async () => {
@@ -60,7 +64,7 @@ export default function FriendsScreen() {
     try {
       switch (activeTab) {
         case "search":
-          await searchUsers();
+          // Don't auto-search on tab switch
           break;
         case "friends":
           await loadFriends();
@@ -78,16 +82,32 @@ export default function FriendsScreen() {
 
   const searchUsers = async () => {
     if (!user) return;
+    
+    // Require search query
+    if (!searchQuery.trim()) {
+      Alert.alert("Search Required", "Please enter a name to search for friends.");
+      return;
+    }
 
     try {
+      setLoading(true);
+      setHasSearched(true);
+      
       const allUsers = await crud.select("users");
       
+      // Filter by search query (name only, not email)
+      const searchResults = allUsers.filter(u => {
+        const fullName = `${u.first_name || ''} ${u.last_name || ''}`;
+        return u.id !== user.id && 
+               fullName.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+      
       // Sort users alphabetically by first name
-      const sortedUsers = allUsers.sort((a, b) => 
+      const sortedUsers = searchResults.sort((a, b) => 
         (a.first_name || '').localeCompare(b.first_name || '')
       );
 
-      // Filter out current user and existing friends
+      // Filter out existing friends and pending requests
       const friendships = await crud.select("friends");
       const userFriendIds = friendships
         .filter(f => 
@@ -96,17 +116,14 @@ export default function FriendsScreen() {
         )
         .map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1);
 
-      const filteredUsers = sortedUsers.filter(u => 
-        u.id !== user.id && 
-        !userFriendIds.includes(u.id) &&
-        (searchQuery === "" || 
-         `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         u.email.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+      const filteredUsers = sortedUsers.filter(u => !userFriendIds.includes(u.id));
 
       setUsers(filteredUsers);
     } catch (error) {
       console.error("Error searching users:", error);
+      Alert.alert("Error", "Failed to search users. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -277,7 +294,9 @@ export default function FriendsScreen() {
           <Text style={styles.userName}>
             {item.first_name} {item.last_name}
           </Text>
-          <Text style={styles.userEmail}>{item.email}</Text>
+          {item.denomination && (
+            <Text style={styles.userDenomination}>{item.denomination}</Text>
+          )}
           {item.denomination && (
             <Text style={styles.userDenomination}>{item.denomination}</Text>
           )}
@@ -313,7 +332,9 @@ export default function FriendsScreen() {
           <Text style={styles.userName}>
             {item.user?.first_name} {item.user?.last_name}
           </Text>
-          <Text style={styles.userEmail}>{item.user?.email}</Text>
+          {item.user?.denomination && (
+            <Text style={styles.userDenomination}>{item.user.denomination}</Text>
+          )}
         </View>
       </View>
       <TouchableOpacity
@@ -346,7 +367,9 @@ export default function FriendsScreen() {
           <Text style={styles.userName}>
             {item.user?.first_name} {item.user?.last_name}
           </Text>
-          <Text style={styles.userEmail}>{item.user?.email}</Text>
+          {item.user?.denomination && (
+            <Text style={styles.userDenomination}>{item.user.denomination}</Text>
+          )}
           <Text style={styles.requestStatus}>
             {type === "sent" ? "Request sent" : "Wants to be your friend"}
           </Text>
@@ -420,13 +443,37 @@ export default function FriendsScreen() {
             <Ionicons name="search" size={20} color="#6B7280" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by name or email"
+              placeholder="Search by name"
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
               onSubmitEditing={searchUsers}
+              returnKeyType="search"
             />
+            {searchQuery.trim() && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => {
+                  setSearchQuery("");
+                  setUsers([]);
+                  setHasSearched(false);
+                }}
+              >
+                <Ionicons name="close-circle" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            )}
           </View>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={searchUsers}
+          >
+            <LinearGradient
+              colors={["#6366F1", "#8B5CF6"]}
+              style={styles.searchButtonGradient}
+            >
+              <Text style={styles.searchButtonText}>Search</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -450,9 +497,13 @@ export default function FriendsScreen() {
               ListEmptyComponent={
                 <View style={styles.emptyState}>
                   <Ionicons name="search" size={48} color="#9CA3AF" />
-                  <Text style={styles.emptyTitle}>No Users Found</Text>
+                  <Text style={styles.emptyTitle}>
+                    {!hasSearched ? "Search for Friends" : "No Users Found"}
+                  </Text>
                   <Text style={styles.emptyText}>
-                    Try searching with a different name or email
+                    {!hasSearched 
+                      ? "Enter a name above to find friends" 
+                      : "Try searching with a different name"}
                   </Text>
                 </View>
               }
@@ -583,20 +634,45 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   searchBar: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F3F4F6",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    position: "relative",
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
     color: "#111827",
+  },
+  clearButton: {
+    position: "absolute",
+    right: 12,
+    padding: 4,
+  },
+  searchButton: {
+    height: 40,
+  },
+  searchButtonGradient: {
+    height: "100%",
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   loadingContainer: {
     flex: 1,
@@ -668,15 +744,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111827",
   },
-  userEmail: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginTop: 2,
-  },
   userDenomination: {
     fontSize: 12,
     color: "#9CA3AF",
     marginTop: 2,
+    fontStyle: "italic",
   },
   requestStatus: {
     fontSize: 12,

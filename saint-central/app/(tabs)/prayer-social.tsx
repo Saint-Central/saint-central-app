@@ -658,7 +658,9 @@ export default function PrayerSocialScreen() {
               <Text style={styles.friendName}>
                 {item.friend?.first_name} {item.friend?.last_name}
               </Text>
-              <Text style={styles.friendEmail}>{item.friend?.email}</Text>
+              {item.friend?.denomination && (
+                <Text style={styles.friendDenomination}>{item.friend.denomination}</Text>
+              )}
             </View>
             <TouchableOpacity style={styles.moreButton}>
               <Ionicons name="ellipsis-horizontal" size={20} color="#6B7280" />
@@ -1109,10 +1111,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111827",
   },
-  friendEmail: {
-    fontSize: 14,
-    color: "#6B7280",
+  friendDenomination: {
+    fontSize: 12,
+    color: "#9CA3AF",
     marginTop: 2,
+    fontStyle: "italic",
   },
   moreButton: {
     padding: 8,
