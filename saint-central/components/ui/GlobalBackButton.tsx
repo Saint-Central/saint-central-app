@@ -20,7 +20,8 @@ export default function GlobalBackButton() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  // Don't show back button on home/church landing page, courses page, church members page, volunteering page, Lent 2025, events, ministries, or discover
+  // Don't show back button on auth pages, home/church landing page, courses page, church members page, volunteering page, Lent 2025, events, ministries, or discover
+  const isAuthPage = pathname === '/auth' || pathname === '/(auth)/auth' || pathname === '/selectDenomination' || pathname === '/(auth)/selectDenomination' || pathname === '/login' || pathname === '/(auth)/login';
   const isHomePage = pathname === '/home' || pathname === '/(tabs)/home';
   const isCoursesPage = pathname === '/coursehomepage' || pathname === '/(tabs)/coursehomepage';
   const isChurchMembersPage = pathname === '/church_members' || pathname === '/(tabs)/church_members';
@@ -38,7 +39,7 @@ export default function GlobalBackButton() {
   const isChurchEventsPage = pathname === '/church_events' || pathname === '/(tabs)/church_events' || pathname.includes('/church_events/');
   const isCommunityPage = pathname === '/community' || pathname === '/(tabs)/community';
   const isPrayerBoardPage = pathname === '/churchPrayerBoard' || pathname === '/(tabs)/churchPrayerBoard';
-  const shouldHideButton = isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage || isPrayerBoardPage;
+  const shouldHideButton = isAuthPage || isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage || isPrayerBoardPage;
   
   // Check if on Prayer Intentions page for special positioning
   const isPrayerIntentionsPage = pathname === '/PrayerIntentions' || pathname === '/(tabs)/PrayerIntentions';
