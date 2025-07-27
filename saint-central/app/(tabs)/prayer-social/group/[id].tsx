@@ -45,6 +45,7 @@ interface Group {
   created_by: string;
   church_id?: number;
   is_ministry_group: boolean;
+  ministry_id?: number;
   created_at: string;
   creator?: User;
 }
@@ -137,11 +138,12 @@ export default function GroupDetailScreen() {
         where: { id: groupData.created_by },
       });
 
-      setGroup({ ...groupData, creator: creatorData });
+      const groupWithCreator = { ...groupData, creator: creatorData };
+      setGroup(groupWithCreator);
       setIsAdmin(groupData.created_by === user.id);
 
-      // Load members
-      await loadMembers();
+      // Load members (pass group data)
+      await loadMembers(groupWithCreator);
 
       // Load group prayers
       await loadGroupPrayers();
@@ -153,34 +155,60 @@ export default function GroupDetailScreen() {
     }
   };
 
-  const loadMembers = async () => {
+  const loadMembers = async (groupData?: Group) => {
     if (!id || !user) return;
+    
+    // Use passed group data or state
+    const currentGroup = groupData || group;
 
     try {
-      // In a real app, you'd have a group_members table
-      // For now, we'll simulate with the group creator
-      const groupData = await crud.selectOne("groups", {
-        where: { id: parseInt(id as string) },
+      // Get group members from group_members table
+      const groupMembers = await crud.select("group_members", {
+        where: { group_id: parseInt(id as string) },
       });
 
-      if (groupData) {
-        const creatorData = await crud.selectOne("users", {
-          where: { id: groupData.created_by },
-        });
+      // Get user data for each member
+      const membersWithData = await Promise.all(
+        groupMembers.map(async (member) => {
+          const userData = await crud.selectOne("users", {
+            where: { id: member.user_id },
+          });
 
-        const mockMembers: GroupMember[] = [
-          {
-            id: 1,
-            group_id: parseInt(id as string),
-            user_id: groupData.created_by,
-            role: "admin",
-            joined_at: groupData.created_at,
-            user: creatorData,
+          return {
+            ...member,
+            user: userData,
+          };
+        })
+      );
+
+      setMembers(membersWithData.filter(m => m.user));
+      
+      // Check if current user is a member
+      const userMembership = groupMembers.find(m => m.user_id === user.id);
+      setIsMember(!!userMembership);
+      
+      // Check if user is admin
+      if (userMembership) {
+        setIsAdmin(userMembership.role === "admin");
+      }
+      
+      // If this is a ministry group and user is not a member, check if they're in the ministry
+      if (!userMembership && currentGroup?.is_ministry_group && currentGroup?.ministry_id) {
+        const ministryMembership = await crud.selectOne("ministry_members", {
+          where: { 
+            ministry_id: currentGroup.ministry_id,
+            user_id: user.id
           },
-        ];
-
-        setMembers(mockMembers);
-        setIsMember(mockMembers.some(m => m.user_id === user.id));
+        });
+        
+        if (ministryMembership && (ministryMembership.role === "member" || ministryMembership.role === "admin")) {
+          // User is in the ministry, so they should be in the group
+          setIsMember(true);
+          // If they're a ministry admin, they should be a group admin too
+          if (ministryMembership.role === "admin") {
+            setIsAdmin(true);
+          }
+        }
       }
     } catch (error) {
       console.error("Error loading members:", error);
@@ -527,9 +555,14 @@ export default function GroupDetailScreen() {
               <Text style={styles.buttonText}>Join Group</Text>
             </LinearGradient>
           </TouchableOpacity>
+        ) : group?.is_ministry_group ? (
+          <View style={styles.enrolledBadge}>
+            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+            <Text style={styles.enrolledText}>Enrolled via Ministry</Text>
+          </View>
         ) : (
           <>
-            {isAdmin && (
+            {isAdmin && !group?.is_ministry_group && (
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => setShowInviteModal(true)}
@@ -801,6 +834,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  enrolledBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D1FAE5",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    gap: 8,
+  },
+  enrolledText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#10B981",
   },
   secondaryButton: {
     flexDirection: "row",
