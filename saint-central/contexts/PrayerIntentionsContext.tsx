@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../supabaseClient';
 import { useAuth } from './AuthContext';
+import { useCRUD } from '../utils/crudClient';
 
 // Types
 export interface PrayerIntention {
@@ -98,6 +98,7 @@ interface PrayerIntentionsProviderProps {
 
 export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> = ({ children }) => {
   const { user } = useAuth();
+  const crud = useCRUD();
   const [intentions, setIntentions] = useState<PrayerIntention[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -110,12 +111,9 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
 
     try {
       // First get the user's group memberships
-      const { data: memberships, error: membershipError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
-
-      if (membershipError) throw membershipError;
+      const memberships = await crud.select("group_members", {
+        where: { user_id: user.id },
+      });
 
       if (!memberships || memberships.length === 0) {
         setUserGroups([]);
@@ -126,12 +124,9 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
       const groupIds = memberships.map((membership) => membership.group_id);
 
       // Fetch the groups based on the IDs
-      const { data: groups, error: groupsError } = await supabase
-        .from("groups")
-        .select("*")
-        .in("id", groupIds);
-
-      if (groupsError) throw groupsError;
+      const groups = await crud.select("groups", {
+        where: { id: groupIds },
+      });
 
       // Format the data
       const formattedGroups: Group[] = (groups || []).map((group) => ({
@@ -151,32 +146,24 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          friend:users!friends_user_id_2_fkey(
-            id,
-            first_name,
-            last_name,
-            created_at
-          )
-        `)
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted");
+      const friendships = await crud.select("friends", {
+        where: { user_id_1: user.id, status: "accepted" },
+      });
 
-      if (error) throw error;
+      // Get friend user data
+      const friendIds = friendships.map(f => f.user_id_2);
+      const users = await crud.select("users", {
+        where: { id: friendIds },
+      });
 
-      if (data) {
-        const formattedFriends: UserData[] = data.map((friend: any) => ({
-          id: friend.friend.id,
-          first_name: friend.friend.first_name,
-          last_name: friend.friend.last_name,
-          created_at: friend.friend.created_at,
-        }));
+      const formattedFriends: UserData[] = users.map((friend) => ({
+        id: friend.id,
+        first_name: friend.first_name,
+        last_name: friend.last_name,
+        created_at: friend.created_at,
+      }));
 
-        setUserFriends(formattedFriends);
-      }
+      setUserFriends(formattedFriends);
     } catch (error) {
       console.error("Error fetching friends:", error);
     }
@@ -193,19 +180,13 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
       setLoading(true);
 
       // Get user's friends
-      const { data: sentFriends, error: sentError } = await supabase
-        .from("friends")
-        .select("user_id_2")
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted");
-      if (sentError) throw sentError;
+      const sentFriends = await crud.select("friends", {
+        where: { user_id_1: user.id, status: "accepted" },
+      });
 
-      const { data: receivedFriends, error: receivedError } = await supabase
-        .from("friends")
-        .select("user_id_1")
-        .eq("user_id_2", user.id)
-        .eq("status", "accepted");
-      if (receivedError) throw receivedError;
+      const receivedFriends = await crud.select("friends", {
+        where: { user_id_2: user.id, status: "accepted" },
+      });
 
       // Create a set of friend IDs
       const friendIds = new Set();
@@ -217,21 +198,14 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
       }
 
       // Get user's groups
-      const { data: userGroupsData, error: groupsError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
-      if (groupsError) throw groupsError;
+      const userGroupsData = await crud.select("group_members", {
+        where: { user_id: user.id },
+      });
 
       const userGroupIds = userGroupsData ? userGroupsData.map((g) => g.group_id) : [];
 
       // Fetch all intentions
-      const { data, error } = await supabase
-        .from("intentions")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
+      const data = await crud.select("intentions");
 
       // Filter intentions based on visibility
       const filteredData = await Promise.all(
@@ -249,14 +223,13 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
               return item.selected_friends?.includes(user.id) ? item : null;
             case "Certain Groups":
               // Check if user is in any of the selected groups
-              const creatorGroups = await supabase
-                .from("group_members")
-                .select("group_id")
-                .eq("user_id", item.user_id);
+              const creatorGroups = await crud.select("group_members", {
+                where: { user_id: item.user_id },
+              });
               
-              if (creatorGroups.error) return null;
+              if (!creatorGroups) return null;
               
-              const creatorGroupIds = creatorGroups.data.map(g => g.group_id);
+              const creatorGroupIds = creatorGroups.map(g => g.group_id);
               return creatorGroupIds.some(groupId => userGroupIds.includes(groupId)) ? item : null;
             default:
               return null;
@@ -271,12 +244,9 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
       const userIds = [...new Set(validIntentions.map((item) => item.user_id))];
       
       // Fetch user data
-      const { data: users, error: usersError } = await supabase
-        .from("users")
-        .select("id, first_name, last_name, created_at")
-        .in("id", userIds);
-
-      if (usersError) throw usersError;
+      const users = await crud.select("users", {
+        where: { id: userIds },
+      });
 
       // Create user lookup map
       const userMap = users.reduce((acc: any, user: any) => {
@@ -302,6 +272,9 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
         is_liked: item.is_liked || false,
         user: userMap[item.user_id] || { first_name: 'Unknown', last_name: 'User', id: item.user_id, created_at: new Date().toISOString() },
       }));
+
+      // Sort by created_at descending (newest first)
+      formattedIntentions.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
 
       setIntentions(formattedIntentions);
     } catch (error) {
@@ -329,23 +302,15 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
       favorite: intentionData.favorite || false,
     };
 
-    const { data, error } = await supabase
-      .from("intentions")
-      .insert([newIntentionData])
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await crud.insert("intentions", newIntentionData);
 
     // Fetch current user data
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("id, first_name, last_name, created_at")
-      .eq("id", user.id)
-      .single();
+    const userData = await crud.selectOne("users", {
+      where: { id: user.id },
+    });
 
-    if (userError) {
-      console.warn("Could not fetch user data:", userError);
+    if (!userData) {
+      console.warn("Could not fetch user data");
     }
 
     // Add to local state with user data
@@ -365,12 +330,7 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
 
   // Update intention
   const updateIntention = async (id: string, updates: Partial<PrayerIntention>) => {
-    const { error } = await supabase
-      .from("intentions")
-      .update(updates)
-      .eq("id", id);
-
-    if (error) throw error;
+    await crud.update("intentions", updates, { id });
 
     // Update local state
     setIntentions(prev => 
@@ -382,12 +342,7 @@ export const PrayerIntentionsProvider: React.FC<PrayerIntentionsProviderProps> =
 
   // Delete intention
   const deleteIntention = async (id: string) => {
-    const { error } = await supabase
-      .from("intentions")
-      .delete()
-      .eq("id", id);
-
-    if (error) throw error;
+    await crud.delete("intentions", { id });
 
     // Remove from local state
     setIntentions(prev => prev.filter(intention => intention.id !== id));

@@ -19,13 +19,15 @@ import {
   Easing,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePrayerIntentions, IntentionType, IntentionVisibility } from "@/contexts/PrayerIntentionsContext";
+import { useCRUD } from "@/utils/crudClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Additional types specific to this component
 export type IntentionsTabView = "all" | "active" | "completed";
@@ -252,6 +254,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   // Get safe area insets
   const insets = useSafeAreaInsets();
   
+  // Auth and CRUD hooks
+  const { user } = useAuth();
+  const crud = useCRUD();
+  
   // Navigation
   const navigation = useNavigation();
 
@@ -286,6 +292,10 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [newIntentionFriends, setNewIntentionFriends] = useState<string[]>([]);
+  
+  // Friends and groups data for visibility selection
+  const [friends, setFriends] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
 
   // Intention filtering and sorting state
   const [intentionFilter, setIntentionFilter] = useState<IntentionsFilter>("all");
@@ -329,16 +339,70 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   useEffect(() => {
     saveThemePreference(currentTheme);
   }, [currentTheme]);
+  
+  // Load friends and groups when visibility changes
+  useEffect(() => {
+    if (newIntentionVisibility === "groups") {
+      loadGroups();
+    } else if (newIntentionVisibility === "custom") {
+      loadFriends();
+    }
+  }, [newIntentionVisibility, showNewIntentionModal]);
+  
+  const loadFriends = async () => {
+    if (!user) return;
+
+    try {
+      const friendships = await crud.select("friends", {
+        where: { status: "accepted" },
+      });
+
+      const userFriendships = friendships.filter(f => 
+        (f.user_id_1 === user.id || f.user_id_2 === user.id)
+      );
+
+      const friendsData = await Promise.all(
+        userFriendships.map(async (friendship) => {
+          const friendId = friendship.user_id_1 === user.id 
+            ? friendship.user_id_2 
+            : friendship.user_id_1;
+          
+          return await crud.selectOne("users", {
+            where: { id: friendId },
+          });
+        })
+      );
+
+      setFriends(friendsData.filter(Boolean));
+    } catch (error) {
+      console.error("Error loading friends:", error);
+    }
+  };
+
+  const loadGroups = async () => {
+    try {
+      const groupsData = await crud.select("groups");
+      
+      // Sort by name alphabetically
+      const sortedGroups = groupsData.sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+      
+      setGroups(sortedGroups);
+    } catch (error) {
+      console.error("Error loading groups:", error);
+    }
+  };
 
 
 
   // Toggle group selection helper function
-  const toggleGroupSelection = (groupId: string) => {
-    if (newIntentionGroups.includes(groupId)) {
-      setNewIntentionGroups(newIntentionGroups.filter((id) => id !== groupId));
-    } else {
-      setNewIntentionGroups([...newIntentionGroups, groupId]);
-    }
+  const toggleGroupSelection = (groupId: number) => {
+    setNewIntentionGroups(prev =>
+      prev.includes(groupId.toString())
+        ? prev.filter(id => id !== groupId.toString())
+        : [...prev, groupId.toString()]
+    );
   };
 
   // Toggle friend selection
@@ -415,14 +479,21 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         return;
       }
 
+      // Map new visibility values to old ones for compatibility
+      let mappedVisibility: IntentionVisibility = "Just Me";
+      if (newIntentionVisibility === "private") mappedVisibility = "Just Me";
+      else if (newIntentionVisibility === "friends") mappedVisibility = "Friends";
+      else if (newIntentionVisibility === "groups") mappedVisibility = "Certain Groups";
+      else if (newIntentionVisibility === "custom") mappedVisibility = "Certain Friends";
+      
       // Prepare data for context
       const intentionData = {
         title: newIntentionTitle,
         description: newIntentionDescription,
         type: newIntentionType,
-        visibility: newIntentionVisibility,
-        selected_groups: newIntentionVisibility === "Certain Groups" ? newIntentionGroups : [],
-        selected_friends: newIntentionVisibility === "Certain Friends" ? newIntentionFriends : [],
+        visibility: mappedVisibility,
+        selected_groups: newIntentionVisibility === "groups" ? newIntentionGroups : [],
+        selected_friends: newIntentionVisibility === "custom" ? newIntentionFriends : [],
         completed: newIntentionComplete,
         favorite: newIntentionFavorite,
       };
@@ -451,7 +522,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     setNewIntentionTitle("");
     setNewIntentionDescription("");
     setNewIntentionType("prayer");
-    setNewIntentionVisibility("Just Me");
+    setNewIntentionVisibility("private");
     setNewIntentionGroups([]);
     setNewIntentionFriends([]);
     setNewIntentionComplete(false);
