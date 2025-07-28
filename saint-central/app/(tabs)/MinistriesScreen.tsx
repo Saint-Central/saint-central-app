@@ -653,7 +653,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             where: { 
               name: `${ministry.name} Prayer Group`,
               is_ministry_group: true,
-              ministry_id: ministryId
+              church_id: ministry.church_id
             }
           });
           

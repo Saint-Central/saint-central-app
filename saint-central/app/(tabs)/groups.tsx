@@ -213,17 +213,22 @@ export default function GroupsScreen() {
       // Extract group IDs
       const groupIds = userGroupMemberships.map(membership => membership.group_id);
       
-      // Fetch group details for those IDs
-      const groupsData = await select("groups", {
-        select: "id, name, description, created_at, created_by, church_id, is_ministry_group",
-        order: "created_at"
-      });
+      // Fetch group details for only the specific groups the user is a member of
+      const userGroups = await Promise.all(
+        groupIds.map(async (groupId) => {
+          const groupData = await selectOne("groups", {
+            select: "id, name, description, created_at, created_by, church_id, is_ministry_group",
+            where: { id: groupId }
+          });
+          return groupData;
+        })
+      );
       
-      // Filter to only groups the user is a member of
-      const userGroups = groupsData.filter(group => groupIds.includes(group.id));
+      // Filter out any null results
+      const validGroups = userGroups.filter(group => group !== null);
 
-      console.log("Fetched groups:", userGroups?.length || 0);
-      setGroups(userGroups || []);
+      console.log("Fetched groups:", validGroups?.length || 0);
+      setGroups(validGroups || []);
     } catch (error: any) {
       console.error("Error fetching groups:", error);
       setNotification({

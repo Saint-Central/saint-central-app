@@ -185,9 +185,7 @@ export default function JoinMinistryScreen() {
               description: `Prayer group for ${ministry?.name} ministry members`,
               created_by: user.id,
               church_id: ministry?.church_id || userChurchId,
-              is_ministry_group: true,
-              ministry_id: ministryId,
-              created_at: new Date().toISOString()
+              is_ministry_group: true
             });
             groupId = newGroup.id;
           }
@@ -204,8 +202,7 @@ export default function JoinMinistryScreen() {
             await insert("group_members", {
               group_id: groupId,
               user_id: user.id,
-              role: isChurchAdmin ? "admin" : "member",
-              joined_at: new Date().toISOString()
+              role: isChurchAdmin ? "admin" : "member"
             });
           }
         } catch (groupError) {
