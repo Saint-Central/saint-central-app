@@ -2297,7 +2297,7 @@ const DailyTasks2025: React.FC = () => {
         )}
         <ScrollView
           ref={scrollViewRef}
-          style={[styles.content, { marginTop: -20 }]}
+          style={[styles.content, { marginTop: 10 }]}
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -3729,7 +3729,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calendarContainer: { paddingBottom: 20, marginTop: 8 },
+  calendarContainer: { paddingBottom: 20, marginTop: 20 },
   // Modern Month Header Styles
   modernMonthHeader: {
     flexDirection: "row",
@@ -3737,6 +3737,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
+    marginTop: 10,
     marginBottom: 16,
     backgroundColor: 'rgba(26, 26, 26, 0.8)',
     borderRadius: 16,
