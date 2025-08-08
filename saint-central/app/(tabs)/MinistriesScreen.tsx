@@ -34,6 +34,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import theme from "@/theme";
 
 // Get screen dimensions
 const { width, height } = Dimensions.get("window");
@@ -73,26 +74,6 @@ const ADMIN_ROLES = ["admin", "owner"];
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-// Theme colors
-const THEME = {
-  primary: "#4F46E5", // Indigo
-  primaryLight: "#818CF8",
-  primaryDark: "#3730A3",
-  secondary: "#10B981", // Emerald
-  secondaryLight: "#34D399",
-  accent: "#F59E0B", // Amber
-  background: "#FFFFFF",
-  surface: "#F8FAFC",
-  text: "#1E293B",
-  textSecondary: "#64748B",
-  textLight: "#94A3B8",
-  border: "#E2E8F0",
-  error: "#EF4444",
-  success: "#10B981",
-  divider: "#CBD5E1",
-  ripple: "rgba(79, 70, 229, 0.1)",
-};
-
 // Format time to display
 const formatTime = (timestamp: string): string => {
   const date = new Date(timestamp);
@@ -124,10 +105,10 @@ const formatTime = (timestamp: string): string => {
 // Get avatar color based on ministry name
 const getAvatarColor = (name: string): string => {
   const colors = [
-    THEME.primary,
+    theme.primary,
     "#7C3AED", // Violet
     "#EC4899", // Pink
-    THEME.secondary,
+    theme.secondary,
     "#3B82F6", // Blue
     "#8B5CF6", // Purple
     "#F97316", // Orange
@@ -169,7 +150,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [searchText, setSearchText] = useState<string>("");
-  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [userChurchId, setUserChurchId] = useState<number | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
@@ -177,7 +157,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const fabAnim = useRef(new Animated.Value(1)).current;
 
   // Create animation values for each UI element
   const headerFadeAnim = useRef(new Animated.Value(0)).current;
@@ -287,27 +266,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     return unsubscribe;
   }, [navigation]);
 
-  // Handle FAB visibility based on scroll
-  useEffect(() => {
-    const listenerId = scrollY.addListener(({ value }) => {
-      // Hide FAB when scrolling down, show when scrolling up
-      if (value > 120) {
-        Animated.spring(fabAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
-      } else {
-        Animated.spring(fabAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-        }).start();
-      }
-    });
-
-    return () => {
-      scrollY.removeListener(listenerId);
-    };
-  }, []);
 
   // Header animations based on scroll
   const headerOpacity = scrollY.interpolate({
@@ -322,11 +280,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     extrapolate: "clamp",
   });
 
-  // FAB animation
-  const fabTranslateY = fabAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [100, 0],
-  });
 
   async function fetchData(): Promise<void> {
     try {
@@ -500,7 +453,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
       setError(error instanceof Error ? error : new Error("Unknown error"));
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }
 
@@ -556,17 +508,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     // Haptic feedback
     if (Platform.OS === "ios") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-
-    // Check if user is admin first
-    if (!isAdmin) {
-      // Show alert for non-admin users
-      Alert.alert(
-        "Admin Access Required",
-        "Only church admin and owner can create a new ministry.",
-        [{ text: "OK", style: "default" }],
-      );
-      return;
     }
 
     try {
@@ -785,11 +726,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
     ]);
   };
 
-  // Handle pull to refresh
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
 
   // Focus search input
   const focusSearch = () => {
@@ -922,7 +858,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
                   {item.name}
                 </Text>
                 {item.private && (
-                  <Ionicons name="lock-closed" size={14} color={THEME.primary} style={styles.privateLockIcon} />
+                  <Ionicons name="lock-closed" size={14} color={theme.primary} style={styles.privateLockIcon} />
                 )}
               </View>
               <Text style={styles.ministryTimestamp}>{formatTime(item.created_at)}</Text>
@@ -935,33 +871,37 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             </View>
 
             <View style={styles.ministryChurchRow}>
-              <Ionicons name="home-outline" size={14} color={THEME.textLight} />
-              <Text style={styles.ministryChurchName} numberOfLines={1}>
-                {item.church_name || "Unknown Church"}
-              </Text>
-
-              <View style={styles.ministryMeta}>
-                {(item.member_count ?? 0) > 0 && (
-                  <View style={styles.memberCountBadge}>
-                    <Text style={styles.memberCountText}>{item.member_count}</Text>
-                  </View>
-                )}
-
-                {item.is_member && (
-                  <View style={styles.memberStatusBadge}>
-                    <MaterialIcons
-                      name="check-circle"
-                      size={14}
-                      color="#FFFFFF"
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={styles.memberStatusText}>Member</Text>
-                  </View>
-                )}
+              <View style={styles.ministryChurchInfo}>
+                <Ionicons name="home-outline" size={14} color={theme.textLight} />
+                <Text style={styles.ministryChurchName} numberOfLines={1}>
+                  {item.church_name || "Unknown Church"}
+                </Text>
               </View>
+
+              {(item.member_count ?? 0) > 0 && (
+                <View style={styles.memberCountBadge}>
+                  <MaterialCommunityIcons name="account-group" size={12} color={theme.primary} />
+                  <Text style={styles.memberCountText}>{item.member_count}</Text>
+                </View>
+              )}
             </View>
+
+            {item.is_member && (
+              <View style={styles.memberStatusRow}>
+                <View style={styles.memberStatusBadge}>
+                  <MaterialIcons
+                    name="check-circle"
+                    size={14}
+                    color={theme.primary}
+                  />
+                  <Text style={styles.memberStatusText}>Joined</Text>
+                </View>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
+        {/* Modern divider */}
+        <View style={styles.ministryDivider} />
       </Animated.View>
     );
   };
@@ -979,7 +919,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   );
 
   // Loading screen with Lottie animation
-  if (loading && !refreshing) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <View style={styles.loadingContent}>
@@ -1032,7 +972,6 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.errorGradient}>
           <View style={styles.errorContainer}>
             <Animated.View
               style={[
@@ -1051,7 +990,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
               ]}
             >
               <LinearGradient
-                colors={["#FF6B6B", "#FF006E"]}
+                colors={theme.gradientDanger}
                 style={styles.errorIconGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -1110,7 +1049,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             >
               <TouchableOpacity style={styles.errorButton} onPress={navigateToHome}>
                 <LinearGradient
-                  colors={[THEME.primary, THEME.primaryDark]}
+                  colors={theme.gradientPrimary}
                   style={styles.errorButtonGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -1120,14 +1059,13 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
               </TouchableOpacity>
             </Animated.View>
           </View>
-        </LinearGradient>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Floating header effect */}
       <Animated.View
@@ -1143,7 +1081,7 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           },
         ]}
       >
-        <BlurView intensity={85} tint="light" style={styles.blurView} />
+        <BlurView intensity={90} tint="dark" style={styles.blurView} />
       </Animated.View>
 
       {/* Header */}
@@ -1166,28 +1104,30 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         <View style={styles.headerLeft}>
           <TouchableOpacity style={styles.backButton} onPress={navigateToHome} activeOpacity={0.7}>
             <View style={styles.backButtonContainer}>
-              <Ionicons name="arrow-back" size={22} color={THEME.primary} />
+              <Ionicons name="arrow-back" size={22} color={theme.primary} />
             </View>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Ministries</Text>
         </View>
 
-        {/* Create Ministry Button */}
-        <TouchableOpacity
-          style={styles.createMinistryButton}
-          onPress={navigateToCreateMinistry}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={[THEME.primary, THEME.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.createButtonGradient}
+        {/* Create Ministry Button - Only for admin/owner */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.createMinistryButton}
+            onPress={navigateToCreateMinistry}
+            activeOpacity={0.8}
           >
-            <MaterialIcons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.createButtonText}>New</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={theme.gradientPrimary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.createButtonGradient}
+            >
+              <MaterialIcons name="add" size={18} color="#000" />
+              <Text style={styles.createButtonText}>New</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </Animated.View>
 
       {/* Search Box */}
@@ -1218,14 +1158,14 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           <Ionicons
             name="search"
             size={20}
-            color={isSearchFocused ? THEME.primary : THEME.textLight}
+            color={isSearchFocused ? theme.primary : theme.textLight}
             style={styles.searchIcon}
           />
           <TextInput
             ref={searchInputRef}
             style={styles.searchInput}
             placeholder="Search ministries..."
-            placeholderTextColor={THEME.textLight}
+            placeholderTextColor={theme.textLight}
             value={searchText}
             onChangeText={setSearchText}
             returnKeyType="search"
@@ -1261,14 +1201,9 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
           ]}
         >
           <View style={styles.emptyStateIconContainer}>
-            <LinearGradient
-              colors={["#E2E8F0", "#CBD5E1"]}
-              style={styles.emptyStateIconBackground}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <FontAwesome5 name="church" size={40} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.emptyStateIconBackground}>
+              <FontAwesome5 name="church" size={48} color={theme.primary} />
+            </View>
           </View>
           <Text style={styles.emptyStateTitle}>No Ministries Found</Text>
           <Text style={styles.emptyStateSubtitle}>
@@ -1282,12 +1217,12 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[THEME.primary, THEME.primaryDark]}
+                colors={theme.gradientPrimary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.emptyStateButtonGradient}
               >
-                <MaterialIcons name="add" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <MaterialIcons name="add" size={18} color="#000" style={{ marginRight: 6 }} />
                 <Text style={styles.emptyStateButtonText}>Add New Ministry</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1326,38 +1261,12 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
             })}
             scrollEventThrottle={16}
             ListFooterComponent={() => <View style={styles.listFooter} />}
-            onRefresh={handleRefresh}
-            refreshing={refreshing}
             stickySectionHeadersEnabled={true}
             contentContainerStyle={styles.listContent}
           />
         )}
       </Animated.View>
 
-      {/* Add Ministry Button (FAB) */}
-      <Animated.View
-        style={[
-          styles.fabContainer,
-          {
-            transform: [{ translateY: fabTranslateY }],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.addMinistryButton}
-          onPress={navigateToCreateMinistry}
-          activeOpacity={0.9}
-        >
-          <LinearGradient
-            colors={[THEME.primary, THEME.primaryDark]}
-            style={styles.fabGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <MaterialIcons name="add" size={28} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
 
       {/* Scroll to top button (appears when scrolling) */}
       <Animated.View
@@ -1377,8 +1286,8 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
         ]}
       >
         <TouchableOpacity style={styles.scrollTopButton} onPress={scrollToTop} activeOpacity={0.8}>
-          <BlurView intensity={90} tint="light" style={styles.scrollTopBlur}>
-            <Feather name="chevron-up" size={20} color={THEME.primary} />
+          <BlurView intensity={90} tint="dark" style={styles.scrollTopBlur}>
+            <Feather name="chevron-up" size={20} color={theme.primary} />
           </BlurView>
         </TouchableOpacity>
       </Animated.View>
@@ -1387,9 +1296,15 @@ export default function SimplifiedMinistriesScreen(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  ministryDivider: {
+    height: 1,
+    backgroundColor: theme.divider,
+    marginLeft: 84,
+    opacity: 0.3,
+  },
   container: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   floatingHeader: {
     position: "absolute",
@@ -1398,11 +1313,18 @@ const styles = StyleSheet.create({
     right: 0,
     height: Platform.OS === "ios" ? 96 : 70,
     zIndex: 100,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(203, 213, 225, 0.5)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 10,
+    borderBottomWidth: 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   blurView: {
     ...StyleSheet.absoluteFillObject,
@@ -1414,10 +1336,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingTop: Platform.OS === "ios" ? 40 : 16,
-    backgroundColor: THEME.background,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingTop: Platform.OS === "ios" ? 56 : 24,
+    backgroundColor: theme.pageBg,
     zIndex: 10,
   },
   headerLeft: {
@@ -1425,69 +1347,62 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   backButton: {
-    marginRight: 14,
+    marginRight: 12,
   },
   backButtonContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: `${THEME.primary}10`,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 0,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: THEME.text,
-    letterSpacing: -0.5,
+    fontSize: 34,
+    fontWeight: "800",
+    color: theme.textWhite,
+    letterSpacing: -1,
   },
 
   // Search styles
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 14,
-    backgroundColor: THEME.background,
+    paddingHorizontal: 24,
+    paddingTop: 0,
+    paddingBottom: 20,
+    backgroundColor: theme.pageBg,
     zIndex: 5,
   },
   searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 46,
-    borderWidth: 1,
-    borderColor: THEME.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    height: 48,
+    borderWidth: 0,
   },
   searchInputContainerFocused: {
-    borderColor: THEME.primary,
-    shadowColor: THEME.primary,
-    shadowOpacity: 0.15,
-    backgroundColor: `${THEME.primary}05`,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    height: 46,
-    color: THEME.text,
-    fontSize: 16,
+    height: 48,
+    color: theme.textWhite,
+    fontSize: 17,
+    fontWeight: "500",
   },
   clearButton: {
     padding: 4,
   },
   clearButtonCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: THEME.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1497,32 +1412,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: THEME.surface,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: theme.pageBg,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 8,
   },
   sectionHeaderText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "700",
-    color: THEME.text,
-    letterSpacing: -0.3,
+    color: theme.textLight,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    opacity: 0.7,
   },
   sectionHeaderBadge: {
-    backgroundColor: THEME.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   sectionHeaderBadgeText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.primary,
+    fontWeight: "700",
     fontSize: 12,
   },
 
@@ -1537,104 +1448,87 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyStateIconBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 32,
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
     justifyContent: "center",
     alignItems: "center",
   },
   emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: THEME.text,
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    fontSize: 28,
+    fontWeight: "800",
+    color: theme.textWhite,
+    marginBottom: 16,
+    letterSpacing: -0.8,
   },
   emptyStateSubtitle: {
-    fontSize: 16,
-    color: THEME.textSecondary,
+    fontSize: 17,
+    fontWeight: "500",
+    color: theme.textLight,
     textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 22,
+    marginBottom: 40,
+    lineHeight: 24,
+    opacity: 0.8,
   },
   emptyStateButton: {
-    width: "80%",
-    maxWidth: 300,
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    overflow: "hidden",
+    borderRadius: 16,
   },
   emptyStateButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
   },
   emptyStateButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#000",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
 
   // Main list styles
   mainList: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 0,
+    paddingBottom: 120,
     paddingTop: 8,
   },
 
-  // Ministry item styles
+  // Ministry item styles - WhatsApp/iMessage like
   ministryItem: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: THEME.background,
-    marginBottom: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: THEME.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: theme.pageBg,
   },
   ministryAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   ministryAvatarImageContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     overflow: "hidden",
-    borderWidth: 2,
-    borderColor: THEME.background,
   },
   ministryAvatarImage: {
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
   },
   ministryAvatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -1643,6 +1537,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#FFFFFF",
+    letterSpacing: -0.5,
   },
   ministryContent: {
     flex: 1,
@@ -1651,135 +1546,118 @@ const styles = StyleSheet.create({
   ministryHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 6,
   },
   ministryNameContainer: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    marginRight: 8,
   },
   ministryName: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "700",
-    color: THEME.text,
+    color: theme.textWhite,
     letterSpacing: -0.3,
   },
   privateLockIcon: {
-    marginLeft: 6,
+    marginLeft: 8,
   },
   ministryTimestamp: {
-    fontSize: 12,
-    color: THEME.textLight,
-    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.textLight,
+    opacity: 0.6,
   },
   ministryDescriptionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 8,
   },
   ministryDescription: {
-    fontSize: 14,
-    color: THEME.textSecondary,
+    fontSize: 16,
+    fontWeight: "400",
+    color: theme.textLight,
     flex: 1,
-    letterSpacing: -0.2,
+    lineHeight: 22,
+    opacity: 0.8,
   },
   ministryChurchRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    justifyContent: "space-between",
+    marginTop: 2,
   },
-  ministryChurchName: {
-    fontSize: 13,
-    color: THEME.textLight,
-    marginLeft: 4,
-    flex: 1,
-    fontStyle: "italic",
-  },
-  ministryMeta: {
+  ministryChurchInfo: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+  },
+  memberStatusRow: {
+    marginTop: 8,
+  },
+  ministryChurchName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.textLight,
+    marginLeft: 6,
+    flex: 1,
+    opacity: 0.7,
   },
   memberCountBadge: {
-    backgroundColor: THEME.secondary,
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
+    flexDirection: "row",
     alignItems: "center",
-    marginLeft: 10,
-    paddingHorizontal: 8,
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 4,
   },
   memberCountText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
+    color: theme.primary,
+    fontSize: 13,
+    fontWeight: "600",
   },
   memberStatusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.primary,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginLeft: 10,
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    gap: 6,
   },
   memberStatusText: {
-    color: "#FFFFFF",
-    fontSize: 11,
+    color: theme.primary,
+    fontSize: 14,
     fontWeight: "600",
+    letterSpacing: -0.2,
   },
 
   // Create button in header
   createMinistryButton: {
     overflow: "hidden",
-    borderRadius: 22,
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 12,
   },
   createButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
   },
   createButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 14,
-    marginLeft: 4,
+    color: "#000",
+    fontWeight: "700",
+    fontSize: 15,
+    marginLeft: 6,
+    letterSpacing: -0.2,
   },
 
-  // FAB styles
-  fabContainer: {
-    position: "absolute",
-    bottom: 24,
-    right: 24,
-    zIndex: 10,
-  },
-  addMinistryButton: {
-    width: 56,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: THEME.primaryDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  fabGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   listFooter: {
-    height: 80, // Space for FAB
+    height: 100, // Extra space at bottom
   },
 
   // Loading state
@@ -1787,7 +1665,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: THEME.background,
+    backgroundColor: theme.pageBg,
   },
   loadingContent: {
     alignItems: "center",
@@ -1802,11 +1680,12 @@ const styles = StyleSheet.create({
     height: 120,
   },
   loadingText: {
-    marginTop: 8,
-    fontSize: 18,
+    marginTop: 12,
+    fontSize: 19,
     fontWeight: "600",
-    color: THEME.text,
-    letterSpacing: -0.3,
+    color: theme.textWhite,
+    letterSpacing: -0.4,
+    opacity: 0.8,
   },
 
   // Error state
@@ -1818,14 +1697,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
+    backgroundColor: theme.pageBg,
   },
   errorIconContainer: {
     marginBottom: 24,
-    shadowColor: "#FF006E",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   errorIconGradient: {
     width: 80,
@@ -1835,62 +1710,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   errorTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: THEME.text,
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    fontSize: 28,
+    fontWeight: "800",
+    color: theme.textWhite,
+    marginBottom: 16,
+    letterSpacing: -0.8,
   },
   errorText: {
     fontSize: 16,
-    color: THEME.textSecondary,
+    color: theme.textLight,
     textAlign: "center",
     marginBottom: 32,
     maxWidth: "80%",
     lineHeight: 22,
   },
   errorButton: {
-    width: "80%",
-    maxWidth: 300,
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    overflow: "hidden",
+    borderRadius: 24,
   },
   errorButtonGradient: {
-    borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: "center",
   },
   errorButtonText: {
-    color: "#FFFFFF",
+    color: "#000",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: theme.fontSemiBold,
   },
 
   // Scroll to top button
   scrollTopButtonContainer: {
     position: "absolute",
-    bottom: 90,
+    bottom: 32,
     right: 24,
     zIndex: 9,
   },
   scrollTopButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     overflow: "hidden",
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 0,
   },
   scrollTopBlur: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
   },
