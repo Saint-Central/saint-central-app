@@ -401,7 +401,17 @@ const MinistryChat = () => {
               };
 
               // Add to state with animation flag
-              setMessages((prev) => [formattedMessage, ...prev]);
+              console.log('Adding new real-time message to state:', formattedMessage.id);
+              setMessages((prev) => {
+                // Check if message already exists to prevent duplicates
+                const exists = prev.find(msg => msg.id === formattedMessage.id);
+                if (exists) {
+                  console.log('Message already exists, skipping:', formattedMessage.id);
+                  return prev;
+                }
+                console.log('Adding new message to top of list');
+                return [formattedMessage, ...prev];
+              });
 
               // Update unread count if scrolled up
               if (isScrolledUp && !isCurrentUserMessage) {
@@ -762,63 +772,124 @@ const MinistryChat = () => {
 
       console.log("Query options:", JSON.stringify(queryOptions, null, 2));
 
-      let data = await select("ministry_messages", queryOptions);
+      // Skip CRUD API for now - it has stale data, use direct Supabase with AuthContext auth
+      console.log("⚠️ Using direct Supabase due to CRUD API data sync issues");
+      console.log("Pagination info - isInitial:", isInitial, "lastTimestamp:", lastMessageTimestamp);
+      
+      // Get auth token from AuthContext and set it for Supabase
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("No auth token available from AuthContext");
+      }
+      
+      // Set the auth token for this Supabase call
+      supabase.auth.getSession = () => Promise.resolve({ 
+        data: { 
+          session: { 
+            access_token: accessToken,
+            user: user 
+          } 
+        }, 
+        error: null 
+      });
+      
+      // Build query with proper pagination
+      let query = supabase
+        .from('ministry_messages')
+        .select('id, ministry_id, user_id, message_text, sent_at, attachment_url')
+        .eq('ministry_id', ministryId)
+        .order('sent_at', { ascending: false });
+        
+      // For pagination (not initial load), filter by timestamp
+      if (!isInitial && lastMessageTimestamp) {
+        console.log("Adding timestamp filter for pagination: sent_at < ", lastMessageTimestamp);
+        query = query.lt('sent_at', lastMessageTimestamp);
+      }
+      
+      // Set limit
+      query = query.limit(MESSAGES_PER_PAGE + 1); // Get one extra to check if there are more
+      
+      const { data, error: supabaseError } = await query;
+        
+      if (supabaseError) {
+        console.error("Direct Supabase query failed:", supabaseError);
+        throw supabaseError;
+      }
+      
+      console.log("✅ Messages fetched via direct Supabase with AuthContext token");
 
       console.log(`Fetched ${data?.length || 0} messages`);
 
-      if (data && data.length > 0) {
-        // Sort client-side by sent_at descending (newest first)
-        data = data.sort(
-          (a: any, b: any) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime(),
-        );
+      let processedData = data;
+      let hasMore = false;
+      
+      if (processedData && processedData.length > 0) {
+        console.log('📅 Raw messages from Supabase (showing first 5 with dates):');
+        processedData.slice(0, 5).forEach((msg, idx) => {
+          console.log(`${idx + 1}. ID: ${msg.id}, sent_at: ${msg.sent_at}, text: ${msg.message_text?.substring(0, 30)}...`);
+        });
 
-        // For initial load, take only the most recent messages
-        if (isInitial) {
-          data = data.slice(0, MESSAGES_PER_PAGE);
+        // Check if there are more messages (we fetched MESSAGES_PER_PAGE + 1)
+        hasMore = processedData.length > MESSAGES_PER_PAGE;
+        if (hasMore) {
+          // Remove the extra message used for hasMore detection
+          processedData = processedData.slice(0, MESSAGES_PER_PAGE);
+          console.log(`🔄 More messages available after these ${processedData.length}`);
         } else {
-          // For pagination, skip the messages we already have
-          const currentMessageIds = messages.map((m) => m.id);
-          data = data.filter((msg) => !currentMessageIds.includes(msg.id));
-          data = data.slice(0, MESSAGES_PER_PAGE);
+          console.log(`✅ Last batch: ${processedData.length} messages (no more available)`);
         }
 
-        console.log(`After sorting and filtering: ${data?.length || 0} messages`);
+        // Supabase already returns them ordered by sent_at DESC, so no need to sort
+        console.log('📅 Messages are already ordered by Supabase (newest first)');
+        
+        // For pagination, we don't need to filter duplicates because we're using timestamp filtering
+        console.log(`📊 Final result: ${processedData?.length || 0} messages to display`);
+      } else {
+        console.log('❌ No messages returned from Supabase');
+        processedData = [];
+        hasMore = false;
       }
 
-      if (data) {
-        // Update pagination state
-        if (data.length < MESSAGES_PER_PAGE) {
-          console.log("No more messages to fetch");
-          setHasMoreMessages(false);
-        } else {
-          setHasMoreMessages(true);
-        }
+      if (processedData) {
+        // Update pagination state based on hasMore detection
+        setHasMoreMessages(hasMore);
+        console.log("Updated hasMoreMessages to:", hasMore);
 
         // Set last message timestamp for next pagination if there's data
-        if (data.length > 0) {
-          const oldestMessage = data[data.length - 1];
+        if (processedData.length > 0) {
+          const oldestMessage = processedData[processedData.length - 1];
           console.log("Setting last timestamp:", oldestMessage.sent_at);
           setLastMessageTimestamp(oldestMessage.sent_at);
         }
 
-        // Fetch user details for each message using CRUD API
+        // Fetch user details for each message - use CRUD API for user data (should be more reliable)
         const messagesWithUsers = await Promise.all(
-          data.map(async (message) => {
-            const userData = await selectOne("users", {
-              select: "first_name, last_name, profile_image",
-              where: { id: message.user_id },
-            });
+          processedData.map(async (message) => {
+            try {
+              const userData = await selectOne("users", {
+                select: "first_name, last_name, profile_image",
+                where: { id: message.user_id },
+              });
 
-            const fullName = userData
-              ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
-              : "Unknown User";
+              const fullName = userData
+                ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
+                : "Unknown User";
 
-            return {
-              ...message,
-              sender_name: fullName,
-              sender_avatar_url: userData?.profile_image,
-              is_current_user: message.user_id === user.id,
-            };
+              return {
+                ...message,
+                sender_name: fullName,
+                sender_avatar_url: userData?.profile_image,
+                is_current_user: message.user_id === user.id,
+              };
+            } catch (userError) {
+              console.error("Failed to fetch user data for message:", message.id, userError);
+              return {
+                ...message,
+                sender_name: "Unknown User",
+                sender_avatar_url: null,
+                is_current_user: message.user_id === user.id,
+              };
+            }
           }),
         );
 
@@ -949,10 +1020,17 @@ const MinistryChat = () => {
         message_text: typeof newMessage.message_text,
         sent_at: typeof newMessage.sent_at,
         attachment_url: typeof newMessage.attachment_url,
-        push_sent: typeof newMessage.push_sent,
       });
+      
+      // Test auth token
+      const testToken = await getAccessToken();
+      console.log("Auth token available:", !!testToken);
 
+      let messageData = null;
+      let messageId = null;
+      
       try {
+        // Try CRUD API first
         const messageResponse = await insert("ministry_messages", newMessage);
         console.log("=== CRUD API RESPONSE ===");
         console.log("Raw response:", JSON.stringify(messageResponse, null, 2));
@@ -960,22 +1038,62 @@ const MinistryChat = () => {
         console.log("Is array:", Array.isArray(messageResponse));
 
         // Handle case where API returns an array with the inserted record
-        const messageData = Array.isArray(messageResponse) ? messageResponse[0] : messageResponse;
+        messageData = Array.isArray(messageResponse) ? messageResponse[0] : messageResponse;
         console.log("Processed messageData:", JSON.stringify(messageData, null, 2));
 
         if (!messageData) {
           console.error("No message data returned from CRUD API");
-          throw new Error("No message data returned from CRUD API");
+          throw new Error("No message data returned from CRUD API - trying Supabase direct");
         }
-
-        // Check different possible ID field names
-        const messageId = messageData.id || messageData._id || messageData.message_id;
-        console.log("Message ID found:", messageId);
+        
+        messageId = messageData.id || messageData._id || messageData.message_id;
+      } catch (crudError) {
+        console.error("CRUD API failed, falling back to direct Supabase:", crudError);
+        
+        try {
+          // Fallback to direct Supabase insert with AuthContext auth
+          const fallbackToken = await getAccessToken();
+          if (!fallbackToken) {
+            throw new Error("No auth token available from AuthContext for fallback");
+          }
+          
+          // Set the auth token for this Supabase call
+          supabase.auth.getSession = () => Promise.resolve({ 
+            data: { 
+              session: { 
+                access_token: fallbackToken,
+                user: user 
+              } 
+            }, 
+            error: null 
+          });
+          
+          const { data: supabaseData, error: supabaseError } = await supabase
+            .from('ministry_messages')
+            .insert([newMessage])
+            .select()
+            .single();
+            
+          if (supabaseError) {
+            console.error("Supabase direct insert error:", supabaseError);
+            throw supabaseError;
+          }
+          
+          messageData = supabaseData;
+          messageId = supabaseData?.id;
+          console.log("✅ Message saved via direct Supabase with AuthContext token:", messageId);
+        } catch (supabaseDirectError) {
+          console.error("Both CRUD API and direct Supabase failed:", supabaseDirectError);
+          throw new Error("Failed to save message via both CRUD API and direct Supabase");
+        }
+      }
+      
+      console.log("Message ID found:", messageId);
 
         if (!messageId) {
           console.error(
             "No ID field found in response. Available fields:",
-            Object.keys(messageData),
+            messageData ? Object.keys(messageData) : "No messageData",
           );
           throw new Error("Failed to save message - no ID returned");
         }
@@ -1016,15 +1134,8 @@ const MinistryChat = () => {
           }
         }, 1000);
 
-        // Trigger notifications
-        await triggerNotifications(messageId);
-      } catch (insertError) {
-        console.error("=== CRUD INSERT ERROR ===");
-        console.error("Error type:", typeof insertError);
-        console.error("Error message:", insertError.message);
-        console.error("Full error:", JSON.stringify(insertError, null, 2));
-        throw insertError;
-      }
+      // Trigger notifications
+      await triggerNotifications(messageId);
 
       // Real-time subscription will handle adding the message to the list
     } catch (error) {
