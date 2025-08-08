@@ -1359,10 +1359,11 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: "800",
+    fontSize: 36,
+    fontWeight: "900",
     color: theme.textWhite,
-    letterSpacing: -1,
+    letterSpacing: -1.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
   },
 
   // Search styles
@@ -1393,7 +1394,9 @@ const styles = StyleSheet.create({
     height: 48,
     color: theme.textWhite,
     fontSize: 17,
-    fontWeight: "500",
+    fontWeight: "400",
+    letterSpacing: -0.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
   },
   clearButton: {
     padding: 4,
@@ -1418,12 +1421,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionHeaderText: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "800",
     color: theme.textLight,
-    letterSpacing: 1.2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
-    opacity: 0.7,
+    opacity: 0.6,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
   },
   sectionHeaderBadge: {
     backgroundColor: "rgba(245, 158, 11, 0.2)",
@@ -1556,19 +1560,23 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   ministryName: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "700",
     color: theme.textWhite,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+    lineHeight: 24,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
   },
   privateLockIcon: {
     marginLeft: 8,
   },
   ministryTimestamp: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: theme.textLight,
-    opacity: 0.6,
+    opacity: 0.65,
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   ministryDescriptionRow: {
     flexDirection: "row",
@@ -1581,8 +1589,10 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: theme.textLight,
     flex: 1,
-    lineHeight: 22,
-    opacity: 0.8,
+    lineHeight: 24,
+    opacity: 0.85,
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
   },
   ministryChurchRow: {
     flexDirection: "row",
@@ -1604,7 +1614,9 @@ const styles = StyleSheet.create({
     color: theme.textLight,
     marginLeft: 6,
     flex: 1,
-    opacity: 0.7,
+    opacity: 0.75,
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   memberCountBadge: {
     flexDirection: "row",
@@ -1617,8 +1629,10 @@ const styles = StyleSheet.create({
   },
   memberCountText: {
     color: theme.primary,
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: -0.1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
   },
   memberStatusBadge: {
     flexDirection: "row",
@@ -1632,9 +1646,10 @@ const styles = StyleSheet.create({
   },
   memberStatusText: {
     color: theme.primary,
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     letterSpacing: -0.2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
   },
 
   // Create button in header
@@ -1650,10 +1665,11 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: "#000",
-    fontWeight: "700",
+    fontWeight: "800",
     fontSize: 15,
     marginLeft: 6,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
   },
 
   listFooter: {
