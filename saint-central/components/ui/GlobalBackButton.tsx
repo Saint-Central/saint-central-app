@@ -39,7 +39,8 @@ export default function GlobalBackButton() {
   const isChurchEventsPage = pathname === '/church_events' || pathname === '/(tabs)/church_events' || pathname.includes('/church_events/');
   const isCommunityPage = pathname === '/community' || pathname === '/(tabs)/community';
   const isPrayerBoardPage = pathname === '/churchPrayerBoard' || pathname === '/(tabs)/churchPrayerBoard';
-  const shouldHideButton = isAuthPage || isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage || isPrayerBoardPage;
+  const isMinistryChat = pathname === '/ministry-chat' || pathname === '/(tabs)/ministry-chat' || pathname.includes('/ministry-chat/');
+  const shouldHideButton = isAuthPage || isHomePage || isCoursesPage || isChurchMembersPage || isVolunteeringPage || isCreateVolunteerPage || isLent2025Page || isEventsPage || isMinistriesPage || isDiscoverPage || isFaithPage || isWomensMinistryPage || isCultureTestimoniesPage || isNewsPage || isBiblePage || isChurchEventsPage || isCommunityPage || isPrayerBoardPage || isMinistryChat;
   
   // Check if on Prayer Intentions page for special positioning
   const isPrayerIntentionsPage = pathname === '/PrayerIntentions' || pathname === '/(tabs)/PrayerIntentions';

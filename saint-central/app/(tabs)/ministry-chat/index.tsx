@@ -46,24 +46,27 @@ import * as Device from "expo-device";
 
 const { width, height } = Dimensions.get("window");
 
-// Theme colors
+// WhatsApp Theme colors
 const THEME = {
-  primary: "#4F46E5", // Indigo
-  primaryLight: "#818CF8",
-  primaryDark: "#3730A3",
-  secondary: "#10B981", // Emerald
-  secondaryLight: "#34D399",
-  accent: "#F59E0B", // Amber
-  background: "#FFFFFF",
-  surface: "#F8FAFC",
-  text: "#1E293B",
-  textSecondary: "#64748B",
-  textLight: "#94A3B8",
-  border: "#E2E8F0",
-  error: "#EF4444",
-  success: "#10B981",
-  divider: "#CBD5E1",
-  ripple: "rgba(79, 70, 229, 0.1)",
+  primary: "#25D366", // WhatsApp Green
+  primaryLight: "#34E675",
+  primaryDark: "#128C7E",
+  secondary: "#075E54", // WhatsApp Dark Green
+  secondaryLight: "#25D366",
+  accent: "#128C7E",
+  background: "#ECE5DD", // WhatsApp Chat Background
+  surface: "#FFFFFF",
+  text: "#111B21",
+  textSecondary: "#667781",
+  textLight: "#8696A0",
+  border: "#E9EDEF",
+  error: "#EA5455",
+  success: "#25D366",
+  divider: "#E9EDEF",
+  ripple: "rgba(37, 211, 102, 0.1)",
+  messageGreen: "#E7FFDB", // Sent message background
+  headerGreen: "#008069", // Header background
+  inputBg: "#F0F2F5", // Input area background
 };
 
 // Message interface
@@ -109,6 +112,13 @@ const MinistryChat = () => {
   const ministryId = (route.params as RouteParams)?.id
     ? parseInt((route.params as RouteParams).id)
     : null;
+
+  // Hide the default header navigation for this screen
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   // Initialize CRUD client and auth
   const { select, selectOne, insert, update, delete: deleteRecord } = useCRUD();
@@ -271,20 +281,17 @@ const MinistryChat = () => {
     };
   }, []);
 
-  // Update the animation type for scrollToBottomAnimatedStyle
-  const scrollToBottomAnimatedStyle = useSharedValue({
-    opacity: 0,
-    transform: [{ scale: 0.8 }, { translateY: 20 }],
-    bottom: 90,
-  });
+  // Separate shared values for scroll to bottom button
+  const scrollToBottomOpacity = useSharedValue(0);
+  const scrollToBottomScale = useSharedValue(0.8);
+  const scrollToBottomTranslateY = useSharedValue(20);
 
   // Update unread message indicator
   useEffect(() => {
     if (unreadMessages > 0) {
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 1,
-      };
+      scrollToBottomOpacity.value = withTiming(1, { duration: 200 });
+      scrollToBottomScale.value = withSpring(1);
+      scrollToBottomTranslateY.value = withTiming(0, { duration: 200 });
     }
   }, [unreadMessages]);
 
@@ -399,10 +406,9 @@ const MinistryChat = () => {
               // Update unread count if scrolled up
               if (isScrolledUp && !isCurrentUserMessage) {
                 setUnreadMessages((prev) => prev + 1);
-                scrollToBottomAnimatedStyle.value = {
-                  ...scrollToBottomAnimatedStyle.value,
-                  opacity: 1,
-                };
+                scrollToBottomOpacity.value = withTiming(1, { duration: 200 });
+                scrollToBottomScale.value = withSpring(1);
+                scrollToBottomTranslateY.value = withTiming(0, { duration: 200 });
 
                 // Haptic feedback
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -891,10 +897,9 @@ const MinistryChat = () => {
 
       setIsScrolledUp(false);
       setUnreadMessages(0);
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 0,
-      };
+      scrollToBottomOpacity.value = withTiming(0, { duration: 200 });
+      scrollToBottomScale.value = withTiming(0.8, { duration: 200 });
+      scrollToBottomTranslateY.value = withTiming(20, { duration: 200 });
 
       // Now set sending state and show animation
       setSending(true);
@@ -1182,22 +1187,18 @@ const MinistryChat = () => {
     if (offsetY > 70 && !isScrolledUp) {
       setIsScrolledUp(true);
 
-      // Update animated value with smooth timing
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 1,
-        transform: [{ scale: 1 }, { translateY: 0 }],
-      };
+      // Show scroll to bottom button
+      scrollToBottomOpacity.value = withTiming(1, { duration: 200 });
+      scrollToBottomScale.value = withSpring(1);
+      scrollToBottomTranslateY.value = withTiming(0, { duration: 200 });
     } else if (offsetY <= 20 && isScrolledUp) {
       setIsScrolledUp(false);
       setUnreadMessages(0);
 
-      // Update animated value with smooth timing
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 0,
-        transform: [{ scale: 0.8 }, { translateY: 20 }],
-      };
+      // Hide scroll to bottom button
+      scrollToBottomOpacity.value = withTiming(0, { duration: 200 });
+      scrollToBottomScale.value = withTiming(0.8, { duration: 200 });
+      scrollToBottomTranslateY.value = withTiming(20, { duration: 200 });
     }
   };
 
@@ -1235,20 +1236,16 @@ const MinistryChat = () => {
     setIsScrolledUp(false);
     setUnreadMessages(0);
 
-    // Animate with withSequence for smoother transition
-    scrollToBottomAnimatedStyle.value = {
-      ...scrollToBottomAnimatedStyle.value,
-      opacity: withSequence(withTiming(0.8, { duration: 100 }), withTiming(0, { duration: 200 })),
-      transform: [
-        {
-          scale: withSequence(
-            withTiming(1.1, { duration: 100 }),
-            withTiming(0.8, { duration: 200 }),
-          ),
-        },
-        { translateY: withTiming(20, { duration: 200 }) },
-      ],
-    };
+    // Animate button disappearing
+    scrollToBottomOpacity.value = withSequence(
+      withTiming(0.8, { duration: 100 }),
+      withTiming(0, { duration: 200 })
+    );
+    scrollToBottomScale.value = withSequence(
+      withTiming(1.1, { duration: 100 }),
+      withTiming(0.8, { duration: 200 })
+    );
+    scrollToBottomTranslateY.value = withTiming(20, { duration: 200 });
 
     // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1293,10 +1290,13 @@ const MinistryChat = () => {
   // Animated scroll to bottom button style
   const scrollToBottomButtonStyle = useAnimatedStyle(() => {
     return {
-      opacity: scrollToBottomAnimatedStyle.value.opacity,
-      transform: scrollToBottomAnimatedStyle.value.transform,
+      opacity: scrollToBottomOpacity.value,
+      transform: [
+        { scale: scrollToBottomScale.value },
+        { translateY: scrollToBottomTranslateY.value }
+      ],
       position: "absolute",
-      bottom: keyboardVisible ? 190 : 170,
+      bottom: Platform.OS === 'ios' ? (keyboardVisible ? 190 : 145) : (keyboardVisible ? 180 : 135),
       right: 16,
       zIndex: 100,
     };
@@ -1477,12 +1477,9 @@ const MinistryChat = () => {
 
     return (
       <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
-        <LinearGradient
-          colors={[`${THEME.primary}20`, `${THEME.primary}40`]}
-          style={styles.emptyIconContainer}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={40} color={THEME.primary} />
-        </LinearGradient>
+        <View style={styles.emptyIconContainer}>
+          <Ionicons name="chatbubble-ellipses-outline" size={35} color={THEME.primary} />
+        </View>
         <Text style={styles.emptyTitle}>No messages yet</Text>
         <Text style={styles.emptySubtitle}>Be the first to send a message to this ministry!</Text>
       </View>
@@ -1597,8 +1594,11 @@ const MinistryChat = () => {
 
   // Fixed keyExtractor to ensure unique keys
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor={THEME.headerGreen} />
+      
+      {/* iOS Safe Area Background */}
+      <View style={styles.iosSafeArea} />
 
       {/* Header */}
       <Animated.View style={[styles.header, headerAnimatedStyle]}>
@@ -1613,21 +1613,18 @@ const MinistryChat = () => {
             (navigation as any).navigate("MinistriesScreen");
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={THEME.primary} />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
           {ministry?.image_url ? (
             <Image source={{ uri: ministry.image_url }} style={styles.ministryImage} />
           ) : (
-            <LinearGradient
-              colors={[THEME.primary, THEME.primaryDark]}
-              style={styles.ministryImagePlaceholder}
-            >
+            <View style={styles.ministryImagePlaceholder}>
               <Text style={styles.ministryInitials}>
                 {ministry?.name ? getInitials(ministry.name) : "?"}
               </Text>
-            </LinearGradient>
+            </View>
           )}
 
           <View style={styles.headerTextContainer}>
@@ -1641,7 +1638,7 @@ const MinistryChat = () => {
         </View>
 
         <TouchableOpacity style={styles.infoButton} onPress={() => setShowInfoModal(true)}>
-          <Ionicons name="information-circle-outline" size={24} color={THEME.primary} />
+          <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -1657,6 +1654,7 @@ const MinistryChat = () => {
       <KeyboardAvoidingView
         style={styles.keyboardAvoidView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -1733,23 +1731,16 @@ const MinistryChat = () => {
         )}
 
         {/* Message input */}
-        <Animated.View
-          style={[
-            styles.inputContainer,
-            {
-              marginBottom: keyboardVisible ? 1 : 50, // Adjust margin based on keyboard visibility
-            },
-          ]}
-        >
+        <Animated.View style={styles.inputContainer}>
           <TouchableOpacity
             style={styles.attachButton}
             onPress={handleAttachment}
             disabled={uploading}
           >
             {uploading ? (
-              <ActivityIndicator size="small" color={THEME.primary} />
+              <ActivityIndicator size="small" color={THEME.textSecondary} />
             ) : (
-              <Ionicons name="image-outline" size={26} color={THEME.primary} />
+              <Feather name="paperclip" size={20} color={THEME.textSecondary} />
             )}
           </TouchableOpacity>
 
@@ -1778,7 +1769,7 @@ const MinistryChat = () => {
               {sending ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Ionicons name="send" size={20} color="#FFFFFF" />
+                <Ionicons name="send" size={18} color="#FFFFFF" />
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -1789,7 +1780,7 @@ const MinistryChat = () => {
       <Animated.View style={scrollToBottomButtonStyle}>
         <TouchableOpacity style={styles.scrollToBottomButton} onPress={scrollToBottom}>
           <View style={styles.scrollToBottomBlur}>
-            <Ionicons name="arrow-down" size={24} color={THEME.primary} />
+            <Ionicons name="chevron-down" size={20} color={THEME.textSecondary} />
 
             {unreadMessages > 0 && (
               <View style={styles.unreadBadge}>
@@ -1860,38 +1851,49 @@ const MinistryChat = () => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  // Modern UI for 2025
+  // WhatsApp UI Style
   container: {
     flex: 1,
     backgroundColor: THEME.background,
+  },
+  iosSafeArea: {
+    backgroundColor: THEME.headerGreen,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === 'ios' ? 50 : 0,
+    zIndex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+    paddingTop: Platform.OS === 'ios' ? 50 : 8,
     borderBottomWidth: 0,
-    backgroundColor: THEME.background,
+    backgroundColor: THEME.headerGreen,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 4,
     zIndex: 10,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: `${THEME.primary}10`,
+    backgroundColor: "transparent",
+    marginRight: -4,
   },
   headerContent: {
     flex: 1,
@@ -1900,44 +1902,45 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   ministryImage: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   ministryImagePlaceholder: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   ministryInitials: {
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
   },
   headerTextContainer: {
     marginLeft: 12,
     flex: 1,
   },
   ministryName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.text,
-    letterSpacing: -0.3,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: 0,
   },
   ministryDescription: {
-    fontSize: 13,
-    color: THEME.textSecondary,
-    marginTop: 2,
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 1,
   },
   infoButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: `${THEME.primary}10`,
+    backgroundColor: "transparent",
   },
   loadingContainer: {
     flex: 1,
@@ -1952,11 +1955,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageList: {
-    padding: 16,
-    paddingBottom: 160,
+    padding: 8,
+    paddingBottom: 10,
   },
   messageContainer: {
-    marginBottom: 14,
+    marginBottom: 2,
   },
   currentUserMessage: {
     alignSelf: "flex-end",
@@ -1972,66 +1975,66 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   avatarPlaceholder: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarText: {
     color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "600",
   },
   messageContent: {
     padding: 12,
     borderRadius: 18,
   },
   currentUserContent: {
-    backgroundColor: THEME.primary,
-    borderRadius: 18,
-    borderTopRightRadius: 2,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: THEME.primaryDark,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
+    backgroundColor: THEME.messageGreen,
+    borderRadius: 7,
+    borderTopRightRadius: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 0.5,
     elevation: 1,
-    maxWidth: "75%",
+    maxWidth: "80%",
   },
   otherUserContent: {
     backgroundColor: THEME.surface,
-    borderRadius: 18,
-    borderTopLeftRadius: 2,
+    borderRadius: 7,
+    borderTopLeftRadius: 0,
     borderWidth: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 0.5,
     elevation: 1,
   },
   senderName: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: THEME.text,
-    marginBottom: 5,
-    letterSpacing: -0.3,
+    fontSize: 12,
+    fontWeight: "600",
+    color: THEME.primary,
+    marginBottom: 2,
+    letterSpacing: 0,
   },
   messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: -0.2,
+    fontSize: 14,
+    lineHeight: 19,
+    letterSpacing: 0,
   },
   currentUserText: {
-    color: "#FFFFFF",
+    color: THEME.text,
     fontWeight: "400",
   },
   otherUserText: {
@@ -2040,94 +2043,98 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    marginTop: 5,
+    marginTop: 2,
     alignSelf: "flex-end",
   },
   currentUserTime: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: THEME.textSecondary,
+    fontSize: 11,
   },
   otherUserTime: {
-    color: THEME.textLight,
+    color: THEME.textSecondary,
+    fontSize: 11,
   },
   dateContainer: {
     alignItems: "center",
-    marginVertical: 18,
+    marginVertical: 8,
     width: "100%",
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 12,
     color: THEME.textSecondary,
-    backgroundColor: `${THEME.textSecondary}10`,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 5,
     overflow: "hidden",
     textAlign: "center",
     fontWeight: "500",
   },
   inputContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(226, 232, 240, 0.6)",
-    backgroundColor: THEME.background,
+    alignItems: "flex-end",
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    paddingBottom: 5,
+    marginBottom: Platform.OS === 'ios' ? 80 : 70,
+    borderTopWidth: 0,
+    backgroundColor: THEME.inputBg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-    marginBottom: 50,
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 2,
   },
   attachButton: {
-    width: 48,
-    height: 48,
+    width: 36,
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 18,
+    marginBottom: 4,
   },
   textInputContainer: {
     flex: 1,
     backgroundColor: THEME.surface,
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    marginHorizontal: 10,
-    borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
-    maxHeight: 120,
+    borderRadius: 21,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    borderWidth: 0,
+    maxHeight: 100,
+    minHeight: 42,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.03,
+    shadowRadius: 0.5,
     elevation: 1,
   },
   textInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: THEME.text,
-    maxHeight: 100,
-    minHeight: 36,
+    maxHeight: 84,
+    minHeight: 26,
     paddingTop: 0,
     paddingBottom: 0,
-    letterSpacing: -0.2,
+    letterSpacing: 0,
   },
   sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: THEME.textLight,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 4,
   },
   sendButtonActive: {
     backgroundColor: THEME.primary,
     shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 1,
   },
   // Update upload progress indicator
   uploadProgressContainer: {
@@ -2152,32 +2159,28 @@ const styles = StyleSheet.create({
     marginTop: 250,
   },
   emptyIconContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
+    marginBottom: 20,
+    backgroundColor: "rgba(37, 211, 102, 0.1)",
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
     color: THEME.text,
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    marginBottom: 8,
+    letterSpacing: 0,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: THEME.textSecondary,
     textAlign: "center",
-    lineHeight: 22,
-    letterSpacing: -0.2,
-    maxWidth: "80%",
+    lineHeight: 20,
+    letterSpacing: 0,
+    maxWidth: "75%",
   },
   attachmentPreviewContainer: {
     padding: 8,
@@ -2198,46 +2201,48 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     borderRadius: 12,
   },
-  // Modern scroll to bottom button for 2025
+  // WhatsApp scroll to bottom button
   scrollToBottomButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     overflow: "hidden",
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   scrollToBottomBlur: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: THEME.surface,
+    borderWidth: 0.5,
+    borderColor: THEME.border,
   },
   unreadBadge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: THEME.error,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    top: 4,
+    right: 4,
+    backgroundColor: THEME.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
-    shadowColor: THEME.error,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 2,
+    paddingHorizontal: 4,
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 1,
   },
   unreadText: {
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   // Typing indicator with modern styling
@@ -2284,7 +2289,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContainer: {
-    backgroundColor: THEME.background,
+    backgroundColor: THEME.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 20,
