@@ -289,6 +289,12 @@ export default function ChurchPageContent({ userData }: Props) {
           onPress={() => {}}
           gradientColors={[theme.success, theme.accent2]}
         />
+        <QuickActionButton
+          icon="hand-left-outline"
+          label="Prayer"
+          onPress={() => router.push("/churchPrayerBoard")}
+          gradientColors={["#9333EA", "#7C3AED"]}
+        />
       </View>
 
       {/* Leave Church Section */}

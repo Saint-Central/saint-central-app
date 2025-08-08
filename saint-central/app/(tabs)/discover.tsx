@@ -109,10 +109,72 @@ const categories = [
   },
 ];
 
+// Share Story Section Component
+const ShareStorySection = () => {
+  const scale = useRef(new Animated.Value(0.9)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        tension: 50,
+        friction: 8,
+        delay: 800, // Delay to appear after other animations
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 600,
+        delay: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.shareStorySection,
+        {
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.shareStoryButton}
+        activeOpacity={0.8}
+        onPress={() => router.push("/posts" as any)}
+      >
+        <LinearGradient
+          colors={["#9333EA", "#7C3AED"]}
+          style={styles.shareStoryGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.shareStoryContent}>
+            <View style={styles.shareStoryIcon}>
+              <FontAwesome5 name="plus" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.shareStoryText}>
+              <Text style={styles.shareStoryTitle}>Share Your Story</Text>
+              <Text style={styles.shareStorySubtitle}>Inspire others with your faith journey</Text>
+            </View>
+            <FontAwesome5 name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 // Quick Action Button
 const QuickActionButton = ({ action, index }: { action: any; index: number }) => {
   const scale = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
 
   useEffect(() => {
     Animated.parallel([
@@ -134,6 +196,25 @@ const QuickActionButton = ({ action, index }: { action: any; index: number }) =>
 
   const IconComponent = action.iconSet === "FontAwesome5" ? FontAwesome5 : MaterialCommunityIcons;
 
+  const handlePress = () => {
+    switch (action.title) {
+      case "Prayer":
+        router.push("/PrayerIntentions" as any);
+        break;
+      case "Events":
+        router.push("/events" as any);
+        break;
+      case "Donate":
+        router.push("/donate" as any);
+        break;
+      case "Social":
+        router.push("/prayer-social" as any);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <Animated.View
       style={[
@@ -144,7 +225,7 @@ const QuickActionButton = ({ action, index }: { action: any; index: number }) =>
         },
       ]}
     >
-      <TouchableOpacity activeOpacity={0.7}>
+      <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
         <LinearGradient
           colors={action.gradient}
           style={styles.quickActionButton}
@@ -399,6 +480,9 @@ export default function DiscoverScreen() {
           />
           <View style={styles.dividerLine} />
         </View>
+
+        {/* Share Your Story Section */}
+        <ShareStorySection />
 
         {/* Explore Categories */}
         <View style={styles.section}>
@@ -756,6 +840,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.primary,
     fontWeight: theme.fontSemiBold,
+  },
+
+  // Share Story Section
+  shareStorySection: {
+    paddingHorizontal: 20,
+    marginBottom: 32,
+  },
+  shareStoryButton: {
+    borderRadius: 20,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  shareStoryGradient: {
+    padding: 20,
+  },
+  shareStoryContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  shareStoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shareStoryText: {
+    flex: 1,
+  },
+  shareStoryTitle: {
+    fontSize: 18,
+    fontWeight: theme.fontSemiBold,
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  shareStorySubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
   },
 
   // Bottom

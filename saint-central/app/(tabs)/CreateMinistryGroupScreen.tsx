@@ -37,6 +37,8 @@ interface MinistryData {
   image_url: string | null;
   church_id: number | null;
   created_at: string;
+  private?: boolean;
+  hidden?: boolean;
 }
 
 // Interface for navigation
@@ -64,7 +66,8 @@ const CreateMinistryScreen = (): JSX.Element => {
   const { selectedPresetId } = route.params as RouteParams || {};
   
   // Initialize CRUD client and auth
-  const { selectOne, insert } = useCRUD();
+  const crud = useCRUD();
+  const { selectOne, insert } = crud;
   const { user } = useAuth();
   
   // State for ministry data
@@ -74,6 +77,8 @@ const CreateMinistryScreen = (): JSX.Element => {
     image_url: null,
     church_id: null,
     created_at: new Date().toISOString(),
+    private: false,
+    hidden: false,
   });
   
   // State for UI
@@ -193,43 +198,113 @@ const CreateMinistryScreen = (): JSX.Element => {
       Alert.alert("Error", "Church information is missing. Please try again.");
       return;
     }
+
+    if (!userId) {
+      Alert.alert("Error", "User information is missing. Please try again.");
+      return;
+    }
     
     try {
       setLoading(true);
       
+      console.log("Creating ministry with data:", {
+        name: ministryData.name,
+        church_id: churchId,
+        user_id: userId,
+        private: ministryData.private,
+        hidden: ministryData.hidden
+      });
+      
       // Create the ministry
-      const newMinistry = await insert("ministries", {
+      const ministryPayload = {
         name: ministryData.name,
         description: ministryData.description || `${ministryData.name} ministry`,
         image_url: ministryData.image_url,
         church_id: churchId,
-        created_at: new Date().toISOString()
-      });
+        created_at: new Date().toISOString(),
+        private: ministryData.private || false
+      };
       
-      if (!newMinistry || !newMinistry.id) {
-        throw new Error("Failed to create ministry - no ID returned");
+      // Only add hidden field if the ministry is private (in case the field doesn't exist in DB)
+      if (ministryData.private && ministryData.hidden) {
+        ministryPayload.hidden = true;
+      }
+      
+      console.log("Ministry payload:", ministryPayload);
+      
+      const newMinistry = await insert("ministries", ministryPayload);
+      
+      console.log("Insert response:", newMinistry);
+      
+      // If no ID returned, try to find the ministry we just created
+      let ministryId = newMinistry?.id;
+      
+      if (!ministryId && newMinistry) {
+        // Some CRUD implementations might return the data differently
+        ministryId = newMinistry[0]?.id || newMinistry.data?.id;
+      }
+      
+      if (!ministryId) {
+        // Try to find the ministry by name and church_id as a fallback
+        console.log("No ID returned, trying to find ministry by name...");
+        const foundMinistry = await selectOne("ministries", {
+          where: {
+            name: ministryData.name,
+            church_id: churchId
+          }
+        });
+        
+        if (foundMinistry) {
+          ministryId = foundMinistry.id;
+          console.log("Found ministry with ID:", ministryId);
+        }
+      }
+      
+      if (!ministryId) {
+        throw new Error("Failed to create ministry - no ID returned and could not find created ministry");
       }
       
       // Add creator as member 
       try {
+        console.log("Adding creator as member with data:", {
+          ministry_id: ministryId,
+          user_id: userId,
+          church_id: churchId,
+          role: 'leader'
+        });
+        
         await insert("ministry_members", {
-          ministry_id: newMinistry.id,
+          ministry_id: ministryId,
           user_id: userId,
           church_id: churchId,
           joined_at: new Date().toISOString(),
-          member_status: 'leader'
+          role: 'leader'  // Changed from member_status to role
         });
         
         // Success message
         Alert.alert("Success", "Ministry created successfully!");
       } catch (memberError) {
         console.error("Error adding creator as member:", memberError);
-        // Continue anyway - we'll at least have the ministry
+        console.error("Member error details:", JSON.stringify(memberError, null, 2));
         
-        Alert.alert(
-          "Ministry Created", 
-          "Ministry was created successfully, but there was an issue adding you as a leader. You may need to join the ministry separately."
-        );
+        // Try alternative field name
+        try {
+          console.log("Trying with member_status field...");
+          await insert("ministry_members", {
+            ministry_id: ministryId,
+            user_id: userId,
+            church_id: churchId,
+            joined_at: new Date().toISOString(),
+            member_status: 'leader'
+          });
+          Alert.alert("Success", "Ministry created successfully!");
+        } catch (altError) {
+          console.error("Alternative insert also failed:", altError);
+          Alert.alert(
+            "Ministry Created", 
+            "Ministry was created successfully, but there was an issue adding you as a leader. You may need to join the ministry separately."
+          );
+        }
       }
       
       // Navigate to the ministries screen
@@ -237,7 +312,25 @@ const CreateMinistryScreen = (): JSX.Element => {
       
     } catch (error) {
       console.error("Error creating ministry:", error);
-      Alert.alert("Error", "Could not create ministry. Please try again.");
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        fullError: JSON.stringify(error, null, 2)
+      });
+      
+      // More specific error message
+      let errorMessage = "Could not create ministry. ";
+      if (error.message?.includes("duplicate")) {
+        errorMessage += "A ministry with this name may already exist.";
+      } else if (error.message?.includes("permission")) {
+        errorMessage += "You don't have permission to create ministries.";
+      } else if (error.message?.includes("required")) {
+        errorMessage += "Some required information is missing.";
+      } else {
+        errorMessage += "Please try again.";
+      }
+      
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -360,6 +453,84 @@ const CreateMinistryScreen = (): JSX.Element => {
                 </View>
               </View>
             )}
+
+            {/* Privacy Toggle */}
+            <View style={styles.privacySection}>
+              <TouchableOpacity 
+                style={styles.privacyToggle}
+                onPress={() => setMinistryData(prev => ({ 
+                  ...prev, 
+                  private: !prev.private,
+                  hidden: !prev.private ? false : prev.hidden // Reset hidden if turning off private
+                }))}
+              >
+                <View style={styles.privacyToggleLeft}>
+                  <Ionicons 
+                    name={ministryData.private ? "lock-closed" : "lock-open"} 
+                    size={20} 
+                    color={ministryData.private ? "#F59E0B" : "#64748B"} 
+                  />
+                  <View style={styles.privacyTextContainer}>
+                    <Text style={styles.privacyToggleTitle}>Private Ministry</Text>
+                    <Text style={styles.privacyToggleSubtitle}>
+                      {ministryData.private 
+                        ? "Requires admin approval to join" 
+                        : "Anyone can join freely"}
+                    </Text>
+                  </View>
+                </View>
+                <View 
+                  style={[
+                    styles.toggleSwitch,
+                    ministryData.private && styles.toggleSwitchActive
+                  ]}
+                >
+                  <View 
+                    style={[
+                      styles.toggleThumb,
+                      ministryData.private && styles.toggleThumbActive
+                    ]} 
+                  />
+                </View>
+              </TouchableOpacity>
+
+              {/* Hidden Option - Only shows when private is enabled */}
+              {ministryData.private && (
+                <TouchableOpacity 
+                  style={[styles.privacyToggle, styles.hiddenToggle]}
+                  onPress={() => setMinistryData(prev => ({ ...prev, hidden: !prev.hidden }))}
+                >
+                  <View style={styles.privacyToggleLeft}>
+                    <Ionicons 
+                      name={ministryData.hidden ? "eye-off" : "eye"} 
+                      size={20} 
+                      color={ministryData.hidden ? "#DC2626" : "#64748B"} 
+                    />
+                    <View style={styles.privacyTextContainer}>
+                      <Text style={styles.privacyToggleTitle}>Hidden Ministry</Text>
+                      <Text style={styles.privacyToggleSubtitle}>
+                        {ministryData.hidden 
+                          ? "Only visible to admins and members" 
+                          : "Visible in ministry listings"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View 
+                    style={[
+                      styles.toggleSwitch,
+                      ministryData.hidden && styles.toggleSwitchActiveRed
+                    ]}
+                  >
+                    <View 
+                      style={[
+                        styles.toggleThumb,
+                        ministryData.hidden && styles.toggleThumbActive
+                      ]} 
+                    />
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Church Info */}
             {churchId && (
@@ -541,6 +712,68 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
     marginLeft: 8,
+  },
+  privacySection: {
+    marginBottom: 16,
+  },
+  privacyToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 16,
+  },
+  privacyToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  privacyTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  privacyToggleTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginBottom: 2,
+  },
+  privacyToggleSubtitle: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  toggleSwitch: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#E2E8F0",
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: "#F59E0B",
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }],
+  },
+  hiddenToggle: {
+    marginTop: 12,
+  },
+  toggleSwitchActiveRed: {
+    backgroundColor: "#DC2626",
   },
 });
 

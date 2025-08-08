@@ -18,7 +18,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../../../supabaseClient";
+import { useNavigationHistory } from "../../../contexts/NavigationHistoryContext";
 import { WebView } from "react-native-webview";
+import { router } from "expo-router";
 
 interface Post {
   post_id: number;
@@ -128,6 +130,7 @@ const HtmlExcerpt: React.FC<HtmlExcerptProps> = ({ html, fontSize }) => {
 const NewsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { goBack } = useNavigationHistory();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -219,11 +222,11 @@ const NewsScreen: React.FC = () => {
         ]}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => router.push("/discover")}
           style={[styles.homeButton, { backgroundColor: theme.inputBackground }]}
         >
           <Ionicons name="chevron-back" size={20} color={theme.text} />
-          <Text style={[styles.homeButtonText, { color: theme.text }]}>Home</Text>
+          <Text style={[styles.homeButtonText, { color: theme.text }]}>Discover</Text>
         </TouchableOpacity>
         {/* Removed theme toggle; only the search input remains */}
         <TextInput

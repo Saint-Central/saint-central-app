@@ -32,6 +32,7 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
+  useAnimatedScrollHandler,
 } from "react-native-reanimated";
 import { CalendarDay, ChurchEvent, CalendarViewType } from "./types";
 
@@ -58,85 +59,112 @@ interface ChurchEventsProps {
   eventId?: string | string[];
 }
 
+// Create AnimatedScrollView
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
 const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   // Animation values
   const scrollY = useSharedValue(0);
-  const fabOpacity = useSharedValue(1);
+  const bannerOpacity = useSharedValue(0);
 
   // Animation values for decorative elements
-  const decorElement1 = useSharedValue(0);
-  const decorElement2 = useSharedValue(0);
-  const decorElement3 = useSharedValue(0);
-  const pulsateValue = useSharedValue(1);
-  const shimmerValue = useSharedValue(0);
+  const holyGlow = useSharedValue(0);
+  const crossGlow = useSharedValue(0);
+  const doveFloat = useSharedValue(0);
+  const shimmerValue = useSharedValue(-width);
+  
+  // Create animated scroll handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
-  // Start animations for decorative elements
+  // Start animations for decorative elements with delays
   useEffect(() => {
-    decorElement1.value = withRepeat(
-      withTiming(1, { duration: 20000, easing: Easing.linear }),
-      -1, // infinite repeat
-      false,
-    );
+    // Fade in banner smoothly
+    bannerOpacity.value = withTiming(1, {
+      duration: 600,
+      easing: Easing.out(Easing.ease),
+    });
+    
+    // Delay all animations to improve initial render performance
+    const timer = setTimeout(() => {
+      // Holy glow animation
+      holyGlow.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.3, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
 
-    decorElement2.value = withDelay(
-      500,
-      withRepeat(withTiming(1, { duration: 18000, easing: Easing.linear }), -1, false),
-    );
+      // Cross glow animation
+      crossGlow.value = withDelay(
+        1000,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.2, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1,
+          true,
+        ),
+      );
 
-    decorElement3.value = withDelay(
-      1000,
-      withRepeat(withTiming(1, { duration: 25000, easing: Easing.linear }), -1, false),
-    );
+      // Dove floating animation
+      doveFloat.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(-1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
 
-    // Pulsating animation
-    pulsateValue.value = withRepeat(
-      withSequence(
-        withTiming(1.08, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      true,
-    );
+      // Shimmer animation
+      shimmerValue.value = withRepeat(
+        withTiming(width, { duration: 3000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    }, 500); // Delay animations by 500ms
 
-    // Shimmer animation
-    shimmerValue.value = withRepeat(withTiming(-width, { duration: 2000 }), -1, false);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Decorative element animations
-  const decorStyle1 = useAnimatedStyle(() => {
+  // Holy glow style
+  const holyGlowStyle = useAnimatedStyle(() => {
     return {
+      opacity: holyGlow.value * 0.7,
       transform: [
-        { rotate: `${decorElement1.value * 360}deg` },
+        { scale: interpolate(holyGlow.value, [0, 1], [0.8, 1.2], Extrapolate.CLAMP) },
         { scale: interpolate(scrollY.value, [0, 150], [1, 0.6], Extrapolate.CLAMP) },
       ],
-      opacity: interpolate(scrollY.value, [0, 100], [0.7, 0.1], Extrapolate.CLAMP),
     };
   });
 
-  const decorStyle2 = useAnimatedStyle(() => {
+  // Cross glow style
+  const crossGlowStyle = useAnimatedStyle(() => {
+    return {
+      opacity: crossGlow.value * 0.8,
+      transform: [
+        { scale: interpolate(crossGlow.value, [0, 1], [0.9, 1.1], Extrapolate.CLAMP) },
+        { scale: interpolate(scrollY.value, [0, 150], [1, 0.5], Extrapolate.CLAMP) },
+      ],
+    };
+  });
+
+  // Dove floating style
+  const doveFloatStyle = useAnimatedStyle(() => {
     return {
       transform: [
-        { rotate: `${-decorElement2.value * 360}deg` },
-        { scale: interpolate(scrollY.value, [0, 150], [0.9, 0.5], Extrapolate.CLAMP) },
+        { translateY: doveFloat.value * 8 },
+        { translateX: doveFloat.value * 4 },
+        { scale: interpolate(scrollY.value, [0, 150], [1, 0.4], Extrapolate.CLAMP) },
       ],
-      opacity: interpolate(scrollY.value, [0, 100], [0.6, 0.1], Extrapolate.CLAMP),
-    };
-  });
-
-  const decorStyle3 = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotate: `${decorElement3.value * 180}deg` },
-        { scale: interpolate(scrollY.value, [0, 150], [0.8, 0.4], Extrapolate.CLAMP) },
-      ],
-      opacity: interpolate(scrollY.value, [0, 100], [0.5, 0], Extrapolate.CLAMP),
-    };
-  });
-
-  // Pulsate animation for icon
-  const pulsateStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulsateValue.value }],
+      opacity: interpolate(scrollY.value, [0, 100], [0.6, 0], Extrapolate.CLAMP),
     };
   });
 
@@ -147,35 +175,30 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     };
   });
 
-  // Header height animation
+  // Header height animation with smooth spring
   const headerHeightStyle = useAnimatedStyle(() => {
     const height = interpolate(
       scrollY.value,
       [0, 150],
-      [350, Platform.OS === "ios" ? 120 : 100],
+      [480, Platform.OS === "ios" ? 120 : 100],
       Extrapolate.CLAMP,
     );
-    const translateY = interpolate(scrollY.value, [0, 150], [0, -10], Extrapolate.CLAMP);
-    return {
+    return { 
       height,
-      transform: [{ translateY }],
     };
   });
 
   // Header background opacity with smoother transition
   const headerBgStyle = useAnimatedStyle(() => {
     const opacity = interpolate(scrollY.value, [0, 100], [0, 1], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 100], [1.1, 1], Extrapolate.CLAMP);
-    return {
-      opacity,
-      transform: [{ scale }],
-    };
+    const blur = interpolate(scrollY.value, [0, 100], [0, 20], Extrapolate.CLAMP);
+    return { opacity };
   });
 
   // Parallax image animation
   const parallaxImageStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(scrollY.value, [0, 150], [0, -40], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 150], [1, 1.15], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 150], [0, -50], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 150], [1, 1.2], Extrapolate.CLAMP);
     return {
       transform: [{ translateY }, { scale }],
     };
@@ -184,42 +207,24 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   // Hero content opacity with enhanced fade effect
   const heroOpacityStyle = useAnimatedStyle(() => {
     const opacity = interpolate(scrollY.value, [0, 70, 120], [1, 0.8, 0], Extrapolate.CLAMP);
-    const translateY = interpolate(scrollY.value, [0, 120], [0, -30], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 120], [1, 0.95], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 120], [0, -40], Extrapolate.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 120], [1, 0.9], Extrapolate.CLAMP);
     return {
       opacity,
       transform: [{ translateY }, { scale }],
     };
   });
 
-  // Header title animation - more polished fade-in and positioning
+  // Header title animation
   const headerTitleStyle = useAnimatedStyle(() => {
     const opacity = interpolate(scrollY.value, [50, 100], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(scrollY.value, [50, 100], [15, 0], Extrapolate.CLAMP);
-    const scale = interpolate(scrollY.value, [50, 100], [0.9, 1], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [50, 100], [20, 0], Extrapolate.CLAMP);
     return {
       opacity,
-      transform: [{ translateY }, { scale }],
-    };
-  });
-
-  // Blur intensity animation for more dynamic transitions
-  const blurIntensityStyle = useAnimatedStyle(() => {
-    const intensity = interpolate(scrollY.value, [0, 150], [0, 1], Extrapolate.CLAMP);
-    const translateY = interpolate(scrollY.value, [0, 150], [-10, 0], Extrapolate.CLAMP);
-    return {
-      opacity: intensity,
       transform: [{ translateY }],
     };
   });
 
-  // FAB animation
-  const fabStyle = useAnimatedStyle(() => {
-    return {
-      opacity: fabOpacity.value,
-      transform: [{ scale: fabOpacity.value }],
-    };
-  });
 
   // Use custom hooks
   const {
@@ -238,12 +243,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     onRefresh,
   } = useChurchEvents(churchId);
 
-  // DEBUG LOGGING
-  console.log("DEBUG: user", user);
-  console.log("DEBUG: selectedChurchId", selectedChurchId);
-  console.log("DEBUG: userChurches", userChurches);
-  console.log("DEBUG: hasPermissionToCreate", hasPermissionToCreate);
-
   const {
     selectedDate,
     currentMonth,
@@ -252,7 +251,7 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     setCalendarView,
     showDateDetail,
     selectedDayEvents,
-    dayAnimations,
+    calendarEntranceAnim,
     detailSlideAnim,
     changeMonth,
     selectDay,
@@ -303,14 +302,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     setShowDetailModal(true);
   };
 
-  // Animation for FAB
-  const hideFab = () => {
-    fabOpacity.value = withTiming(0, { duration: 200 });
-  };
-
-  const showFab = () => {
-    fabOpacity.value = withTiming(1, { duration: 200 });
-  };
 
   // Effect to handle eventId if provided
   useEffect(() => {
@@ -349,11 +340,9 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   // Custom renderItem function for calendar view events
   const renderEventItem = ({ item }: { item: ChurchEvent }) => (
     <TouchableOpacity
-      style={simpleStyles.eventItem}
+      style={enhancedStyles.eventItem}
       onPress={() => {
-        // First close the date detail modal to prevent the app from freezing
         closeDateDetail();
-        // Then show the event details with a small delay to ensure smooth transition
         setTimeout(() => {
           handleViewEventDetails(item);
         }, 300);
@@ -361,18 +350,23 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
     >
       <View
         style={{
-          width: 8,
-          height: 8,
-          borderRadius: 4,
+          width: 10,
+          height: 10,
+          borderRadius: 5,
           backgroundColor: item.color || THEME.primary,
-          marginRight: 8,
+          marginRight: 12,
+          shadowColor: item.color || THEME.primary,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.4,
+          shadowRadius: 4,
+          elevation: 3,
         }}
       />
       <View style={{ flex: 1 }}>
-        <Text style={simpleStyles.eventTitle} numberOfLines={1}>
+        <Text style={enhancedStyles.eventTitle} numberOfLines={1}>
           {item.title}
         </Text>
-        <Text style={simpleStyles.eventTime}>
+        <Text style={enhancedStyles.eventTime}>
           {new Date(item.time).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -383,184 +377,192 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   );
 
   return (
-    <View style={simpleStyles.container}>
+    <View style={enhancedStyles.container}>
       <StatusBar style="light" translucent />
 
-      {/* Hero Section - Full bleed to top of screen */}
+      {/* Enhanced Hero Section */}
       <Animated.View
         style={[
-          simpleStyles.heroSection,
+          enhancedStyles.heroSection,
           headerHeightStyle,
-          { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1 },
+          { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1, opacity: bannerOpacity },
         ]}
       >
-        {/* Parallax Effect for Background */}
+        {/* Parallax Background with Divine Imagery */}
         <Animated.View style={[StyleSheet.absoluteFill, parallaxImageStyle]}>
-          <ImageBackground
+          <Image
             source={{
-              uri: "https://images.unsplash.com/photo-1438232992991-995b7058bbb3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80",
+              uri: "https://images.unsplash.com/photo-1507692049790-de58290a4334?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=60",
+              priority: 'high',
             }}
-            style={simpleStyles.heroBackground}
+            style={[enhancedStyles.heroBackground, StyleSheet.absoluteFillObject]}
             resizeMode="cover"
-          >
-            <LinearGradient
-              colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-              style={simpleStyles.heroGradient}
-            />
-          </ImageBackground>
-        </Animated.View>
-
-        {/* Decorative Elements - with pointerEvents="none" to allow scrolling through them */}
-        <Animated.View style={[simpleStyles.decorElement1, decorStyle1]} pointerEvents="none" />
-        <Animated.View style={[simpleStyles.decorElement2, decorStyle2]} pointerEvents="none" />
-        <Animated.View style={[simpleStyles.decorElement3, decorStyle3]} pointerEvents="none" />
-
-        {/* Hero Content */}
-        <Animated.View style={[simpleStyles.heroContent, heroOpacityStyle]}>
-          <Text style={simpleStyles.heroTitle}>Church Events</Text>
-          <Text style={simpleStyles.heroSubtitle}>
-            Find upcoming events, gatherings, and celebrations
-          </Text>
-          {hasPermissionToCreate && (
-            <TouchableOpacity
-              style={simpleStyles.addEventButton}
-              onPress={openAddModal}
-              activeOpacity={0.8}
-            >
-              <Text style={simpleStyles.addEventButtonText}>Create New Event</Text>
-              <Feather name="plus-circle" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      </Animated.View>
-
-      {/* Header - Floating over hero with enhanced blur and gradient */}
-      <Animated.View
-        style={[simpleStyles.headerBackground, headerBgStyle]}
-        pointerEvents="box-none"
-      >
-        {/* Tiered blur for depth */}
-        <Animated.View style={[StyleSheet.absoluteFill, blurIntensityStyle]}>
-          <BlurView
-            intensity={Platform.OS === "ios" ? 35 : 100}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
+            fadeDuration={0}
+          />
+          {/* Enhanced Gradient with Warm Christian Colors */}
+          <LinearGradient
+            colors={[
+              "rgba(28, 25, 23, 0.1)",
+              "rgba(28, 25, 23, 0.4)",
+              "rgba(28, 25, 23, 0.7)",
+              "rgba(28, 25, 23, 0.9)",
+            ]}
+            style={enhancedStyles.heroGradient}
+            locations={[0, 0.3, 0.7, 1]}
           />
         </Animated.View>
 
-        {/* Premium gradient overlay */}
-        <LinearGradient
-          colors={[
-            `${THEME.primary}CC`,
-            `${THEME.primary}EE`,
-            Platform.OS === "ios" ? `${THEME.primary}DD` : `${THEME.primary}CC`,
-          ]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-
-        {/* Subtle shimmer effect */}
-        <Animated.View style={[simpleStyles.shimmerOverlay, shimmerStyle]}>
+        {/* Divine Decorative Elements */}
+        <Animated.View style={[enhancedStyles.holyGlow, holyGlowStyle]} pointerEvents="none">
           <LinearGradient
-            colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.1)", "rgba(255,255,255,0)"]}
+            colors={[`${THEME.primary}40`, `${THEME.accent1}30`, `${THEME.primary}20`]}
+            style={enhancedStyles.glowCircle}
+          />
+        </Animated.View>
+
+        <Animated.View style={[enhancedStyles.crossGlow, crossGlowStyle]} pointerEvents="none">
+          <View style={enhancedStyles.crossVertical} />
+          <View style={enhancedStyles.crossHorizontal} />
+        </Animated.View>
+
+        <Animated.View style={[enhancedStyles.doveFloat, doveFloatStyle]} pointerEvents="none">
+          <Feather name="heart" size={24} color={`${THEME.accent2}60`} />
+        </Animated.View>
+
+        {/* Shimmer Effect */}
+        <Animated.View style={[enhancedStyles.shimmerOverlay, shimmerStyle]} pointerEvents="none">
+          <LinearGradient
+            colors={[
+              "rgba(245, 158, 11, 0)",
+              "rgba(245, 158, 11, 0.3)",
+              "rgba(251, 191, 36, 0.4)",
+              "rgba(245, 158, 11, 0.3)",
+              "rgba(245, 158, 11, 0)",
+            ]}
             style={{ flex: 1 }}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
           />
         </Animated.View>
 
-        {/* Subtle bottom border */}
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 1,
-            backgroundColor: "rgba(255,255,255,0.2)",
-          }}
+        {/* Hero Content with Enhanced Typography */}
+        <Animated.View style={[enhancedStyles.heroContent, heroOpacityStyle]}>
+          <View style={enhancedStyles.iconContainer}>
+            <Feather name="calendar" size={32} color={THEME.textWhite} />
+          </View>
+          <Text style={enhancedStyles.heroSubtitle}>
+            "For where two or three gather in my name, there am I with them."
+          </Text>
+          <Text style={enhancedStyles.heroBibleVerse}>Matthew 18:20</Text>
+          {hasPermissionToCreate && (
+            <TouchableOpacity
+              style={enhancedStyles.addEventButton}
+              onPress={openAddModal}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={THEME.gradientPrimary}
+                style={enhancedStyles.buttonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Feather name="plus-circle" size={20} color="#FFFFFF" />
+                <Text style={enhancedStyles.addEventButtonText}>Create New Event</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </Animated.View>
+
+      {/* Enhanced Header with Better Blur */}
+      <Animated.View
+        style={[enhancedStyles.headerBackground, headerBgStyle]}
+        pointerEvents="box-none"
+      >
+        <BlurView
+          intensity={Platform.OS === "ios" ? 40 : 100}
+          tint="dark"
+          style={StyleSheet.absoluteFill}
         />
+        <LinearGradient
+          colors={[`${THEME.neutral900}F0`, `${THEME.neutral800}E0`]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={enhancedStyles.headerBorder} />
       </Animated.View>
 
       {/* Safe Area for Header */}
       <SafeAreaView style={{ zIndex: 20, backgroundColor: "transparent" }} pointerEvents="box-none">
-        <View style={simpleStyles.header}>
-          <Animated.Text style={[simpleStyles.headerTitle, headerTitleStyle]}>
+        <View style={enhancedStyles.header}>
+          <Animated.Text style={[enhancedStyles.headerTitle, headerTitleStyle]}>
             Church Events
           </Animated.Text>
           {hasPermissionToCreate && (
             <TouchableOpacity
-              style={simpleStyles.headerButton}
+              style={enhancedStyles.headerButton}
               onPress={openAddModal}
               activeOpacity={0.7}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
-              <Feather name="plus" size={24} color="#FFFFFF" />
+              <LinearGradient
+                colors={[`${THEME.primary}40`, `${THEME.primary}60`]}
+                style={enhancedStyles.headerButtonGradient}
+              >
+                <Feather name="plus" size={20} color={THEME.textWhite} />
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
       </SafeAreaView>
 
-      {/* Main Content */}
-      <ScrollView
-        style={[simpleStyles.scrollView, { marginTop: 0 }]}
-        contentContainerStyle={[simpleStyles.scrollContent, { paddingTop: 350 }]}
-        showsVerticalScrollIndicator={true}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
+      {/* Enhanced Main Content */}
+      <AnimatedScrollView
+        style={enhancedStyles.scrollView}
+        contentContainerStyle={[enhancedStyles.scrollContent, { paddingTop: 480 }]}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={1}
         bounces={true}
-        alwaysBounceVertical={true}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
-        overScrollMode="always"
-        onScroll={(event) => {
-          // First update the animated value for other animations
-          scrollY.value = event.nativeEvent.contentOffset.y;
-
-          // Then run the visibility logic
-          if (event.nativeEvent.contentOffset.y > 100 && fabOpacity.value === 1) {
-            hideFab();
-          } else if (event.nativeEvent.contentOffset.y <= 100 && fabOpacity.value === 0) {
-            showFab();
-          }
-        }}
+        onScroll={scrollHandler}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={THEME.primary}
-            progressBackgroundColor="#ffffff"
-            progressViewOffset={150}
-            colors={[THEME.primary, THEME.accent1 || "#666", THEME.secondary || "#999"]}
+            progressBackgroundColor={THEME.neutral100}
+            progressViewOffset={200}
+            colors={[THEME.primary, THEME.accent1, THEME.secondary]}
           />
         }
       >
-        {/* Search Bar */}
-        <View style={simpleStyles.searchContainer}>
-          <View style={simpleStyles.searchBar}>
-            <Feather name="search" size={20} color={THEME.textMedium} style={{ marginRight: 10 }} />
+        {/* Enhanced Search Bar */}
+        <View style={enhancedStyles.searchContainer}>
+          <LinearGradient
+            colors={[THEME.neutral100, THEME.neutral50]}
+            style={enhancedStyles.searchBar}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          >
+            <Feather name="search" size={20} color={THEME.neutral600} style={{ marginRight: 12 }} />
             <TextInput
-              style={simpleStyles.searchInput}
-              placeholder="Search events..."
-              placeholderTextColor="#999999"
+              style={enhancedStyles.searchInput}
+              placeholder="Search church events..."
+              placeholderTextColor={THEME.neutral500}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery !== "" && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Feather name="x" size={20} color="#777777" />
+              <TouchableOpacity onPress={() => setSearchQuery("")} style={enhancedStyles.clearButton}>
+                <Feather name="x" size={18} color={THEME.neutral600} />
               </TouchableOpacity>
             )}
-          </View>
+          </LinearGradient>
         </View>
 
-        {/* Main Content */}
-        <View style={simpleStyles.mainContainer}>
-          {/* Church Selector */}
+        {/* Main Content Container */}
+        <View style={enhancedStyles.mainContainer}>
+          {/* Enhanced Church Selector */}
           {userChurches.length > 0 && (
-            <View style={simpleStyles.sectionContainer}>
-              <Text style={simpleStyles.sectionTitle}>Your Churches</Text>
+            <View style={enhancedStyles.sectionContainer}>
+              <Text style={enhancedStyles.sectionTitle}>Church Events</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -570,80 +572,109 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
                   <TouchableOpacity
                     key={church.id}
                     style={[
-                      simpleStyles.pill,
-                      selectedChurchId === church.id && simpleStyles.pillActive,
+                      enhancedStyles.pill,
+                      selectedChurchId === church.id && enhancedStyles.pillActive,
                     ]}
                     onPress={() => setSelectedChurchId(church.id)}
+                    activeOpacity={0.8}
                   >
-                    <Text
-                      style={[
-                        simpleStyles.pillText,
-                        selectedChurchId === church.id && simpleStyles.pillTextActive,
-                      ]}
+                    <LinearGradient
+                      colors={
+                        selectedChurchId === church.id
+                          ? THEME.gradientPrimary
+                          : [THEME.neutral200, THEME.neutral100]
+                      }
+                      style={enhancedStyles.pillGradient}
                     >
-                      {church.name}
-                    </Text>
+                      <Text
+                        style={[
+                          enhancedStyles.pillText,
+                          selectedChurchId === church.id && enhancedStyles.pillTextActive,
+                        ]}
+                      >
+                        {church.name}
+                      </Text>
+                    </LinearGradient>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
           )}
 
-          {/* View Selector */}
-          <View style={simpleStyles.viewSelector}>
-            <TouchableOpacity
-              style={[
-                simpleStyles.viewOption,
-                calendarView === "list" && simpleStyles.viewOptionActive,
-              ]}
-              onPress={() => setCalendarView("list")}
+          {/* Enhanced View Selector */}
+          <View style={enhancedStyles.viewSelector}>
+            <LinearGradient
+              colors={[THEME.neutral200, THEME.neutral100]}
+              style={enhancedStyles.viewSelectorGradient}
             >
-              <Feather
-                name="list"
-                size={18}
-                color={calendarView === "list" ? "#FFFFFF" : THEME.textMedium}
-              />
-              <Text
+              <TouchableOpacity
                 style={[
-                  simpleStyles.viewOptionText,
-                  calendarView === "list" && { color: "#FFFFFF" },
+                  enhancedStyles.viewOption,
+                  calendarView === "list" && enhancedStyles.viewOptionActive,
                 ]}
+                onPress={() => setCalendarView("list")}
+                activeOpacity={0.8}
               >
-                List
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                simpleStyles.viewOption,
-                calendarView === "month" && simpleStyles.viewOptionActive,
-              ]}
-              onPress={() => setCalendarView("month")}
-            >
-              <Feather
-                name="calendar"
-                size={18}
-                color={calendarView === "month" ? "#FFFFFF" : THEME.textMedium}
-              />
-              <Text
+                {calendarView === "list" && (
+                  <LinearGradient
+                    colors={THEME.gradientPrimary}
+                    style={StyleSheet.absoluteFill}
+                  />
+                )}
+                <Feather
+                  name="list"
+                  size={18}
+                  color={calendarView === "list" ? THEME.textWhite : THEME.neutral600}
+                />
+                <Text
+                  style={[
+                    enhancedStyles.viewOptionText,
+                    calendarView === "list" && { color: THEME.textWhite },
+                  ]}
+                >
+                  List
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[
-                  simpleStyles.viewOptionText,
-                  calendarView === "month" && { color: "#FFFFFF" },
+                  enhancedStyles.viewOption,
+                  calendarView === "month" && enhancedStyles.viewOptionActive,
                 ]}
+                onPress={() => setCalendarView("month")}
+                activeOpacity={0.8}
               >
-                Calendar
-              </Text>
-            </TouchableOpacity>
+                {calendarView === "month" && (
+                  <LinearGradient
+                    colors={THEME.gradientPrimary}
+                    style={StyleSheet.absoluteFill}
+                  />
+                )}
+                <Feather
+                  name="calendar"
+                  size={18}
+                  color={calendarView === "month" ? THEME.textWhite : THEME.neutral600}
+                />
+                <Text
+                  style={[
+                    enhancedStyles.viewOptionText,
+                    calendarView === "month" && { color: THEME.textWhite },
+                  ]}
+                >
+                  Calendar
+                </Text>
+              </TouchableOpacity>
+            </LinearGradient>
           </View>
 
-          {/* Calendar View */}
+          {/* Calendar or List View */}
           {calendarView === "month" ? (
-            <View style={simpleStyles.calendarWrapper}>
+            <View style={enhancedStyles.calendarWrapper}>
               <Calendar
                 loading={loading}
                 currentMonth={currentMonth}
                 calendarData={calendarData}
                 selectedDate={selectedDate}
-                dayAnimations={dayAnimations}
+                calendarEntranceAnim={calendarEntranceAnim}
                 onDaySelect={(date) => {
                   const flatCalendarData = calendarData.flat();
                   const calendarDay = flatCalendarData.find(
@@ -657,44 +688,51 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
               />
             </View>
           ) : (
-            <View style={simpleStyles.eventsListContainer}>
+            <View style={enhancedStyles.eventsListContainer}>
               {loading && (
-                <View style={simpleStyles.centeredContent}>
+                <View style={enhancedStyles.centeredContent}>
                   <Animated.View style={spinStyles}>
-                    <Feather name="loader" size={30} color={THEME.primary} />
+                    <Feather name="loader" size={32} color={THEME.primary} />
                   </Animated.View>
-                  <Text style={simpleStyles.loadingText}>Loading events...</Text>
+                  <Text style={enhancedStyles.loadingText}>Loading church events...</Text>
                 </View>
               )}
 
               {!loading && filteredEvents.length === 0 && (
-                <View style={simpleStyles.noEventsContainer}>
-                  <Text style={simpleStyles.noEventsText}>No events found.</Text>
-                  <Text style={simpleStyles.noEventsSubtext}>
-                    There are no events for this church yet. Check back soon!
+                <View style={enhancedStyles.noEventsContainer}>
+                  <View style={enhancedStyles.emptyIconContainer}>
+                    <Feather name="calendar" size={48} color={THEME.neutral400} />
+                  </View>
+                  <Text style={enhancedStyles.noEventsText}>No events scheduled</Text>
+                  <Text style={enhancedStyles.noEventsSubtext}>
+                    "Be still and know that I am God" - Psalm 46:10
                   </Text>
-                  {/* Show Create Event button for admins in empty state */}
                   {hasPermissionToCreate && (
                     <TouchableOpacity
-                      style={[simpleStyles.addEventButton, { marginTop: 20 }]}
+                      style={enhancedStyles.createEventButton}
                       onPress={openAddModal}
-                      activeOpacity={0.85}
+                      activeOpacity={0.8}
                     >
-                      <Text style={simpleStyles.addEventButtonText}>Create New Event</Text>
-                      <Feather name="plus-circle" size={20} color="#FFFFFF" />
+                      <LinearGradient
+                        colors={THEME.gradientPrimary}
+                        style={enhancedStyles.createButtonGradient}
+                      >
+                        <Feather name="plus-circle" size={20} color={THEME.textWhite} />
+                        <Text style={enhancedStyles.createEventButtonText}>Create Church Event</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   )}
                 </View>
               )}
 
               {!loading && filteredEvents.length > 0 && (
-                <View style={simpleStyles.eventsGrid}>
+                <View style={enhancedStyles.eventsGrid}>
                   {filteredEvents.map((item, index) => (
                     <View
                       key={item.id.toString()}
                       style={[
-                        simpleStyles.eventCard,
-                        index < filteredEvents.length - 1 && { marginBottom: 16 },
+                        enhancedStyles.eventCard,
+                        index < filteredEvents.length - 1 && { marginBottom: 20 },
                       ]}
                     >
                       <EventCard
@@ -713,23 +751,10 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
             </View>
           )}
         </View>
-      </ScrollView>
+      </AnimatedScrollView>
 
-      {/* Floating Action Button with proper touchable area */}
-      {hasPermissionToCreate && (
-        <Animated.View style={[simpleStyles.fabContainer, fabStyle]}>
-          <TouchableOpacity
-            style={simpleStyles.fab}
-            onPress={openAddModal}
-            activeOpacity={0.8}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          >
-            <Feather name="plus" size={24} color="#FFF" />
-          </TouchableOpacity>
-        </Animated.View>
-      )}
 
-      {/* Event Detail Modal */}
+      {/* Modals remain the same but with enhanced styling context */}
       <Modal
         visible={showDetailModal}
         transparent={true}
@@ -768,7 +793,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         )}
       </Modal>
 
-      {/* Event Form Modals */}
       <Modal
         visible={showAddModal || showEditModal}
         transparent={true}
@@ -800,7 +824,6 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         />
       </Modal>
 
-      {/* Image Viewer Modal */}
       <Modal
         visible={showImageModal}
         transparent={true}
@@ -808,41 +831,46 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
         onRequestClose={() => setShowImageModal(false)}
       >
         {selectedImage && (
-          <View style={simpleStyles.imageViewerContainer}>
+          <View style={enhancedStyles.imageViewerContainer}>
             <TouchableOpacity
-              style={simpleStyles.closeImageButton}
+              style={enhancedStyles.closeImageButton}
               onPress={() => setShowImageModal(false)}
             >
-              <Feather name="x" size={24} color="#FFF" />
+              <View style={enhancedStyles.closeIconContainer}>
+                <Feather name="x" size={24} color={THEME.textWhite} />
+              </View>
             </TouchableOpacity>
             <Image
               source={{ uri: selectedImage }}
-              style={simpleStyles.fullscreenImage}
+              style={enhancedStyles.fullscreenImage}
               resizeMode="contain"
             />
           </View>
         )}
       </Modal>
 
-      {/* Selected Date Detail Modal */}
       <Modal
         visible={showDateDetail}
         transparent={true}
         animationType="none"
         onRequestClose={closeDateDetail}
       >
-        <Pressable style={simpleStyles.modalOverlay} onPress={closeDateDetail}>
+        <Pressable style={enhancedStyles.modalOverlay} onPress={closeDateDetail}>
           <Animated.View
             style={[
-              simpleStyles.dateDetailContainer,
+              enhancedStyles.dateDetailContainer,
               {
                 transform: [{ translateY: detailSlideAnim }],
               },
             ]}
           >
-            <View style={simpleStyles.dateDetailHeader}>
+            <LinearGradient
+              colors={[THEME.neutral50, THEME.neutral100]}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={enhancedStyles.dateDetailHeader}>
               <View>
-                <Text style={simpleStyles.dateDetailTitle}>
+                <Text style={enhancedStyles.dateDetailTitle}>
                   {selectedDate
                     ? new Date(selectedDate).toLocaleDateString("en-US", {
                         weekday: "long",
@@ -851,11 +879,11 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
                       })
                     : ""}
                 </Text>
-                <Text style={simpleStyles.dateDetailSubtitle}>
-                  {selectedDayEvents.length} Event{selectedDayEvents.length !== 1 ? "s" : ""}
+                <Text style={enhancedStyles.dateDetailSubtitle}>
+                  {selectedDayEvents.length} Church Event{selectedDayEvents.length !== 1 ? "s" : ""}
                 </Text>
               </View>
-              <TouchableOpacity onPress={closeDateDetail} style={simpleStyles.closeButton}>
+              <TouchableOpacity onPress={closeDateDetail} style={enhancedStyles.closeButton}>
                 <Feather name="x" size={24} color={THEME.textDark} />
               </TouchableOpacity>
             </View>
@@ -865,9 +893,9 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
               keyExtractor={(item) => item.id.toString()}
               renderItem={renderEventItem}
               ListEmptyComponent={() => (
-                <View style={simpleStyles.centeredContent}>
-                  <Feather name="calendar" size={40} color={THEME.textLight} />
-                  <Text style={simpleStyles.noEventsText}>No events scheduled for this day</Text>
+                <View style={enhancedStyles.centeredContent}>
+                  <Feather name="calendar" size={48} color={THEME.neutral400} />
+                  <Text style={enhancedStyles.noEventsText}>No events scheduled for this day</Text>
                 </View>
               )}
               contentContainerStyle={{
@@ -885,8 +913,8 @@ const ChurchEvents = ({ churchId, eventId }: ChurchEventsProps) => {
   );
 };
 
-// Simple clean styles
-const simpleStyles = StyleSheet.create({
+// Enhanced Styles with Christian Theme
+const enhancedStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.pageBg,
@@ -899,27 +927,22 @@ const simpleStyles = StyleSheet.create({
     height: Platform.OS === "ios" ? 120 : 100,
     zIndex: 10,
     overflow: "hidden",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 10,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  shimmerOverlay: {
+  headerBorder: {
     position: "absolute",
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    width: width * 2,
+    height: 1,
+    backgroundColor: `${THEME.primary}40`,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: Platform.OS === "ios" ? 0 : 10,
     height: 60,
     zIndex: 15,
@@ -927,40 +950,39 @@ const simpleStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#FFFFFF",
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    color: THEME.textWhite,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    ...THEME.shadowMedium,
+  },
+  headerButtonGradient: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: `${THEME.primary}30`,
   },
   scrollView: {
     flex: 1,
     width: "100%",
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120,
     flexGrow: 1,
   },
   heroSection: {
-    height: 350,
+    height: 480,
     width: "100%",
     overflow: "hidden",
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   heroBackground: {
     flex: 1,
@@ -970,300 +992,318 @@ const simpleStyles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   heroContent: {
-    padding: 30,
-    paddingBottom: 60,
+    padding: 32,
+    paddingBottom: 50,
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     zIndex: 5,
-  },
-  // Decorative elements
-  decorElement1: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    top: -30,
-    right: -30,
-    zIndex: 1,
-  },
-  decorElement2: {
-    position: "absolute",
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    top: 70,
-    left: -20,
-    zIndex: 1,
-  },
-  decorElement3: {
-    position: "absolute",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    bottom: 60,
-    right: 40,
-    zIndex: 1,
+    alignItems: "center",
   },
   iconContainer: {
-    width: 70,
-    height: 70,
+    width: 80,
+    height: 80,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 35,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  heroTitle: {
-    fontSize: 40,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 10,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    borderRadius: 40,
+    backgroundColor: `${THEME.primary}30`,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: `${THEME.primary}40`,
+    ...THEME.shadowMedium,
   },
   heroSubtitle: {
     fontSize: 18,
-    color: "rgba(255,255,255,0.95)",
-    marginBottom: 30,
+    color: THEME.accent2,
+    marginBottom: 8,
+    textAlign: "center",
+    fontStyle: "italic",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    fontWeight: "500",
+    lineHeight: 26,
+    paddingHorizontal: 20,
+  },
+  heroBibleVerse: {
+    fontSize: 14,
+    color: `${THEME.accent2}CC`,
+    marginBottom: 32,
+    textAlign: "center",
+    fontWeight: "600",
     textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 5,
-    fontWeight: "500",
-    lineHeight: 24,
+    textShadowRadius: 3,
   },
   addEventButton: {
+    borderRadius: 32,
+    overflow: "hidden",
+    ...THEME.shadowMedium,
+  },
+  buttonGradient: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.25)",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 30,
-    alignSelf: "flex-start",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
   },
   addEventButtonText: {
-    color: "#FFFFFF",
+    color: THEME.textWhite,
     fontWeight: "700",
     fontSize: 16,
-    marginRight: 10,
+    marginLeft: 12,
+  },
+  // Decorative Elements
+  holyGlow: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    top: -50,
+    right: -50,
+    zIndex: 1,
+  },
+  glowCircle: {
+    flex: 1,
+    borderRadius: 100,
+  },
+  crossGlow: {
+    position: "absolute",
+    width: 60,
+    height: 60,
+    top: 100,
+    left: 50,
+    zIndex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  crossVertical: {
+    position: "absolute",
+    width: 4,
+    height: 40,
+    backgroundColor: `${THEME.accent2}60`,
+    borderRadius: 2,
+  },
+  crossHorizontal: {
+    position: "absolute",
+    width: 24,
+    height: 4,
+    backgroundColor: `${THEME.accent2}60`,
+    borderRadius: 2,
+  },
+  doveFloat: {
+    position: "absolute",
+    bottom: 120,
+    right: 60,
+    zIndex: 1,
+  },
+  shimmerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: width * 2,
+    zIndex: 2,
   },
   searchContainer: {
-    marginHorizontal: 20,
-    marginTop: -50,
-    marginBottom: 15,
+    marginHorizontal: 24,
+    marginTop: -80,
+    marginBottom: 20,
     zIndex: 10,
   },
   searchBar: {
-    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    padding: 16,
+    borderRadius: 20,
+    ...THEME.shadowLight,
+    overflow: "hidden",
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: THEME.textDark,
+    fontWeight: "500",
+  },
+  clearButton: {
+    padding: 4,
   },
   mainContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   sectionContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.textDark,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: "800",
+    color: THEME.textMedium,
+    marginBottom: 16,
+    textAlign: "center",
   },
   pill: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: "rgba(0,0,0,0.05)",
-    borderRadius: 20,
-    marginRight: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 24,
+    marginRight: 12,
+    overflow: "hidden",
+    ...THEME.shadowLight,
   },
-  pillActive: {
-    backgroundColor: THEME.primary,
+  pillGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
   },
   pillText: {
     color: THEME.textDark,
-    fontWeight: "500",
+    fontWeight: "600",
+    fontSize: 14,
   },
   pillTextActive: {
-    color: "#FFFFFF",
+    color: THEME.textWhite,
   },
   viewSelector: {
+    marginBottom: 24,
+    borderRadius: 32,
+    overflow: "hidden",
+    ...THEME.shadowLight,
+  },
+  viewSelectorGradient: {
     flexDirection: "row",
-    marginBottom: 20,
-    backgroundColor: "rgba(0,0,0,0.05)",
-    borderRadius: 30,
-    padding: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    padding: 6,
   },
   viewOption: {
     flex: 1,
     flexDirection: "row",
-    paddingVertical: 10,
+    paddingVertical: 12,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 26,
+    overflow: "hidden",
   },
   viewOptionActive: {
-    backgroundColor: THEME.primary,
+    overflow: "hidden",
   },
   viewOptionText: {
     marginLeft: 8,
-    fontWeight: "600",
-    color: THEME.textMedium,
+    fontWeight: "700",
+    color: THEME.neutral600,
+    fontSize: 14,
   },
   calendarWrapper: {
-    marginBottom: 20,
-    borderRadius: 16,
+    marginBottom: 24,
+    borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: THEME.neutral50,
+    ...THEME.shadowLight,
   },
   eventsListContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   centeredContent: {
-    padding: 40,
+    padding: 48,
     alignItems: "center",
     justifyContent: "center",
   },
   loadingText: {
     color: THEME.textMedium,
-    marginTop: 16,
+    marginTop: 20,
     fontSize: 16,
+    fontWeight: "600",
+  },
+  noEventsContainer: {
+    padding: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: THEME.cardBg,
+    borderRadius: 20,
+    margin: 4,
+    ...THEME.shadowLight,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${THEME.neutral300}30`,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
   },
   noEventsText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: THEME.textDark,
-    marginTop: 20,
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: "700",
+    color: THEME.textMedium,
+    marginBottom: 12,
+    textAlign: "center",
   },
   noEventsSubtext: {
     fontSize: 16,
-    color: THEME.textMedium,
+    color: THEME.textLight,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 32,
+    fontStyle: "italic",
+    lineHeight: 24,
+    paddingHorizontal: 20,
   },
-  createButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: THEME.primary,
-    borderRadius: 30,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+  createEventButton: {
+    borderRadius: 32,
+    overflow: "hidden",
+    ...THEME.shadowMedium,
   },
-  createButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+  createButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+  },
+  createEventButtonText: {
+    color: THEME.textWhite,
+    fontWeight: "700",
+    fontSize: 16,
+    marginLeft: 12,
   },
   eventsGrid: {
     flex: 1,
   },
   eventCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: THEME.neutral50,
+    borderRadius: 20,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  fabContainer: {
-    position: "absolute",
-    bottom: 30,
-    right: 30,
-    zIndex: 10,
-  },
-  fab: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: THEME.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
+    ...THEME.shadowLight,
   },
   eventItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
+    borderBottomColor: `${THEME.neutral300}40`,
   },
   eventTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: THEME.textDark,
     marginBottom: 4,
   },
   eventTime: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.neutral600,
+    fontWeight: "500",
   },
   imageViewerContainer: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
+    backgroundColor: "rgba(0,0,0,0.95)",
     justifyContent: "center",
     alignItems: "center",
   },
   closeImageButton: {
     position: "absolute",
-    top: 40,
-    right: 20,
+    top: 60,
+    right: 24,
     zIndex: 10,
-    padding: 10,
+  },
+  closeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   fullscreenImage: {
     width: width,
@@ -1271,46 +1311,38 @@ const simpleStyles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
   dateDetailContainer: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    overflow: "hidden",
+    ...THEME.shadowHeavy,
   },
   dateDetailHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
+    borderBottomColor: `${THEME.neutral300}40`,
   },
   dateDetailTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     color: THEME.textDark,
   },
   dateDetailSubtitle: {
     fontSize: 14,
-    color: THEME.textMedium,
+    color: THEME.neutral600,
     marginTop: 4,
+    fontWeight: "600",
   },
   closeButton: {
     padding: 8,
-  },
-  noEventsContainer: {
-    padding: 40,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });
 

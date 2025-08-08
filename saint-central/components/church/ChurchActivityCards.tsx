@@ -55,8 +55,8 @@ const activities: ActivityCard[] = [
     icon: "heart",
     iconType: "FontAwesome5",
     gradientColors: [`${theme.tertiary}25`, `${theme.tertiary}10`],
-    route: "Prayer",
-    requiresChurch: false, // This route doesn't need churchId
+    route: "churchPrayerBoard",
+    requiresChurch: true, // This route needs churchId to show church-specific prayers
   },
 ];
 

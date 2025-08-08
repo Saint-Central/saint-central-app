@@ -7,4 +7,6 @@ export interface Ministry {
   description: string;
   created_at: string;
   is_system_generated: boolean;
+  private: boolean;
+  hidden?: boolean;
 }

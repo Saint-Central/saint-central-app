@@ -241,6 +241,23 @@ export default function ChurchSidebar({
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
             </TouchableOpacity>
 
+            {/* Prayer Board Section */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo("/churchPrayerBoard")}>
+              <View style={styles.menuIconContainer}>
+                <LinearGradient
+                  colors={["#9333EA", "#7C3AED"]}
+                  style={[styles.iconGradient, styles.muted]}
+                >
+                  <FontAwesome5 name="pray" size={20} color={theme.textWhite} />
+                </LinearGradient>
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>Prayer Board</Text>
+                <Text style={styles.menuDescription}>Share & support prayer requests</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.textLight} />
+            </TouchableOpacity>
+
             {/* Divider */}
             <View style={styles.divider} />
 

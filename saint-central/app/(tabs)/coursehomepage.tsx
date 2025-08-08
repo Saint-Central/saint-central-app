@@ -312,6 +312,19 @@ const CourseHomePage: React.FC = () => {
       // Delete the enrollment
       await crud.delete("course_enrollment", { id: enrollment.id });
 
+      // Check if course has a linked ministry and remove from ministry too
+      const course = await crud.selectOne("courses", {
+        where: { id: courseId }
+      });
+      
+      if (course?.ministry_id) {
+        await crud.update(
+          "ministry_members",
+          { role: "removed" },
+          { ministry_id: course.ministry_id, user_id: user.id }
+        );
+      }
+
       // Refresh enrollments to update UI
       await fetchUserEnrollments();
       Alert.alert("Success", "Successfully left the course.");
@@ -428,30 +441,57 @@ const CourseHomePage: React.FC = () => {
     const isEnrolled = isUserEnrolled(item.id);
 
     return (
-      <TouchableOpacity
+      <Animated.View
         key={item.id.toString()}
-        style={[styles.modernCourseCard, isPastCourse && styles.pastCourseCard]}
-        onPress={() => handleCourseClick(item)}
-        activeOpacity={0.9}
+        style={{
+          transform: [{
+            scale: scrollY.interpolate({
+              inputRange: [-100, 0, 100],
+              outputRange: [1.02, 1, 0.98],
+              extrapolate: 'clamp'
+            })
+          }]
+        }}
       >
-        <View style={styles.cardHeader}>
-          <View style={[styles.courseIcon, { backgroundColor: color }]}>
-            <Feather name={icon as any} size={18} color={theme.textWhite} />
-          </View>
-          
-          <View style={styles.cardHeaderContent}>
-            <Text style={styles.modernCourseTitle} numberOfLines={2}>
-              {item.description || "Untitled Course"}
-            </Text>
-            <Text style={styles.courseHost}>by {item.host}</Text>
-          </View>
-
+        <TouchableOpacity
+          style={[
+            styles.modernCourseCard, 
+            isPastCourse && styles.pastCourseCard,
+            isEnrolled && styles.enrolledCourseCard
+          ]}
+          onPress={() => handleCourseClick(item)}
+          activeOpacity={0.9}
+        >
+          {/* Enrollment Status Banner */}
           {isEnrolled && (
-            <View style={styles.enrolledBadge}>
-              <Feather name="check" size={12} color={theme.success} />
-            </View>
+            <LinearGradient
+              colors={[theme.success + '20', theme.success + '10']}
+              style={styles.enrollmentBanner}
+            >
+              <Feather name="check-circle" size={14} color={theme.success} />
+              <Text style={styles.enrollmentBannerText}>Enrolled</Text>
+            </LinearGradient>
           )}
-        </View>
+
+          <View style={styles.cardHeader}>
+            <View style={[styles.courseIcon, { backgroundColor: color }]}>
+              <Feather name={icon as any} size={20} color={theme.textWhite} />
+            </View>
+            
+            <View style={styles.cardHeaderContent}>
+              <View style={styles.titleRow}>
+                <Text style={styles.modernCourseTitle} numberOfLines={2}>
+                  {item.description || "Untitled Course"}
+                </Text>
+                {isPastCourse && (
+                  <View style={styles.pastBadge}>
+                    <Text style={styles.pastBadgeText}>Past</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.courseHost}>Hosted by {item.host}</Text>
+            </View>
+          </View>
 
         {item.image_url && (
           <View style={styles.modernImageContainer}>
@@ -465,54 +505,62 @@ const CourseHomePage: React.FC = () => {
 
         <View style={styles.modernCourseInfo}>
           <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Feather name="calendar" size={14} color={theme.textLight} />
-              <Text style={styles.infoText}>{formatDate(item.time)}</Text>
+            <View style={[styles.infoItem, styles.infoItemWithBorder]}>
+              <Feather name="calendar" size={16} color={theme.textLight} />
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Date</Text>
+                <Text style={styles.infoText}>{formatDate(item.time)}</Text>
+              </View>
             </View>
             <View style={styles.infoItem}>
-              <Feather name="clock" size={14} color={theme.textLight} />
-              <Text style={styles.infoText}>{formatTime(item.time)}</Text>
+              <Feather name="clock" size={16} color={theme.textLight} />
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Time</Text>
+                <Text style={styles.infoText}>{formatTime(item.time)}</Text>
+              </View>
             </View>
           </View>
           
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Feather name="map-pin" size={14} color={theme.textLight} />
-              <Text style={styles.infoText} numberOfLines={1}>{item.location || "TBD"}</Text>
-            </View>
+          <View style={styles.locationRow}>
+            <Feather name="map-pin" size={16} color={theme.textLight} />
+            <Text style={styles.locationText} numberOfLines={2}>{item.location || "Location to be determined"}</Text>
           </View>
         </View>
 
         <View style={styles.modernCardActions}>
-          {canEdit && (
-            <View style={styles.adminActionsRow}>
-              <TouchableOpacity
-                style={styles.modernActionButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleEditCourse(item);
-                }}
-              >
-                <Feather name="edit-2" size={16} color={theme.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modernActionButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  router.push({
-                    pathname: "/course-admin/[id]",
-                    params: { id: item.id },
-                  });
-                }}
-              >
-                <Feather name="users" size={16} color={theme.primary} />
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={styles.leftActions}>
+            {canEdit && (
+              <>
+                <TouchableOpacity
+                  style={[styles.modernActionButton, styles.editButton]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleEditCourse(item);
+                  }}
+                >
+                  <Feather name="edit-2" size={16} color={theme.primary} />
+                  <Text style={styles.actionButtonText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modernActionButton, styles.manageButton]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push({
+                      pathname: "/course-admin/[id]",
+                      params: { id: item.id },
+                    });
+                  }}
+                >
+                  <Feather name="users" size={16} color={theme.primary} />
+                  <Text style={styles.actionButtonText}>Manage</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
 
           {isEnrolled ? (
             <TouchableOpacity
-              style={styles.modernLeaveButton}
+              style={[styles.enrollmentButton, styles.leaveButton]}
               onPress={(e) => {
                 e.stopPropagation();
                 handleLeave(item.id);
@@ -522,12 +570,15 @@ const CourseHomePage: React.FC = () => {
               {leavingId === item.id ? (
                 <ActivityIndicator size="small" color={theme.error} />
               ) : (
-                <Text style={styles.leaveButtonText}>Leave</Text>
+                <>
+                  <Feather name="log-out" size={14} color={theme.error} />
+                  <Text style={styles.leaveButtonText}>Leave Course</Text>
+                </>
               )}
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.modernEnrollButton}
+              style={[styles.enrollmentButton, styles.enrollButton]}
               onPress={(e) => {
                 e.stopPropagation();
                 handleEnroll(item.id);
@@ -537,12 +588,16 @@ const CourseHomePage: React.FC = () => {
               {enrollingId === item.id ? (
                 <ActivityIndicator size="small" color={theme.textWhite} />
               ) : (
-                <Text style={styles.modernEnrollText}>Enroll</Text>
+                <>
+                  <Feather name="user-plus" size={14} color={theme.textWhite} />
+                  <Text style={styles.enrollButtonText}>Enroll Now</Text>
+                </>
               )}
             </TouchableOpacity>
           )}
         </View>
       </TouchableOpacity>
+      </Animated.View>
     );
   };
 
@@ -559,7 +614,9 @@ const CourseHomePage: React.FC = () => {
           
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>Courses</Text>
-            <Text style={styles.headerSubtitle}>{filteredCourses.length} available</Text>
+            <Text style={styles.headerSubtitle}>
+              {filteredCourses.length} available • {userEnrollments.length} enrolled
+            </Text>
           </View>
 
           <View style={styles.headerActions}>
@@ -638,21 +695,42 @@ const CourseHomePage: React.FC = () => {
 
       {/* Quick Stats */}
       <View style={styles.quickStats}>
+        <TouchableOpacity 
+          style={styles.statCard}
+          onPress={() => router.push("/my-enrollments")}
+        >
+          <LinearGradient
+            colors={[theme.success + '20', theme.success + '10']}
+            style={styles.statCardGradient}
+          >
+            <Feather name="check-circle" size={20} color={theme.success} />
+            <Text style={[styles.statNumber, { color: theme.success }]}>
+              {userEnrollments.length}
+            </Text>
+            <Text style={styles.statLabel}>Enrolled</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{userEnrollments.length}</Text>
-          <Text style={styles.statLabel}>Enrolled</Text>
+          <LinearGradient
+            colors={[theme.primary + '20', theme.primary + '10']}
+            style={styles.statCardGradient}
+          >
+            <Feather name="book-open" size={20} color={theme.primary} />
+            <Text style={[styles.statNumber, { color: theme.primary }]}>
+              {filteredCourses.length}
+            </Text>
+            <Text style={styles.statLabel}>Available</Text>
+          </LinearGradient>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{filteredCourses.length}</Text>
-          <Text style={styles.statLabel}>Available</Text>
-        </View>
+        
         {hasPermissionToCreate && (
           <TouchableOpacity
             style={styles.createCard}
             onPress={handleCreateCourseClick}
             activeOpacity={0.8}
           >
-            <Feather name="plus" size={20} color={theme.textWhite} />
+            <Feather name="plus" size={24} color={theme.textWhite} />
             <Text style={styles.createLabel}>Create</Text>
           </TouchableOpacity>
         )}
@@ -690,7 +768,18 @@ const CourseHomePage: React.FC = () => {
             </Text>
           </View>
         ) : filteredCourses.length === 0 ? (
-          <View style={styles.emptyState}>
+          <Animated.View 
+            style={[
+              styles.emptyState,
+              {
+                opacity: scrollY.interpolate({
+                  inputRange: [-50, 0],
+                  outputRange: [0.5, 1],
+                  extrapolate: 'clamp'
+                })
+              }
+            ]}
+          >
             <View style={styles.emptyIcon}>
               <Feather name="book-open" size={32} color={theme.textLight} />
             </View>
@@ -698,9 +787,20 @@ const CourseHomePage: React.FC = () => {
             <Text style={styles.emptySubtitle}>
               {searchQuery
                 ? "Try adjusting your search terms"
-                : "No courses available at the moment"}
+                : hasPermissionToCreate 
+                  ? "Create the first course for your community"
+                  : "No courses available at the moment"}
             </Text>
-          </View>
+            {hasPermissionToCreate && !searchQuery && (
+              <TouchableOpacity
+                style={styles.emptyStateButton}
+                onPress={handleCreateCourseClick}
+              >
+                <Feather name="plus" size={18} color={theme.textWhite} />
+                <Text style={styles.emptyStateButtonText}>Create Course</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
         ) : (
           <>
             {filteredCourses.map((item) => renderCourseCard({ item }))}
@@ -710,7 +810,7 @@ const CourseHomePage: React.FC = () => {
       </ScrollView>
     </View>
   );
-};
+}
 
 // Modern styles
 const styles = StyleSheet.create({
@@ -836,13 +936,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.cardBg,
     borderRadius: theme.radiusMedium,
+    overflow: "hidden",
+  },
+  statCardGradient: {
     padding: theme.spacingL,
     alignItems: "center",
+    borderRadius: theme.radiusMedium,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: "700",
     color: theme.textWhite,
+    marginTop: 6,
   },
   statLabel: {
     fontSize: 12,
@@ -914,6 +1019,21 @@ const styles = StyleSheet.create({
     color: theme.textLight,
     textAlign: "center",
     lineHeight: 24,
+  },
+  emptyStateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.primary,
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    borderRadius: 24,
+    marginTop: theme.spacingL,
+    gap: 6,
+  },
+  emptyStateButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.textWhite,
   },
   
   // Modern course cards
@@ -1022,14 +1142,16 @@ const styles = StyleSheet.create({
     gap: theme.spacingS,
   },
   modernActionButton: {
-    width: 36,
-    height: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 18,
     backgroundColor: theme.cardBg,
     justifyContent: "center",
-    alignItems: "center",
     borderWidth: 1,
     borderColor: theme.primary,
+    gap: 4,
   },
   modernEnrollButton: {
     backgroundColor: theme.primary,
@@ -1055,9 +1177,115 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   leaveButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.error,
+  },
+  
+  // New styles for enhanced UI
+  enrolledCourseCard: {
+    borderWidth: 2,
+    borderColor: theme.success + '30',
+  },
+  enrollmentBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: theme.spacingM,
+    backgroundColor: theme.success + '15',
+    gap: 6,
+  },
+  enrollmentBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.success,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacingS,
+  },
+  pastBadge: {
+    backgroundColor: theme.warning + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  pastBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: theme.warning,
+    textTransform: "uppercase",
+  },
+  infoItemWithBorder: {
+    borderRightWidth: 1,
+    borderRightColor: theme.cardBg,
+    paddingRight: theme.spacingM,
+  },
+  infoTextContainer: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 11,
+    color: theme.textLight,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacingS,
+    paddingTop: theme.spacingS,
+    borderTopWidth: 1,
+    borderTopColor: theme.cardBg,
+  },
+  locationText: {
+    fontSize: 14,
+    color: theme.textMedium,
+    flex: 1,
+    lineHeight: 20,
+  },
+  leftActions: {
+    flexDirection: "row",
+    gap: theme.spacingS,
+  },
+  editButton: {
+    backgroundColor: theme.primary + '15',
+    borderColor: theme.primary + '30',
+  },
+  manageButton: {
+    backgroundColor: theme.info + '15',
+    borderColor: theme.info + '30',
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.primary,
+  },
+  enrollmentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: theme.spacingL,
+    paddingVertical: theme.spacingM,
+    borderRadius: 24,
+    gap: 6,
+  },
+  enrollButton: {
+    backgroundColor: theme.primary,
+  },
+  enrollButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.textWhite,
+  },
+  leaveButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: theme.error + '50',
   },
 });
 

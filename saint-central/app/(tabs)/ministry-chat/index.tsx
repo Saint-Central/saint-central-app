@@ -14,6 +14,8 @@ import {
   Keyboard,
   Image,
   Dimensions,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -44,24 +46,27 @@ import * as Device from "expo-device";
 
 const { width, height } = Dimensions.get("window");
 
-// Theme colors
+// WhatsApp Theme colors
 const THEME = {
-  primary: "#4F46E5", // Indigo
-  primaryLight: "#818CF8",
-  primaryDark: "#3730A3",
-  secondary: "#10B981", // Emerald
-  secondaryLight: "#34D399",
-  accent: "#F59E0B", // Amber
-  background: "#FFFFFF",
-  surface: "#F8FAFC",
-  text: "#1E293B",
-  textSecondary: "#64748B",
-  textLight: "#94A3B8",
-  border: "#E2E8F0",
-  error: "#EF4444",
-  success: "#10B981",
-  divider: "#CBD5E1",
-  ripple: "rgba(79, 70, 229, 0.1)",
+  primary: "#25D366", // WhatsApp Green
+  primaryLight: "#34E675",
+  primaryDark: "#128C7E",
+  secondary: "#075E54", // WhatsApp Dark Green
+  secondaryLight: "#25D366",
+  accent: "#128C7E",
+  background: "#ECE5DD", // WhatsApp Chat Background
+  surface: "#FFFFFF",
+  text: "#111B21",
+  textSecondary: "#667781",
+  textLight: "#8696A0",
+  border: "#E9EDEF",
+  error: "#EA5455",
+  success: "#25D366",
+  divider: "#E9EDEF",
+  ripple: "rgba(37, 211, 102, 0.1)",
+  messageGreen: "#E7FFDB", // Sent message background
+  headerGreen: "#008069", // Header background
+  inputBg: "#F0F2F5", // Input area background
 };
 
 // Message interface
@@ -108,8 +113,15 @@ const MinistryChat = () => {
     ? parseInt((route.params as RouteParams).id)
     : null;
 
+  // Hide the default header navigation for this screen
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
+
   // Initialize CRUD client and auth
-  const { select, selectOne, insert, update } = useCRUD();
+  const { select, selectOne, insert, update, delete: deleteRecord } = useCRUD();
   const { user, getAccessToken } = useAuth();
 
   const [ministry, setMinistry] = useState<Ministry | null>(null);
@@ -127,6 +139,12 @@ const MinistryChat = () => {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
+
+  // Modal and members state
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [ministryMembers, setMinistryMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   // Pagination state for infinite scrolling
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -263,20 +281,17 @@ const MinistryChat = () => {
     };
   }, []);
 
-  // Update the animation type for scrollToBottomAnimatedStyle
-  const scrollToBottomAnimatedStyle = useSharedValue({
-    opacity: 0,
-    transform: [{ scale: 0.8 }, { translateY: 20 }],
-    bottom: 90,
-  });
+  // Separate shared values for scroll to bottom button
+  const scrollToBottomOpacity = useSharedValue(0);
+  const scrollToBottomScale = useSharedValue(0.8);
+  const scrollToBottomTranslateY = useSharedValue(20);
 
   // Update unread message indicator
   useEffect(() => {
     if (unreadMessages > 0) {
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 1,
-      };
+      scrollToBottomOpacity.value = withTiming(1, { duration: 200 });
+      scrollToBottomScale.value = withSpring(1);
+      scrollToBottomTranslateY.value = withTiming(0, { duration: 200 });
     }
   }, [unreadMessages]);
 
@@ -386,15 +401,24 @@ const MinistryChat = () => {
               };
 
               // Add to state with animation flag
-              setMessages((prev) => [formattedMessage, ...prev]);
+              console.log('Adding new real-time message to state:', formattedMessage.id);
+              setMessages((prev) => {
+                // Check if message already exists to prevent duplicates
+                const exists = prev.find(msg => msg.id === formattedMessage.id);
+                if (exists) {
+                  console.log('Message already exists, skipping:', formattedMessage.id);
+                  return prev;
+                }
+                console.log('Adding new message to top of list');
+                return [formattedMessage, ...prev];
+              });
 
               // Update unread count if scrolled up
               if (isScrolledUp && !isCurrentUserMessage) {
                 setUnreadMessages((prev) => prev + 1);
-                scrollToBottomAnimatedStyle.value = {
-                  ...scrollToBottomAnimatedStyle.value,
-                  opacity: 1,
-                };
+                scrollToBottomOpacity.value = withTiming(1, { duration: 200 });
+                scrollToBottomScale.value = withSpring(1);
+                scrollToBottomTranslateY.value = withTiming(0, { duration: 200 });
 
                 // Haptic feedback
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -511,6 +535,196 @@ const MinistryChat = () => {
     }
   };
 
+  // Fetch ministry members
+  const fetchMinistryMembers = async () => {
+    try {
+      setLoadingMembers(true);
+
+      // Get ministry members
+      const members = await select("ministry_members", {
+        where: {
+          ministry_id: ministryId,
+        },
+      });
+
+      if (members && members.length > 0) {
+        // Filter out removed members
+        const activeMembers = members.filter(
+          (m) => m.role !== "removed" && m.member_status !== "removed",
+        );
+
+        // Get user details for each member
+        const memberDetails = await Promise.all(
+          activeMembers.map(async (member) => {
+            const userDetails = await selectOne("users", {
+              select: "id, first_name, last_name, profile_image",
+              where: { id: member.user_id },
+            });
+
+            return {
+              ...member,
+              user_name: userDetails
+                ? `${userDetails.first_name || ""} ${userDetails.last_name || ""}`.trim()
+                : "Unknown User",
+              user_avatar: userDetails?.profile_image,
+              user_id: member.user_id,
+              role: member.role || member.member_status || "member",
+            };
+          }),
+        );
+
+        // Remove duplicates based on user_id
+        const uniqueMembers = memberDetails.filter(
+          (member, index, self) => index === self.findIndex((m) => m.user_id === member.user_id),
+        );
+
+        // Sort by role (owner > admin > member)
+        const sortedMembers = uniqueMembers.sort((a, b) => {
+          const roleOrder = { owner: 0, leader: 1, admin: 2, member: 3 };
+          return (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3);
+        });
+
+        setMinistryMembers(sortedMembers);
+
+        // Check current user's role in ministry
+        const currentUserMember = activeMembers.find((m) => m.user_id === user?.id);
+        console.log("Current user ministry member data:", currentUserMember);
+
+        if (currentUserMember) {
+          const ministryRole =
+            currentUserMember.role || currentUserMember.member_status || "member";
+          console.log("User ministry role:", ministryRole);
+          setCurrentUserRole(ministryRole);
+        }
+
+        // Also check if user is church admin/owner (should have admin rights in all ministries)
+        if (ministry) {
+          const churchMember = await selectOne("church_members", {
+            where: {
+              user_id: user?.id,
+              church_id: ministry.church_id,
+            },
+          });
+
+          console.log("Church member data:", churchMember);
+
+          if (churchMember) {
+            const churchRole = churchMember.role?.toLowerCase();
+            console.log("Church role:", churchRole);
+            if (churchRole === "admin" || churchRole === "owner") {
+              setCurrentUserRole(churchRole); // Church admins/owners have admin rights in ministries
+              console.log("Set user role to church role:", churchRole);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching ministry members:", error);
+      Alert.alert("Error", "Failed to load ministry members");
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  // Handle kicking a member
+  const handleKickMember = async (memberId: string) => {
+    try {
+      // Show confirmation dialog
+      Alert.alert(
+        "Remove Member",
+        "Are you sure you want to remove this member from the ministry?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                console.log("Attempting to remove member:", {
+                  ministry_id: ministryId,
+                  user_id: memberId,
+                });
+
+                // First, check if the member exists
+                const existingMember = await selectOne("ministry_members", {
+                  where: {
+                    ministry_id: ministryId,
+                    user_id: memberId,
+                  },
+                });
+
+                console.log("Existing member data:", existingMember);
+
+                if (!existingMember) {
+                  Alert.alert("Error", "Member not found in this ministry");
+                  return;
+                }
+
+                // Try to delete the member record instead of updating
+                try {
+                  // First try to update to removed status
+                  await update(
+                    "ministry_members",
+                    { role: "removed" },
+                    { ministry_id: ministryId, user_id: memberId },
+                  );
+                } catch (updateError) {
+                  console.error("Update failed, trying delete:", updateError);
+                  // If update fails, try deleting the record
+                  const deleteResult = await deleteRecord("ministry_members", {
+                    ministry_id: ministryId,
+                    user_id: memberId,
+                  });
+                  console.log("Delete result:", deleteResult);
+                }
+
+                // Check if ministry is linked to a course and remove from course too
+                try {
+                  const linkedCourses = await select("courses", {
+                    where: { ministry_id: ministryId },
+                  });
+
+                  if (linkedCourses && linkedCourses.length > 0) {
+                    // Remove from all linked course enrollments
+                    for (const course of linkedCourses) {
+                      try {
+                        await update(
+                          "course_enrollments",
+                          { is_active: false },
+                          { course_id: course.id, user_id: memberId },
+                        );
+                      } catch (courseError) {
+                        console.error("Error removing from course:", courseError);
+                        // Try deleting if update fails
+                        await deleteRecord("course_enrollments", {
+                          course_id: course.id,
+                          user_id: memberId,
+                        });
+                      }
+                    }
+                  }
+                } catch (courseError) {
+                  console.error("Error handling course removal:", courseError);
+                }
+
+                // Refresh members list
+                fetchMinistryMembers();
+
+                Alert.alert("Success", "Member has been removed from the ministry");
+              } catch (error) {
+                console.error("Error removing member:", error);
+                console.error("Error details:", JSON.stringify(error, null, 2));
+                Alert.alert("Error", "Failed to remove member. Please try again.");
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Error in handleKickMember:", error);
+    }
+  };
+
   // Fetch current user using Auth and CRUD APIs
   const fetchCurrentUser = async () => {
     try {
@@ -558,63 +772,124 @@ const MinistryChat = () => {
 
       console.log("Query options:", JSON.stringify(queryOptions, null, 2));
 
-      let data = await select("ministry_messages", queryOptions);
+      // Skip CRUD API for now - it has stale data, use direct Supabase with AuthContext auth
+      console.log("⚠️ Using direct Supabase due to CRUD API data sync issues");
+      console.log("Pagination info - isInitial:", isInitial, "lastTimestamp:", lastMessageTimestamp);
+      
+      // Get auth token from AuthContext and set it for Supabase
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("No auth token available from AuthContext");
+      }
+      
+      // Set the auth token for this Supabase call
+      supabase.auth.getSession = () => Promise.resolve({ 
+        data: { 
+          session: { 
+            access_token: accessToken,
+            user: user 
+          } 
+        }, 
+        error: null 
+      });
+      
+      // Build query with proper pagination
+      let query = supabase
+        .from('ministry_messages')
+        .select('id, ministry_id, user_id, message_text, sent_at, attachment_url')
+        .eq('ministry_id', ministryId)
+        .order('sent_at', { ascending: false });
+        
+      // For pagination (not initial load), filter by timestamp
+      if (!isInitial && lastMessageTimestamp) {
+        console.log("Adding timestamp filter for pagination: sent_at < ", lastMessageTimestamp);
+        query = query.lt('sent_at', lastMessageTimestamp);
+      }
+      
+      // Set limit
+      query = query.limit(MESSAGES_PER_PAGE + 1); // Get one extra to check if there are more
+      
+      const { data, error: supabaseError } = await query;
+        
+      if (supabaseError) {
+        console.error("Direct Supabase query failed:", supabaseError);
+        throw supabaseError;
+      }
+      
+      console.log("✅ Messages fetched via direct Supabase with AuthContext token");
 
       console.log(`Fetched ${data?.length || 0} messages`);
 
-      if (data && data.length > 0) {
-        // Sort client-side by sent_at descending (newest first)
-        data = data.sort(
-          (a: any, b: any) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime(),
-        );
+      let processedData = data;
+      let hasMore = false;
+      
+      if (processedData && processedData.length > 0) {
+        console.log('📅 Raw messages from Supabase (showing first 5 with dates):');
+        processedData.slice(0, 5).forEach((msg, idx) => {
+          console.log(`${idx + 1}. ID: ${msg.id}, sent_at: ${msg.sent_at}, text: ${msg.message_text?.substring(0, 30)}...`);
+        });
 
-        // For initial load, take only the most recent messages
-        if (isInitial) {
-          data = data.slice(0, MESSAGES_PER_PAGE);
+        // Check if there are more messages (we fetched MESSAGES_PER_PAGE + 1)
+        hasMore = processedData.length > MESSAGES_PER_PAGE;
+        if (hasMore) {
+          // Remove the extra message used for hasMore detection
+          processedData = processedData.slice(0, MESSAGES_PER_PAGE);
+          console.log(`🔄 More messages available after these ${processedData.length}`);
         } else {
-          // For pagination, skip the messages we already have
-          const currentMessageIds = messages.map((m) => m.id);
-          data = data.filter((msg) => !currentMessageIds.includes(msg.id));
-          data = data.slice(0, MESSAGES_PER_PAGE);
+          console.log(`✅ Last batch: ${processedData.length} messages (no more available)`);
         }
 
-        console.log(`After sorting and filtering: ${data?.length || 0} messages`);
+        // Supabase already returns them ordered by sent_at DESC, so no need to sort
+        console.log('📅 Messages are already ordered by Supabase (newest first)');
+        
+        // For pagination, we don't need to filter duplicates because we're using timestamp filtering
+        console.log(`📊 Final result: ${processedData?.length || 0} messages to display`);
+      } else {
+        console.log('❌ No messages returned from Supabase');
+        processedData = [];
+        hasMore = false;
       }
 
-      if (data) {
-        // Update pagination state
-        if (data.length < MESSAGES_PER_PAGE) {
-          console.log("No more messages to fetch");
-          setHasMoreMessages(false);
-        } else {
-          setHasMoreMessages(true);
-        }
+      if (processedData) {
+        // Update pagination state based on hasMore detection
+        setHasMoreMessages(hasMore);
+        console.log("Updated hasMoreMessages to:", hasMore);
 
         // Set last message timestamp for next pagination if there's data
-        if (data.length > 0) {
-          const oldestMessage = data[data.length - 1];
+        if (processedData.length > 0) {
+          const oldestMessage = processedData[processedData.length - 1];
           console.log("Setting last timestamp:", oldestMessage.sent_at);
           setLastMessageTimestamp(oldestMessage.sent_at);
         }
 
-        // Fetch user details for each message using CRUD API
+        // Fetch user details for each message - use CRUD API for user data (should be more reliable)
         const messagesWithUsers = await Promise.all(
-          data.map(async (message) => {
-            const userData = await selectOne("users", {
-              select: "first_name, last_name, profile_image",
-              where: { id: message.user_id },
-            });
+          processedData.map(async (message) => {
+            try {
+              const userData = await selectOne("users", {
+                select: "first_name, last_name, profile_image",
+                where: { id: message.user_id },
+              });
 
-            const fullName = userData
-              ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
-              : "Unknown User";
+              const fullName = userData
+                ? `${userData.first_name || ""} ${userData.last_name || ""}`.trim()
+                : "Unknown User";
 
-            return {
-              ...message,
-              sender_name: fullName,
-              sender_avatar_url: userData?.profile_image,
-              is_current_user: message.user_id === user.id,
-            };
+              return {
+                ...message,
+                sender_name: fullName,
+                sender_avatar_url: userData?.profile_image,
+                is_current_user: message.user_id === user.id,
+              };
+            } catch (userError) {
+              console.error("Failed to fetch user data for message:", message.id, userError);
+              return {
+                ...message,
+                sender_name: "Unknown User",
+                sender_avatar_url: null,
+                is_current_user: message.user_id === user.id,
+              };
+            }
           }),
         );
 
@@ -698,10 +973,9 @@ const MinistryChat = () => {
 
       setIsScrolledUp(false);
       setUnreadMessages(0);
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 0,
-      };
+      scrollToBottomOpacity.value = withTiming(0, { duration: 200 });
+      scrollToBottomScale.value = withTiming(0.8, { duration: 200 });
+      scrollToBottomTranslateY.value = withTiming(20, { duration: 200 });
 
       // Now set sending state and show animation
       setSending(true);
@@ -746,10 +1020,17 @@ const MinistryChat = () => {
         message_text: typeof newMessage.message_text,
         sent_at: typeof newMessage.sent_at,
         attachment_url: typeof newMessage.attachment_url,
-        push_sent: typeof newMessage.push_sent,
       });
+      
+      // Test auth token
+      const testToken = await getAccessToken();
+      console.log("Auth token available:", !!testToken);
 
+      let messageData = null;
+      let messageId = null;
+      
       try {
+        // Try CRUD API first
         const messageResponse = await insert("ministry_messages", newMessage);
         console.log("=== CRUD API RESPONSE ===");
         console.log("Raw response:", JSON.stringify(messageResponse, null, 2));
@@ -757,22 +1038,62 @@ const MinistryChat = () => {
         console.log("Is array:", Array.isArray(messageResponse));
 
         // Handle case where API returns an array with the inserted record
-        const messageData = Array.isArray(messageResponse) ? messageResponse[0] : messageResponse;
+        messageData = Array.isArray(messageResponse) ? messageResponse[0] : messageResponse;
         console.log("Processed messageData:", JSON.stringify(messageData, null, 2));
 
         if (!messageData) {
           console.error("No message data returned from CRUD API");
-          throw new Error("No message data returned from CRUD API");
+          throw new Error("No message data returned from CRUD API - trying Supabase direct");
         }
-
-        // Check different possible ID field names
-        const messageId = messageData.id || messageData._id || messageData.message_id;
-        console.log("Message ID found:", messageId);
+        
+        messageId = messageData.id || messageData._id || messageData.message_id;
+      } catch (crudError) {
+        console.error("CRUD API failed, falling back to direct Supabase:", crudError);
+        
+        try {
+          // Fallback to direct Supabase insert with AuthContext auth
+          const fallbackToken = await getAccessToken();
+          if (!fallbackToken) {
+            throw new Error("No auth token available from AuthContext for fallback");
+          }
+          
+          // Set the auth token for this Supabase call
+          supabase.auth.getSession = () => Promise.resolve({ 
+            data: { 
+              session: { 
+                access_token: fallbackToken,
+                user: user 
+              } 
+            }, 
+            error: null 
+          });
+          
+          const { data: supabaseData, error: supabaseError } = await supabase
+            .from('ministry_messages')
+            .insert([newMessage])
+            .select()
+            .single();
+            
+          if (supabaseError) {
+            console.error("Supabase direct insert error:", supabaseError);
+            throw supabaseError;
+          }
+          
+          messageData = supabaseData;
+          messageId = supabaseData?.id;
+          console.log("✅ Message saved via direct Supabase with AuthContext token:", messageId);
+        } catch (supabaseDirectError) {
+          console.error("Both CRUD API and direct Supabase failed:", supabaseDirectError);
+          throw new Error("Failed to save message via both CRUD API and direct Supabase");
+        }
+      }
+      
+      console.log("Message ID found:", messageId);
 
         if (!messageId) {
           console.error(
             "No ID field found in response. Available fields:",
-            Object.keys(messageData),
+            messageData ? Object.keys(messageData) : "No messageData",
           );
           throw new Error("Failed to save message - no ID returned");
         }
@@ -813,15 +1134,8 @@ const MinistryChat = () => {
           }
         }, 1000);
 
-        // Trigger notifications
-        await triggerNotifications(messageId);
-      } catch (insertError) {
-        console.error("=== CRUD INSERT ERROR ===");
-        console.error("Error type:", typeof insertError);
-        console.error("Error message:", insertError.message);
-        console.error("Full error:", JSON.stringify(insertError, null, 2));
-        throw insertError;
-      }
+      // Trigger notifications
+      await triggerNotifications(messageId);
 
       // Real-time subscription will handle adding the message to the list
     } catch (error) {
@@ -989,22 +1303,18 @@ const MinistryChat = () => {
     if (offsetY > 70 && !isScrolledUp) {
       setIsScrolledUp(true);
 
-      // Update animated value with smooth timing
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 1,
-        transform: [{ scale: 1 }, { translateY: 0 }],
-      };
+      // Show scroll to bottom button
+      scrollToBottomOpacity.value = withTiming(1, { duration: 200 });
+      scrollToBottomScale.value = withSpring(1);
+      scrollToBottomTranslateY.value = withTiming(0, { duration: 200 });
     } else if (offsetY <= 20 && isScrolledUp) {
       setIsScrolledUp(false);
       setUnreadMessages(0);
 
-      // Update animated value with smooth timing
-      scrollToBottomAnimatedStyle.value = {
-        ...scrollToBottomAnimatedStyle.value,
-        opacity: 0,
-        transform: [{ scale: 0.8 }, { translateY: 20 }],
-      };
+      // Hide scroll to bottom button
+      scrollToBottomOpacity.value = withTiming(0, { duration: 200 });
+      scrollToBottomScale.value = withTiming(0.8, { duration: 200 });
+      scrollToBottomTranslateY.value = withTiming(20, { duration: 200 });
     }
   };
 
@@ -1042,20 +1352,16 @@ const MinistryChat = () => {
     setIsScrolledUp(false);
     setUnreadMessages(0);
 
-    // Animate with withSequence for smoother transition
-    scrollToBottomAnimatedStyle.value = {
-      ...scrollToBottomAnimatedStyle.value,
-      opacity: withSequence(withTiming(0.8, { duration: 100 }), withTiming(0, { duration: 200 })),
-      transform: [
-        {
-          scale: withSequence(
-            withTiming(1.1, { duration: 100 }),
-            withTiming(0.8, { duration: 200 }),
-          ),
-        },
-        { translateY: withTiming(20, { duration: 200 }) },
-      ],
-    };
+    // Animate button disappearing
+    scrollToBottomOpacity.value = withSequence(
+      withTiming(0.8, { duration: 100 }),
+      withTiming(0, { duration: 200 }),
+    );
+    scrollToBottomScale.value = withSequence(
+      withTiming(1.1, { duration: 100 }),
+      withTiming(0.8, { duration: 200 }),
+    );
+    scrollToBottomTranslateY.value = withTiming(20, { duration: 200 });
 
     // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1100,10 +1406,13 @@ const MinistryChat = () => {
   // Animated scroll to bottom button style
   const scrollToBottomButtonStyle = useAnimatedStyle(() => {
     return {
-      opacity: scrollToBottomAnimatedStyle.value.opacity,
-      transform: scrollToBottomAnimatedStyle.value.transform,
+      opacity: scrollToBottomOpacity.value,
+      transform: [
+        { scale: scrollToBottomScale.value },
+        { translateY: scrollToBottomTranslateY.value },
+      ],
       position: "absolute",
-      bottom: keyboardVisible ? 190 : 170,
+      bottom: Platform.OS === "ios" ? (keyboardVisible ? 190 : 145) : keyboardVisible ? 180 : 135,
       right: 16,
       zIndex: 100,
     };
@@ -1283,13 +1592,10 @@ const MinistryChat = () => {
     if (loading) return null;
 
     return (
-      <View style={styles.emptyContainer}>
-        <LinearGradient
-          colors={[`${THEME.primary}20`, `${THEME.primary}40`]}
-          style={styles.emptyIconContainer}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={40} color={THEME.primary} />
-        </LinearGradient>
+      <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
+        <View style={styles.emptyIconContainer}>
+          <Ionicons name="chatbubble-ellipses-outline" size={35} color={THEME.primary} />
+        </View>
         <Text style={styles.emptyTitle}>No messages yet</Text>
         <Text style={styles.emptySubtitle}>Be the first to send a message to this ministry!</Text>
       </View>
@@ -1369,6 +1675,13 @@ const MinistryChat = () => {
     checkLastNotificationResponse();
   }, []);
 
+  // Fetch members when modal opens
+  useEffect(() => {
+    if (showInfoModal && ministryId && ministry) {
+      fetchMinistryMembers();
+    }
+  }, [showInfoModal, ministryId, ministry]);
+
   // Function to check if app was opened from a notification
   const checkLastNotificationResponse = async () => {
     try {
@@ -1397,8 +1710,11 @@ const MinistryChat = () => {
 
   // Fixed keyExtractor to ensure unique keys
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor={THEME.headerGreen} />
+
+      {/* iOS Safe Area Background */}
+      <View style={styles.iosSafeArea} />
 
       {/* Header */}
       <Animated.View style={[styles.header, headerAnimatedStyle]}>
@@ -1413,21 +1729,18 @@ const MinistryChat = () => {
             (navigation as any).navigate("MinistriesScreen");
           }}
         >
-          <Ionicons name="arrow-back" size={24} color={THEME.primary} />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
           {ministry?.image_url ? (
             <Image source={{ uri: ministry.image_url }} style={styles.ministryImage} />
           ) : (
-            <LinearGradient
-              colors={[THEME.primary, THEME.primaryDark]}
-              style={styles.ministryImagePlaceholder}
-            >
+            <View style={styles.ministryImagePlaceholder}>
               <Text style={styles.ministryInitials}>
                 {ministry?.name ? getInitials(ministry.name) : "?"}
               </Text>
-            </LinearGradient>
+            </View>
           )}
 
           <View style={styles.headerTextContainer}>
@@ -1440,8 +1753,8 @@ const MinistryChat = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.infoButton}>
-          <Ionicons name="information-circle-outline" size={24} color={THEME.primary} />
+        <TouchableOpacity style={styles.infoButton} onPress={() => setShowInfoModal(true)}>
+          <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -1457,6 +1770,7 @@ const MinistryChat = () => {
       <KeyboardAvoidingView
         style={styles.keyboardAvoidView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? -80 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -1533,23 +1847,16 @@ const MinistryChat = () => {
         )}
 
         {/* Message input */}
-        <Animated.View
-          style={[
-            styles.inputContainer,
-            {
-              marginBottom: keyboardVisible ? 1 : 50, // Adjust margin based on keyboard visibility
-            },
-          ]}
-        >
+        <Animated.View style={styles.inputContainer}>
           <TouchableOpacity
             style={styles.attachButton}
             onPress={handleAttachment}
             disabled={uploading}
           >
             {uploading ? (
-              <ActivityIndicator size="small" color={THEME.primary} />
+              <ActivityIndicator size="small" color={THEME.textSecondary} />
             ) : (
-              <Ionicons name="image-outline" size={26} color={THEME.primary} />
+              <Feather name="paperclip" size={20} color={THEME.textSecondary} />
             )}
           </TouchableOpacity>
 
@@ -1578,7 +1885,7 @@ const MinistryChat = () => {
               {sending ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Ionicons name="send" size={20} color="#FFFFFF" />
+                <Ionicons name="send" size={18} color="#FFFFFF" />
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -1589,7 +1896,7 @@ const MinistryChat = () => {
       <Animated.View style={scrollToBottomButtonStyle}>
         <TouchableOpacity style={styles.scrollToBottomButton} onPress={scrollToBottom}>
           <View style={styles.scrollToBottomBlur}>
-            <Ionicons name="arrow-down" size={24} color={THEME.primary} />
+            <Ionicons name="chevron-down" size={20} color={THEME.textSecondary} />
 
             {unreadMessages > 0 && (
               <View style={styles.unreadBadge}>
@@ -1599,38 +1906,123 @@ const MinistryChat = () => {
           </View>
         </TouchableOpacity>
       </Animated.View>
-    </SafeAreaView>
+
+      {/* Ministry Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ministry Members</Text>
+              <TouchableOpacity onPress={() => setShowInfoModal(false)}>
+                <Ionicons name="close" size={24} color={THEME.text} />
+              </TouchableOpacity>
+            </View>
+
+            {loadingMembers ? (
+              <ActivityIndicator size="large" color={THEME.primary} style={{ marginTop: 20 }} />
+            ) : (
+              <ScrollView style={styles.membersList}>
+                {ministryMembers.map((member, index) => (
+                  <View key={`member-${member.user_id}-${index}`} style={styles.memberItem}>
+                    <View style={styles.memberInfo}>
+                      {member.user_avatar ? (
+                        <Image source={{ uri: member.user_avatar }} style={styles.memberAvatar} />
+                      ) : (
+                        <View
+                          style={[
+                            styles.memberAvatarPlaceholder,
+                            { backgroundColor: getAvatarColor(member.user_id) },
+                          ]}
+                        >
+                          <Text style={styles.memberAvatarText}>
+                            {getInitials(member.user_name)}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.memberDetails}>
+                        <Text style={styles.memberName}>{member.user_name}</Text>
+                        <Text style={styles.memberRole}>
+                          {member.role === "leader" || member.role === "owner"
+                            ? "Owner"
+                            : member.role === "admin"
+                              ? "Admin"
+                              : member.member_status === "leader"
+                                ? "Owner"
+                                : "Member"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Show kick button for admins/owners, but not for self or other admins/owners */}
+                    {(currentUserRole === "owner" ||
+                      currentUserRole === "leader" ||
+                      currentUserRole === "admin") &&
+                      member.user_id !== user?.id &&
+                      member.role !== "owner" &&
+                      member.role !== "leader" &&
+                      member.role !== "admin" && (
+                        <TouchableOpacity
+                          style={styles.kickButton}
+                          onPress={() => handleKickMember(member.user_id)}
+                        >
+                          <Ionicons name="close-circle" size={24} color={THEME.error} />
+                        </TouchableOpacity>
+                      )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  // Modern UI for 2025
+  // WhatsApp UI Style
   container: {
     flex: 1,
     backgroundColor: THEME.background,
+  },
+  iosSafeArea: {
+    backgroundColor: THEME.headerGreen,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === "ios" ? 50 : 0,
+    zIndex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === "ios" ? 12 : 8,
+    paddingTop: Platform.OS === "ios" ? 50 : 8,
     borderBottomWidth: 0,
-    backgroundColor: THEME.background,
+    backgroundColor: THEME.headerGreen,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 4,
     zIndex: 10,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: `${THEME.primary}10`,
+    backgroundColor: "transparent",
+    marginRight: -4,
   },
   headerContent: {
     flex: 1,
@@ -1639,44 +2031,45 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   ministryImage: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   ministryImagePlaceholder: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   ministryInitials: {
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
   },
   headerTextContainer: {
     marginLeft: 12,
     flex: 1,
   },
   ministryName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.text,
-    letterSpacing: -0.3,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: 0,
   },
   ministryDescription: {
-    fontSize: 13,
-    color: THEME.textSecondary,
-    marginTop: 2,
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 1,
   },
   infoButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: `${THEME.primary}10`,
+    backgroundColor: "transparent",
   },
   loadingContainer: {
     flex: 1,
@@ -1691,11 +2084,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageList: {
-    padding: 16,
-    paddingBottom: 160,
+    padding: 8,
+    paddingBottom: 10,
   },
   messageContainer: {
-    marginBottom: 14,
+    marginBottom: 2,
   },
   currentUserMessage: {
     alignSelf: "flex-end",
@@ -1711,66 +2104,66 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   avatarPlaceholder: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarText: {
     color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "600",
   },
   messageContent: {
     padding: 12,
     borderRadius: 18,
   },
   currentUserContent: {
-    backgroundColor: THEME.primary,
-    borderRadius: 18,
-    borderTopRightRadius: 2,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: THEME.primaryDark,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
+    backgroundColor: THEME.messageGreen,
+    borderRadius: 7,
+    borderTopRightRadius: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 0.5,
     elevation: 1,
-    maxWidth: "75%",
+    maxWidth: "80%",
   },
   otherUserContent: {
     backgroundColor: THEME.surface,
-    borderRadius: 18,
-    borderTopLeftRadius: 2,
+    borderRadius: 7,
+    borderTopLeftRadius: 0,
     borderWidth: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 0.5,
     elevation: 1,
   },
   senderName: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: THEME.text,
-    marginBottom: 5,
-    letterSpacing: -0.3,
+    fontSize: 12,
+    fontWeight: "600",
+    color: THEME.primary,
+    marginBottom: 2,
+    letterSpacing: 0,
   },
   messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: -0.2,
+    fontSize: 14,
+    lineHeight: 19,
+    letterSpacing: 0,
   },
   currentUserText: {
-    color: "#FFFFFF",
+    color: THEME.text,
     fontWeight: "400",
   },
   otherUserText: {
@@ -1779,94 +2172,98 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    marginTop: 5,
+    marginTop: 2,
     alignSelf: "flex-end",
   },
   currentUserTime: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: THEME.textSecondary,
+    fontSize: 11,
   },
   otherUserTime: {
-    color: THEME.textLight,
+    color: THEME.textSecondary,
+    fontSize: 11,
   },
   dateContainer: {
     alignItems: "center",
-    marginVertical: 18,
+    marginVertical: 8,
     width: "100%",
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 12,
     color: THEME.textSecondary,
-    backgroundColor: `${THEME.textSecondary}10`,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 5,
     overflow: "hidden",
     textAlign: "center",
     fontWeight: "500",
   },
   inputContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(226, 232, 240, 0.6)",
-    backgroundColor: THEME.background,
+    alignItems: "flex-end",
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    paddingBottom: 5,
+    marginBottom: Platform.OS === "ios" ? 80 : 70,
+    borderTopWidth: 0,
+    backgroundColor: THEME.inputBg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-    marginBottom: 50,
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 2,
   },
   attachButton: {
-    width: 48,
-    height: 48,
+    width: 36,
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 18,
+    marginBottom: 4,
   },
   textInputContainer: {
     flex: 1,
     backgroundColor: THEME.surface,
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    marginHorizontal: 10,
-    borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
-    maxHeight: 120,
+    borderRadius: 21,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    borderWidth: 0,
+    maxHeight: 100,
+    minHeight: 42,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.03,
+    shadowRadius: 0.5,
     elevation: 1,
   },
   textInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: THEME.text,
-    maxHeight: 100,
-    minHeight: 36,
+    maxHeight: 84,
+    minHeight: 26,
     paddingTop: 0,
     paddingBottom: 0,
-    letterSpacing: -0.2,
+    letterSpacing: 0,
   },
   sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: THEME.textLight,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 4,
   },
   sendButtonActive: {
     backgroundColor: THEME.primary,
     shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 1,
   },
   // Update upload progress indicator
   uploadProgressContainer: {
@@ -1888,34 +2285,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
     height: 400,
+    marginTop: 250,
   },
   emptyIconContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
+    marginBottom: 20,
+    backgroundColor: "rgba(37, 211, 102, 0.1)",
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
     color: THEME.text,
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    marginBottom: 8,
+    letterSpacing: 0,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: THEME.textSecondary,
     textAlign: "center",
-    lineHeight: 22,
-    letterSpacing: -0.2,
-    maxWidth: "80%",
+    lineHeight: 20,
+    letterSpacing: 0,
+    maxWidth: "75%",
   },
   attachmentPreviewContainer: {
     padding: 8,
@@ -1936,46 +2330,48 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     borderRadius: 12,
   },
-  // Modern scroll to bottom button for 2025
+  // WhatsApp scroll to bottom button
   scrollToBottomButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     overflow: "hidden",
-    shadowColor: THEME.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   scrollToBottomBlur: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: THEME.surface,
+    borderWidth: 0.5,
+    borderColor: THEME.border,
   },
   unreadBadge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: THEME.error,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    top: 4,
+    right: 4,
+    backgroundColor: THEME.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
-    shadowColor: THEME.error,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 2,
+    paddingHorizontal: 4,
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 1,
   },
   unreadText: {
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   // Typing indicator with modern styling
@@ -2013,6 +2409,84 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 12,
     overflow: "hidden",
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: THEME.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: THEME.text,
+  },
+  membersList: {
+    paddingHorizontal: 20,
+  },
+  memberItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
+  },
+  memberInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  memberAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberAvatarText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  memberDetails: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: THEME.text,
+  },
+  memberRole: {
+    fontSize: 14,
+    color: THEME.textSecondary,
+    textTransform: "capitalize",
+  },
+  kickButton: {
+    padding: 8,
   },
   attachmentImage: {
     width: "100%",

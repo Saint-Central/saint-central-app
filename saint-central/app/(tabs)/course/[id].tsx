@@ -34,6 +34,7 @@ const CourseDetailPage: React.FC = () => {
   const [hideEmail, setHideEmail] = useState(true);
   const [hidePhone, setHidePhone] = useState(true);
   const [hideName, setHideName] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     StatusBar.setBarStyle("light-content");
@@ -81,6 +82,17 @@ const CourseDetailPage: React.FC = () => {
         setHidePhone(enrollmentData[0].hide_phone);
         setHideName(enrollmentData[0].hide_name);
       }
+
+      // Check if user is admin or owner
+      const churchMember = await crud.selectOne("church_members", {
+        where: {
+          user_id: user?.id,
+          church_id: courseData.church_id,
+        },
+      });
+
+      const role = churchMember?.role?.toLowerCase() || "";
+      setIsAdmin(role === "admin" || role === "owner" || courseData.user_id === user?.id);
     } catch (error) {
       console.error("Error fetching course details:", error);
       Alert.alert("Error", "Failed to load course details");
@@ -356,9 +368,32 @@ const CourseDetailPage: React.FC = () => {
               />
             </View>
 
+            {isAdmin && (
+              <TouchableOpacity 
+                style={styles.adminButton} 
+                onPress={() => router.push(`/course-admin/${id}`)}
+              >
+                <Feather name="settings" size={20} color={theme.textWhite} />
+                <Text style={styles.adminButtonText}>Manage Members</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={styles.leaveButton} onPress={handleUnenroll}>
               <Feather name="user-minus" size={20} color={theme.error} />
               <Text style={styles.leaveButtonText}>Leave Course</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Admin button for non-enrolled admins */}
+        {!enrollment && isAdmin && (
+          <View style={styles.enrollmentSection}>
+            <TouchableOpacity 
+              style={styles.adminButton} 
+              onPress={() => router.push(`/course-admin/${id}`)}
+            >
+              <Feather name="settings" size={20} color={theme.textWhite} />
+              <Text style={styles.adminButtonText}>Manage Members</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -535,6 +570,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.textLight,
     marginBottom: theme.spacingL,
+  },
+  adminButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.secondary,
+    paddingVertical: theme.spacingM,
+    paddingHorizontal: theme.spacingL,
+    borderRadius: theme.radiusMedium,
+    marginTop: theme.spacingL,
+  },
+  adminButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.textWhite,
+    marginLeft: theme.spacingS,
   },
   leaveButton: {
     flexDirection: "row",

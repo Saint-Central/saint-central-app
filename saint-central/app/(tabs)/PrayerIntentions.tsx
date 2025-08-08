@@ -18,57 +18,18 @@ import {
   StatusBar,
   Easing,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { supabase } from "../../supabaseClient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { usePrayerIntentions, IntentionType, IntentionVisibility } from "@/contexts/PrayerIntentionsContext";
+import { useCRUD } from "@/utils/crudClient";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Interfaces
-export interface PrayerIntention {
-  id: string;
-  user_id: string;
-  title: string;
-  description?: string;
-  type: IntentionType;
-  created_at: Date;
-  visibility: IntentionVisibility;
-  selected_groups?: string[];
-  selected_friends?: string[];
-  completed: boolean;
-  favorite: boolean;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  description: string;
-  created_at: Date;
-  created_by: string;
-}
-
-export type IntentionType =
-  | "prayer"
-  | "goal"
-  | "resolution"
-  | "spiritual"
-  | "family"
-  | "health"
-  | "work"
-  | "friends"
-  | "world"
-  | "personal"
-  | "other";
-
-export type IntentionVisibility =
-  | "Just Me"
-  | "Friends"
-  | "Friends & Groups"
-  | "Certain Friends"
-  | "Certain Groups";
-
+// Additional types specific to this component
 export type IntentionsTabView = "all" | "active" | "completed";
 export type IntentionsSorting = "newest" | "oldest" | "alphabetical";
 export type IntentionsFilter = IntentionType | "all";
@@ -83,7 +44,10 @@ interface IntentionsProps {
 
 // Intention type icons
 const intentionTypeIcons: { [key in IntentionType]: string } = {
-  prayer: "user",
+  prayer: "heart",
+  intercession: "users",
+  thanksgiving: "gift",
+  praise: "star",
   resolution: "check-square",
   goal: "target",
   spiritual: "heart",
@@ -276,57 +240,49 @@ const AddPrayerButton: React.FC<{ onPress: () => void; theme?: "light" | "dark" 
   );
 };
 
-interface Friend {
-  id: string;
-  username: string;
-  status: string;
-  created_at: string;
-}
-
-interface FriendshipWithUser {
-  friend_id: string;
-  users: {
-    id: string;
-    username: string;
-  };
-}
-
-type SupabaseFriendship = {
-  friend_id: string;
-  users: {
-    id: string;
-    username: string;
-  };
-};
-
-interface SupabaseFriend {
-  id: string;
-  friend: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    profile_image: string | null;
-    created_at: string;
-  };
-}
 
 const PrayerIntentions: React.FC<IntentionsProps> = ({
-  themeStyles = defaultThemes.light,
+  themeStyles: providedThemeStyles,
   fontSizeStyles = defaultFontSizes.medium,
-  readingTheme = "paper",
+  readingTheme: providedReadingTheme,
   showFeedback = (message) => Toast.show({ type: "success", text1: message }),
 }) => {
+  // State for theme management
+  const [currentTheme, setCurrentTheme] = useState<"paper" | "sepia" | "night">(providedReadingTheme || "paper");
+  
+  // Use the appropriate theme based on currentTheme state
+  const readingTheme = currentTheme;
+  const themeStyles = providedThemeStyles || defaultThemes[readingTheme === "night" ? "dark" : readingTheme === "sepia" ? "sepia" : "light"];
+  
+  // Get safe area insets
+  const insets = useSafeAreaInsets();
+  
+  // Auth and CRUD hooks
+  const { user } = useAuth();
+  const crud = useCRUD();
+  
   // Navigation
   const navigation = useNavigation();
 
-  // State management
-  const [intentions, setIntentions] = useState<PrayerIntention[]>([]);
-  const [intentionsLoading, setIntentionsLoading] = useState<boolean>(true);
+  // Use shared context instead of local state
+  const {
+    intentions,
+    loading: intentionsLoading,
+    refreshing,
+    userGroups,
+    userFriends,
+    addIntention,
+    toggleFavorite,
+    toggleCompleted,
+    deleteIntention: contextDeleteIntention,
+    refreshIntentions,
+    getFilteredIntentions,
+  } = usePrayerIntentions();
+
+  // Local UI state
   const [intentionsTabView, setIntentionsTabView] = useState<IntentionsTabView>("all");
   const [showNewIntentionModal, setShowNewIntentionModal] = useState<boolean>(false);
   const [showIntentionFilterModal, setShowIntentionFilterModal] = useState<boolean>(false);
-  const [offlineMode, setOfflineMode] = useState<boolean>(false);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   // New intention form state - all in one form now
   const [newIntentionTitle, setNewIntentionTitle] = useState<string>("");
@@ -338,13 +294,13 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const [newIntentionComplete, setNewIntentionComplete] = useState<boolean>(false);
   const [newIntentionFavorite, setNewIntentionFavorite] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [showOtherCategories, setShowOtherCategories] = useState<boolean>(false);
   const [newIntentionFriends, setNewIntentionFriends] = useState<string[]>([]);
-  const [loadingFriends, setLoadingFriends] = useState(false);
-  const [userFriends, setUserFriends] = useState<Friend[]>([]);
-
-  // Group state management
-  const [userGroups, setUserGroups] = useState<Group[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState<boolean>(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // Friends and groups data for visibility selection
+  const [friends, setFriends] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
 
   // Intention filtering and sorting state
   const [intentionFilter, setIntentionFilter] = useState<IntentionsFilter>("all");
@@ -354,204 +310,143 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
   const intentionFavoriteScale = useRef(new Animated.Value(1)).current;
   const modalSlideUp = useRef(new Animated.Value(100)).current;
 
-  // Reference to store the Supabase subscription
-  const supabaseSubscription = useRef<any>(null);
 
-  // Setup real-time subscription to listen for changes to the intentions table
-  const setupRealtimeSubscription = async () => {
-    try {
-      // First, clean up any existing subscription
-      if (supabaseSubscription.current) {
-        console.log("Cleaning up existing subscription...");
-        supabase.channel("intentions-changes").unsubscribe();
-        supabaseSubscription.current = null;
-      }
 
-      console.log("Setting up real-time subscription for intentions...");
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.log("User not logged in, skipping real-time subscription");
-        return;
-      }
-
-      // Create a unique channel name with the user ID to avoid conflicts
-      const channelName = `intentions-changes-${user.id}`;
-
-      // Subscribe to all changes to the intentions table
-      supabaseSubscription.current = supabase
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*", // Listen for all events (INSERT, UPDATE, DELETE)
-            schema: "public",
-            table: "intentions",
-          },
-          (payload) => {
-            console.log("Intentions change received:", payload);
-
-            // Handle different types of changes
-            if (payload.eventType === "INSERT") {
-              handleNewIntention(payload.new);
-            } else if (payload.eventType === "UPDATE") {
-              handleUpdatedIntention(payload.new);
-            } else if (payload.eventType === "DELETE") {
-              handleDeletedIntention(payload.old);
-            }
-          },
-        )
-        .subscribe((status) => {
-          console.log("Subscription status:", status);
-
-          if (status === "SUBSCRIBED") {
-            console.log("Successfully subscribed to intentions table");
-          } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-            console.log("Subscription closed or error occurred, will attempt to reconnect");
-            // Could implement reconnection logic here if needed
-          }
-        });
-
-      console.log("Set up real-time subscription:", supabaseSubscription.current);
-    } catch (error) {
-      console.error("Error setting up real-time subscription:", error);
-      // Clean up in case of error
-      supabaseSubscription.current = null;
-    }
-  };
-
-  // Load intentions on component mount and setup real-time subscription
+  // Component initialization - context handles data fetching
   useEffect(() => {
-    loadIntentions();
-    setupRealtimeSubscription();
-    fetchUserGroups();
-    fetchUserFriends();
-
-    // Cleanup subscription when component unmounts
-    return () => {
-      if (supabaseSubscription.current) {
-        console.log("Cleaning up subscription on unmount");
-        supabase.channel("intentions-changes").unsubscribe();
-        supabaseSubscription.current = null;
-      }
-    };
-  }, []);
-
-  // Fetch user's groups from Supabase
-  const fetchUserGroups = async () => {
+    // Load saved theme preference
+    loadThemePreference();
+    // The context handles all data fetching automatically
+    // Fetch user profile to ensure we have denomination
+    if (user?.id) {
+      fetchUserProfile();
+    }
+  }, [user?.id]);
+  
+  // Fetch user profile with denomination
+  const fetchUserProfile = async () => {
+    if (!user?.id) return;
+    
     try {
-      setLoadingGroups(true);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.log("User not logged in or error, skipping group fetch");
-        setLoadingGroups(false);
-        return;
+      const profile = await crud.selectOne("users", {
+        where: { id: user.id }
+      });
+      
+      console.log("[DEBUG] Fetched user profile:", profile);
+      console.log("[DEBUG] Profile denomination:", profile?.denomination);
+      
+      if (profile) {
+        setUserProfile(profile);
       }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+  
+  // Load theme preference from AsyncStorage
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem("prayerIntentionsTheme");
+      if (savedTheme && ["paper", "sepia", "night"].includes(savedTheme)) {
+        setCurrentTheme(savedTheme as "paper" | "sepia" | "night");
+      }
+    } catch (error) {
+      console.error("Error loading theme preference:", error);
+    }
+  };
+  
+  // Save theme preference to AsyncStorage
+  const saveThemePreference = async (theme: "paper" | "sepia" | "night") => {
+    try {
+      await AsyncStorage.setItem("prayerIntentionsTheme", theme);
+    } catch (error) {
+      console.error("Error saving theme preference:", error);
+    }
+  };
+  
+  // Effect to save theme when it changes
+  useEffect(() => {
+    saveThemePreference(currentTheme);
+  }, [currentTheme]);
+  
+  // Load friends and groups when visibility changes
+  useEffect(() => {
+    if (newIntentionVisibility === "groups") {
+      loadGroups();
+    } else if (newIntentionVisibility === "custom") {
+      loadFriends();
+    }
+  }, [newIntentionVisibility, showNewIntentionModal]);
+  
+  const loadFriends = async () => {
+    if (!user) return;
 
-      // First get the user's group memberships
-      const { data: memberships, error: membershipError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
+    try {
+      const friendships = await crud.select("friends", {
+        where: { status: "accepted" },
+      });
 
-      if (membershipError) throw membershipError;
+      const userFriendships = friendships.filter(f => 
+        (f.user_id_1 === user.id || f.user_id_2 === user.id)
+      );
 
+      const friendsData = await Promise.all(
+        userFriendships.map(async (friendship) => {
+          const friendId = friendship.user_id_1 === user.id 
+            ? friendship.user_id_2 
+            : friendship.user_id_1;
+          
+          return await crud.selectOne("users", {
+            where: { id: friendId },
+          });
+        })
+      );
+
+      setFriends(friendsData.filter(Boolean));
+    } catch (error) {
+      console.error("Error loading friends:", error);
+    }
+  };
+
+  const loadGroups = async () => {
+    if (!user) return;
+    
+    try {
+      // Get all groups the user is a member of (including ministry groups)
+      const memberships = await crud.select("group_members", {
+        where: { user_id: user.id },
+      });
+      
       if (!memberships || memberships.length === 0) {
-        setUserGroups([]);
-        setLoadingGroups(false);
+        setGroups([]);
         return;
       }
-
-      // Get the group IDs from memberships
-      const groupIds = memberships.map((membership) => membership.group_id);
-
-      // Fetch the groups based on the IDs
-      const { data: groups, error: groupsError } = await supabase
-        .from("groups")
-        .select("*")
-        .in("id", groupIds);
-
-      if (groupsError) throw groupsError;
-
-      // Format the data
-      const formattedGroups: Group[] = (groups || []).map((group) => ({
-        ...group,
-        created_at: new Date(group.created_at),
-      }));
-
-      setUserGroups(formattedGroups);
+      
+      const groupIds = memberships.map(m => m.group_id);
+      const groupsData = await crud.select("groups", {
+        where: { id: groupIds },
+      });
+      
+      // Sort by name alphabetically
+      const sortedGroups = (groupsData || []).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+      
+      setGroups(sortedGroups);
     } catch (error) {
-      console.error("Error fetching user groups:", error);
-      setUserGroups([]);
-    } finally {
-      setLoadingGroups(false);
+      console.error("Error loading groups:", error);
     }
   };
 
-  // Fetch user's friends
-  const fetchUserFriends = async () => {
-    try {
-      setLoadingFriends(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
 
-      if (!user) {
-        setLoadingFriends(false);
-        return;
-      }
-
-      const { data, error: friendsError } = await supabase
-        .from("friends")
-        .select(`
-          id,
-          friend:users!friends_user_id_2_fkey(
-            id,
-            first_name,
-            last_name,
-            profile_image,
-            created_at
-          )
-        `)
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted");
-
-      if (friendsError) throw friendsError;
-
-      if (data) {
-        const formattedFriends: Friend[] = data.map((friend: any) => ({
-          id: friend.friend.id,
-          username: `${friend.friend.first_name} ${friend.friend.last_name}`,
-          status: "accepted",
-          created_at: friend.friend.created_at,
-        }));
-
-        setUserFriends(formattedFriends);
-      }
-    } catch (error) {
-      console.error("Error fetching friends:", error);
-      showFeedback("Failed to load friends");
-    } finally {
-      setLoadingFriends(false);
-    }
-  };
 
   // Toggle group selection helper function
-  const toggleGroupSelection = (groupId: string) => {
-    if (newIntentionGroups.includes(groupId)) {
-      setNewIntentionGroups(newIntentionGroups.filter((id) => id !== groupId));
-    } else {
-      setNewIntentionGroups([...newIntentionGroups, groupId]);
-    }
+  const toggleGroupSelection = (groupId: number) => {
+    setNewIntentionGroups(prev =>
+      prev.includes(groupId.toString())
+        ? prev.filter(id => id !== groupId.toString())
+        : [...prev, groupId.toString()]
+    );
   };
 
   // Toggle friend selection
@@ -561,30 +456,16 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     );
   };
 
-  // Handle a new intention being inserted
-  const handleNewIntention = async (newIntention: any) => {
-    // Removed realtime subscription handling
-    return;
-  };
-
-  // Handle an intention being updated
-  const handleUpdatedIntention = (updatedIntention: any) => {
-    // Removed realtime subscription handling
-    return;
-  };
-
-  // Handle an intention being deleted
-  const handleDeletedIntention = (deletedIntention: any) => {
-    // Removed realtime subscription handling
-    return;
-  };
 
   // Get color for intention type
   const getIntentionColor = (type: IntentionType): string => {
     const colors = {
       paper: {
-        prayer: "#6A478F",
-        resolution: "#4A6FA5",
+        prayer: "#6366F1",
+        intercession: "#10B981",
+        thanksgiving: "#F59E0B",
+        praise: "#EC4899",
+        resolution: "#10B981",
         goal: "#E91E63",
         spiritual: "#26A69A",
         family: "#FF9800",
@@ -596,8 +477,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         other: "#607D8B",
       },
       sepia: {
-        prayer: "#7A503E",
-        resolution: "#8B5A2B",
+        prayer: "#6366F1",
+        intercession: "#10B981",
+        thanksgiving: "#F59E0B",
+        praise: "#EC4899",
+        resolution: "#10B981",
         goal: "#A94442",
         spiritual: "#2E7D32",
         family: "#B36A00",
@@ -609,8 +493,11 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         other: "#37474F",
       },
       night: {
-        prayer: "#9C64A6",
-        resolution: "#7B9EB3",
+        prayer: "#6366F1",
+        intercession: "#10B981",
+        thanksgiving: "#F59E0B",
+        praise: "#EC4899",
+        resolution: "#10B981",
         goal: "#EF5350",
         spiritual: "#4DB6AC",
         family: "#FFB74D",
@@ -626,161 +513,13 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     return colors[readingTheme][type];
   };
 
-  // Load prayer intentions from Supabase
-  const loadIntentions = async () => {
-    setIntentionsLoading(true);
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.log("User not logged in or error, using offline mode");
-        setOfflineMode(true);
-        loadIntentionsFromStorage();
-        return;
-      }
-
-      // Get user's friends
-      const { data: sentFriends, error: sentError } = await supabase
-        .from("friends")
-        .select("user_id_2")
-        .eq("user_id_1", user.id)
-        .eq("status", "accepted");
-      if (sentError) throw sentError;
-
-      const { data: receivedFriends, error: receivedError } = await supabase
-        .from("friends")
-        .select("user_id_1")
-        .eq("user_id_2", user.id)
-        .eq("status", "accepted");
-      if (receivedError) throw receivedError;
-
-      // Create a set of friend IDs
-      const friendIds = new Set();
-      if (sentFriends) {
-        sentFriends.forEach((friend) => friendIds.add(friend.user_id_2));
-      }
-      if (receivedFriends) {
-        receivedFriends.forEach((friend) => friendIds.add(friend.user_id_1));
-      }
-
-      // Get user's groups
-      const { data: userGroups, error: groupsError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
-      if (groupsError) throw groupsError;
-
-      const userGroupIds = userGroups ? userGroups.map((g) => g.group_id) : [];
-
-      // Fetch all intentions
-      const { data, error } = await supabase
-        .from("intentions")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-
-      // Filter intentions based on visibility
-      const filteredData = await Promise.all(
-        data.map(async (item) => {
-          // Always show user's own intentions
-          if (item.user_id === user.id) return item;
-
-          // Check visibility settings
-          switch (item.visibility) {
-            case "Just Me":
-              return null;
-            case "Friends":
-              return friendIds.has(item.user_id) ? item : null;
-            case "Certain Friends":
-              return item.selected_friends?.includes(user.id) ? item : null;
-            case "Certain Groups":
-              // Check if user is in any of the selected groups
-              const creatorGroups = await supabase
-                .from("group_members")
-                .select("group_id")
-                .eq("user_id", item.user_id);
-              
-              if (creatorGroups.error) return null;
-              
-              const creatorGroupIds = creatorGroups.data.map(g => g.group_id);
-              return creatorGroupIds.some(groupId => userGroupIds.includes(groupId)) ? item : null;
-            default:
-              return null;
-          }
-        })
-      );
-
-      // Remove null values and format the data
-      const formattedIntentions = filteredData
-        .filter((item) => item !== null)
-        .map((item) => ({
-          id: item.id,
-          user_id: item.user_id,
-          title: item.title,
-          description: item.description || "",
-          type: item.type as IntentionType,
-          created_at: new Date(item.created_at),
-          visibility: item.visibility as IntentionVisibility,
-          selected_groups: item.selected_groups || [],
-          selected_friends: item.selected_friends || [],
-          completed: item.completed || false,
-          favorite: item.favorite || false,
-        }));
-
-      setIntentions(formattedIntentions);
-
-      // Also save to AsyncStorage as backup
-      await AsyncStorage.setItem("prayerIntentions", JSON.stringify(formattedIntentions));
-    } catch (error) {
-      console.error("Error loading intentions from Supabase:", error);
-      loadIntentionsFromStorage();
-      setOfflineMode(true);
-    } finally {
-      setIntentionsLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  // Refresh intentions list
+  // Refresh intentions list using context
   const handleRefresh = () => {
-    setRefreshing(true);
-    loadIntentions();
+    refreshIntentions();
   };
 
-  // Load intentions from AsyncStorage (offline fallback)
-  const loadIntentionsFromStorage = async () => {
-    try {
-      const savedIntentions = await AsyncStorage.getItem("prayerIntentions");
-      if (savedIntentions) {
-        const parsedIntentions = JSON.parse(savedIntentions);
-        // Convert string dates back to Date objects
-        const formattedIntentions = parsedIntentions.map((intention: any) => ({
-          ...intention,
-          created_at: new Date(intention.created_at),
-        }));
-        setIntentions(formattedIntentions);
-      }
-    } catch (error) {
-      console.error("Error loading intentions from storage:", error);
-      setIntentions([]);
-    }
-  };
-
-  // Save intentions to AsyncStorage
-  const saveIntentionsToStorage = async (intentionsToSave: PrayerIntention[]) => {
-    try {
-      await AsyncStorage.setItem("prayerIntentions", JSON.stringify(intentionsToSave));
-    } catch (error) {
-      console.error("Error saving intentions to storage:", error);
-    }
-  };
-
-  // Add new prayer intention
-  const addIntention = async () => {
+  // Add new prayer intention using context
+  const addNewIntention = async () => {
     if (isSubmitting) return;
 
     try {
@@ -793,65 +532,27 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         return;
       }
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        setOfflineMode(true);
-        showFeedback("You're in offline mode. This will be saved locally.");
-      }
-
-      // Prepare data for Supabase
+      // Map new visibility values to old ones for compatibility
+      let mappedVisibility: IntentionVisibility = "Just Me";
+      if (newIntentionVisibility === "private") mappedVisibility = "Just Me";
+      else if (newIntentionVisibility === "friends") mappedVisibility = "Friends";
+      else if (newIntentionVisibility === "groups") mappedVisibility = "Certain Groups";
+      else if (newIntentionVisibility === "custom") mappedVisibility = "Certain Friends";
+      
+      // Prepare data for context
       const intentionData = {
-        user_id: user?.id || "offline-user",
         title: newIntentionTitle,
         description: newIntentionDescription,
         type: newIntentionType,
-        created_at: new Date().toISOString(),
-        visibility: newIntentionVisibility,
-        selected_groups: newIntentionVisibility === "Certain Groups" ? newIntentionGroups : [],
-        selected_friends: newIntentionVisibility === "Certain Friends" ? newIntentionFriends : [],
+        visibility: mappedVisibility,
+        selected_groups: newIntentionVisibility === "groups" ? newIntentionGroups : [],
+        selected_friends: newIntentionVisibility === "custom" ? newIntentionFriends : [],
         completed: newIntentionComplete,
         favorite: newIntentionFavorite,
       };
 
-      // Create new intention object for local state
-      const newIntention: PrayerIntention = {
-        ...intentionData,
-        id: Math.random().toString(36).substr(2, 9), // Temporary ID
-        created_at: new Date(),
-      };
-
-      // Add to state immediately for UI responsiveness
-      const updatedIntentions = [newIntention, ...intentions];
-      setIntentions(updatedIntentions);
-
-      // If online, save to Supabase
-      if (!offlineMode && user) {
-        const { data, error } = await supabase.from("intentions").insert([intentionData]).select();
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          // Update the local state with the returned ID
-          setIntentions((prev) => {
-            const updated = [...prev];
-            const index = updated.findIndex((i) => i.id === newIntention.id);
-            if (index !== -1) {
-              updated[index] = {
-                ...updated[index],
-                id: data[0].id,
-              };
-            }
-            return updated;
-          });
-        }
-      }
-
-      // Save to AsyncStorage as backup
-      await saveIntentionsToStorage(updatedIntentions);
+      // Use context to add intention
+      await addIntention(intentionData);
 
       // Provide haptic feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -880,92 +581,47 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     setNewIntentionComplete(false);
     setNewIntentionFavorite(false);
     setIsSubmitting(false);
+    setShowOtherCategories(false);
   };
 
-  // Toggle intention completed status
+  // Toggle intention completed status using context
   const toggleIntentionCompleted = async (id: string) => {
     try {
-      // Find the intention
-      const intention = intentions.find((i) => i.id === id);
-      if (!intention) return;
-
-      // Update state first for responsive UI
-      const updatedIntentions = intentions.map((i) =>
-        i.id === id ? { ...i, completed: !i.completed } : i,
-      );
-      setIntentions(updatedIntentions);
-
       // Show animation and haptic feedback
       animateIntentionFavorite();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      if (offlineMode) {
-        // Save to AsyncStorage
-        await saveIntentionsToStorage(updatedIntentions);
-        showFeedback(
-          `Intention marked as ${!intention.completed ? "completed" : "active"} (offline mode)`,
-        );
-        return;
-      }
+      // Use context to toggle completed status
+      await toggleCompleted(id);
 
-      // If online, update in Supabase
-      const { error } = await supabase
-        .from("intentions")
-        .update({ completed: !intention.completed })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      showFeedback(`Intention marked as ${!intention.completed ? "completed" : "active"}`);
+      const intention = intentions.find((i) => i.id === id);
+      showFeedback(`Intention marked as ${intention?.completed ? "active" : "completed"}`);
     } catch (error) {
       console.error("Error toggling intention completed status:", error);
       showFeedback("Failed to update intention status");
     }
   };
 
-  // Toggle intention favorite status
+  // Toggle intention favorite status using context
   const toggleIntentionFavorite = async (id: string) => {
     try {
-      // Find the intention
-      const intention = intentions.find((i) => i.id === id);
-      if (!intention) return;
-
-      // Update state first
-      const updatedIntentions = intentions.map((i) =>
-        i.id === id ? { ...i, favorite: !i.favorite } : i,
-      );
-      setIntentions(updatedIntentions);
-
       // Show animation and haptic feedback
       animateIntentionFavorite();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      if (offlineMode) {
-        // Save to AsyncStorage
-        await saveIntentionsToStorage(updatedIntentions);
-        showFeedback(
-          `Intention ${!intention.favorite ? "favorited" : "unfavorited"} (offline mode)`,
-        );
-        return;
-      }
+      // Use context to toggle favorite status
+      await toggleFavorite(id);
 
-      // If online, update in Supabase
-      const { error } = await supabase
-        .from("intentions")
-        .update({ favorite: !intention.favorite })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      showFeedback(`Intention ${!intention.favorite ? "favorited" : "unfavorited"}`);
+      const intention = intentions.find((i) => i.id === id);
+      showFeedback(`Intention ${intention?.favorite ? "unfavorited" : "favorited"}`);
     } catch (error) {
       console.error("Error toggling intention favorite status:", error);
       showFeedback("Failed to update intention favorite status");
     }
   };
 
-  // Delete intention
-  const deleteIntention = async (id: string) => {
+  // Delete intention using context
+  const deleteIntentionHandler = async (id: string) => {
     try {
       // Confirm deletion
       Alert.alert(
@@ -977,26 +633,17 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-              // Remove from state first
-              const updatedIntentions = intentions.filter((i) => i.id !== id);
-              setIntentions(updatedIntentions);
+              try {
+                // Use context to delete intention
+                await contextDeleteIntention(id);
 
-              // Haptic feedback
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-              if (offlineMode) {
-                // Save to AsyncStorage
-                await saveIntentionsToStorage(updatedIntentions);
-                showFeedback("Intention deleted (offline mode)");
-                return;
+                // Haptic feedback
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                showFeedback("Intention deleted successfully");
+              } catch (error) {
+                console.error("Error deleting intention:", error);
+                showFeedback("Failed to delete intention");
               }
-
-              // If online, delete from Supabase
-              const { error } = await supabase.from("intentions").delete().eq("id", id);
-
-              if (error) throw error;
-
-              showFeedback("Intention deleted successfully");
             },
           },
         ],
@@ -1008,22 +655,27 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
     }
   };
 
-  // Get filtered and sorted intentions
-  const getFilteredIntentions = useCallback(() => {
-    // First filter by tab view (all, active, completed)
-    let filtered = intentions.filter((i) => {
-      if (intentionsTabView === "all") return true;
-      if (intentionsTabView === "active") return !i.completed;
-      if (intentionsTabView === "completed") return i.completed;
-      return true;
+  // Fetch user friends for intention sharing
+  const fetchUserFriends = async () => {
+    // The userFriends data is already available from the context
+    // No need to fetch separately as usePrayerIntentions provides it
+  };
+
+  // Fetch user groups for intention sharing  
+  const fetchUserGroups = async () => {
+    // The userGroups data is already available from the context
+    // No need to fetch separately as usePrayerIntentions provides it
+  };
+
+  // Get filtered and sorted intentions using context
+  const getDisplayIntentions = useCallback(() => {
+    // Use context filtering for type
+    let filtered = getFilteredIntentions({
+      type: intentionFilter === "all" ? undefined : intentionFilter,
+      completed: intentionsTabView === "all" ? undefined : intentionsTabView === "completed",
     });
 
-    // Then filter by type if not "all"
-    if (intentionFilter !== "all") {
-      filtered = filtered.filter((i) => i.type === intentionFilter);
-    }
-
-    // Then sort
+    // Apply local sorting
     return filtered.sort((a, b) => {
       if (intentionSorting === "newest") {
         return b.created_at.getTime() - a.created_at.getTime();
@@ -1034,7 +686,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
       // Alphabetical
       return a.title.localeCompare(b.title);
     });
-  }, [intentions, intentionsTabView, intentionFilter, intentionSorting]);
+  }, [getFilteredIntentions, intentionsTabView, intentionFilter, intentionSorting]);
 
   // Animation for intention favorite action
   const animateIntentionFavorite = () => {
@@ -1102,7 +754,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               },
             ]}
           >
-            <LinearGradient colors={["#6A478F", "#8860B2"]} style={styles.intentionModalHeader}>
+            <LinearGradient colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#6A478F", "#8860B2"]} style={styles.intentionModalHeader}>
               <Text style={styles.intentionModalTitle}>New Prayer Intention</Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -1122,31 +774,35 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             >
               {/* Type Selection */}
               <Text style={[styles.formSectionTitle, { color: themeStyles.textColor }]}>Type</Text>
-              <View style={styles.typeGrid}>
-                {(
-                  [
-                    "prayer",
-                    "resolution",
-                    "goal",
-                    "spiritual",
-                    "family",
-                    "health",
-                    "work",
-                    "friends",
-                    "world",
-                    "personal",
-                    "other",
-                  ] as IntentionType[]
-                ).map((type) => (
+              
+              {/* Main 4 Prayer Types Grid */}
+              <View style={styles.mainTypeGrid}>
+                {(() => {
+                  // Debug logging
+                  const denomination = userProfile?.denomination || user?.denomination;
+                  console.log("[DEBUG] User object:", user);
+                  console.log("[DEBUG] User profile:", userProfile);
+                  console.log("[DEBUG] Denomination from profile:", userProfile?.denomination);
+                  console.log("[DEBUG] Denomination from user:", user?.denomination);
+                  console.log("[DEBUG] Final denomination:", denomination);
+                  console.log("[DEBUG] Denomination check:", denomination?.toLowerCase() === "catholic" || denomination?.toLowerCase() === "orthodox");
+                  
+                  return [
+                    { id: "prayer", label: "Prayer Request", icon: "heart", color: "#6366F1" },
+                    { id: "intercession", label: (denomination?.toLowerCase() === "catholic" || denomination?.toLowerCase() === "orthodox") ? "Intercession" : "Resolution", icon: "users", color: "#10B981" },
+                    { id: "thanksgiving", label: "Thanksgiving", icon: "gift", color: "#F59E0B" },
+                    { id: "praise", label: "Praise", icon: "star", color: "#EC4899" },
+                  ];
+                })().map((type) => (
                   <TouchableOpacity
-                    key={type}
+                    key={type.id}
                     style={[
-                      styles.typeOption,
-                      newIntentionType === type && [
-                        styles.activeTypeOption,
+                      styles.mainTypeOption,
+                      newIntentionType === type.id && [
+                        styles.activeMainTypeOption,
                         {
-                          backgroundColor: `${getIntentionColor(type)}20`,
-                          borderColor: getIntentionColor(type),
+                          backgroundColor: `${type.color}20`,
+                          borderColor: type.color,
                         },
                       ],
                       {
@@ -1154,38 +810,118 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                         borderColor: themeStyles.borderColor,
                       },
                     ]}
-                    onPress={() => setNewIntentionType(type)}
+                    onPress={() => setNewIntentionType(type.id as IntentionType)}
                   >
                     <View
                       style={[
-                        styles.typeIconContainer,
+                        styles.mainTypeIconContainer,
                         {
-                          backgroundColor: `${getIntentionColor(type)}20`,
+                          backgroundColor: `${type.color}20`,
                         },
                       ]}
                     >
                       <Feather
-                        name={intentionTypeIcons[type] as keyof typeof Feather.glyphMap}
-                        size={20}
-                        color={getIntentionColor(type)}
+                        name={type.icon as keyof typeof Feather.glyphMap}
+                        size={24}
+                        color={type.color}
                       />
                     </View>
                     <Text
                       style={[
-                        styles.typeText,
+                        styles.mainTypeText,
                         {
-                          color:
-                            newIntentionType === type
-                              ? getIntentionColor(type)
-                              : themeStyles.textColor,
+                          color: newIntentionType === type.id ? type.color : themeStyles.textColor,
                         },
                       ]}
                     >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {type.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* Other Categories Dropdown */}
+              <TouchableOpacity
+                style={[
+                  styles.otherCategoriesButton,
+                  {
+                    backgroundColor: themeStyles.cardColor,
+                    borderColor: themeStyles.borderColor,
+                  },
+                ]}
+                onPress={() => setShowOtherCategories(!showOtherCategories)}
+              >
+                <Text style={[styles.otherCategoriesText, { color: themeStyles.textColor }]}>
+                  Other Categories
+                </Text>
+                <Feather
+                  name={showOtherCategories ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={themeStyles.textColor}
+                />
+              </TouchableOpacity>
+
+              {/* Dropdown Content */}
+              {showOtherCategories && (
+                <View style={styles.otherCategoriesGrid}>
+                  {[
+                    "family",
+                    "health",
+                    "work",
+                    "friends",
+                    "world",
+                    "personal",
+                    "other",
+                  ].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.typeOption,
+                        newIntentionType === type && [
+                          styles.activeTypeOption,
+                          {
+                            backgroundColor: `${getIntentionColor(type as IntentionType)}20`,
+                            borderColor: getIntentionColor(type as IntentionType),
+                          },
+                        ],
+                        {
+                          backgroundColor: themeStyles.cardColor,
+                          borderColor: themeStyles.borderColor,
+                        },
+                      ]}
+                      onPress={() => setNewIntentionType(type as IntentionType)}
+                    >
+                      <View
+                        style={[
+                          styles.typeIconContainer,
+                          {
+                            backgroundColor: `${getIntentionColor(type as IntentionType)}20`,
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={intentionTypeIcons[type as IntentionType] as keyof typeof Feather.glyphMap}
+                          size={20}
+                          color={getIntentionColor(type as IntentionType)}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.typeText,
+                          {
+                            color:
+                              newIntentionType === type
+                                ? getIntentionColor(type as IntentionType)
+                                : themeStyles.textColor,
+                          },
+                        ]}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
               {/* Title and Description */}
               <Text
@@ -1361,7 +1097,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   >
                     Select Groups
                   </Text>
-                  {loadingGroups ? (
+                  {false ? (
                     <ActivityIndicator
                       size="small"
                       color={themeStyles.accentColor}
@@ -1441,7 +1177,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                   >
                     Select Friends
                   </Text>
-                  {loadingFriends ? (
+                  {false ? (
                     <ActivityIndicator
                       size="small"
                       color={themeStyles.accentColor}
@@ -1488,7 +1224,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                               },
                             ]}
                           >
-                            {friend.username}
+                            {`${friend.first_name} ${friend.last_name}`}
                           </Text>
                           {newIntentionFriends.includes(friend.id) && (
                             <Feather
@@ -1587,7 +1323,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
                       opacity: newIntentionTitle.trim() && !isSubmitting ? 1 : 0.7,
                     },
                   ]}
-                  onPress={addIntention}
+                  onPress={addNewIntention}
                   disabled={!newIntentionTitle.trim() || isSubmitting}
                 >
                   {isSubmitting ? (
@@ -1622,7 +1358,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             },
           ]}
         >
-          <LinearGradient colors={["#8952D0", "#AD7CEA"]} style={styles.intentionModalHeader}>
+          <LinearGradient colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#8952D0", "#AD7CEA"]} style={styles.intentionModalHeader}>
             <Text style={styles.intentionModalTitle}>Filters & Sorting</Text>
             <TouchableOpacity
               style={styles.closeButton}
@@ -1777,16 +1513,16 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
   // Main render
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeStyles.backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor: themeStyles.backgroundColor }]}>
       <StatusBar barStyle={readingTheme === "night" ? "light-content" : "dark-content"} />
 
       <View style={styles.intentionsContainer}>
         {/* Header with intentions stats */}
         <LinearGradient
-          colors={["#8952D0", "#AD7CEA"]}
+          colors={readingTheme === "night" ? ["#3A2859", "#5A3D7A"] : readingTheme === "sepia" ? ["#7A503E", "#A46E58"] : ["#8952D0", "#AD7CEA"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.intentionsStatsContainer}
+          style={[styles.intentionsStatsContainer, { paddingTop: insets.top + 2 }]}
         >
           <View style={{ flex: 1, flexDirection: "row" }}>
             <View style={styles.intentionStat}>
@@ -1818,21 +1554,40 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
             </View>
           </View>
 
-          {/* Filter button in header with improved styling */}
-          <TouchableOpacity
-            style={styles.intentionFilterButton}
-            onPress={openFilterModal}
-            activeOpacity={0.7}
-          >
-            <Feather name="filter" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Theme and Filter buttons in header */}
+          <View style={styles.headerButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.intentionFilterButton, { marginRight: 10 }]}
+              onPress={() => {
+                const themes: Array<"paper" | "sepia" | "night"> = ["paper", "sepia", "night"];
+                const currentIndex = themes.indexOf(currentTheme);
+                const nextIndex = (currentIndex + 1) % themes.length;
+                setCurrentTheme(themes[nextIndex]);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather 
+                name={currentTheme === "night" ? "moon" : currentTheme === "sepia" ? "book-open" : "sun"} 
+                size={20} 
+                color="#FFFFFF" 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.intentionFilterButton}
+              onPress={openFilterModal}
+              activeOpacity={0.7}
+            >
+              <Feather name="filter" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </LinearGradient>
 
         {/* Intentions Tabs */}
         <View
           style={[
             styles.intentionsTabsContainer,
-            { backgroundColor: readingTheme === "night" ? "#262626" : "#F5F5F5" },
+            { backgroundColor: themeStyles.tabBackgroundColor },
           ]}
         >
           <TouchableOpacity
@@ -1907,17 +1662,17 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
         {intentionsLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6A478F" />
+            <ActivityIndicator size="large" color={themeStyles.accentColor} />
             <Text style={[styles.loadingText, { color: themeStyles.textColor }]}>
               Loading your prayer intentions...
             </Text>
           </View>
-        ) : getFilteredIntentions().length === 0 ? (
+        ) : getDisplayIntentions().length === 0 ? (
           <View style={styles.emptyIntentionsContainer}>
             <Feather
               name="user"
               size={64}
-              color={`${themeStyles.textColor}40`}
+              color={themeStyles.emptyStateIconColor}
               style={styles.emptyIntentionsIcon}
             />
             <Text style={[styles.emptyIntentionsText, { color: themeStyles.textColor }]}>
@@ -1934,7 +1689,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
               style={[
                 styles.emptyIntentionsButton,
                 {
-                  backgroundColor: "#6A478F",
+                  backgroundColor: themeStyles.accentColor,
                 },
               ]}
               onPress={openNewIntentionModal}
@@ -1944,7 +1699,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
           </View>
         ) : (
           <FlatList
-            data={getFilteredIntentions()}
+            data={getDisplayIntentions()}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View
@@ -2089,7 +1844,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
 
                   <TouchableOpacity
                     style={styles.intentionDeleteButton}
-                    onPress={() => deleteIntention(item.id)}
+                    onPress={() => deleteIntentionHandler(item.id)}
                   >
                     <Feather name="trash-2" size={14} color={`${themeStyles.textColor}60`} />
                   </TouchableOpacity>
@@ -2115,7 +1870,7 @@ const PrayerIntentions: React.FC<IntentionsProps> = ({
         {renderNewIntentionModal()}
         {renderFilterModal()}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -2130,6 +1885,8 @@ const defaultThemes = {
     shadowColor: "#000000",
     accentColor: "#8952D0", // Brighter purple
     favoriteColor: "#FF5A93", // Brighter pink
+    tabBackgroundColor: "#F5F5F5",
+    emptyStateIconColor: "rgba(0, 0, 0, 0.3)",
   },
   dark: {
     backgroundColor: "#121212",
@@ -2140,6 +1897,8 @@ const defaultThemes = {
     shadowColor: "#000000",
     accentColor: "#B27AE8", // Brighter purple
     favoriteColor: "#FF7EB4", // Brighter pink
+    tabBackgroundColor: "#1A1A1A",
+    emptyStateIconColor: "rgba(255, 255, 255, 0.3)",
   },
   sepia: {
     backgroundColor: "#F8F0E3",
@@ -2150,6 +1909,8 @@ const defaultThemes = {
     shadowColor: "#442C2E",
     accentColor: "#A66E52", // Brighter brown
     favoriteColor: "#D05959", // Brighter red
+    tabBackgroundColor: "#F0E6D2",
+    emptyStateIconColor: "rgba(68, 44, 46, 0.3)",
   },
 };
 
@@ -2177,7 +1938,7 @@ const addButtonStyles = StyleSheet.create({
   container: {
     position: "absolute",
     right: 20,
-    bottom: 30,
+    bottom: 90,
     alignItems: "center",
     zIndex: 10,
   },
@@ -2484,7 +2245,11 @@ const styles = StyleSheet.create({
     padding: 6,
   },
 
-  // Filter Button (now in header)
+  // Header buttons
+  headerButtonsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   intentionFilterButton: {
     width: 40,
     height: 40,
@@ -2540,6 +2305,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+  },
+  mainTypeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  mainTypeOption: {
+    width: "48%",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  activeMainTypeOption: {
+    borderWidth: 2,
+  },
+  mainTypeIconContainer: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  mainTypeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  otherCategoriesButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  otherCategoriesText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  otherCategoriesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
   typeOption: {
     width: "48%",

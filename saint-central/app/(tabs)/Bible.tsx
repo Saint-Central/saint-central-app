@@ -26,6 +26,8 @@ import { useRouter } from "expo-router";
 import { supabase } from "../../supabaseClient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigationHistory } from "../../contexts/NavigationHistoryContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Enable layout animation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -313,6 +315,8 @@ const getBookColor = (book: string, theme: ReadingTheme): string => {
 
 export default function BibleScreen() {
   const router = useRouter();
+  const { goBack } = useNavigationHistory();
+  const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -365,6 +369,18 @@ export default function BibleScreen() {
 
   // Grouping favorites
   const [favoriteGrouping, setFavoriteGrouping] = useState<"book" | "date" | "none">("book");
+  
+  // Track previous view state for bookmark navigation
+  const [previousViewState, setPreviousViewState] = useState<{
+    view: BibleView;
+    book: string | null;
+    chapter: string | null;
+  } | null>(null);
+  
+  // Track scroll positions for each chapter
+  const [scrollPositions, setScrollPositions] = useState<{
+    [key: string]: number;
+  }>({});
 
   // ---------------------
   // PERSISTENCE - LOAD AND SAVE FAVORITES
@@ -373,7 +389,7 @@ export default function BibleScreen() {
   // Initialize by loading favorites and settings
   useEffect(() => {
     const initializeApp = async () => {
-      await Promise.all([loadFavorites(), loadSettings(), loadRecentlyRead()]);
+      await Promise.all([loadFavorites(), loadSettings(), loadRecentlyRead(), loadScrollPositions()]);
     };
 
     initializeApp();
@@ -449,6 +465,72 @@ export default function BibleScreen() {
   useEffect(() => {
     saveSettings();
   }, [readingTheme, fontSize, selectedVersion, favoriteGrouping]);
+  
+  // Load scroll positions from AsyncStorage
+  const loadScrollPositions = async () => {
+    try {
+      const savedPositions = await AsyncStorage.getItem("bibleScrollPositions");
+      if (savedPositions) {
+        setScrollPositions(JSON.parse(savedPositions));
+      }
+    } catch (error) {
+      console.error("Error loading scroll positions:", error);
+    }
+  };
+  
+  // Save scroll positions to AsyncStorage
+  const saveScrollPositions = async () => {
+    try {
+      await AsyncStorage.setItem("bibleScrollPositions", JSON.stringify(scrollPositions));
+    } catch (error) {
+      console.error("Error saving scroll positions:", error);
+    }
+  };
+  
+  // Effect to save scroll positions when they change
+  useEffect(() => {
+    if (Object.keys(scrollPositions).length > 0) {
+      saveScrollPositions();
+    }
+  }, [scrollPositions]);
+  
+  // Effect to restore scroll position when view changes to verses
+  useEffect(() => {
+    if (view === "verses" && selectedBook && selectedChapter && scrollViewRef.current) {
+      const savedPosition = getScrollPosition(selectedBook, selectedChapter);
+      if (savedPosition > 0) {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: savedPosition, animated: false });
+        }, 200); // Slightly longer delay to ensure content is fully rendered
+      }
+    }
+  }, [view, selectedBook, selectedChapter]);
+  
+  // Save current scroll position for a chapter
+  const saveScrollPosition = (book: string, chapter: string, position: number) => {
+    const key = `${book}-${chapter}`;
+    setScrollPositions(prev => {
+      const updated = { ...prev, [key]: position };
+      // Keep only the last 50 scroll positions to prevent storage bloat
+      const keys = Object.keys(updated);
+      if (keys.length > 50) {
+        const sortedKeys = keys.sort((a, b) => updated[b] - updated[a]);
+        const keysToKeep = sortedKeys.slice(0, 50);
+        const filtered: { [key: string]: number } = {};
+        keysToKeep.forEach(k => {
+          filtered[k] = updated[k];
+        });
+        return filtered;
+      }
+      return updated;
+    });
+  };
+  
+  // Get saved scroll position for a chapter
+  const getScrollPosition = (book: string, chapter: string): number => {
+    const key = `${book}-${chapter}`;
+    return scrollPositions[key] || 0;
+  };
   // Add this useEffect hook after the other useEffect hooks in your component
   // This will ensure the content updates when version changes
   useEffect(() => {
@@ -1076,9 +1158,12 @@ export default function BibleScreen() {
 
       setVerses(sortedVerses as BibleVerse[]);
 
-      // Scroll to top when loading new verses
+      // Restore saved scroll position or scroll to top
       if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ y: 0, animated: false });
+        const savedPosition = getScrollPosition(book, chapter);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: savedPosition, animated: false });
+        }, 100); // Small delay to ensure content is rendered
       }
     } catch (error) {
       console.error("Error fetching verses:", error);
@@ -1796,7 +1881,14 @@ export default function BibleScreen() {
 
             <TouchableOpacity
               style={[styles.viewAllButton, { borderColor: themeStyles.borderColor }]}
-              onPress={() => setView("favorites")}
+              onPress={() => {
+                setPreviousViewState({
+                  view: view,
+                  book: selectedBook,
+                  chapter: selectedChapter
+                });
+                setView("favorites");
+              }}
             >
               <Text style={[styles.viewAllText, { color: themeStyles.favoriteColor }]}>
                 View All
@@ -1936,6 +2028,8 @@ export default function BibleScreen() {
                         fontSize: fontSizeStyles.subheadingSize - 2,
                       },
                     ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
                     {item.book} {item.chapter}
                   </Text>
@@ -2578,7 +2672,7 @@ export default function BibleScreen() {
   // MAIN RENDER
   // ---------------------
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeStyles.backgroundColor }]}>
+    <View style={[styles.safeArea, { backgroundColor: themeStyles.backgroundColor }]}>
       <StatusBar barStyle={themeStyles.statusBarStyle} />
 
       {/* Background Pattern */}
@@ -2597,6 +2691,7 @@ export default function BibleScreen() {
               backgroundColor: themeStyles.headerColor,
               borderBottomColor: themeStyles.borderColor,
               shadowColor: themeStyles.shadowColor,
+              paddingTop: insets.top + 2,
             },
             view === "verses" && {
               shadowOpacity: headerOpacity,
@@ -2614,10 +2709,30 @@ export default function BibleScreen() {
                   if (view === "verses") {
                     setView("chapters");
                   } else if (view === "favorites") {
-                    setView("books");
-                  } else {
+                    // Restore previous state if available
+                    if (previousViewState) {
+                      setView(previousViewState.view);
+                      setSelectedBook(previousViewState.book);
+                      setSelectedChapter(previousViewState.chapter);
+                      // If we're going back to verses view, ensure we have the chapters loaded
+                      if (previousViewState.view === "verses" && previousViewState.book) {
+                        fetchChapters(previousViewState.book);
+                        if (previousViewState.chapter) {
+                          fetchVerses(previousViewState.book, previousViewState.chapter);
+                        }
+                      } else if (previousViewState.view === "chapters" && previousViewState.book) {
+                        fetchChapters(previousViewState.book);
+                      }
+                      setPreviousViewState(null);
+                    } else {
+                      setView("books");
+                    }
+                  } else if (view === "chapters") {
                     setView("books");
                     setSelectedBook(null);
+                  } else {
+                    // If we're at the top level (books view), use the navigation history
+                    goBack();
                   }
                 }}
               >
@@ -2634,9 +2749,11 @@ export default function BibleScreen() {
                 styles.headerTitle,
                 {
                   color: themeStyles.textColor,
-                  fontSize: fontSizeStyles.headingSize,
+                  fontSize: view === "verses" ? fontSizeStyles.headingSize - 2 : fontSizeStyles.headingSize,
                 },
               ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {view === "books"
                 ? "Bible"
@@ -2647,15 +2764,15 @@ export default function BibleScreen() {
                     : `${selectedBook} ${selectedChapter}`}
             </Text>
 
-            <View style={styles.headerButtons}>
+            <View style={[styles.headerButtons, view === "verses" && styles.headerButtonsCompact]}>
               {/* Prayer Intentions Button */}
               <TouchableOpacity
-                style={[styles.headerButton, { backgroundColor: `${themeStyles.accentColor}10` }]}
+                style={[styles.headerButton, view === "verses" && styles.headerButtonCompact, { backgroundColor: `${themeStyles.accentColor}10` }]}
                 onPress={() => {
                   router.push("/PrayerIntentions");
                 }}
               >
-                <Feather name="heart" size={22} color={themeStyles.accentColor} />
+                <Feather name="heart" size={view === "verses" ? 18 : 22} color={themeStyles.accentColor} />
               </TouchableOpacity>
               {/* If in verses view, show a bookmark button for the chapter */}
               {view === "verses" && (
@@ -2663,6 +2780,7 @@ export default function BibleScreen() {
                   <TouchableOpacity
                     style={[
                       styles.headerButton,
+                      styles.headerButtonCompact,
                       isChapterBookmarked(selectedBook!, selectedChapter!) && [
                         styles.activeHeaderButton,
                         { backgroundColor: `${themeStyles.favoriteColor}20` },
@@ -2672,7 +2790,7 @@ export default function BibleScreen() {
                   >
                     <Feather
                       name="bookmark"
-                      size={22}
+                      size={18}
                       color={
                         isChapterBookmarked(selectedBook!, selectedChapter!)
                           ? themeStyles.favoriteColor
@@ -2688,30 +2806,36 @@ export default function BibleScreen() {
                 <TouchableOpacity
                   style={[
                     styles.headerButton,
+                    view === "verses" && styles.headerButtonCompact,
                     { backgroundColor: `${themeStyles.favoriteColor}10` },
                   ]}
                   onPress={() => {
-                    // Save current view state if needed
+                    // Save current view state
+                    setPreviousViewState({
+                      view: view,
+                      book: selectedBook,
+                      chapter: selectedChapter
+                    });
                     setView("favorites");
                   }}
                 >
-                  <Feather name="bookmark" size={22} color={themeStyles.favoriteColor} />
+                  <Feather name="bookmark" size={view === "verses" ? 18 : 22} color={themeStyles.favoriteColor} />
                 </TouchableOpacity>
               )}
 
               {/* Version Selector Button */}
               <TouchableOpacity
-                style={styles.headerButton}
+                style={[styles.headerButton, view === "verses" && styles.headerButtonCompact]}
                 onPress={() => setShowVersionSelector(true)}
               >
-                <Feather name="layers" size={22} color={themeStyles.accentColor} />
+                <Feather name="layers" size={view === "verses" ? 18 : 22} color={themeStyles.accentColor} />
               </TouchableOpacity>
 
               {/* Theme Selector Button */}
-              <TouchableOpacity style={styles.headerButton} onPress={toggleReadingTheme}>
+              <TouchableOpacity style={[styles.headerButton, view === "verses" && styles.headerButtonCompact]} onPress={toggleReadingTheme}>
                 <Feather
                   name={readingTheme === "night" ? "moon" : "sun"}
-                  size={22}
+                  size={view === "verses" ? 18 : 22}
                   color={themeStyles.accentColor}
                 />
               </TouchableOpacity>
@@ -2861,9 +2985,19 @@ export default function BibleScreen() {
           ref={scrollViewRef}
           contentContainerStyle={styles.scrollContent}
           scrollEventThrottle={16}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: false,
-          })}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            {
+              useNativeDriver: false,
+              listener: (event: any) => {
+                // Save scroll position for verses view
+                if (view === "verses" && selectedBook && selectedChapter) {
+                  const scrollPosition = event.nativeEvent.contentOffset.y;
+                  saveScrollPosition(selectedBook, selectedChapter, scrollPosition);
+                }
+              }
+            }
+          )}
           showsVerticalScrollIndicator={false}
           style={{ opacity: fadeAnim }}
         >
@@ -2883,7 +3017,31 @@ export default function BibleScreen() {
           {view === "verses" && renderVersesView()}
         </Animated.ScrollView>
       </View>
-    </SafeAreaView>
+      
+      {/* Floating Home Button - Only show in sub-pages */}
+      {view !== "books" && (
+        <TouchableOpacity
+          style={[
+            styles.floatingHomeButton,
+            {
+              backgroundColor: themeStyles.accentColor,
+              shadowColor: themeStyles.shadowColor,
+            }
+          ]}
+          onPress={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setView("books");
+            setSelectedBook(null);
+            setSelectedChapter(null);
+            setSearchText("");
+            setSearchResults([]);
+            setPreviousViewState(null); // Clear previous state when going home
+          }}
+        >
+          <Feather name="home" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -2938,10 +3096,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  headerButtonsCompact: {
+    marginRight: -4,
+  },
   headerButton: {
     padding: 8,
     marginLeft: 8,
     borderRadius: 8,
+  },
+  headerButtonCompact: {
+    padding: 6,
+    marginLeft: 4,
   },
   activeHeaderButton: {
     borderWidth: 1,
@@ -3548,5 +3713,20 @@ const styles = StyleSheet.create({
   chapterEndNavText: {
     fontWeight: "500",
     marginHorizontal: 4,
+  },
+  floatingHomeButton: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    zIndex: 1000,
   },
 });

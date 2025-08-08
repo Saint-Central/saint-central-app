@@ -65,6 +65,7 @@ export default function ChurchPage({ userData }: Props) {
   // Add state for events and ministries
   const [events, setEvents] = useState<ChurchEvent[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [ministries, setMinistries] = useState<any[]>([]);
   const [isEventsLoading, setIsEventsLoading] = useState<boolean>(false);
   const [isMinistriesLoading, setIsMinistriesLoading] = useState<boolean>(false);
   const [eventsError, setEventsError] = useState<string>("");
@@ -112,28 +113,50 @@ export default function ChurchPage({ userData }: Props) {
     }
   }, [church?.id, select]);
 
-  // Function to fetch courses using CRUD API
+  // Function to fetch ministries using CRUD API
   const fetchMinistries = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || !member?.user_id) return;
 
     try {
       setIsMinistriesLoading(true);
       setMinistriesError("");
 
-      const courses = await select("courses", {
+      // Fetch ministries for this church
+      const ministriesData = await select("ministries", {
         select: "*",
         where: { church_id: church.id },
-        order: "time",
       });
 
-      setCourses(courses || []);
+      // Sort by created_at descending
+      const sortedMinistries = (ministriesData || []).sort((a: any, b: any) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      // Fetch user's ministry memberships
+      const userMemberships = await select("ministry_members", {
+        select: "ministry_id",
+        where: { 
+          user_id: member.user_id,
+          role: "member"
+        }
+      });
+
+      const userMinistryIds = userMemberships?.map((m: any) => m.ministry_id) || [];
+
+      // Process ministries with membership status
+      const processedMinistries = sortedMinistries.map((ministry: any) => ({
+        ...ministry,
+        is_member: userMinistryIds.includes(ministry.id)
+      }));
+
+      setMinistries(processedMinistries);
     } catch (error) {
-      console.error("Error fetching courses:", error);
-      setMinistriesError("Failed to load courses. Please try again later.");
+      console.error("Error fetching ministries:", error);
+      setMinistriesError("Failed to load ministries. Please try again later.");
     } finally {
       setIsMinistriesLoading(false);
     }
-  }, [church?.id, select]);
+  }, [church?.id, member?.user_id, select]);
 
   useEffect(() => {
     if (church?.id && !hasFetchedDataRef.current) {
@@ -602,21 +625,33 @@ export default function ChurchPage({ userData }: Props) {
               </View>
             )}
             {activeTab === "Ministries" && (
-              <CoursesTab courses={courses} loading={isMinistriesLoading} error={ministriesError} />
+              <MinistriesTab ministries={ministries} loading={isMinistriesLoading} error={ministriesError} />
             )}
 
             {activeTab === "Fellowship" && (
-              <View style={styles.modernComingSoonContainer}>
+              <View style={styles.fellowshipContainer}>
                 <LinearGradient
                   colors={[theme.primary + "20", theme.accent1 + "15"]}
-                  style={styles.comingSoonGradient}
+                  style={styles.fellowshipGradient}
                 >
                   <FontAwesome5 name="users" size={48} color={theme.primary} />
-                  <Text style={styles.modernComingSoonTitle}>Fellowship Coming Soon</Text>
-                  <Text style={styles.modernComingSoonText}>
-                    Connect with our church family and grow in faith together. 
-                    This feature will include prayer groups, social events, and community discussions.
+                  <Text style={styles.fellowshipTitle}>Connect & Fellowship</Text>
+                  <Text style={styles.fellowshipText}>
+                    Connect with our church family through groups and friendships. 
+                    Join ministry groups, create prayer circles, and build lasting relationships.
                   </Text>
+                  <TouchableOpacity
+                    style={styles.fellowshipButton}
+                    onPress={() => router.push("/groups")}
+                  >
+                    <LinearGradient
+                      colors={[theme.primary, theme.accent1]}
+                      style={styles.fellowshipButtonGradient}
+                    >
+                      <FontAwesome5 name="users" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.fellowshipButtonText}>Groups & Friends</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </LinearGradient>
               </View>
             )}
@@ -678,12 +713,12 @@ const EventsTab = ({
   );
 };
 
-const CoursesTab = ({
-  courses,
+const MinistriesTab = ({
+  ministries,
   loading,
   error,
 }: {
-  courses: Course[];
+  ministries: any[];
   loading: boolean;
   error: string;
 }) => {
@@ -700,7 +735,7 @@ const CoursesTab = ({
     return <Error />;
   }
 
-  if (!courses.length) {
+  if (!ministries.length) {
     return (
       <View style={styles.stateContainer}>
         <View style={styles.emptyIconContainer}>
@@ -718,8 +753,8 @@ const CoursesTab = ({
         <View style={styles.sectionHeaderLine} />
       </View>
       <View style={styles.ministriesGrid}>
-        {courses.map((course) => (
-          <CourseCard key={course.id} course={course} />
+        {ministries.map((ministry) => (
+          <MinistryCard key={ministry.id} ministry={ministry} />
         ))}
       </View>
     </View>
@@ -872,7 +907,7 @@ const EventCard = ({ event, church }: { event: ChurchEvent; church: Church }) =>
   );
 };
 
-const CourseCard = ({ course }: { course: Course }) => {
+const MinistryCard = ({ ministry }: { ministry: any }) => {
   const { isTablet } = useScreen();
   const pressAnim = useSharedValue(1);
 
@@ -890,15 +925,26 @@ const CourseCard = ({ course }: { course: Course }) => {
     };
   });
 
+  const handlePress = () => {
+    if (ministry.is_member) {
+      // If user is a member, go directly to chat
+      router.push({
+        pathname: "/(tabs)/ministry-chat",
+        params: { id: ministry.id.toString() },
+      });
+    } else {
+      // If not a member, go to join screen
+      router.push({
+        pathname: "/(tabs)/JoinMinistryScreen",
+        params: { ministryId: ministry.id.toString() },
+      });
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      onPress={() => {
-        router.push({
-          pathname: "/course/[id]",
-          params: { id: course.id },
-        });
-      }}
+      onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.courseCardContainer}
@@ -908,9 +954,9 @@ const CourseCard = ({ course }: { course: Course }) => {
       >
         <View style={styles.courseCardContent}>
           <View style={styles.courseImageContainer}>
-            {course.image_url ? (
+            {ministry.image_url ? (
               <Image
-                source={{ uri: course.image_url }}
+                source={{ uri: ministry.image_url }}
                 style={isTablet ? styles.tabletCourseImage : styles.courseImage}
                 resizeMode="cover"
               />
@@ -927,17 +973,24 @@ const CourseCard = ({ course }: { course: Course }) => {
           </View>
 
           <View style={styles.courseDetailsContainer}>
-            <Text style={styles.courseTitle} numberOfLines={2}>
-              {course.title || "Ministry"}
-            </Text>
-            {course.description && (
+            <View style={styles.ministryTitleRow}>
+              <Text style={styles.courseTitle} numberOfLines={2}>
+                {ministry.name || "Ministry"}
+              </Text>
+              {ministry.private && (
+                <Ionicons name="lock-closed" size={16} color={theme.primary} />
+              )}
+            </View>
+            {ministry.description && (
               <Text style={styles.courseDescription} numberOfLines={isTablet ? 3 : 2}>
-                {course.description}
+                {ministry.description}
               </Text>
             )}
             <View style={styles.courseFooter}>
               <Button size="xs">
-                <Text style={styles.joinButtonText}>Join Ministry</Text>
+                <Text style={styles.joinButtonText}>
+                  {ministry.is_member ? "Open Chat" : ministry.private ? "Request to Join" : "Join Ministry"}
+                </Text>
                 <View style={styles.arrowContainer}>
                   <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
                 </View>
@@ -1336,18 +1389,18 @@ const styles = StyleSheet.create({
   },
 
   // Modern Coming Soon
-  modernComingSoonContainer: {
+  fellowshipContainer: {
     paddingHorizontal: theme.spacingL,
     marginTop: theme.spacingL,
   },
-  comingSoonGradient: {
+  fellowshipGradient: {
     borderRadius: 20,
     padding: 32,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(254, 243, 199, 0.08)",
   },
-  modernComingSoonTitle: {
+  fellowshipTitle: {
     fontSize: 22,
     fontWeight: "700",
     color: theme.textWhite,
@@ -1355,13 +1408,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
   },
-  modernComingSoonText: {
+  fellowshipText: {
     fontSize: 15,
     fontWeight: "400",
     color: theme.textLight,
     textAlign: "center",
     lineHeight: 22,
     maxWidth: 280,
+    marginBottom: 24,
+  },
+  fellowshipButton: {
+    borderRadius: 25,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fellowshipButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  fellowshipButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 
   // Section headers
@@ -1569,11 +1647,16 @@ const styles = StyleSheet.create({
     padding: theme.spacingM,
     justifyContent: "space-between",
   },
+  ministryTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   courseTitle: {
     fontSize: 18,
     fontWeight: theme.fontBold,
     color: theme.textWhite,
-    marginBottom: 8,
+    flex: 1,
   },
   courseDescription: {
     fontSize: 13,
